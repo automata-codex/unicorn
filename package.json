@@ -3,6 +3,7 @@
   "engines": {
     "node": ">=22.0.0"
   },
+  "license": "Elastic-2.0",
   "private": true,
   "scripts": {
     "build": "npm run build --workspaces --if-present",
@@ -12,5 +13,9 @@
   "workspaces": [
     "packages/*",
     "apps/*"
-  ]
+  ],
+  "volta": {
+    "node": "24.14.1",
+    "npm": "11.12.1"
+  }
 }
