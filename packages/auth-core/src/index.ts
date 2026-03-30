@@ -1,0 +1,3 @@
+interface AuthService {}
+
+type User = {};
