@@ -13,12 +13,13 @@ Target: a playable solo Mothership session on a personal Droplet.
 The NestJS application structure, database connectivity, and core data model. No game logic yet — just the skeleton everything else hangs on.
 
 - [ ] NestJS module hierarchy established (`CampaignModule`, `SessionModule`, `GridModule`, `AuthModule`, etc.)
-- [ ] PostgreSQL connection via Drizzle
+- [ ] PostgreSQL connection via Drizzle ORM with `node-postgres` driver
+- [ ] Flyway migration setup in Docker Compose (`infra/db/migrations/`)
 - [ ] Initial migration: universal relational tables (`campaigns`, `sessions`, `messages`, `gm_context`, `character_sheets`, `campaign_state`)
 - [ ] Initial migration: grid tables (`grid_cells`, `grid_entities`)
 - [ ] Initial migration: `game_events` audit table
 - [ ] `map_geometry` stub table (not implemented, reserved for Phase 3)
-- [ ] Zod schema for Mothership campaign state
+- [ ] Mothership Zod schemas — campaign state shape and character sheet shape
 - [ ] Basic CRUD endpoints for campaigns and sessions
 - [ ] Auth.js integration (`AuthService` interface + `AuthJsService` implementation)
 - [ ] Service interface stubs: `EntitlementsService`, `MeteringService`, `EmailService`, `AssetStorageService`, `RealtimeService`, `FeatureFlagService`
@@ -44,8 +45,10 @@ The GM-in-a-box core: state snapshot construction, Claude API communication, and
 
 The day-one tool implementations Claude can call during a session.
 
+> **Adjudication scope note:** Phase 1 has no formal rule evaluator. Mechanical adjudication for Mothership is Claude's responsibility, informed by the rules lookup tool rather than confabulation. The backend enforces structural constraints only (resource availability, HP thresholds, death triggers). The full constraint module system and rule evaluation engine are Phase 3 work. This is an acceptable tradeoff for Mothership — it's a slim ruleset and the horror is in the fiction more than the mechanics.
+
 - [ ] `roll_dice` tool — dice notation parser, server-side execution, audit log write
-- [ ] Rules lookup tool — vector embedding pipeline for Mothership rules text, query endpoint
+- [ ] Rules lookup tool — vector embedding pipeline for Mothership rules text, query endpoint; pgvector extension on Postgres
 - [ ] Tool call routing in `GmService`
 - [ ] Audit log records player-entered vs system-generated rolls
 
@@ -92,7 +95,7 @@ Target: UVG and OSE support, synchronous multiplayer, and the first wave of qual
 
 ### Milestones (to be broken down when Phase 1 ships)
 
-- UVG and OSE Zod schemas and rules-as-code implementations
+- UVG and OSE Zod schemas (campaign state and character sheet shapes) and rules-as-code backend validation
 - Location and random table generation tool (UVG)
 - Faction/NPC agenda advancement tool
 - Session summarization tool
