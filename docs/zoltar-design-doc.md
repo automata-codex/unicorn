@@ -1,5 +1,5 @@
 # Zoltar — Design Document
-*Draft 3 — March 2026*
+*Draft 4 — March 2026*
 
 ---
 
@@ -10,6 +10,22 @@ Zoltar is an AI-GM platform for solo and small-group tabletop RPG play. It fills
 **Tagline:** Play more. Wait for no one.
 
 Zoltar is not a GM replacement. It lowers friction for play. It may create more GMs by helping players get comfortable with systems through solo play. The target audience is TTRPG players who want to play more than their schedule or social circumstances allow — not people who want to eliminate the GM role.
+
+---
+
+## Honest Limitations
+
+Before describing what Zoltar does, it's worth being clear about where the solo AI-GM experience falls short of a human GM at the table. These are not problems to be solved — they are structural properties of what Claude is. Understanding them sharpens the product.
+
+**Creative surprise.** A human GM can have an idea that is completely outside the space of things Claude would generate — a twist that recontextualizes everything, a villain motivation that is genuinely novel, fiction that feels authored rather than assembled. Claude is sophisticated pattern completion. It executes and propagates a creative vision well, but it cannot independently originate one. The campaign is only as interesting as the thought a human put into the GM context.
+
+**Reading the room.** A human GM watches you light up when the mystery deepens and quietly drops the combat encounter they had planned. They notice you have been quiet for twenty minutes and check in. They adjust pacing in real time based on signals that are not in the text. Claude gets the text. That is it.
+
+**The relationship.** Part of what makes a human GM's campaign feel meaningful is that another person cared enough to build it for you. The villain's backstory exists because someone sat down and thought about what would be interesting for you specifically. That is a different thing than a well-prompted language model.
+
+**Why this matters for product positioning:** Zoltar is not competing with a human GM at the table. It is competing with not playing. The question is not "is this as good as your best GM" — it is "is this better than nothing at 11pm on a Tuesday when no one is available." That is a much lower bar, and Zoltar clears it. It may also be better than some human GMs for specific things: perfect rules consistency, no flaking on sessions, infinite patience for cautious play.
+
+Some of the gap may close as models improve. The creative vision gap and the relationship gap feel more irreducible — those may be structural properties of what Claude is, not engineering problems.
 
 ---
 
@@ -266,7 +282,11 @@ submit_gm_response({
   },
   gm_updates: {
     npc_states?: Record<string, string>,
-    notes?: string              // stored in gm_context, never shown to player
+    notes?: string,             // stored in gm_context, never shown to player
+    proposed_canon?: Array<{    // improvised fiction that may warrant permanence
+      summary: string,          // one or two sentence description of the improvisation
+      context: string           // why it came up — what player action or fiction prompted it
+    }>
   },
   dice_requests?: Array<{
     notation: string,
@@ -279,6 +299,36 @@ submit_gm_response({
   caller_transfer?: string      // player_id to transfer caller role to
 })
 ```
+
+### The pending canon queue
+
+Claude's `gm_updates.npc_states` field lets it write situational notes mid-session — "Goblin_2 is frightened, just watched its companion die." These are working memory: they persist across turns within a session because they accumulate in the GM context blob, but they only become meaningful long-term fiction if they are intentionally promoted.
+
+`proposed_canon` is a separate field for a different category of improvisation: things Claude invented mid-session that might deserve to be permanent facts about the campaign world. A goblin lieutenant who displayed unusual tactical patience. A sound suggesting the dungeon connects to something larger. A detail that emerged from play and feels like it should be true from now on.
+
+The backend routes `proposed_canon` entries to a review queue rather than writing them directly to the GM context blob. At session end — or on demand via a dedicated UI — the GM reviews pending proposals and makes the editorial call:
+
+```
+Proposed canon additions:
+
+  The Ironteeth goblin lieutenant held position rather than pursuing
+  the retreating party, contrary to typical goblin behavior.
+  Context: Emerged during room 7 combat when the fighter withdrew.
+  [Promote to GM context]  [Discard]
+
+  The east passage appears to connect to a larger complex.
+  Context: Goblin_2 fled east with apparent familiarity. Claude inferred
+  a known route.
+  [Promote to GM context]  [Discard]
+```
+
+Promoted entries are appended to the GM context blob and become part of the permanent cached context on every subsequent request. Discarded entries are logged but never written.
+
+This mirrors how good tabletop GMing actually works — you improvise something in session, you decide after whether it is canon, and you write it into your notes if it is. Zoltar makes that workflow explicit rather than hoping Claude propagates interesting fiction consistently across session boundaries.
+
+**The distinction from npc_states:** `npc_states` is tactical working memory within a session — "frightened, low on arrows." `proposed_canon` is durable world-building that emerged from play — "this clan of goblins is different." The former is always written; the latter always requires a human editorial decision.
+
+**Phase:** Phase 1. This affects the core solo experience and the integrity of the GM context across sessions. It is not optional polish.
 
 ### State changes validation
 
@@ -458,6 +508,18 @@ The rule evaluator is a platform. Users author constraint modules — JSON objec
 **Tier 3 — Natural language house rules** (user-authored, Claude-enforced)
 
 Freeform text in the GM context for rules that don't fit the constraint schema — narrative guidelines, flavor rules, idiosyncratic table conventions. "The crew of the Persephone never swear in front of the android." Claude applies these consistently because they're always in the prompt. Honor-system enforcement.
+
+### Which layer enforces a given rule
+
+Structured overrides configure both the backend rule evaluator and Claude's behavioral prompt, and which layer a given override lands on depends on whether the rule is a question of mechanical state or fictional reasoning. This distinction matters for understanding what the system can actually guarantee.
+
+**Backend-enforced overrides** are arithmetic operations on known quantities that the rule evaluator can verify without understanding the fiction. `crit_range: 19` is a clear example — when a roll result comes in, the evaluator checks `roll >= crit_range` and upgrades the hit mechanically. Spell slot and spell point cost tables work the same way. The backend rejects a state change if the resource isn't available. These guarantees are hard.
+
+**Claude-enforced overrides** are rules that require understanding the narrative state. `rest_system: gritty_realism` is the clearest example — short rests take 8 hours of in-fiction time, but the backend cannot verify whether 8 hours have passed in the fiction. That is a temporal and narrative question. The override injects a behavioral instruction into Claude's prompt: "short rests require 8 hours of in-fiction time." Claude is the one deciding whether sufficient time has passed; the backend can refuse to apply rest healing if Claude does not request it, but Claude must make the judgment call. These guarantees are behavioral, not structural — they depend on Claude following its instructions faithfully.
+
+**Many overrides configure both layers.** The spell points example: the backend enforces the cost table arithmetically, and Claude understands "you are using spell points, not slots" when narrating and making decisions. The override touches both the rule evaluator and the prompt.
+
+This layering means not all structured overrides offer the same strength of guarantee. Backend-enforced rules are reliable by construction. Claude-enforced rules are reliable to the extent Claude maintains consistent behavior across a session and across sessions — which in practice is very high, but is not identical to a hard mechanical constraint.
 
 ### How the tiers interact
 
@@ -713,7 +775,8 @@ SaaS infrastructure is intentionally deferred until the 2D VTT renderer is compl
 - NestJS backend, PostgreSQL, Svelte SPA
 - GM context and hidden information layer (two-mechanism model)
 - Grid and LOS system (2D, shadowcasting, cell-centric)
-- `submit_gm_response` tool with typed schema
+- `submit_gm_response` tool with typed schema including `proposed_canon` field
+- Pending canon review queue and session-end review UI
 - Dice rolling tool — soft accountability and commitment modes, raw rolls only
 - Rules lookup tool (Mothership rules embedded)
 - Caller model for multiplayer input — freeform and initiative modes
@@ -770,4 +833,4 @@ SaaS infrastructure is intentionally deferred until the 2D VTT renderer is compl
 
 ---
 
-*Draft 3 incorporates final revisions from design review session, March 2026. Repository setup, ENVIRONMENTS.md, and schema design to follow in separate threads.*
+*Draft 4 adds: pending canon queue mechanic (proposed_canon field, session-end review flow); clarification on which structured overrides are backend-enforced vs Claude-enforced and what guarantees each provides; Honest Limitations section establishing product positioning against "not playing" rather than against a human GM. Repository setup and ENVIRONMENTS.md to follow in separate threads.*
