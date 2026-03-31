@@ -1,5 +1,5 @@
 # Zoltar — Design Document
-*Draft 4 — March 2026*
+*Draft 5 — March 2026*
 
 ---
 
@@ -86,6 +86,138 @@ Mothership (Warden's Edition) is the recommended first iteration target:
 **Generally poor fits:** Tactical grid combat requiring positioning math (PF2e at full crunch), heavy dice pool systems (Shadowrun), physically-mediated mechanics (Dread/Jenga), fundamentally multiplayer social games (Fiasco, Microscope).
 
 **Adaptation support:** Settings can be run with different systems (UVG + 2d20, Infinity + Forged in the Dark). Custom settings can be designed collaboratively and locked into the GM context. The adaptation rules live in the GM context, fixed at campaign creation.
+
+---
+
+## Campaign Creation
+
+Campaign creation is the process of producing a GM context blob ready for play. Every campaign goes through three phases: **authoring**, **synthesis**, and **play**. What varies across campaign modes is who does the authoring work and who holds read permission on the GM context once play begins.
+
+### Campaign Modes
+
+The meaningful differentiating variable across modes is not who runs the session — Claude runs every session in every mode — but who authors the GM context and who reviews proposed canon between sessions.
+
+**Solo Blind** — Claude generates the GM context from player-supplied parameters and oracle table rolls. The player never sees the GM context. Proposed canon is auto-promoted by Claude — there is no human reviewer, and since the player has no visibility into the GM context anyway, Claude's editorial judgment is sufficient. This is the canonical solo use case.
+
+**Solo Authored** — The player authors the GM context themselves through a freeform dialogue with Claude, then Claude synthesizes it into the structured format the backend needs. The player has full read access to the GM context — they wrote it. The player reviews proposed canon between sessions. Less surprising than Solo Blind but still useful: Zoltar handles execution, rules consistency, and dice while the player runs a scenario they designed.
+
+**Collaborative** — A human campaign author builds the GM context through a freeform dialogue with Claude, then Claude synthesizes it. Players have no read permission on the GM context. The author reviews proposed canon between sessions. The author may or may not also be a player. Closest to a traditional RPG workflow: someone prepped the campaign, now the group plays it, with Claude serving as the Warden.
+
+**Solo with Overseer** — Claude generates the GM context as in Solo Blind, but a designated third party holds read permission and reviews proposed canon. The player has no read access. Solves the reviewer problem for players who want human editorial oversight of emerging canon without spoiling their own experience.
+
+### The Three Phases of Campaign Creation
+
+**Phase 1: Authoring**
+
+In Solo Blind, the player sets parameters and filters oracle tables. Claude does the creative work invisibly.
+
+In Solo Authored and Collaborative, there is a freeform dialogue between the author and Claude before anything is committed. Claude acts as a creative collaborator — not the Warden — asking questions, surfacing implications, suggesting connections, flagging potential coherence issues. The oracle tables are available as a resource: an author who wants to be surprised by specific elements can roll on individual tables while specifying others manually. The authoring phase ends when the author decides the scenario is ready to synthesize.
+
+**Phase 2: Synthesis**
+
+Claude calls the `submit_gm_context` tool to commit the GM context to the database. In Solo Blind, the input to synthesis is the resolved oracle results. In Solo Authored and Collaborative, the input is the authoring conversation. In all modes, the output is the same: a structured GM context blob ready for play.
+
+**Phase 3: Play**
+
+Sessions begin. Claude operates as the Warden. The authoring phase is over.
+
+### Character Creation
+
+Character creation happens before campaign generation in Solo Blind, and before the authoring phase in other modes. This matches how tabletop RPGs are actually played — you make your character before you know what scenario you are walking into. For Mothership specifically, character creation is mechanical, quick, and produces a character sheet that seeds the GM context generation: class and stats can inform oracle table weighting and scenario calibration.
+
+### Oracle Tables
+
+Oracle tables are the generative infrastructure for Solo Blind campaign creation. Each table covers a scenario category — survivors, threats, secrets, vessel type, tone — and contains entries the player can activate or deactivate before Claude rolls. Claude picks randomly from active entries only. The player never learns which entry was selected.
+
+**The key design properties:**
+
+Each oracle entry carries two distinct texts. The **player-facing text** is a short label for curation — evocative enough that the player can make an informed include/exclude decision, not so specific that it spoils what Claude will produce. The **Claude-facing text** is a rich generation seed: a full description of the archetype plus interface hints suggesting how this entry tends to connect with entries in other categories.
+
+```json
+{
+  "id": "mothership_survivor",
+  "system": "mothership",
+  "category": "survivor",
+  "version": "1.0.0",
+  "entries": [
+    {
+      "id": "corporate_spy",
+      "player_text": "Corporate spy",
+      "claude_text": "This survivor was placed on the vessel by a corporate entity. They have a specific information objective: recovering, destroying, or concealing something on this ship. They are not a trained operative — a logistics manager, a technician, a mid-level bureaucrat told this would be simple. They are frightened and increasingly aware that it will not be.",
+      "interfaces": [
+        {
+          "condition": "secret:company_knew",
+          "note": "This survivor knew before boarding. Their fear is guilt as much as danger."
+        },
+        {
+          "condition": "threat:corporate",
+          "note": "They may have a relationship with the threat, intended or not."
+        },
+        {
+          "condition": "survivor:corporate_affiliated",
+          "note": "They do not know about the other corporate survivor. Their handlers kept them separated deliberately."
+        }
+      ],
+      "tags": ["corporate", "information_objective", "civilian"]
+    }
+  ]
+}
+```
+
+The interface hints do most of the coherence work — they anticipate common combinations and give Claude guidance on how to connect oracle results during synthesis, rather than leaving Claude to derive connections from scratch.
+
+**Player-facing filtering:** Oracle tables default to fully active. The player removes entries they want excluded — a threat archetype they have encountered too many times, a survivor role that doesn't interest them. The active pool must contain at least one entry per category before submission. If a range dial is set (2-4 survivors) and the active pool contains exactly two entries, the range collapses to a fixed value — the UI makes this legible rather than silently overriding the player's range setting.
+
+**Oracle tables as game data:** Tables are versioned JSON files, not code. Adding a new entry or correcting a Claude-facing text requires no engineering — the same pattern as JSON constraint modules and Zod system schemas. User-extensible tables are a natural future feature requiring no new infrastructure. The `version` field on each table enables tracking which version of an entry generated a given campaign's GM context, useful for debugging and reproducibility.
+
+### Coherence Check
+
+After oracle rolls resolve and before synthesis, Claude checks the full set of results for conflicts and gaps. The check operates in three tiers, in order:
+
+**Tier 1 — Silent reroll.** Claude detects a hard contradiction between two oracle results and silently rerolls the conflicting slot within the active pool. The player never knows. This requires the active pool to have more than one entry for the affected category — if the pool is a single entry, reroll is not possible.
+
+**Tier 2 — Silent synthesis resolution.** Claude cannot reroll (pool too constrained, or the conflict is subtle rather than hard) so it resolves the tension during synthesis. Two survivors with overlapping agendas become rivals rather than duplicates. A disconnected secret gets woven into the threat's backstory. Claude does the creative work of making the combination cohere. No player involvement.
+
+**Tier 3 — Player surfacing.** Reserved for genuinely unresolvable conflicts where the active pool is too constrained to produce a coherent scenario. "Your current selections don't have enough variation to generate a coherent scenario — consider activating more entries in the Survivors table." Abstract enough that the player learns nothing about what Claude rolled. Reaching tier 3 is a signal that the oracle tables need better authoring, not that the player made an error.
+
+Well-authored oracle tables with thorough interface hints should make tier 3 rare.
+
+### The `submit_gm_context` Tool
+
+Campaign creation uses a dedicated synthesis tool, for the same reason session responses use `submit_gm_response`: tool use enforces the output schema at the API level and eliminates a whole category of malformed output that would otherwise require defensive parsing.
+
+```typescript
+submit_gm_context({
+  narrative: {
+    location: string,                      // spatial truth, room connections, what is where
+    atmosphere: string,                    // tone, sensory detail, pacing notes
+    npc_agendas: Record<string, string>,   // keyed by entity identifier
+    hidden_truth: string,                  // the actual answer to the mystery
+    oracle_connections: string             // how the oracle results relate to each other
+  },
+  structured: {
+    entities: Array<{
+      id: string,                          // identifier used by session tools from turn one
+      type: 'npc' | 'threat' | 'feature',
+      starting_position?: Position,
+      visible: boolean,
+      tags: string[]
+    }>,
+    initial_flags: Record<string, boolean>,
+    initial_state: Record<string, unknown> // validated against system Zod schema
+  }
+})
+```
+
+The entity `id` values in the structured section are the same identifiers the session tools reference throughout the campaign. If synthesis produces `corporate_spy_1` as an entity id, that is what `npc_states` updates reference in `submit_gm_response` from turn one. Getting this alignment right at generation time is much easier with a tool schema enforcing it than with prose Claude has to be consistent about independently.
+
+`submit_gm_context` is not Solo Blind specific. In Collaborative mode the input is the authoring conversation rather than oracle results, but the tool call and output format are identical. In Solo Authored the player may bypass Claude synthesis entirely and use a structured input form — the same schema, directly authored.
+
+### Early Testing Recommendation
+
+The synthesis step is one of the first things worth prototyping manually, before the generation pipeline is built. Write a rough synthesis prompt, pick oracle results by hand, paste in a character sheet, and ask Claude to produce a GM context in a plain conversation. Then take that GM context and run a session or two manually — also just in a Claude conversation, constructing the state snapshot by hand.
+
+Two or three manual runs will reveal: whether the generated GM context is rich enough to sustain a session; which parts of the synthesis prompt produce strong output and which produce generic output; whether the interface hints in oracle entries are doing useful work; what the structured section needs to contain; and how long the GM context gets in practice. Manual testing also validates oracle table entries directly — if Claude consistently produces flat survivors despite a rich Claude-facing text, that text needs rewriting. This is discovered in session one of manual testing, not after the generation pipeline is built.
 
 ---
 
@@ -326,7 +458,9 @@ Promoted entries are appended to the GM context blob and become part of the perm
 
 This mirrors how good tabletop GMing actually works — you improvise something in session, you decide after whether it is canon, and you write it into your notes if it is. Zoltar makes that workflow explicit rather than hoping Claude propagates interesting fiction consistently across session boundaries.
 
-**The distinction from npc_states:** `npc_states` is tactical working memory within a session — "frightened, low on arrows." `proposed_canon` is durable world-building that emerged from play — "this clan of goblins is different." The former is always written; the latter always requires a human editorial decision.
+**The distinction from npc_states:** `npc_states` is tactical working memory within a session — "frightened, low on arrows." `proposed_canon` is durable world-building that emerged from play — "this clan of goblins is different." The former is always written; the latter requires a human editorial decision in modes where a human reviewer exists.
+
+**Canon review by mode:** In Solo Blind, proposed canon is auto-promoted by Claude — the player has no visibility into the GM context anyway, so Claude's editorial judgment is sufficient and human review would require spoiling the player's own campaign. In Solo Authored, the player reviews their own proposed canon. In Collaborative, the campaign author reviews. In Solo with Overseer, the designated overseer reviews. The review UI and queue infrastructure are shared across all modes; the routing of who sees the queue is mode-specific.
 
 **Phase:** Phase 1. This affects the core solo experience and the integrity of the GM context across sessions. It is not optional polish.
 
@@ -776,7 +910,10 @@ SaaS infrastructure is intentionally deferred until the 2D VTT renderer is compl
 - GM context and hidden information layer (two-mechanism model)
 - Grid and LOS system (2D, shadowcasting, cell-centric)
 - `submit_gm_response` tool with typed schema including `proposed_canon` field
-- Pending canon review queue and session-end review UI
+- `submit_gm_context` tool for campaign synthesis
+- Solo Blind campaign creation: character creation, oracle table filtering, coherence check, synthesis
+- Mothership oracle tables (survivors, threats, secrets, vessel type, tone)
+- Pending canon queue: auto-promote in Solo Blind, review UI for other modes
 - Dice rolling tool — soft accountability and commitment modes, raw rolls only
 - Rules lookup tool (Mothership rules embedded)
 - Caller model for multiplayer input — freeform and initiative modes
@@ -788,7 +925,7 @@ SaaS infrastructure is intentionally deferred until the 2D VTT renderer is compl
 - Docker Compose for self-hosted deployment
 - DigitalOcean Droplet deployment target
 
-**Deferred to later phases:** Faction/NPC agenda advancement tool, session summarization tool, image generation tool, structured rule overrides, visual maps, real-time sync
+**Deferred to later phases:** Solo Authored and Collaborative campaign creation modes, Solo with Overseer mode, faction/NPC agenda advancement tool, session summarization tool, image generation tool, structured rule overrides, visual maps, real-time sync
 
 ### Phase 2
 
@@ -833,4 +970,4 @@ SaaS infrastructure is intentionally deferred until the 2D VTT renderer is compl
 
 ---
 
-*Draft 4 adds: pending canon queue mechanic (proposed_canon field, session-end review flow); clarification on which structured overrides are backend-enforced vs Claude-enforced and what guarantees each provides; Honest Limitations section establishing product positioning against "not playing" rather than against a human GM. Repository setup and ENVIRONMENTS.md to follow in separate threads.*
+*Draft 5 adds: Campaign Creation section covering the four campaign modes (Solo Blind, Solo Authored, Collaborative, Solo with Overseer), the three-phase creation pipeline (authoring, synthesis, play), oracle table design and JSON structure, the coherence check tiers, the submit_gm_context tool, character creation sequencing, and early manual testing recommendation. Pending canon section updated to clarify auto-promote behavior in Solo Blind and reviewer routing by mode. Phase 1 plan updated to include campaign creation deliverables.*
