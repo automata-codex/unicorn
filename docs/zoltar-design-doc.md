@@ -1,5 +1,5 @@
 # Zoltar — Design Document
-*Draft 5 — March 2026*
+*Draft 6 — March 2026*
 
 ---
 
@@ -53,6 +53,18 @@ The SaaS milestone: when the 2D renderer ships and Zoltar has a visual table, bu
 - Not a worldbuilding assistant or GM prep tool (different product, different moment)
 - Not a traditional VTT (Foundry and Roll20 own that space; Zoltar serves a different use case)
 - Not trying to replace human GMs; serving the moments when one isn't available
+
+---
+
+## Campaigns, Adventures, and Sessions
+
+Three terms that have precise meanings in Zoltar and should not be used interchangeably.
+
+**Campaign** is the persistent world container: character sheet(s), accumulated canon, rule system selection, and campaign state. A campaign lives as long as a character does and can span many adventures. In solo Mothership, "Dr. Chen's ongoing story" is a campaign.
+
+**Adventure** is a self-contained narrative arc with a generated GM context. It has a premise, a mystery, a spatial truth, an NPC set — the full `submit_gm_context` output. It ends when the narrative reaches closure: escaped the ship, solved the murder, recovered the artifact. Adventures are created within campaigns; a campaign may have one or many. The GM context blob is the adventure's defining artifact. Adventures are the first-class domain concept in the data model — `game_events` and `messages` both reference `adventure_id`.
+
+**Session** is not a first-class concept in Zoltar. In multiplayer tabletop RPGs, sessions exist as a social scheduling artifact — a group of humans has to coordinate calendars. In solo async play that concept dissolves: a player might spend twenty minutes on their phone at lunch, then an hour that evening, with no meaningful boundary between them. Rather than imposing an artificial session construct, Zoltar scopes message history to a rolling context window within the adventure. See Message History and Context Window under Claude API Integration.
 
 ---
 
@@ -292,13 +304,16 @@ WebSocket real-time sync (Ably) handles cross-instance message delivery for the 
 ### Universal relational tables
 
 ```typescript
-campaigns         { id, org_id (nullable), name, system, created_at, gm_context_id }
-sessions          { id, campaign_id, created_at, caller_id, mode }
-messages          { id, session_id, role, content, created_at }
-gm_context        { id, campaign_id, blob: jsonb }
+campaigns         { id, org_id (nullable), name, system, created_at }
+adventures        { id, campaign_id, gm_context_id, mode, initiative_order: jsonb,
+                    rolling_summary: text, created_at, completed_at }
+messages          { id, adventure_id, role, content, created_at }
+gm_context        { id, adventure_id, blob: jsonb }
 character_sheets  { id, campaign_id, player_id, system, schema_version, data: jsonb }
 campaign_state    { id, campaign_id, system, schema_version, data: jsonb }
 ```
+
+There is no sessions table. Adventures are the referent for messages and game events. A campaign may have multiple adventures; each adventure owns its own GM context. The `mode` and `initiative_order` fields on adventures replace the equivalent fields that previously lived on sessions — they are adventure-scoped transient state, not session-scoped.
 
 The grid earns proper relational tables because it's a genuine relational query problem:
 
@@ -472,6 +487,27 @@ The backend validates all proposed state changes before applying:
 - Flag changes: always valid
 - If a resource isn't available, the backend rejects and tells Claude, which narrates accordingly
 
+### Message history and context window
+
+There is no session boundary scoping the message history sent to Claude. Instead, the prompt includes the last N kb of messages from the current adventure as a rolling context window. Measuring in kb rather than message count is more honest — a four-paragraph narration and a one-liner both count as one message but have very different token costs.
+
+The practical window size depends on overall context budget allocation across GM context, state snapshot, message history, and response headroom, but something in the 32–48 kb range is likely sufficient that players never notice the cutoff.
+
+Messages that age out of the window are not lost — they are compressed into a rolling summary stored in `adventures.rolling_summary`. The prompt structure on every request is:
+
+```
+[GM context blob]           ← prompt cached, static across adventure
+[State snapshot]            ← current DB state, visibility-filtered
+[Rolling summary]           ← compressed history of everything before the window
+[Last N kb of messages]     ← live context window
+```
+
+The rolling summary is never redundant with the message window — it always summarizes what Claude cannot see. As the adventure progresses the summary grows slowly, folding in batches of aged-out messages each time the window advances.
+
+**Summarization trigger:** Lazy — at adventure resume time rather than after every exchange. When the player returns to play and a new prompt is being constructed, the backend checks whether the window has advanced since last time and summarizes the gap. One summarization call per return-to-play rather than potentially one per exchange.
+
+**Summarization prompt guidance:** Prioritize uncanonized improvised fiction over mechanical events. "Vasquez lied to the corporate liaison about the cargo manifest, and the liaison appeared to believe it" is more valuable to preserve than "the party spent two turns fighting the guard." Facts that were already promoted to GM context via the canon queue do not need to be in the summary.
+
 ### Prompt caching
 
 The GM context — the hidden truth doc, faction agendas, location facts — is identical on every request. It sits at the top of the prompt and qualifies for prompt caching. Cache reads cost ~10% of base input price, making the "we're sending a lot of data" concern largely moot after the first request.
@@ -542,13 +578,15 @@ Entering pre-modified rolls is a known source of incorrect results from playtest
 
 Adapted from Gygax's AD&D caller concept. Players coordinate in a back channel (voice chat for synchronous sessions, Discord for async play). One player is designated the caller and is the only one who can submit input to Zoltar. The race condition problem disappears entirely — there's always exactly one active voice.
 
-### Session data model
+### Adventure data model (multiplayer-relevant fields)
 
 ```typescript
-sessions {
+adventures {
   id, campaign_id,
   mode: 'freeform' | 'initiative',
-  caller_id,              // one player, globally, at all times
+  initiative_order: jsonb,  // string[] of entity ids, null when freeform
+  caller_id,                // one player, globally, at all times
+  ...
 }
 ```
 
@@ -585,7 +623,7 @@ ES-flavored without full ES. The session message log plus a game events table pr
 game_events {
   id
   campaign_id
-  session_id
+  adventure_id
   sequence_number       // monotonically increasing, never gaps
   event_type            // player_action | gm_response | dice_roll | state_update | correction
   actor                 // player_id | 'system' | 'gm'
@@ -889,12 +927,16 @@ Products use evocative names where they have strong identities (Zoltar, Unicorn 
 
 SaaS infrastructure is intentionally deferred until the 2D VTT renderer is complete. The service interfaces built into the core from day one make the SaaS layer additive rather than invasive when the time comes.
 
+**Billing model direction:** SaaS users do not bring their own Anthropic API key — that is a self-hosted-only model. In SaaS, Anthropic costs are absorbed and recovered through subscription pricing. The billing unit is a monthly subscription tier; per-adventure creation is the natural tier gate (e.g. a free tier might allow one adventure creation per month, paid tiers allow unlimited). Per-token billing is explicitly not user-facing — metering is internal cost accounting, not a user-visible meter. The specific tier structure and pricing are deferred until there are real SaaS users to inform them.
+
+**Internal token metering:** Even under a subscription model, per-org token tracking is required internally — for cost visibility, outlier detection, and enforcing usage caps if tiers require it. This is what `UsageMeteringService` provides. Users never see this number.
+
 **Minimum SaaS surface for first revenue-generating version:**
 - Clerk replacing Auth.js
 - Stripe for subscription billing (GM pays model)
 - S3 for asset storage
 - EntitlementsService checking subscription tier
-- UsageMeteringService attributing API costs to orgs
+- UsageMeteringService attributing API costs to orgs (internal)
 - Multi-tenant RLS policies on Postgres
 
 **Deployment shift:** From a single DigitalOcean Droplet to DigitalOcean App Platform for managed scaling, with Postgres managed database.
@@ -918,7 +960,7 @@ SaaS infrastructure is intentionally deferred until the 2D VTT renderer is compl
 - Rules lookup tool (Mothership rules embedded)
 - Caller model for multiplayer input — freeform and initiative modes
 - Auth (Auth.js for self-hosted)
-- Basic campaign and session management
+- Basic campaign and adventure management
 - Solo and basic multiplayer (async-first)
 - Mobile-first responsive UI
 - ELv2 license
@@ -970,4 +1012,4 @@ SaaS infrastructure is intentionally deferred until the 2D VTT renderer is compl
 
 ---
 
-*Draft 5 adds: Campaign Creation section covering the four campaign modes (Solo Blind, Solo Authored, Collaborative, Solo with Overseer), the three-phase creation pipeline (authoring, synthesis, play), oracle table design and JSON structure, the coherence check tiers, the submit_gm_context tool, character creation sequencing, and early manual testing recommendation. Pending canon section updated to clarify auto-promote behavior in Solo Blind and reviewer routing by mode. Phase 1 plan updated to include campaign creation deliverables.*
+*Draft 6 adds: Campaigns, Adventures, and Sessions section defining the domain hierarchy and explaining why sessions are not a first-class concept. Database schema updated: sessions table dropped; adventures table added with id, campaign_id, gm_context_id, mode, initiative_order, rolling_summary, created_at, completed_at; messages and game_events now reference adventure_id; gm_context_id moved from campaigns to adventures to support multiple adventures per campaign. Message History and Context Window section added under Claude API Integration, covering last-N-kb rolling window, prompt structure, lazy rolling summary generation, and summarization prompt guidance. SaaS Infrastructure Roadmap updated with billing model direction: subscription tiers with adventure creation as the tier gate, no user-facing token metering, internal UsageMeteringService for cost accounting. Phase 1 plan updated to reflect adventure management instead of session management.*
