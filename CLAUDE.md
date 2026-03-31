@@ -61,6 +61,8 @@ Packages are internal workspace packages — they are not published to npm.
 - Generic abstractions over system-specific names: `resource_pool` not `spell_slots`, `condition` not `poisoned`
 - Package namespace: `@uv/` (short for Unicorn)
 - App names: `zoltar-fe`, `zoltar-be` (frontend/backend suffix convention)
+- Entity identifiers use underscores only — no dots, hyphens, or other separators: `corporate_spy_1`, `dr_chen`, not `corporate-spy-1` or `dr.chen`
+- Resource pool names use underscores and follow the pattern `{entity_id}_{pool_name}`: `dr_chen_hp`, `dr_chen_stress`, `vasquez_ammo`
 
 ## License
 
