@@ -179,7 +179,7 @@ Target: D&D 5e and Infinity 2d20 support, the 2D renderer, and the first SaaS in
 Target: 3D renderer, additional system support, and creator economy if demand justifies.
 
 - 3D BabylonJS/STL renderer (separate private repository)
-- Additional game system support based on user demand
+- Additional game system support based on user demand (Feng Shui 2 is the current candidate — cinematic action fit, slim resolution mechanic, shot clock initiative; NPC schtick tracking at scale is the main open question)
 - Creator economy / Stripe Connect (if demand justifies)
 - Campaign Manager evaluation (separate product or Unicorn module — decide when Phase 3 is complete)
 

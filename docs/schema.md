@@ -10,7 +10,7 @@ This document defines the Zoltar database schema for Phase 1. It serves as the s
 
 **Timestamps:** `timestamptz` (timestamp with time zone), always UTC. Not `timestamp`.
 
-**System identifier:** `text`, not an enum. New game systems are added over time — a text column validated at the application layer (Zod) avoids a migration for each new system. Valid values for Phase 1: `'mothership'`.
+**System identifier:** `game_system` is a proper relational table with a `slug` column (`'mothership'`, `'uvg'`, etc.). `campaign.system_id` is a UUID FK to `game_system.id`. The slug is what the application-layer Zod schema map keys off of — it is the identifier that appears in code, not the UUID. New game systems are added by inserting a row and writing a Zod schema, not by altering a column or enum. `campaign_state.system` and `character_sheet.system` retain their text slug columns for now — converting them to FKs is a follow-up once `game_system` is settled.
 
 **User identity:** Auth.js manages its own tables (`users`, `accounts`, `sessions`, `verification_tokens`). Columns that reference users use `text` to match Auth.js's string user IDs. The Auth.js Drizzle adapter is used so Auth.js tables are defined in the Drizzle schema and managed by Flyway alongside application tables.
 
@@ -21,6 +21,8 @@ This document defines the Zoltar database schema for Phase 1. It serves as the s
 **Dice mode:** Set per campaign at creation. Two values: `soft_accountability` (player enters result, logged) and `commitment` (result committed before target revealed).
 
 **Adventures, not sessions:** Adventures are the first-class domain concept. Sessions in the traditional VTT sense do not exist — solo async play has no meaningful session boundary. Messages and game events reference `adventure_id`. A campaign may have multiple adventures over its lifetime; each adventure owns its own GM context.
+
+**Embedding dimension:** `rules_chunk.embedding` is declared `vector(1024)`, matching Voyage AI (`voyage-3` / `voyage-3-lite`). This dimension is fixed at the column level — switching embedding models requires re-ingestion and a migration. The `embedding_dim` column on `game_system` documents which dimension was used at ingestion time and must match the column declaration.
 
 ---
 
@@ -33,11 +35,12 @@ infra/
   db/
     migrations/
       V1__auth_tables.sql
-      V2__core_tables.sql
+      V2__core_tables.sql       -- includes game_system; campaign.system_id is a FK from the start
       V3__grid_tables.sql
       V4__game_events.sql
       V5__map_geometry_stub.sql
       V6__pending_canon.sql
+      V7__rules_index.sql
 ```
 
 The Drizzle schema definition lives in `apps/zoltar-be/src/db/schema.ts`.
@@ -92,77 +95,90 @@ CREATE TABLE verification_token (
 
 ### Core Tables (`V2__core_tables.sql`)
 
+`game_system` is defined first in this migration so `campaign.system_id` can reference it.
+
 ```sql
 CREATE TYPE campaign_visibility AS ENUM ('private', 'invite', 'org');
 CREATE TYPE dice_mode AS ENUM ('soft_accountability', 'commitment');
 CREATE TYPE campaign_member_role AS ENUM ('owner', 'player');
 CREATE TYPE adventure_mode AS ENUM ('freeform', 'initiative');
 CREATE TYPE message_role AS ENUM ('player', 'gm', 'system');
+CREATE TYPE index_source AS ENUM ('user_provided', 'srd');
+
+CREATE TABLE game_system (
+  id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug          text        NOT NULL UNIQUE,  -- 'mothership' | 'uvg' | 'fived' | 'ose' | etc.
+  name          text        NOT NULL,          -- display name: 'Mothership', 'D&D 5e'
+  index_source  index_source NOT NULL,         -- how the rules index is built
+  embedding_dim integer     NOT NULL DEFAULT 1024,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
 
 CREATE TABLE campaign (
-  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id     uuid,                          -- nullable; null in self-hosted
-  name       text NOT NULL,
-  system     text NOT NULL,                 -- 'mothership' | 'uvg' | etc.
-  visibility campaign_visibility NOT NULL DEFAULT 'private',
-  dice_mode  dice_mode NOT NULL DEFAULT 'soft_accountability',
-  created_at timestamptz NOT NULL DEFAULT now()
+  id          uuid                NOT NULL DEFAULT gen_random_uuid(),
+  org_id      uuid,                           -- nullable; null in self-hosted
+  system_id   uuid                NOT NULL REFERENCES game_system(id),
+  name        text                NOT NULL,
+  visibility  campaign_visibility NOT NULL DEFAULT 'private',
+  dice_mode   dice_mode           NOT NULL DEFAULT 'soft_accountability',
+  created_at  timestamptz         NOT NULL DEFAULT now(),
+  PRIMARY KEY (id)
 );
 
 CREATE TABLE adventure (
-  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  campaign_id      uuid NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+  id               uuid           PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id      uuid           NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
   mode             adventure_mode NOT NULL DEFAULT 'freeform',
-  caller_id        text REFERENCES "user"(id) ON DELETE SET NULL,
-  initiative_order text[],                  -- ordered array of entity identifiers; null when freeform
-  rolling_summary  text,                    -- compressed history of messages outside the context window
-  created_at       timestamptz NOT NULL DEFAULT now(),
+  caller_id        text           REFERENCES "user"(id) ON DELETE SET NULL,
+  initiative_order text[],                    -- ordered array of entity identifiers; null when freeform
+  rolling_summary  text,                      -- compressed history of messages outside the context window
+  created_at       timestamptz    NOT NULL DEFAULT now(),
   completed_at     timestamptz
 );
 
 CREATE TABLE gm_context (
-  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  adventure_id uuid NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
-  blob         jsonb NOT NULL DEFAULT '{}',
+  id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  adventure_id uuid        NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
+  blob         jsonb       NOT NULL DEFAULT '{}',
   updated_at   timestamptz NOT NULL DEFAULT now(),
   UNIQUE (adventure_id)
 );
 
 CREATE TABLE campaign_state (
-  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  campaign_id    uuid NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
-  system         text NOT NULL,
-  schema_version integer NOT NULL DEFAULT 1,
-  data           jsonb NOT NULL DEFAULT '{}',
+  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id    uuid        NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+  system         text        NOT NULL,  -- slug; denormalized for now
+  schema_version integer     NOT NULL DEFAULT 1,
+  data           jsonb       NOT NULL DEFAULT '{}',
   updated_at     timestamptz NOT NULL DEFAULT now(),
   UNIQUE (campaign_id)
 );
 
 CREATE TABLE campaign_member (
-  campaign_id uuid NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
-  user_id     text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  campaign_id uuid                 NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+  user_id     text                 NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
   role        campaign_member_role NOT NULL DEFAULT 'player',
-  joined_at   timestamptz NOT NULL DEFAULT now(),
+  joined_at   timestamptz          NOT NULL DEFAULT now(),
   PRIMARY KEY (campaign_id, user_id)
 );
 
 CREATE TABLE character_sheet (
-  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  campaign_id    uuid NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
-  user_id        text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-  system         text NOT NULL,
-  schema_version integer NOT NULL DEFAULT 1,
-  data           jsonb NOT NULL DEFAULT '{}',
+  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id    uuid        NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+  user_id        text        NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  system         text        NOT NULL,  -- slug; denormalized for now
+  schema_version integer     NOT NULL DEFAULT 1,
+  data           jsonb       NOT NULL DEFAULT '{}',
   updated_at     timestamptz NOT NULL DEFAULT now(),
   UNIQUE (campaign_id, user_id)
 );
 
 CREATE TABLE message (
-  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  adventure_id uuid NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
+  id           uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  adventure_id uuid         NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
   role         message_role NOT NULL,
-  content      text NOT NULL,
-  created_at   timestamptz NOT NULL DEFAULT now()
+  content      text         NOT NULL,
+  created_at   timestamptz  NOT NULL DEFAULT now()
 );
 ```
 
@@ -180,28 +196,28 @@ CREATE TYPE terrain_type AS ENUM (
 );
 
 CREATE TABLE grid_cell (
-  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  campaign_id     uuid NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
-  x               integer NOT NULL,
-  y               integer NOT NULL,
-  z               integer NOT NULL DEFAULT 0,
+  id              uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id     uuid         NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+  x               integer      NOT NULL,
+  y               integer      NOT NULL,
+  z               integer      NOT NULL DEFAULT 0,
   terrain_type    terrain_type NOT NULL DEFAULT 'open',
-  blocks_los      boolean NOT NULL DEFAULT false,
-  blocks_movement boolean NOT NULL DEFAULT false,
-  climbable       boolean NOT NULL DEFAULT false,
-  elevation       integer NOT NULL DEFAULT 0,
+  blocks_los      boolean      NOT NULL DEFAULT false,
+  blocks_movement boolean      NOT NULL DEFAULT false,
+  climbable       boolean      NOT NULL DEFAULT false,
+  elevation       integer      NOT NULL DEFAULT 0,
   UNIQUE (campaign_id, x, y, z)
 );
 
 CREATE TABLE grid_entity (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  campaign_id uuid NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
-  entity_ref  text NOT NULL,  -- references a character, NPC, or terrain feature by identifier
+  id          uuid    PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id uuid    NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+  entity_ref  text    NOT NULL,  -- references a character, NPC, or terrain feature by identifier
   x           integer NOT NULL,
   y           integer NOT NULL,
   z           integer NOT NULL DEFAULT 0,
   visible     boolean NOT NULL DEFAULT true,  -- visible to player party
-  tags        jsonb NOT NULL DEFAULT '[]',
+  tags        jsonb   NOT NULL DEFAULT '[]',
   UNIQUE (campaign_id, entity_ref)
 );
 ```
@@ -224,15 +240,15 @@ CREATE TYPE actor_type AS ENUM ('player', 'system', 'gm');
 CREATE TYPE roll_source AS ENUM ('system_generated', 'player_entered');
 
 CREATE TABLE game_event (
-  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  campaign_id      uuid NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
-  adventure_id     uuid NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
-  sequence_number  integer NOT NULL,
+  id               uuid       PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id      uuid       NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+  adventure_id     uuid       NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
+  sequence_number  integer    NOT NULL,
   event_type       event_type NOT NULL,
   actor_type       actor_type NOT NULL,
   actor_id         text,                   -- user_id for player events, null for system/gm
   roll_source      roll_source,            -- populated for dice_roll events only
-  payload          jsonb NOT NULL DEFAULT '{}',
+  payload          jsonb      NOT NULL DEFAULT '{}',
   created_at       timestamptz NOT NULL DEFAULT now(),
   superseded_by    uuid REFERENCES game_event(id),  -- null unless this event has been corrected
   UNIQUE (adventure_id, sequence_number)
@@ -252,12 +268,12 @@ Reserved for Phase 3. Not implemented — table exists to avoid a painful retrof
 CREATE TYPE geometry_type AS ENUM ('wall', 'door', 'point_feature');
 
 CREATE TABLE map_geometry (
-  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  campaign_id     uuid NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+  id              uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id     uuid          NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
   type            geometry_type NOT NULL,
-  shape           jsonb NOT NULL,  -- GeoJSON or simple coordinate array
-  blocks_los      boolean NOT NULL DEFAULT false,
-  blocks_movement boolean NOT NULL DEFAULT false
+  shape           jsonb         NOT NULL,  -- GeoJSON or simple coordinate array
+  blocks_los      boolean       NOT NULL DEFAULT false,
+  blocks_movement boolean       NOT NULL DEFAULT false
 );
 ```
 
@@ -271,18 +287,56 @@ The canon review queue. Claude proposes canon entries via `proposed_canon` in `s
 CREATE TYPE canon_status AS ENUM ('pending', 'promoted', 'discarded');
 
 CREATE TABLE pending_canon (
-  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  adventure_id uuid NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
-  summary      text NOT NULL,       -- one or two sentence description of the improvisation
-  context      text NOT NULL,       -- why it came up — what player action or fiction prompted it
+  id           uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  adventure_id uuid         NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
+  summary      text         NOT NULL,       -- one or two sentence description of the improvisation
+  context      text         NOT NULL,       -- why it came up — what player action or fiction prompted it
   status       canon_status NOT NULL DEFAULT 'pending',
-  created_at   timestamptz NOT NULL DEFAULT now(),
-  reviewed_at  timestamptz          -- null until promoted or discarded
+  created_at   timestamptz  NOT NULL DEFAULT now(),
+  reviewed_at  timestamptz                  -- null until promoted or discarded
 );
 
 CREATE INDEX pending_canon_adventure_idx ON pending_canon (adventure_id);
 CREATE INDEX pending_canon_status_idx ON pending_canon (adventure_id, status);
 ```
+
+---
+
+### Rules Index (`V7__rules_index.sql`)
+
+Backing store for the `rules_lookup` tool. `game_system` rows are seeded in this migration for Phase 1 systems. `rules_chunk` rows are populated by the offline ingestion pipeline — not by the application at runtime.
+
+The `pgvector` extension must be enabled before this migration runs. Add to the Flyway baseline or Docker Compose init script if not already present:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+```sql
+-- Seed Phase 1 game systems.
+-- Additional systems are inserted here as phases progress — no migration required per system.
+INSERT INTO game_system (slug, name, index_source, embedding_dim) VALUES
+  ('mothership', 'Mothership', 'user_provided', 1024);
+
+CREATE TABLE rules_chunk (
+  id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  system_id    uuid        NOT NULL REFERENCES game_system(id) ON DELETE CASCADE,
+  source       text        NOT NULL,   -- e.g. 'Mothership Player''s Survival Guide p.34'
+  section_path text[]      NOT NULL,   -- e.g. '{Combat,"Panic Checks"}'
+  content      text        NOT NULL,
+  embedding    vector(1024),
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX rules_chunk_system_idx ON rules_chunk (system_id);
+CREATE INDEX rules_chunk_embedding_idx ON rules_chunk
+  USING ivfflat (embedding vector_cosine_ops)
+  WITH (lists = 100);
+```
+
+**Index tuning note:** `lists = 100` is appropriate for tens of thousands of chunks. The ivfflat index trades recall for speed — if retrieval quality degrades as the corpus grows, increase `lists` or migrate to hnsw (`USING hnsw (embedding vector_cosine_ops)`). HNSW has better recall at higher memory cost; revisit at scale.
+
+**Embedding dimension:** `vector(1024)` matches `voyage-3` and `voyage-3-lite`. Switching models requires dropping and recreating the column and re-running the ingestion pipeline. Document the model used at ingestion time in `game_system.embedding_dim`.
 
 ---
 
@@ -305,6 +359,7 @@ import {
   primaryKey,
   uniqueIndex,
   index,
+  vector,
 } from 'drizzle-orm/pg-core';
 
 // ---------------------------------------------------------------------------
@@ -377,6 +432,11 @@ export const canonStatusEnum = pgEnum('canon_status', [
   'discarded',
 ]);
 
+export const indexSourceEnum = pgEnum('index_source', [
+  'user_provided',
+  'srd',
+]);
+
 // ---------------------------------------------------------------------------
 // Auth.js Tables
 // ---------------------------------------------------------------------------
@@ -420,24 +480,30 @@ export const verificationTokens = pgTable('verification_token', {
 ]);
 
 // ---------------------------------------------------------------------------
+// Game Systems
+// ---------------------------------------------------------------------------
+
+export const gameSystems = pgTable('game_system', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  slug:         text('slug').notNull().unique(),
+  name:         text('name').notNull(),
+  indexSource:  indexSourceEnum('index_source').notNull(),
+  embeddingDim: integer('embedding_dim').notNull().default(1024),
+  createdAt:    timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
 // Core Tables
 // ---------------------------------------------------------------------------
 
 export const campaigns = pgTable('campaign', {
   id:         uuid('id').primaryKey().defaultRandom(),
   orgId:      uuid('org_id'),
+  systemId:   uuid('system_id').notNull().references(() => gameSystems.id),
   name:       text('name').notNull(),
-  system:     text('system').notNull(),
   visibility: campaignVisibilityEnum('visibility').notNull().default('private'),
   diceMode:   diceModeEnum('dice_mode').notNull().default('soft_accountability'),
   createdAt:  timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
-
-export const gmContexts = pgTable('gm_context', {
-  id:          uuid('id').primaryKey().defaultRandom(),
-  adventureId: uuid('adventure_id').notNull().references(() => adventures.id, { onDelete: 'cascade' }),
-  blob:        jsonb('blob').notNull().default({}),
-  updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const adventures = pgTable('adventure', {
@@ -451,10 +517,17 @@ export const adventures = pgTable('adventure', {
   completedAt:     timestamp('completed_at', { withTimezone: true }),
 });
 
+export const gmContexts = pgTable('gm_context', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  adventureId: uuid('adventure_id').notNull().references(() => adventures.id, { onDelete: 'cascade' }),
+  blob:        jsonb('blob').notNull().default({}),
+  updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const campaignStates = pgTable('campaign_state', {
   id:            uuid('id').primaryKey().defaultRandom(),
   campaignId:    uuid('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
-  system:        text('system').notNull(),
+  system:        text('system').notNull(),  // slug; denormalized for now
   schemaVersion: integer('schema_version').notNull().default(1),
   data:          jsonb('data').notNull().default({}),
   updatedAt:     timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -473,7 +546,7 @@ export const characterSheets = pgTable('character_sheet', {
   id:            uuid('id').primaryKey().defaultRandom(),
   campaignId:    uuid('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
   userId:        text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  system:        text('system').notNull(),
+  system:        text('system').notNull(),  // slug; denormalized for now
   schemaVersion: integer('schema_version').notNull().default(1),
   data:          jsonb('data').notNull().default({}),
   updatedAt:     timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -566,6 +639,22 @@ export const mapGeometry = pgTable('map_geometry', {
   blocksLos:      boolean('blocks_los').notNull().default(false),
   blocksMovement: boolean('blocks_movement').notNull().default(false),
 });
+
+// ---------------------------------------------------------------------------
+// Rules Index
+// ---------------------------------------------------------------------------
+
+export const rulesChunks = pgTable('rules_chunk', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  systemId:    uuid('system_id').notNull().references(() => gameSystems.id, { onDelete: 'cascade' }),
+  source:      text('source').notNull(),
+  sectionPath: text('section_path').array().notNull(),
+  content:     text('content').notNull(),
+  embedding:   vector('embedding', { dimensions: 1024 }),
+  createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('rules_chunk_system_idx').on(table.systemId),
+]);
 ```
 
 ---
@@ -578,18 +667,22 @@ Drizzle infers insert and select types from the schema definition. Use these in 
 import { type InferSelectModel, type InferInsertModel } from 'drizzle-orm';
 import * as schema from './schema';
 
-export type Campaign       = InferSelectModel<typeof schema.campaigns>;
-export type NewCampaign    = InferInsertModel<typeof schema.campaigns>;
-export type Adventure      = InferSelectModel<typeof schema.adventures>;
-export type NewAdventure   = InferInsertModel<typeof schema.adventures>;
-export type GmContext      = InferSelectModel<typeof schema.gmContexts>;
-export type NewGmContext   = InferInsertModel<typeof schema.gmContexts>;
-export type Message        = InferSelectModel<typeof schema.messages>;
-export type NewMessage     = InferInsertModel<typeof schema.messages>;
-export type GameEvent      = InferSelectModel<typeof schema.gameEvents>;
-export type NewGameEvent   = InferInsertModel<typeof schema.gameEvents>;
-export type PendingCanon   = InferSelectModel<typeof schema.pendingCanon>;
-export type NewPendingCanon = InferInsertModel<typeof schema.pendingCanon>;
+export type GameSystem        = InferSelectModel<typeof schema.gameSystems>;
+export type NewGameSystem     = InferInsertModel<typeof schema.gameSystems>;
+export type Campaign          = InferSelectModel<typeof schema.campaigns>;
+export type NewCampaign       = InferInsertModel<typeof schema.campaigns>;
+export type Adventure         = InferSelectModel<typeof schema.adventures>;
+export type NewAdventure      = InferInsertModel<typeof schema.adventures>;
+export type GmContext         = InferSelectModel<typeof schema.gmContexts>;
+export type NewGmContext      = InferInsertModel<typeof schema.gmContexts>;
+export type Message           = InferSelectModel<typeof schema.messages>;
+export type NewMessage        = InferInsertModel<typeof schema.messages>;
+export type GameEvent         = InferSelectModel<typeof schema.gameEvents>;
+export type NewGameEvent      = InferInsertModel<typeof schema.gameEvents>;
+export type PendingCanon      = InferSelectModel<typeof schema.pendingCanon>;
+export type NewPendingCanon   = InferInsertModel<typeof schema.pendingCanon>;
+export type RulesChunk        = InferSelectModel<typeof schema.rulesChunks>;
+export type NewRulesChunk     = InferInsertModel<typeof schema.rulesChunks>;
 // etc.
 ```
 
@@ -601,6 +694,7 @@ Tables and columns not yet defined, to be added as migrations when the relevant 
 
 - **`campaign.creation_mode` column** — `'solo_blind' | 'solo_authored' | 'collaborative' | 'solo_with_overseer'`; canon review routing is mode-specific (Phase 2)
 - **`campaign.overseer_id` column** — user designated as canon reviewer in Solo with Overseer mode (Phase 2)
+- **`campaign_state.system` and `character_sheet.system` → FK** — convert slug text columns to `system_id uuid` FKs to `game_system.id` for consistency with `campaign.system_id` (Phase 2, when OSE/UVG systems are added and the slug set stabilizes)
 - **Rule system tables** — `rule_override`, `constraint_module`, `constraint_module_activation` (Phase 3)
 - **`org` table** — billing unit for SaaS (Phase 3, SaaS layer only)
 - **RLS policies** — applied to `campaign`, `campaign_member`, `character_sheet`, etc. on `org_id` (Phase 3, SaaS layer only)
