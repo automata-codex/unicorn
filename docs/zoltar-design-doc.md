@@ -91,9 +91,11 @@ Mothership (Warden's Edition) is the recommended first iteration target:
 
 **Phase 3:** Infinity 2d20, D&D 5e (with rules engine layer)
 
+**Phase 4+:** Feng Shui 2, others based on demand
+
 **System and setting are decoupled.** The rules engine knows about mechanics — hit points, resource pools, action economy, conditions. It knows nothing about the fiction. The GM context is where the setting lives — factions, history, geography, tone — and that content is entirely freeform. A homebrew D&D setting is simply a campaign where the GM context describes your world instead of a published one, running on the 5e rules engine. Savage Worlds homebrew works the same way once the Savage Worlds engine exists. Homebrew settings are first-class citizens.
 
-**Generally good fits:** Settings-forward, exploration or investigation focused, rules that create stakes rather than invite optimization. Mystery/investigation with hidden NPC agendas. Horror with spatial tension.
+**Generally good fits:** Settings-forward, exploration or investigation focused, rules that create stakes rather than invite optimization. Mystery/investigation with hidden NPC agendas. Horror with spatial tension. Cinematic action with slim resolution mechanics (Feng Shui 2 is a strong candidate here — opposed d6 roll against outcome thresholds, shot clock initiative; the main consideration is NPC schtick tracking at scale).
 
 **Generally poor fits:** Tactical grid combat requiring positioning math (PF2e at full crunch), heavy dice pool systems (Shadowrun), physically-mediated mechanics (Dread/Jenga), fundamentally multiplayer social games (Fiasco, Microscope).
 
@@ -999,7 +1001,7 @@ SaaS infrastructure is intentionally deferred until the 2D VTT renderer is compl
 - Full VTT feature set
 - 3D renderer with STL support (separate private repo)
 - Creator economy / Stripe Connect (if demand justifies)
-- Additional system support based on user demand
+- Additional system support based on demand: Feng Shui 2 (cinematic action, lighter than Phase 3 systems — may not need full constraint module system), others TBD
 - Campaign Manager evaluation (separate product or Unicorn module — decide when Phase 3 is complete)
 
 ---
