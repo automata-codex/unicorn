@@ -528,7 +528,15 @@ Results are computed outside Claude's narration, logged server-side before Claud
 
 ### Rules lookup
 
-A vector-embedded rules index for each supported system. Claude calls this rather than confabulating rules from training data. Supplement text can be pasted in at campaign setup and embedded into the index.
+A vector-embedded rules index for each supported system. Claude calls this rather than confabulating rules from training data.
+
+The index is built by an offline ingestion pipeline: PDF → Markdown (via marker) → heading-aware chunking → Voyage AI embeddings → pgvector. Chunks carry source citations (`"Mothership Player's Survival Guide p.34"`) and section path metadata that Claude can use in narration.
+
+The pipeline runs on user infrastructure against a PDF they own. Pre-built indexes are only distributed for systems covered by a permissive SRD (D&D 5e SRD 5.1 under CC-BY 4.0; others where licensing permits). Distributing a pre-built index for a non-SRD system is equivalent to distributing the rules text itself — the vectors are useless without the text they represent — and is not done without an appropriate license.
+
+Supplement text pasted in at campaign setup is embedded into the same index at campaign creation time, scoped to that campaign.
+
+See `docs/rules-ingestion.md` for the full pipeline specification, fixup patch system, hash verification, and per-system licensing posture.
 
 ### Location/random table generation (UVG and similar)
 
