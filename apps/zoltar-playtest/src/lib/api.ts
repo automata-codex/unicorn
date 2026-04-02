@@ -185,6 +185,17 @@ export async function runTurn(state: AppState, playerAction: string): Promise<vo
 			} else if (toolUse.name === 'submit_gm_response') {
 				applyGmResponse(state, toolUse.input as unknown as import('./types').SubmitGmResponse);
 				messages.push({ role: 'assistant', content: response.content });
+				// Acknowledge the tool call so the next turn's history is valid
+				messages.push({
+					role: 'user',
+					content: [
+						{
+							type: 'tool_result',
+							tool_use_id: toolUse.id,
+							content: 'State updated.'
+						}
+					]
+				});
 				state.messages = messages as AppState['messages'];
 				state.turn++;
 				break;
