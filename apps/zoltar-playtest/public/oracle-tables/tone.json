@@ -1,0 +1,56 @@
+{
+	"id": "mothership_tone",
+	"system": "mothership",
+	"category": "tone",
+	"version": "1.0.0",
+	"entries": [
+		{
+			"id": "slow_dread",
+			"player_text": "Slow dread",
+			"claude_text": "The horror is atmospheric and creeping. Long silences. Things that are almost wrong. The threat is felt before it is seen — sounds in the walls, a door that was open and is now closed, a tool that has been moved. Pacing should be slow with sudden, intense bursts. The environment itself feels hostile. Descriptions should emphasize sensory details: the smell of recycled air, the hum of failing systems, the cold.",
+			"interfaces": [
+				{
+					"condition": "threat:biological",
+					"note": "The biological threat should be glimpsed indirectly at first — traces, sounds, evidence of what it has done rather than what it is."
+				},
+				{
+					"condition": "vessel_type:derelict",
+					"note": "A derelict vessel amplifies slow dread naturally. Emphasize the ship's age, the silence, the sense of being watched by empty rooms."
+				}
+			],
+			"tags": ["atmospheric", "slow_burn", "sensory"]
+		},
+		{
+			"id": "paranoid_tension",
+			"player_text": "Paranoid tension",
+			"claude_text": "Nobody can be trusted. The horror comes from people as much as from the external threat. Survivors lie, withhold information, and act in self-interest while claiming cooperation. Alliances shift. The player should constantly question NPC motivations. Pacing should alternate between tense social encounters and moments where the real threat reminds everyone that their infighting is a luxury they cannot afford.",
+			"interfaces": [
+				{
+					"condition": "survivor:corporate_affiliated",
+					"note": "Corporate survivors are natural focal points for paranoia. Their real agenda should be revealed gradually and incompletely."
+				},
+				{
+					"condition": "secret:conspiracy",
+					"note": "The conspiracy secret feeds paranoia directly — there really is something to be paranoid about."
+				}
+			],
+			"tags": ["social", "trust", "interpersonal"]
+		},
+		{
+			"id": "desperate_action",
+			"player_text": "Desperate action",
+			"claude_text": "The situation is already bad and getting worse on a visible timer. Resources are scarce, the threat is immediate, and every decision is a triage calculation. The horror is not about what might happen but about what is definitely going to happen if the player does not act now. Pacing should be relentless with brief moments of fragile safety. Combat and physical challenges should feel dangerous and consequential — every wound matters, every bullet counts.",
+			"interfaces": [
+				{
+					"condition": "vessel_type:time_pressure",
+					"note": "Vessels with inherent time pressure (decaying orbit, closing extraction window) compound the desperation."
+				},
+				{
+					"condition": "threat:armed",
+					"note": "Armed threats create immediate tactical problems that demand action rather than investigation."
+				}
+			],
+			"tags": ["fast_paced", "resource_scarcity", "consequential"]
+		}
+	]
+}

@@ -188,12 +188,20 @@ type OracleTable = {
   id: string                  // e.g. 'mothership_survivor'
   system: string
   category: string            // 'survivor' | 'threat' | 'secret' | 'vessel_type' | 'tone'
-  version: string
+  version: string             // semver; see versioning conventions below
   entries: OracleEntry[]
 }
 ```
 
 Each category file exports one `OracleTable`. Start each file with a minimal set of draft entries — the point of playtesting is to revise them.
+
+**Oracle table versioning conventions**
+
+Version is semver. The version stored at adventure creation time provides an audit trail — if a session produces flat or incoherent results, you can identify which revision of the table was used and what changed since.
+
+- **Major** — content removed, or schema changes (field removed, renamed, or type changed)
+- **Minor** — content added (new entries)
+- **Patch** — content revised (clarified `claude_text`, fixed typos, updated `interfaces`)
 
 ---
 
