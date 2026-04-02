@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { AppState } from '../lib/types';
 
-	let { appState }: { appState: AppState } = $props();
+	let { appState = $bindable() }: { appState: AppState } = $props();
 
 	function dismiss(index: number) {
 		appState.errors = appState.errors.filter((_, i) => i !== index);

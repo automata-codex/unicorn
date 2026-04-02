@@ -7,10 +7,10 @@
 	const savedState = loadState();
 	const savedApiKey = loadApiKey();
 
-	const state = createAppState({
+	let state = $state(createAppState({
 		...savedState,
 		apiKey: savedApiKey || savedState?.apiKey || ''
-	});
+	}));
 
 	$effect(() => {
 		saveState(state);
@@ -19,11 +19,11 @@
 </script>
 
 <div class="app">
-	<ErrorBanner appState={state} />
+	<ErrorBanner bind:appState={state} />
 
 	{#if state.view === 'setup'}
 		<h1>Zoltar Playtest Tool</h1>
-		<SetupView appState={state} />
+		<SetupView bind:appState={state} />
 	{:else}
 		<h1>Zoltar Playtest</h1>
 		<p>Play view coming in Phase 10.</p>

@@ -3,7 +3,7 @@
 	import type { AppState, MothershipCharacter } from '../lib/types';
 	import { initializePlayerPools } from '../lib/state.svelte';
 
-	let { appState, onSave }: { appState: AppState; onSave: () => void } = $props();
+	let { appState = $bindable(), onSave }: { appState: AppState; onSave: () => void } = $props();
 
 	// Capture initial values to avoid Svelte reactive-prop-in-$state warnings.
 	// These are form defaults — we intentionally want the value at mount time.
