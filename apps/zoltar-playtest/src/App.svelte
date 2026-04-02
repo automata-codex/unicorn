@@ -2,6 +2,7 @@
 	import { createAppState } from './lib/state.svelte';
 	import { loadApiKey, loadState, saveApiKey, saveState } from './lib/storage';
 	import ErrorBanner from './components/ErrorBanner.svelte';
+	import SetupView from './components/SetupView.svelte';
 
 	const savedState = loadState();
 	const savedApiKey = loadApiKey();
@@ -18,11 +19,11 @@
 </script>
 
 <div class="app">
-	<ErrorBanner {state} />
+	<ErrorBanner appState={state} />
 
 	{#if state.view === 'setup'}
 		<h1>Zoltar Playtest Tool</h1>
-		<p>Setup view coming in Phase 8.</p>
+		<SetupView appState={state} />
 	{:else}
 		<h1>Zoltar Playtest</h1>
 		<p>Play view coming in Phase 10.</p>

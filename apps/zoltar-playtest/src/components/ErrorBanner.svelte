@@ -1,16 +1,16 @@
 <script lang="ts">
 	import type { AppState } from '../lib/types';
 
-	let { state }: { state: AppState } = $props();
+	let { appState }: { appState: AppState } = $props();
 
 	function dismiss(index: number) {
-		state.errors = state.errors.filter((_, i) => i !== index);
+		appState.errors = appState.errors.filter((_, i) => i !== index);
 	}
 </script>
 
-{#if state.errors.length > 0}
+{#if appState.errors.length > 0}
 	<div class="error-banner">
-		{#each state.errors as error, i}
+		{#each appState.errors as error, i}
 			<div class="error-item" class:info={error.startsWith('[info]')} class:warn={error.startsWith('[warn]')}>
 				<span class="error-text">{error}</span>
 				<button class="dismiss" onclick={() => dismiss(i)}>x</button>

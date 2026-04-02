@@ -32,7 +32,8 @@ export function createAppState(overrides?: Partial<AppState>): AppState {
 		errors: []
 	};
 
-	return $state({ ...defaults, ...overrides });
+	let appState = $state<AppState>({ ...defaults, ...overrides });
+	return appState;
 }
 
 export function initializePlayerPools(state: AppState, character: MothershipCharacter): void {
