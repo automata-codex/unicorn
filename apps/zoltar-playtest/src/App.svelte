@@ -3,6 +3,7 @@
 	import { loadApiKey, loadState, saveApiKey, saveState } from './lib/storage';
 	import ErrorBanner from './components/ErrorBanner.svelte';
 	import SetupView from './components/SetupView.svelte';
+	import PlayView from './components/PlayView.svelte';
 
 	const savedState = loadState();
 	const savedApiKey = loadApiKey();
@@ -25,8 +26,7 @@
 		<h1>Zoltar Playtest Tool</h1>
 		<SetupView bind:appState={state} />
 	{:else}
-		<h1>Zoltar Playtest</h1>
-		<p>Play view coming in Phase 10.</p>
+		<PlayView bind:appState={state} />
 	{/if}
 </div>
 
