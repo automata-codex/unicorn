@@ -3,6 +3,8 @@
 	import { runTurn } from '../lib/api';
 	import ErrorBanner from './ErrorBanner.svelte';
 	import MessageLog from './MessageLog.svelte';
+	import StatePanel from './StatePanel.svelte';
+	import DicePrompt from './DicePrompt.svelte';
 
 	let { appState = $bindable() }: { appState: AppState } = $props();
 
@@ -30,25 +32,29 @@
 		<div class="left-panel">
 			<MessageLog {appState} />
 
-			<div class="input-area">
-				<textarea
-					bind:value={input}
-					placeholder="What do you do?"
-					disabled={appState.loading}
-					onkeydown={onKeydown}
-					rows="3"
-				></textarea>
-				<button
-					onclick={submit}
-					disabled={appState.loading || !input.trim()}
-				>
-					{appState.loading ? 'Waiting...' : 'Send'}
-				</button>
-			</div>
+			{#if appState.pendingDiceRequests.length > 0}
+				<DicePrompt bind:appState />
+			{:else}
+				<div class="input-area">
+					<textarea
+						bind:value={input}
+						placeholder="What do you do?"
+						disabled={appState.loading}
+						onkeydown={onKeydown}
+						rows="3"
+					></textarea>
+					<button
+						onclick={submit}
+						disabled={appState.loading || !input.trim()}
+					>
+						{appState.loading ? 'Waiting...' : 'Send'}
+					</button>
+				</div>
+			{/if}
 		</div>
 
 		<div class="right-panel">
-			<p class="placeholder">State panel coming in Phase 11.</p>
+			<StatePanel bind:appState />
 		</div>
 	</div>
 </div>
@@ -139,10 +145,5 @@
 	button:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
-	}
-
-	.placeholder {
-		color: #666;
-		font-style: italic;
 	}
 </style>
