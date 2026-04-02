@@ -64,8 +64,10 @@
 	async function submit() {
 		const action = input.trim();
 		if (!action || appState.loading) return;
-		input = '';
-		await runTurn(appState, action);
+		const success = await runTurn(appState, action);
+		if (success) {
+			input = '';
+		}
 	}
 
 	function onKeydown(e: KeyboardEvent) {

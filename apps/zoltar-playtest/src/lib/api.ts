@@ -8,6 +8,25 @@ const API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-sonnet-4-6';
 const API_VERSION = '2023-06-01';
 
+// Keep the most recent N messages when building API requests.
+// The current state snapshot is always in the latest user message,
+// so older turns provide narrative context but aren't structurally required.
+const MAX_HISTORY_MESSAGES = 40;
+
+// --- Message trimming ---
+
+function trimHistory(messages: ApiMessage[]): ApiMessage[] {
+	if (messages.length <= MAX_HISTORY_MESSAGES) return messages;
+
+	// Trim from the front, but ensure we start with a user message
+	// (API requires messages to alternate and start with user)
+	let trimmed = messages.slice(-MAX_HISTORY_MESSAGES);
+	while (trimmed.length > 0 && trimmed[0].role !== 'user') {
+		trimmed = trimmed.slice(1);
+	}
+	return trimmed;
+}
+
 // --- Raw API call ---
 
 type ApiMessage = {
@@ -142,16 +161,17 @@ Synthesize a coherent GM context from these elements. Make connections between t
 
 // --- Turn loop ---
 
-export async function runTurn(state: AppState, playerAction: string): Promise<void> {
+export async function runTurn(state: AppState, playerAction: string): Promise<boolean> {
 	state.loading = true;
 	state.errors = [];
+	let success = false;
 
 	try {
 		const userMessage = `${buildSnapshot(state)}\n\n${playerAction}`;
-		const messages: ApiMessage[] = [
+		const messages: ApiMessage[] = trimHistory([
 			...state.messages,
 			{ role: 'user', content: userMessage }
-		];
+		]);
 
 		while (true) {
 			const response = await callAnthropic(
@@ -198,6 +218,7 @@ export async function runTurn(state: AppState, playerAction: string): Promise<vo
 				});
 				state.messages = messages as AppState['messages'];
 				state.turn++;
+				success = true;
 				break;
 			} else {
 				state.errors.push(`Unexpected tool call: ${toolUse.name}`);
@@ -209,6 +230,7 @@ export async function runTurn(state: AppState, playerAction: string): Promise<vo
 	} finally {
 		state.loading = false;
 	}
+	return success;
 }
 
 // --- Synthesis ---
