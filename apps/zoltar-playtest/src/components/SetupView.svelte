@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import type { AppState, OracleEntry } from '../lib/types';
+	import type { AppState, OracleEntry, MothershipCharacter, GmContextStructured } from '../lib/types';
 	import { runSynthesis, type OracleSelections } from '../lib/api';
+	import { initializePlayerPools, initializeFromGmContext } from '../lib/state.svelte';
 	import CharacterForm from './CharacterForm.svelte';
 	import OraclePicker from './OraclePicker.svelte';
 
@@ -17,6 +18,7 @@
 
 	let oracleSelections = $state<Record<string, OracleEntry> | null>(null);
 	let synthesizing = $state(false);
+	let synthesisFileInput = $state<HTMLInputElement>(null!);
 
 	function saveApiKey() {
 		if (appState.apiKey.trim()) {
@@ -43,6 +45,54 @@
 	function beginAdventure() {
 		appState.view = 'play';
 	}
+
+	type SynthesisExport = {
+		character: MothershipCharacter;
+		gmContextBlob: string;
+		gmContextStructured: GmContextStructured;
+	};
+
+	function exportSynthesis() {
+		if (!appState.character || !appState.gmContextBlob || !appState.gmContextStructured) return;
+		const data: SynthesisExport = {
+			character: appState.character,
+			gmContextBlob: appState.gmContextBlob,
+			gmContextStructured: appState.gmContextStructured
+		};
+		const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `zoltar-synthesis-${new Date().toISOString().slice(0, 10)}.json`;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
+	function handleImportSynthesis(e: Event) {
+		const file = (e.target as HTMLInputElement).files?.[0];
+		if (!file) return;
+		const reader = new FileReader();
+		reader.onload = () => {
+			try {
+				const data = JSON.parse(reader.result as string) as SynthesisExport;
+				if (!data.character || !data.gmContextBlob || !data.gmContextStructured) {
+					appState.errors.push('Invalid synthesis file: missing required fields.');
+					return;
+				}
+				appState.character = data.character;
+				appState.gmContextBlob = data.gmContextBlob;
+				appState.gmContextStructured = data.gmContextStructured;
+				initializePlayerPools(appState, data.character);
+				initializeFromGmContext(appState, data.gmContextStructured);
+				step = 4;
+			} catch {
+				appState.errors.push('Failed to parse synthesis file.');
+			}
+		};
+		reader.readAsText(file);
+		// Reset so the same file can be re-imported
+		(e.target as HTMLInputElement).value = '';
+	}
 </script>
 
 <div class="setup">
@@ -65,6 +115,19 @@
 					class="input-full"
 				/>
 				<button onclick={saveApiKey} disabled={!appState.apiKey.trim()}>Continue</button>
+			</div>
+			<div class="import-row">
+				<span class="or-divider">or</span>
+				<button class="import-btn" onclick={() => synthesisFileInput.click()}>
+					Import Synthesis
+				</button>
+				<input
+					type="file"
+					accept=".json"
+					style="display:none"
+					bind:this={synthesisFileInput}
+					onchange={handleImportSynthesis}
+				/>
 			</div>
 		</div>
 	{:else if step === 2}
@@ -134,7 +197,10 @@
 						{/if}
 					{/if}
 
-					<button class="begin-btn" onclick={beginAdventure}>Begin Adventure</button>
+					<div class="review-actions">
+						<button class="begin-btn" onclick={beginAdventure}>Begin Adventure</button>
+						<button class="export-btn" onclick={exportSynthesis}>Export Synthesis</button>
+					</div>
 				</div>
 			{/if}
 		</div>
@@ -312,8 +378,14 @@
 		color: #aaa;
 	}
 
-	.begin-btn {
+	.review-actions {
+		display: flex;
+		gap: 0.75rem;
+		align-items: center;
 		margin-top: 1.5rem;
+	}
+
+	.begin-btn {
 		background: #7ec;
 		color: #1a1a2e;
 		font-size: 1rem;
@@ -322,5 +394,43 @@
 
 	.begin-btn:hover {
 		background: #9fc;
+	}
+
+	.export-btn {
+		background: #2a2a4a;
+		color: #aaa;
+		border: 1px solid #444;
+		font-size: 0.8125rem;
+		padding: 0.5rem 0.75rem;
+	}
+
+	.export-btn:hover {
+		background: #3a3a5a;
+		color: #e0e0e0;
+	}
+
+	.import-row {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-top: 1rem;
+	}
+
+	.or-divider {
+		color: #666;
+		font-size: 0.8125rem;
+	}
+
+	.import-btn {
+		background: #2a2a4a;
+		color: #aaa;
+		border: 1px solid #444;
+		font-size: 0.8125rem;
+		padding: 0.375rem 0.75rem;
+	}
+
+	.import-btn:hover {
+		background: #3a3a5a;
+		color: #e0e0e0;
 	}
 </style>

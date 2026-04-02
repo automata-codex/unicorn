@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { AppState } from '../lib/types';
 	import { runTurn } from '../lib/api';
+	import { exportState, importState } from '../lib/storage';
 	import ErrorBanner from './ErrorBanner.svelte';
 	import MessageLog from './MessageLog.svelte';
 	import StatePanel from './StatePanel.svelte';
@@ -9,6 +10,56 @@
 	let { appState = $bindable() }: { appState: AppState } = $props();
 
 	let input = $state('');
+	let fileInput: HTMLInputElement;
+
+	function handleExportState() {
+		exportState(appState);
+	}
+
+	function handleExportLog() {
+		const lines: string[] = [];
+		for (const msg of appState.messages) {
+			if (msg.role === 'user' && typeof msg.content === 'string') {
+				const parts = msg.content.split('\n\n');
+				const action = parts[parts.length - 1];
+				if (action && !action.startsWith('## Current State')) {
+					lines.push(`PLAYER: ${action}`);
+				}
+			} else if (msg.role === 'assistant') {
+				const content = msg.content;
+				if (Array.isArray(content)) {
+					for (const block of content as Record<string, unknown>[]) {
+						if (block.type === 'tool_use' && block.name === 'submit_gm_response') {
+							const inp = block.input as Record<string, unknown>;
+							if (inp.playerText) {
+								lines.push(`WARDEN: ${inp.playerText}`);
+							}
+						}
+					}
+				}
+			}
+			lines.push('');
+		}
+
+		const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `zoltar-log-${new Date().toISOString().slice(0, 10)}.txt`;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
+	async function handleImportState(e: Event) {
+		const file = (e.target as HTMLInputElement).files?.[0];
+		if (!file) return;
+		try {
+			const imported = await importState(file);
+			Object.assign(appState, imported);
+		} catch (err) {
+			appState.errors.push(err instanceof Error ? err.message : String(err));
+		}
+	}
 
 	async function submit() {
 		const action = input.trim();
@@ -26,7 +77,21 @@
 </script>
 
 <div class="play-view">
-	<ErrorBanner bind:appState />
+	<div class="header">
+		<ErrorBanner bind:appState />
+		<div class="controls">
+			<button class="control-btn" onclick={handleExportState}>Export State</button>
+			<button class="control-btn" onclick={() => fileInput.click()}>Import State</button>
+			<button class="control-btn" onclick={handleExportLog}>Export Log</button>
+			<input
+				type="file"
+				accept=".json"
+				style="display:none"
+				bind:this={fileInput}
+				onchange={handleImportState}
+			/>
+		</div>
+	</div>
 
 	<div class="layout">
 		<div class="left-panel">
@@ -64,6 +129,33 @@
 		display: flex;
 		flex-direction: column;
 		height: calc(100vh - 5rem);
+	}
+
+	.header {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.controls {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.control-btn {
+		background: #2a2a4a;
+		color: #aaa;
+		border: 1px solid #444;
+		border-radius: 4px;
+		padding: 0.25rem 0.75rem;
+		font-size: 0.75rem;
+		cursor: pointer;
+	}
+
+	.control-btn:hover {
+		background: #3a3a5a;
+		color: #e0e0e0;
 	}
 
 	.layout {
