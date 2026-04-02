@@ -1,23 +1,28 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import type { AppState, MothershipCharacter } from '../lib/types';
 	import { initializePlayerPools } from '../lib/state.svelte';
 
 	let { appState, onSave }: { appState: AppState; onSave: () => void } = $props();
 
-	let name = $state(appState.character?.name ?? '');
-	let entityId = $state(appState.character?.id ?? '');
-	let charClass = $state<MothershipCharacter['class']>(appState.character?.class ?? 'marine');
-	let strength = $state(appState.character?.stats.strength ?? 30);
-	let speed = $state(appState.character?.stats.speed ?? 30);
-	let intellect = $state(appState.character?.stats.intellect ?? 30);
-	let combat = $state(appState.character?.stats.combat ?? 30);
-	let fear = $state(appState.character?.saves.fear ?? 30);
-	let sanity = $state(appState.character?.saves.sanity ?? 30);
-	let body = $state(appState.character?.saves.body ?? 30);
-	let armor = $state(appState.character?.saves.armor ?? 30);
-	let maxHp = $state(appState.character?.maxHp ?? 20);
-	let skills = $state(appState.character?.skills.join(', ') ?? '');
-	let idManuallyEdited = $state(!!appState.character);
+	// Capture initial values to avoid Svelte reactive-prop-in-$state warnings.
+	// These are form defaults — we intentionally want the value at mount time.
+	const initial = untrack(() => appState.character);
+
+	let name = $state(initial?.name ?? '');
+	let entityId = $state(initial?.id ?? '');
+	let charClass = $state<MothershipCharacter['class']>(initial?.class ?? 'marine');
+	let strength = $state(initial?.stats.strength ?? 30);
+	let speed = $state(initial?.stats.speed ?? 30);
+	let intellect = $state(initial?.stats.intellect ?? 30);
+	let combat = $state(initial?.stats.combat ?? 30);
+	let fear = $state(initial?.saves.fear ?? 30);
+	let sanity = $state(initial?.saves.sanity ?? 30);
+	let body = $state(initial?.saves.body ?? 30);
+	let armor = $state(initial?.saves.armor ?? 30);
+	let maxHp = $state(initial?.maxHp ?? 20);
+	let skills = $state(initial?.skills.join(', ') ?? '');
+	let idManuallyEdited = $state(!!initial);
 	let validationError = $state('');
 
 	function slugify(text: string): string {

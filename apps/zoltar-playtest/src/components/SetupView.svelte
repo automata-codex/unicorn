@@ -1,19 +1,17 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import type { AppState } from '../lib/types';
 	import CharacterForm from './CharacterForm.svelte';
 
 	let { appState }: { appState: AppState } = $props();
 
-	let step = $state(1);
-
-	// Advance step based on existing state
-	if (appState.gmContextBlob) {
-		step = 4;
-	} else if (appState.character) {
-		step = 3;
-	} else if (appState.apiKey) {
-		step = 2;
-	}
+	// Determine initial step from existing state at mount time
+	let step = $state(untrack(() =>
+		appState.gmContextBlob ? 4
+		: appState.character ? 3
+		: appState.apiKey ? 2
+		: 1
+	));
 
 	function saveApiKey() {
 		if (appState.apiKey.trim()) {
