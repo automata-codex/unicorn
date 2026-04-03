@@ -37,6 +37,7 @@ The NestJS application structure, database connectivity, and core data model. No
 - [ ] Initial migration: core relational tables (`campaigns`, `adventures`, `messages`, `gm_context`, `character_sheets`, `campaign_state`)
 - [ ] Initial migration: grid tables (`grid_cells`, `grid_entities`)
 - [ ] Initial migration: `game_events` audit table
+- [ ] Initial migration: `adventure_log` table (append-only, one row per turn, JSONB payload column)
 - [ ] `map_geometry` stub table (not implemented, reserved for Phase 3)
 - [ ] Mothership Zod schemas — campaign state shape and character sheet shape
 - [ ] Basic CRUD endpoints for campaigns and adventures
@@ -78,6 +79,7 @@ The GM-in-a-box core: state snapshot construction, Claude API communication, str
 - [ ] `proposed_canon` routing — write entries to pending canon queue; auto-promote in Solo Blind
 - [ ] `game_events` write path (all state changes logged with sequence numbers)
 - [ ] Correction mechanic (`superseded_by` write path)
+- [ ] `adventure_log` write path — per-turn record of player input, full `submit_gm_response` payload, all `roll_dice` calls with purpose annotations and results, prompt and completion token counts
 
 ### Milestone 1.4 — Tools
 
