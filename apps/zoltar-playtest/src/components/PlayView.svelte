@@ -18,18 +18,44 @@
 
 	function handleExportLog() {
 		const lines: string[] = [];
-		for (const msg of appState.messages) {
+		for (let i = 0; i < appState.messages.length; i++) {
+			const msg = appState.messages[i];
 			if (msg.role === 'user' && typeof msg.content === 'string') {
-				const parts = msg.content.split('\n\n');
-				const action = parts[parts.length - 1];
-				if (action && !action.startsWith('## Current State')) {
+				const marker = '[PLAYER INPUT]\n';
+				const idx = msg.content.indexOf(marker);
+				let action: string;
+				if (idx !== -1) {
+					action = msg.content.slice(idx + marker.length).trim();
+				} else {
+					const parts = msg.content.split('\n\n');
+					action = parts[parts.length - 1].trim();
+				}
+				if (action && !action.startsWith('## Current State') && !action.startsWith('[CURRENT GAME STATE]')) {
 					lines.push(`PLAYER: ${action}`);
 				}
 			} else if (msg.role === 'assistant') {
 				const content = msg.content;
 				if (Array.isArray(content)) {
 					for (const block of content as Record<string, unknown>[]) {
-						if (block.type === 'tool_use' && block.name === 'submit_gm_response') {
+						if (block.type === 'tool_use' && block.name === 'roll_dice') {
+							const inp = block.input as Record<string, unknown>;
+							const toolId = block.id as string;
+							let resultStr = '';
+							if (i + 1 < appState.messages.length) {
+								const next = appState.messages[i + 1];
+								if (Array.isArray(next.content)) {
+									for (const rb of next.content as Record<string, unknown>[]) {
+										if (rb.type === 'tool_result' && rb.tool_use_id === toolId) {
+											try {
+												const r = JSON.parse(rb.content as string);
+												resultStr = ` → [${r.results}] = ${r.total}`;
+											} catch { /* ignore */ }
+										}
+									}
+								}
+							}
+							lines.push(`ROLL: ${inp.purpose} (${inp.notation})${resultStr}`);
+						} else if (block.type === 'tool_use' && block.name === 'submit_gm_response') {
 							const inp = block.input as Record<string, unknown>;
 							if (inp.playerText) {
 								lines.push(`WARDEN: ${inp.playerText}`);
