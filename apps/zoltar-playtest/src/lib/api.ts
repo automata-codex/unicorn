@@ -160,14 +160,8 @@ Skills: ${c.skills.join(', ')}`;
 }
 
 function formatOracleForSynthesis(label: string, entry: OracleEntry): string {
-	let text = `${label}: ${entry.claude_text}`;
-	if (entry.interfaces.length) {
-		const hints = entry.interfaces
-			.map((i) => `  - If ${i.condition}: ${i.note}`)
-			.join('\n');
-		text += `\n${hints}`;
-	}
-	return text;
+	return `${label}:
+${JSON.stringify(entry, null, 2)}`;
 }
 
 export type OracleSelections = {
@@ -198,7 +192,7 @@ ${formatOracleForSynthesis('Vessel Type', selections.vessel_type)}
 
 ${formatOracleForSynthesis('Tone', selections.tone)}
 
-Synthesize a coherent GM context from these elements. Make connections between the oracle results — the interface hints suggest natural combinations. Call submit_gm_context when complete.`;
+Each oracle entry includes an id, claude_text (the narrative seed), interfaces (hints for how entries connect across categories), and tags. Use the id values as the basis for entity IDs and flag keys in the structured output. Use the interfaces array to wire entries together coherently — condition values indicate which other entries this one connects to. Synthesize a coherent GM context from these elements and call submit_gm_context when complete.`;
 }
 
 // --- Turn loop ---
