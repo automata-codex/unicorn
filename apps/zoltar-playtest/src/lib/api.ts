@@ -1,6 +1,6 @@
 import type { AppState, MothershipCharacter, OracleEntry, SubmitGmContext } from './types';
 import { applyGmResponse, initializeFromGmContext } from './state.svelte';
-import { buildSnapshot } from './snapshot';
+import { buildGameState, buildCanonLog } from './snapshot';
 import { executeDiceRoll } from './dice';
 import { PLAY_TOOLS, SYNTHESIS_TOOLS } from './tools';
 
@@ -8,29 +8,96 @@ const API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-sonnet-4-6';
 const API_VERSION = '2023-06-01';
 
-// Keep the most recent N messages when building API requests.
-// The current state snapshot is always in the latest user message,
-// so older turns provide narrative context but aren't structurally required.
-const MAX_HISTORY_MESSAGES = 40;
+// Number of recent player/warden exchange pairs to include in the rolling window.
+// Each "exchange" is a player action + warden response (simplified to playerText).
+const RECENT_EXCHANGE_COUNT = 6;
 
-// --- Message trimming ---
+// --- Reconstructed context window ---
 
-function trimHistory(messages: ApiMessage[]): ApiMessage[] {
-	if (messages.length <= MAX_HISTORY_MESSAGES) return messages;
+type RecentExchange = {
+	playerAction: string;
+	wardenResponse: string;
+};
 
-	let trimmed = messages.slice(-MAX_HISTORY_MESSAGES);
+/**
+ * Extract simplified recent exchanges from the full message history.
+ * Strips tool call internals — only player actions and warden playerText.
+ */
+function extractRecentExchanges(messages: ApiMessage[]): RecentExchange[] {
+	const exchanges: RecentExchange[] = [];
+	let currentAction: string | null = null;
 
-	// Drop messages from the front until we reach a user message whose content
-	// is a plain string (i.e. a player action, not a tool_result). This ensures
-	// we never start with an orphaned tool_result that references a tool_use
-	// that was trimmed away.
-	while (trimmed.length > 0) {
-		const first = trimmed[0];
-		if (first.role === 'user' && typeof first.content === 'string') break;
-		trimmed = trimmed.slice(1);
+	for (const msg of messages) {
+		if (msg.role === 'user' && typeof msg.content === 'string') {
+			// Extract player action (after the game state / snapshot prefix)
+			const text = msg.content as string;
+			// Look for the player input after any prefixed state blocks
+			const playerMarker = '[PLAYER INPUT]\n';
+			const markerIdx = text.indexOf(playerMarker);
+			if (markerIdx !== -1) {
+				currentAction = text.slice(markerIdx + playerMarker.length).trim();
+			} else {
+				// Fallback: take the last paragraph (old format or plain text)
+				const parts = text.split('\n\n');
+				currentAction = parts[parts.length - 1].trim();
+			}
+		} else if (msg.role === 'assistant' && currentAction) {
+			// Extract playerText from submit_gm_response tool calls
+			const content = msg.content;
+			if (Array.isArray(content)) {
+				for (const block of content as Record<string, unknown>[]) {
+					if (block.type === 'tool_use' && block.name === 'submit_gm_response') {
+						const input = block.input as Record<string, unknown>;
+						if (input.playerText) {
+							exchanges.push({
+								playerAction: currentAction!,
+								wardenResponse: input.playerText as string
+							});
+							currentAction = null;
+						}
+					}
+				}
+			}
+		}
 	}
 
-	return trimmed;
+	return exchanges;
+}
+
+/**
+ * Build the user message for a turn using the reconstructed context window.
+ * Components: game state (XML) + canon log + recent exchanges + player action.
+ */
+function buildUserMessage(state: AppState, playerAction: string): string {
+	const parts: string[] = [];
+
+	// 1. Authoritative game state
+	parts.push('[CURRENT GAME STATE]');
+	parts.push(buildGameState(state));
+
+	// 2. Canon log (compact narrative record from all prior turns)
+	const canonLog = buildCanonLog(state);
+	if (canonLog) {
+		parts.push(canonLog);
+	}
+
+	// 3. Recent exchanges (rolling window for dialogue continuity)
+	const exchanges = extractRecentExchanges(state.messages);
+	const recent = exchanges.slice(-RECENT_EXCHANGE_COUNT);
+	if (recent.length > 0) {
+		parts.push('[RECENT EXCHANGES]');
+		for (const ex of recent) {
+			parts.push(`Player: ${ex.playerAction}`);
+			parts.push(`Warden: ${ex.wardenResponse}`);
+			parts.push('');
+		}
+	}
+
+	// 4. Current player action
+	parts.push('[PLAYER INPUT]');
+	parts.push(playerAction);
+
+	return parts.join('\n');
 }
 
 // --- Raw API call ---
@@ -143,6 +210,7 @@ WARDEN INSTRUCTIONS:
 - Panic is an event, not a pool. When stress crosses a threshold requiring a panic check, call roll_dice and narrate the result. Set a flag for any lasting panic condition.
 - You know everything the Warden knows. Reveal GM context secrets only when fictionally appropriate — when the character could plausibly perceive or discover them.
 - playerText is the only thing the player sees. Everything else is backend state.
+- The <game_state> block injected at the top of each player message is the authoritative record of current world state. Your gmUpdates in submit_gm_response must reflect transitions from this state. Do not reconstruct entity states or flag values from your tool call history — the snapshot is always current.
 - Entity IDs (any value matching the patterns npc_*, threat_*, feature_*), flag keys, coordinate values, and any other field names from the game state are forbidden in playerText. These values belong exclusively in gmUpdates. A player should never see "position (2,1)" or "secret_company_knew" in the narrative.
 - Calibrate response size to the fictional moment. A single NPC line of dialogue warrants a single line of response, not a full interaction. A room description is one paragraph, not a scene. Do not resolve an entire exchange in one response — take the smallest meaningful turn and return control to the player. The player drives pacing.
 - At the start of a new adventure, deliver the opening scene without waiting for player input. Establish location, atmosphere, and immediate situation. End with a question or open moment that invites the player's first action.
@@ -203,11 +271,14 @@ export async function runTurn(state: AppState, playerAction: string): Promise<bo
 	let success = false;
 
 	try {
-		const userMessage = `${buildSnapshot(state)}\n\n${playerAction}`;
-		const messages: ApiMessage[] = trimHistory([
-			...state.messages,
+		// Build a fresh reconstructed context window each turn.
+		// Only the current user message + any mid-turn tool exchanges are sent.
+		// Prior turns are represented by the canon log + recent exchanges summary
+		// inside the user message, not by raw message history.
+		const userMessage = buildUserMessage(state, playerAction);
+		const messages: ApiMessage[] = [
 			{ role: 'user', content: userMessage }
-		]);
+		];
 
 		while (true) {
 			const response = await callAnthropic(
@@ -240,19 +311,10 @@ export async function runTurn(state: AppState, playerAction: string): Promise<bo
 				});
 			} else if (toolUse.name === 'submit_gm_response') {
 				applyGmResponse(state, toolUse.input as unknown as import('./types').SubmitGmResponse);
-				messages.push({ role: 'assistant', content: response.content });
-				// Acknowledge the tool call so the next turn's history is valid
-				messages.push({
-					role: 'user',
-					content: [
-						{
-							type: 'tool_result',
-							tool_use_id: toolUse.id,
-							content: 'State updated.'
-						}
-					]
-				});
-				state.messages = messages as AppState['messages'];
+				// Store the full exchange in message history for extraction by
+				// future turns' extractRecentExchanges and for export/review.
+				state.messages.push({ role: 'user', content: userMessage } as AppState['messages'][number]);
+				state.messages.push({ role: 'assistant', content: response.content } as unknown as AppState['messages'][number]);
 				state.turn++;
 				success = true;
 				break;

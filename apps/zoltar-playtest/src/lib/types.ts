@@ -74,6 +74,7 @@ export type AppState = {
 
 	// Conversation
 	messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+	canonLog: Array<{ turn: number; summary: string; context: string }>;
 	turn: number;
 
 	// UI

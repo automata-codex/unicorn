@@ -23,6 +23,7 @@ export function createAppState(overrides?: Partial<AppState>): AppState {
 
 		// Conversation
 		messages: [],
+		canonLog: [],
 		turn: 1,
 
 		// UI
@@ -92,7 +93,11 @@ export function applyGmResponse(state: AppState, response: SubmitGmResponse): vo
 	}
 
 	// gmUpdates.proposedCanon
-	state.pendingCanon.push(...(response.gmUpdates?.proposedCanon ?? []));
+	const newCanon = response.gmUpdates?.proposedCanon ?? [];
+	state.pendingCanon.push(...newCanon);
+	for (const canon of newCanon) {
+		state.canonLog.push({ turn: state.turn, ...canon });
+	}
 
 	// diceRequests
 	if (response.diceRequests?.length) {
