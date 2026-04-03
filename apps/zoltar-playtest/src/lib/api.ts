@@ -18,12 +18,18 @@ const MAX_HISTORY_MESSAGES = 40;
 function trimHistory(messages: ApiMessage[]): ApiMessage[] {
 	if (messages.length <= MAX_HISTORY_MESSAGES) return messages;
 
-	// Trim from the front, but ensure we start with a user message
-	// (API requires messages to alternate and start with user)
 	let trimmed = messages.slice(-MAX_HISTORY_MESSAGES);
-	while (trimmed.length > 0 && trimmed[0].role !== 'user') {
+
+	// Drop messages from the front until we reach a user message whose content
+	// is a plain string (i.e. a player action, not a tool_result). This ensures
+	// we never start with an orphaned tool_result that references a tool_use
+	// that was trimmed away.
+	while (trimmed.length > 0) {
+		const first = trimmed[0];
+		if (first.role === 'user' && typeof first.content === 'string') break;
 		trimmed = trimmed.slice(1);
 	}
+
 	return trimmed;
 }
 
