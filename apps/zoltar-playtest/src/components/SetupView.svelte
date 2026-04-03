@@ -18,6 +18,7 @@
 
 	let oracleSelections = $state<Record<string, OracleEntry> | null>(null);
 	let synthesizing = $state(false);
+	let synthesisAddendum = $state('');
 	let synthesisFileInput = $state<HTMLInputElement>(null!);
 
 	function saveApiKey() {
@@ -38,7 +39,7 @@
 	async function synthesize() {
 		if (!oracleSelections) return;
 		synthesizing = true;
-		await runSynthesis(appState, oracleSelections as OracleSelections);
+		await runSynthesis(appState, oracleSelections as OracleSelections, synthesisAddendum);
 		synthesizing = false;
 	}
 
@@ -158,6 +159,16 @@
 						{/each}
 					</div>
 				{/if}
+
+				<div class="addendum-field">
+					<label for="synthesis-addendum">Additional Direction (optional)</label>
+					<textarea
+						id="synthesis-addendum"
+						bind:value={synthesisAddendum}
+						placeholder="e.g. Focus on social tension between NPCs. Keep the parasite threat offscreen for the first act."
+						rows="3"
+					></textarea>
+				</div>
 
 				<button
 					onclick={synthesize}
@@ -419,6 +430,36 @@
 	.or-divider {
 		color: #666;
 		font-size: 0.8125rem;
+	}
+
+	.addendum-field {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		margin-bottom: 1rem;
+	}
+
+	.addendum-field label {
+		font-size: 0.75rem;
+		color: #aaa;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.addendum-field textarea {
+		background: #16213e;
+		color: #e0e0e0;
+		border: 1px solid #444;
+		border-radius: 4px;
+		padding: 0.5rem;
+		font-size: 0.875rem;
+		font-family: inherit;
+		resize: vertical;
+	}
+
+	.addendum-field textarea:focus {
+		outline: none;
+		border-color: #c4a7e7;
 	}
 
 	.import-btn {

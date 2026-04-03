@@ -242,9 +242,10 @@ export type OracleSelections = {
 
 function buildSynthesisPrompt(
 	character: MothershipCharacter,
-	selections: OracleSelections
+	selections: OracleSelections,
+	addendum?: string
 ): string {
-	return `You are synthesizing a GM context for a solo Mothership adventure.
+	let prompt = `You are synthesizing a GM context for a solo Mothership adventure.
 
 CHARACTER:
 ${formatCharacterProse(character)}
@@ -261,6 +262,12 @@ ${formatOracleForSynthesis('Vessel Type', selections.vessel_type)}
 ${formatOracleForSynthesis('Tone', selections.tone)}
 
 Each oracle entry includes an id, claude_text (the narrative seed), interfaces (hints for how entries connect across categories), and tags. Use the id values as the basis for entity IDs and flag keys in the structured output. Use the interfaces array to wire entries together coherently — condition values indicate which other entries this one connects to. Synthesize a coherent GM context from these elements and call submit_gm_context when complete.`;
+
+	if (addendum?.trim()) {
+		prompt += `\n\nADDITIONAL DIRECTION:\n${addendum.trim()}`;
+	}
+
+	return prompt;
 }
 
 // --- Turn loop ---
@@ -335,7 +342,8 @@ export async function runTurn(state: AppState, playerAction: string): Promise<bo
 
 export async function runSynthesis(
 	state: AppState,
-	selections: OracleSelections
+	selections: OracleSelections,
+	addendum?: string
 ): Promise<void> {
 	if (!state.character) throw new Error('Character required for synthesis');
 
@@ -343,7 +351,7 @@ export async function runSynthesis(
 	state.errors = [];
 
 	try {
-		const prompt = buildSynthesisPrompt(state.character, selections);
+		const prompt = buildSynthesisPrompt(state.character, selections, addendum);
 		const messages: ApiMessage[] = [{ role: 'user', content: prompt }];
 
 		const response = await callAnthropic(
