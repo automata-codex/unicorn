@@ -2,7 +2,7 @@
 	"id": "mothership_vessel_type",
 	"system": "mothership",
 	"category": "vessel_type",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"entries": [
 		{
 			"id": "derelict_freighter",
@@ -10,11 +10,11 @@
 			"claude_text": "A commercial bulk freighter, dark for months or years. Cavernous cargo bays, narrow crew corridors, and a bridge designed for a skeleton crew. The cargo is still here — sealed containers that may or may not contain what the manifest says. Emergency power is intermittent. The ship drifts on its last programmed heading. Something triggered the distress beacon recently, but the crew has been dead for a long time.",
 			"interfaces": [
 				{
-					"condition": "threat:biological",
+					"condition": "threat_biological",
 					"note": "The sealed cargo bays create natural containment zones — and natural traps if the organism is already inside."
 				},
 				{
-					"condition": "secret:company_knew",
+					"condition": "secret_company_knew",
 					"note": "The cargo manifest discrepancies are the first clue that this voyage was not what it appeared."
 				}
 			],
@@ -26,11 +26,11 @@
 			"claude_text": "A corporate-funded research platform in a decaying orbit. Multiple laboratory modules connected by pressurized walkways. Each lab has its own environmental controls and can be sealed independently. The station was doing legitimate work — most of it — but one module has restricted access and its logs have been partially wiped. Power is stable but the orbit is not. There is a countdown that no one can ignore.",
 			"interfaces": [
 				{
-					"condition": "threat:systemic",
+					"condition": "threat_systemic",
 					"note": "The station's modular design means the AI or system threat can be isolated to specific modules, creating a tactical puzzle."
 				},
 				{
-					"condition": "secret:experiment",
+					"condition": "secret_experiment",
 					"note": "The restricted module is where the experiment happened. Getting in requires either credentials or force."
 				}
 			],
@@ -42,11 +42,11 @@
 			"claude_text": "A massive vessel designed to carry thousands of colonists in cryo-sleep. Most of the ship is automated — life support for the sleeping colonists, hydroponic bays for the skeleton crew, and a vast engine section that hums constantly. The colonists are still alive in their pods, which makes every decision about venting atmosphere or sealing sections a moral calculation. The crew quarters are a tiny island of habitation in a ship built for cargo that breathes.",
 			"interfaces": [
 				{
-					"condition": "threat:biological",
+					"condition": "threat_biological",
 					"note": "The sleeping colonists are thousands of potential hosts, creating an impossible triage scenario."
 				},
 				{
-					"condition": "survivor:ethical",
+					"condition": "survivor_ethical",
 					"note": "Any survivor with medical or ethical convictions will be forced to weigh individual survival against the colonists."
 				}
 			],

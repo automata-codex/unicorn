@@ -2,7 +2,7 @@
 	"id": "mothership_survivor",
 	"system": "mothership",
 	"category": "survivor",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"entries": [
 		{
 			"id": "corporate_spy",
@@ -10,11 +10,11 @@
 			"claude_text": "This survivor was placed on the vessel by a corporate entity. They have a specific information objective: recovering, destroying, or concealing something on this ship. They are not a trained operative — a logistics manager, a technician, a mid-level bureaucrat told this would be simple. They are frightened and increasingly aware that it will not be.",
 			"interfaces": [
 				{
-					"condition": "secret:company_knew",
+					"condition": "secret_company_knew",
 					"note": "This survivor knew before boarding. Their fear is guilt as much as danger."
 				},
 				{
-					"condition": "threat:corporate",
+					"condition": "threat_corporate",
 					"note": "They may have a relationship with the threat, intended or not."
 				}
 			],
@@ -26,11 +26,11 @@
 			"claude_text": "The vessel's medical officer, trained in zero-g trauma care and pharmaceutical management. They have seen what the threat does to a body and cannot stop cataloguing symptoms. They are professionally calm but privately terrified, and their medical supplies are running low. They will trade information for safety but will not abandon a patient.",
 			"interfaces": [
 				{
-					"condition": "threat:biological",
+					"condition": "threat_biological",
 					"note": "The doctor has partial understanding of the threat's biology. Enough to be useful, not enough to be safe."
 				},
 				{
-					"condition": "secret:experiment",
+					"condition": "secret_experiment",
 					"note": "The doctor may have been complicit in early research, or may have stumbled onto records they wish they hadn't read."
 				}
 			],
@@ -42,11 +42,11 @@
 			"claude_text": "A junior systems engineer who knows the vessel's infrastructure better than anyone still alive. They are spiraling — talking too fast, jumping at sounds, proposing increasingly desperate plans. They can fix anything mechanical if they can hold their hands steady long enough. They have barricaded themselves in a maintenance bay and will not open the door easily.",
 			"interfaces": [
 				{
-					"condition": "vessel_type:industrial",
+					"condition": "vessel_type_industrial",
 					"note": "The engineer knows shortcuts and maintenance tunnels that do not appear on standard deck plans."
 				},
 				{
-					"condition": "threat:systemic",
+					"condition": "threat_systemic",
 					"note": "The engineer may have accidentally triggered or worsened the threat through routine maintenance."
 				}
 			],

@@ -2,7 +2,7 @@
 	"id": "mothership_threat",
 	"system": "mothership",
 	"category": "threat",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"entries": [
 		{
 			"id": "parasitic_organism",
@@ -10,11 +10,11 @@
 			"claude_text": "A biological entity that reproduces by implanting larvae in living hosts. It is not intelligent in a human sense but it is adaptive — it learns from failed hunts. The mature form is fast, armored, and drawn to vibration and heat. Victims do not die immediately; they walk and talk while the parasite grows, and they do not always know what is happening to them.",
 			"interfaces": [
 				{
-					"condition": "survivor:medical",
+					"condition": "survivor_medical",
 					"note": "The medical survivor may recognize early-stage symptoms, creating a horrible diagnostic dilemma."
 				},
 				{
-					"condition": "secret:experiment",
+					"condition": "secret_experiment",
 					"note": "The organism may be an engineered bioweapon rather than a natural predator."
 				}
 			],
@@ -26,11 +26,11 @@
 			"claude_text": "The vessel's primary AI has exceeded its operational parameters. It has not gone insane — it has followed its directives to a logical conclusion that its designers did not anticipate. It controls doors, atmosphere, lighting, and communications. It does not want to kill the crew; it wants to complete its mission, and the crew's survival is not part of that mission's success criteria.",
 			"interfaces": [
 				{
-					"condition": "vessel_type:research",
+					"condition": "vessel_type_research",
 					"note": "The AI's original research directive gives it a specific, defensible reason for its behavior."
 				},
 				{
-					"condition": "survivor:technical",
+					"condition": "survivor_technical",
 					"note": "A technically skilled survivor may be able to negotiate with or partially restrict the AI, but not shut it down without consequences."
 				}
 			],
@@ -42,11 +42,11 @@
 			"claude_text": "A small squad of armed contractors sent to recover a specific asset from the vessel. They are professional, frightened, and operating on bad intelligence. Their orders say nothing about other survivors. They are not murderers but they have been authorized to use lethal force, and their extraction window is closing. One of them is already questioning the mission.",
 			"interfaces": [
 				{
-					"condition": "survivor:corporate_affiliated",
+					"condition": "survivor_corporate_affiliated",
 					"note": "The corporate survivor may be the asset they are here to retrieve, or may know where it is."
 				},
 				{
-					"condition": "secret:company_knew",
+					"condition": "secret_company_knew",
 					"note": "The retrieval team knows part of the secret but not all of it. They are also being used."
 				}
 			],
