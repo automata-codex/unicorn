@@ -52,6 +52,36 @@ type ApiResponse = {
 	stop_reason: string;
 };
 
+function withCacheBreakpoint(messages: ApiMessage[]): ApiMessage[] {
+	if (messages.length === 0) return messages;
+
+	// Add a cache breakpoint to the second-to-last message (the end of
+	// the prior turn's history). The last message is the new user action
+	// and changes every turn, but everything before it is identical to
+	// the previous API call and should hit the cache.
+	if (messages.length < 2) return messages;
+
+	const result = [...messages];
+	const target = result[result.length - 2];
+	const content = target.content;
+
+	if (typeof content === 'string') {
+		result[result.length - 2] = {
+			...target,
+			content: [
+				{ type: 'text', text: content, cache_control: { type: 'ephemeral' } }
+			]
+		};
+	} else if (Array.isArray(content) && content.length > 0) {
+		const blocks = [...content as Record<string, unknown>[]];
+		const last = blocks[blocks.length - 1];
+		blocks[blocks.length - 1] = { ...last, cache_control: { type: 'ephemeral' } };
+		result[result.length - 2] = { ...target, content: blocks };
+	}
+
+	return result;
+}
+
 async function callAnthropic(
 	apiKey: string,
 	system: string,
@@ -70,8 +100,10 @@ async function callAnthropic(
 		body: JSON.stringify({
 			model: MODEL,
 			max_tokens: 4096,
-			system,
-			messages,
+			system: [
+				{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }
+			],
+			messages: withCacheBreakpoint(messages),
 			tools,
 			tool_choice: toolChoice
 		})
