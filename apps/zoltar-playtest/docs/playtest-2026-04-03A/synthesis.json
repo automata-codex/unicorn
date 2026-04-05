@@ -1,0 +1,168 @@
+{
+  "character": {
+    "id": "lt_jones",
+    "name": "Lt. Jones",
+    "class": "marine",
+    "stats": {
+      "strength": 30,
+      "speed": 30,
+      "intellect": 30,
+      "combat": 30
+    },
+    "saves": {
+      "fear": 30,
+      "sanity": 30,
+      "body": 30,
+      "armor": 30
+    },
+    "maxHp": 20,
+    "skills": [
+      "Shooting stuff",
+      "stabbing things",
+      "mechanical repairs",
+      "military protocol"
+    ]
+  },
+  "gmContextBlob": "{\n  \"location\": \"USCSS Persephone's Wake — Colony Transport, mid-transit. Lt. Jones has been pulled from emergency cryo by automated distress protocols. The ship is 11 days from the nearest station. Most of the 4,200 colonists remain sealed in their cryo-pods in the vast Hibernation Decks below. The active crew section — a pressurized island of six rooms amidships — is where the crisis is concentrated. The engine hum is constant. The intercoms crackle with static and, occasionally, something that is not static.\",\n  \"atmosphere\": \"Relentless and claustrophobic. The Persephone's Wake is enormous in the abstract — kilometers of sealed corridors, automated systems, breathing cargo — but the playable space feels crushingly small. Emergency lighting is red-shifted. The life support system is working harder than it should, and the air tastes faintly wrong. Sounds carry differently in different sections, and the marine will learn to read the ship's acoustics like a threat indicator. Every resource decision is a moral one: venting a section kills colonists. Sealing a corridor might trap a survivor. The tone is immediate and escalating — the horror is not coming, it is here, and the clock is visible.\",\n  \"npcAgendas\": {\n    \"ships_doctor\": \"Dr. Yeva Marsh has barricaded herself in the Medical Bay (Section C). She is alive, lucid, and cataloguing everything with the focused calm of someone who has chosen documentation as her coping mechanism. She has a working terminal, partial research notes left by Chief Engineer Sol Draven, and a dwindling supply of sedatives and antiparasitics. Her agenda: she wants to save the colonists. Not just survive — save them. She believes the infection is reversible in early stages and she has a partial synthesis protocol she cannot complete alone. She will trade information freely, guide Jones toward the research notes, and beg him not to seal the Hibernation Decks. She will not abandon the one confirmed early-stage patient she is currently treating — Crewman Tomas Wick — even if Wick becomes dangerous. Her disposition shifts: she begins cooperative and grateful, becomes desperate and obstructive if Jones moves to vent or seal sections with living occupants, and breaks if Wick fully turns in her presence without warning (Fear trigger for Jones, Sanity trigger for Marsh).\",\n    \"crewman_wick\": \"Tomas Wick, engineering crew, is the early-stage infected patient Marsh is treating. He is ambulatory, coherent, and genuinely does not know the full extent of what is happening inside him. He knows he feels wrong. He is scared and cooperative at first contact — he can unlock Engineering access and knows the ship's physical layout better than anyone still breathing. His agenda is survival, which he still believes is possible for him. Marsh has told him it might be. This is, at best, optimistic. Wick's disposition degrades mechanically: he begins as a frightened but useful ally, develops visible symptoms (tremors, disorientation, one eye beginning to film over) across interactions, and fully turns into a threat by the midpoint of the adventure — faster if Jones allows Marsh to delay, slower if Jones helps Marsh access the research notes and advance the synthesis. His turning should produce a mandatory Fear save for Jones. Wick in full parasite-expression is faster and more aggressive than a mature organism, because the host musculature is still intact.\"\n  },\n  \"hiddenTruth\": \"Chief Engineer Sol Draven started the outbreak. His daughter, one of the colonists in cryo-pod Bay 7, was diagnosed with a degenerative neurological condition before departure — a condition the colony destination had no treatment for. Draven, who had chemistry training and access to the ship's pharmaceutical fabricator, spent eight months of transit attempting to synthesize a nerve-regeneration compound from research he found in the ship's restricted medical database. The compound worked on the cellular level. It also created an ideal biochemical environment for a dormant organism — a known contaminant risk in the source biological samples, flagged in a research note Draven either missed or ignored. The organism activated in Draven first. He has been dead for six days, in the Engineering section, and what is wearing his body now is no longer Draven in any meaningful sense. His research notes are the key to understanding the organism's biology and potentially to Marsh's synthesis protocol — but accessing them means going to Engineering, where the Draven-organism is. The secret is sympathetic and complete: Draven did this for his daughter, his daughter is still alive in Bay 7, and nothing Draven did will save her now. Jones may choose to tell Marsh, or not. Marsh may already suspect.\",\n  \"oracleConnections\": \"The parasitic organism interfaces with the colony transport through the cryo-pods — 4,200 sealed hosts the mature organism has not yet reached, creating the central triage stakes. The medical survivor (Marsh) interfaces with the biological threat through her partial diagnostic knowledge: she can identify early-stage infection, which makes Wick's presence a live horror rather than a background fact, and creates the ethical trap where the most useful NPC refuses to abandon the most dangerous one. The experiment-gone-wrong interfaces with both: Draven's research notes are the key to Marsh's synthesis protocol (reversibility condition) and the origin of the organism (biological threat condition). The desperate action tone is enforced by Wick's deterioration timer, Marsh's supply depletion, and the fact that the mature Draven-organism is already active in Engineering — the player cannot avoid confronting it if they want the notes. Combat is probable within the first three exchanges because the ship's medical bay access corridor contains a recently-turned crew member (not Wick — a second victim, further along) that Jones will encounter before reaching Marsh.\"\n}",
+  "gmContextStructured": {
+    "entities": [
+      {
+        "id": "ships_doctor",
+        "type": "npc",
+        "visible": true,
+        "tags": [
+          "medical",
+          "knowledge",
+          "ethical",
+          "cooperative",
+          "disposition_variable"
+        ],
+        "startingPosition": {
+          "x": 3,
+          "y": 2
+        }
+      },
+      {
+        "id": "crewman_wick",
+        "type": "npc",
+        "visible": true,
+        "tags": [
+          "infected_early_stage",
+          "ally_degrading",
+          "knowledge",
+          "timer_active",
+          "fear_trigger_on_turn"
+        ],
+        "startingPosition": {
+          "x": 3,
+          "y": 2
+        }
+      },
+      {
+        "id": "parasitic_organism_corridor",
+        "type": "threat",
+        "visible": false,
+        "tags": [
+          "biological",
+          "body_horror",
+          "turned_crew",
+          "combat_immediate",
+          "fear_trigger",
+          "vibration_sensitive"
+        ],
+        "startingPosition": {
+          "x": 2,
+          "y": 2
+        }
+      },
+      {
+        "id": "parasitic_organism_draven",
+        "type": "threat",
+        "visible": false,
+        "tags": [
+          "biological",
+          "body_horror",
+          "mature_host",
+          "boss_tier",
+          "experiment_gone_wrong",
+          "engineering_section"
+        ],
+        "startingPosition": {
+          "x": 0,
+          "y": 4
+        }
+      },
+      {
+        "id": "experiment_gone_wrong",
+        "type": "feature",
+        "visible": false,
+        "tags": [
+          "experiment",
+          "sympathetic_villain",
+          "reversible",
+          "research_notes",
+          "locked_terminal"
+        ],
+        "startingPosition": {
+          "x": 0,
+          "y": 4
+        }
+      },
+      {
+        "id": "colony_transport_cryobay",
+        "type": "feature",
+        "visible": true,
+        "tags": [
+          "massive",
+          "moral_stakes",
+          "populated",
+          "4200_hosts",
+          "sealed",
+          "triage_decision"
+        ],
+        "startingPosition": {
+          "x": 3,
+          "y": 6
+        }
+      },
+      {
+        "id": "draven_daughter_pod",
+        "type": "feature",
+        "visible": false,
+        "tags": [
+          "sympathetic_villain",
+          "moral_stakes",
+          "bay_7",
+          "still_alive"
+        ],
+        "startingPosition": {
+          "x": 2,
+          "y": 6
+        }
+      }
+    ],
+    "initialFlags": {
+      "marsh_is_cooperative": true,
+      "marsh_knows_draven_is_source": false,
+      "wick_has_turned": false,
+      "wick_symptoms_visible": false,
+      "draven_organism_alerted": false,
+      "research_notes_accessed": false,
+      "synthesis_protocol_complete": false,
+      "corridor_threat_encountered": false,
+      "cryobay_sealed": false,
+      "draven_daughter_located": false,
+      "player_fear_save_triggered": false,
+      "player_second_fear_trigger_active": false,
+      "experiment_origin_revealed": false
+    },
+    "initialState": {
+      "turn": 1,
+      "wick_degradation_timer": 4,
+      "marsh_supplies_remaining": 3,
+      "active_section": "crew_quarters_corridor",
+      "ship_alert_level": "red",
+      "notes": "Jones activates at the emergency cryo bay, Section A. The Medical Bay (Section C) is two sections forward. The access corridor between Section B and C contains parasitic_organism_corridor — a fully-turned crew member, recently converted, drawn to the vibration of Jones's movement. Encounter is near-certain within exchanges 1-2. This is the mandatory early combat encounter and Fear save trigger. Marsh and Wick are behind the Medical Bay blast door, which Marsh will open via intercom once she confirms a living marine is outside. Wick's degradation timer counts down each time Jones completes a major action without advancing the synthesis protocol. At timer 0, wick_has_turned flips true and parasitic_organism_corridor gains a second active entity in the medical bay. The Draven-organism in Engineering does not move until draven_organism_alerted flips true, which occurs if Jones discharges a firearm in Engineering or accesses the terminal without using Wick's override code."
+    }
+  }
+}
