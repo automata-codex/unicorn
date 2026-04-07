@@ -159,6 +159,12 @@ export const SYNTHESIS_TOOLS = [
 										required: ['x', 'y']
 									},
 									visible: { type: 'boolean' },
+									status: {
+										type: 'string',
+										enum: ['alive', 'dead', 'unknown'],
+										description:
+											"Starting liveness state. Use 'alive' for entities known to be alive at scenario start, 'unknown' for entities whose liveness is not yet established."
+									},
 									tags: { type: 'array', items: { type: 'string' } }
 								},
 								required: ['id', 'type', 'visible', 'tags']
@@ -166,14 +172,27 @@ export const SYNTHESIS_TOOLS = [
 						},
 						initialFlags: {
 							type: 'object',
+							description:
+								'Initial flag values. Must include adventure_complete: false.',
 							additionalProperties: { type: 'boolean' }
+						},
+						flagTriggers: {
+							type: 'object',
+							description:
+								'Trigger description for every flag in initialFlags. Each value names the specific in-fiction action or event that flips the flag.',
+							additionalProperties: { type: 'string' }
 						},
 						initialState: { type: 'object' }
 					},
-					required: ['entities', 'initialFlags', 'initialState']
+					required: ['entities', 'initialFlags', 'flagTriggers', 'initialState']
+				},
+				openingNarration: {
+					type: 'string',
+					description:
+						'The opening narration delivered before the player acts. Establishes the immediate physical situation, atmosphere, and one concrete detail the player did not put there.'
 				}
 			},
-			required: ['narrative', 'structured']
+			required: ['narrative', 'structured', 'openingNarration']
 		}
 	}
 ] as const;

@@ -12,6 +12,7 @@ export function createAppState(overrides?: Partial<AppState>): AppState {
 		character: null,
 		gmContextBlob: null,
 		gmContextStructured: null,
+		openingNarration: null,
 
 		// Play
 		resourcePools: {},

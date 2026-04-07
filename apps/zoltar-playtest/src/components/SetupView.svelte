@@ -44,6 +44,15 @@
 	}
 
 	function beginAdventure() {
+		// Inject opening narration as the first assistant message
+		if (appState.openingNarration) {
+			appState.messages.push({
+				role: 'assistant',
+				content: appState.openingNarration,
+				turn: 0,
+				timestamp: new Date().toISOString()
+			});
+		}
 		appState.view = 'play';
 	}
 
@@ -51,6 +60,7 @@
 		character: MothershipCharacter;
 		gmContextBlob: string;
 		gmContextStructured: GmContextStructured;
+		openingNarration?: string | null;
 	};
 
 	function exportSynthesis() {
@@ -58,7 +68,8 @@
 		const data: SynthesisExport = {
 			character: appState.character,
 			gmContextBlob: appState.gmContextBlob,
-			gmContextStructured: appState.gmContextStructured
+			gmContextStructured: appState.gmContextStructured,
+			openingNarration: appState.openingNarration
 		};
 		const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
 		const url = URL.createObjectURL(blob);
@@ -83,6 +94,7 @@
 				appState.character = data.character;
 				appState.gmContextBlob = data.gmContextBlob;
 				appState.gmContextStructured = data.gmContextStructured;
+				appState.openingNarration = data.openingNarration ?? null;
 				initializePlayerPools(appState, data.character);
 				initializeFromGmContext(appState, data.gmContextStructured);
 				step = 4;

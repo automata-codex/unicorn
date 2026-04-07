@@ -95,6 +95,7 @@ export type AppState = {
 	character: MothershipCharacter | null;
 	gmContextBlob: string | null;
 	gmContextStructured: GmContextStructured | null;
+	openingNarration: string | null;
 
 	// Play
 	resourcePools: ResourcePools;

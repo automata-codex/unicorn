@@ -471,7 +471,13 @@ export async function runSynthesis(
 		const context = toolUse.input as unknown as SubmitGmContext;
 		state.gmContextBlob = JSON.stringify(context.narrative, null, 2);
 		state.gmContextStructured = context.structured;
+		state.openingNarration = context.openingNarration ?? null;
 		initializeFromGmContext(state, context.structured);
+
+		// Validate adventure_complete flag
+		if (!('adventure_complete' in (context.structured.initialFlags ?? {}))) {
+			state.errors.push('[warn] Synthesis output is missing required adventure_complete flag.');
+		}
 	} catch (e) {
 		state.errors.push(e instanceof Error ? e.message : String(e));
 	} finally {
