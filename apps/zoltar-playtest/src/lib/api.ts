@@ -1,4 +1,4 @@
-import type { AppState, MothershipCharacter, OracleEntry, SubmitGmContext } from './types';
+import type { AppState, MothershipCharacter, OracleEntry, SubmitGmContext, TurnLogEntry } from './types';
 import { applyGmResponse, initializeFromGmContext } from './state.svelte';
 import { buildGameState, buildCanonLog } from './snapshot';
 import { executeDiceRoll } from './dice';
@@ -117,6 +117,10 @@ type ToolUseBlock = {
 type ApiResponse = {
 	content: unknown[];
 	stop_reason: string;
+	usage?: {
+		input_tokens: number;
+		output_tokens: number;
+	};
 };
 
 function withCacheBreakpoint(messages: ApiMessage[]): ApiMessage[] {
@@ -314,7 +318,11 @@ Any scenario-specific mechanical guidance (e.g. "the first organism encounter is
 
 // --- Turn loop ---
 
-export async function runTurn(state: AppState, playerAction: string): Promise<boolean> {
+export async function runTurn(
+	state: AppState,
+	playerAction: string,
+	playerDiceRolls?: TurnLogEntry['diceRolls']
+): Promise<boolean> {
 	state.loading = true;
 	state.errors = [];
 	let success = false;
@@ -329,6 +337,19 @@ export async function runTurn(state: AppState, playerAction: string): Promise<bo
 			{ role: 'user', content: userMessage }
 		];
 
+		// Capture the snapshot sent this turn for the turn log
+		const snapshotSent = JSON.parse(
+			buildGameState(state).replace(/^<game_state>\n/, '').replace(/\n<\/game_state>$/, '')
+		);
+
+		// Accumulate dice rolls across the tool loop for the turn log.
+		// Include any player dice rolls from the previous turn's diceRequests.
+		const diceRolls: TurnLogEntry['diceRolls'] = [...(playerDiceRolls ?? [])];
+
+		// Track token usage across all API calls in this turn
+		let totalPromptTokens = 0;
+		let totalCompletionTokens = 0;
+
 		while (true) {
 			const response = await callAnthropic(
 				state.apiKey,
@@ -337,6 +358,9 @@ export async function runTurn(state: AppState, playerAction: string): Promise<bo
 				PLAY_TOOLS,
 				{ type: 'any' }
 			);
+
+			totalPromptTokens += response.usage?.input_tokens ?? 0;
+			totalCompletionTokens += response.usage?.output_tokens ?? 0;
 
 			const toolUse = extractToolUse(response);
 
@@ -347,6 +371,12 @@ export async function runTurn(state: AppState, playerAction: string): Promise<bo
 
 			if (toolUse.name === 'roll_dice') {
 				const result = executeDiceRoll(toolUse.input.notation as string);
+				diceRolls.push({
+					purpose: toolUse.input.purpose as string,
+					notation: toolUse.input.notation as string,
+					result: result.total,
+					source: 'system'
+				});
 				messages.push({ role: 'assistant', content: response.content });
 				messages.push({
 					role: 'user',
@@ -359,11 +389,38 @@ export async function runTurn(state: AppState, playerAction: string): Promise<bo
 					]
 				});
 			} else if (toolUse.name === 'submit_gm_response') {
-				applyGmResponse(state, toolUse.input as unknown as import('./types').SubmitGmResponse);
+				const gmResponse = toolUse.input as unknown as import('./types').SubmitGmResponse;
+				applyGmResponse(state, gmResponse);
+
+				const now = new Date().toISOString();
+
 				// Store the full exchange in message history for extraction by
 				// future turns' extractRecentExchanges and for export/review.
-				state.messages.push({ role: 'user', content: userMessage } as AppState['messages'][number]);
-				state.messages.push({ role: 'assistant', content: response.content } as unknown as AppState['messages'][number]);
+				state.messages.push({
+					role: 'user',
+					content: userMessage,
+					turn: state.turn,
+					timestamp: now
+				});
+				state.messages.push({
+					role: 'assistant',
+					content: response.content as unknown as string,
+					turn: state.turn,
+					timestamp: now
+				});
+
+				// Build and append the turn log entry
+				state.turnLog.push({
+					turn: state.turn,
+					snapshotSent,
+					stateChanges: gmResponse.stateChanges ?? null,
+					diceRolls,
+					tokens: {
+						promptTokens: totalPromptTokens,
+						completionTokens: totalCompletionTokens
+					}
+				});
+
 				state.turn++;
 				success = true;
 				break;

@@ -23,6 +23,7 @@ export const PLAY_TOOLS = [
 						},
 						entities: {
 							type: 'object',
+							description: 'Entity state updates. Use entity IDs as keys.',
 							additionalProperties: {
 								type: 'object',
 								properties: {
@@ -34,13 +35,25 @@ export const PLAY_TOOLS = [
 										},
 										required: ['x', 'y']
 									},
-									visible: { type: 'boolean' }
+									visible: { type: 'boolean' },
+									status: {
+										type: 'string',
+										enum: ['alive', 'dead', 'unknown'],
+										description:
+											"Entity liveness. Set to 'dead' when an entity is killed — this also zeros all resource pools prefixed with the entity's ID."
+									}
 								}
 							}
 						},
 						flags: {
 							type: 'object',
 							additionalProperties: { type: 'boolean' }
+						},
+						flagTriggers: {
+							type: 'object',
+							description:
+								'Trigger descriptions for new flags. Required when introducing a new flag — describes the specific in-fiction event that flips it.',
+							additionalProperties: { type: 'string' }
 						}
 					}
 				},

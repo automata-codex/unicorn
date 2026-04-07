@@ -29,6 +29,7 @@ export function buildGameState(state: AppState): string {
 
 	gameState.entities = state.entities;
 	gameState.flags = state.flags;
+	gameState.flagTriggers = state.flagTriggers;
 	gameState.npcStates = state.npcStates;
 
 	return `<game_state>

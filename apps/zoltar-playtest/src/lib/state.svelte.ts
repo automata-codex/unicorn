@@ -84,11 +84,30 @@ export function applyGmResponse(state: AppState, response: SubmitGmResponse): vo
 		state.entities[entityId] ??= { visible: true, status: 'unknown' };
 		if (update.position !== undefined) state.entities[entityId].position = update.position;
 		if (update.visible !== undefined) state.entities[entityId].visible = update.visible;
-		if (update.status !== undefined) state.entities[entityId].status = update.status;
+		if (update.status !== undefined) {
+			state.entities[entityId].status = update.status;
+			// When an entity dies, zero all resource pools prefixed with its ID
+			if (update.status === 'dead') {
+				const prefix = `${entityId}_`;
+				for (const poolName of Object.keys(state.resourcePools)) {
+					if (poolName.startsWith(prefix)) {
+						state.resourcePools[poolName].current = 0;
+					}
+				}
+			}
+		}
 	}
 
+	// stateChanges.flagTriggers (merge before flags so triggers are in place for new flags)
+	Object.assign(state.flagTriggers, response.stateChanges?.flagTriggers ?? {});
+
 	// stateChanges.flags
-	Object.assign(state.flags, response.stateChanges?.flags ?? {});
+	for (const [key, value] of Object.entries(response.stateChanges?.flags ?? {})) {
+		if (!(key in state.flagTriggers)) {
+			state.errors.push(`[warn] Flag "${key}" has no trigger description in flagTriggers.`);
+		}
+		state.flags[key] = value;
+	}
 
 	// gmUpdates.npcStates
 	Object.assign(state.npcStates, response.gmUpdates?.npcStates ?? {});
