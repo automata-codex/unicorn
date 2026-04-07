@@ -3,6 +3,7 @@
 	import type { AppState, OracleEntry, MothershipCharacter, GmContextStructured } from '../lib/types';
 	import { runSynthesis, type OracleSelections } from '../lib/api';
 	import { initializePlayerPools, initializeFromGmContext } from '../lib/state.svelte';
+	import { parseSessionFile, restoreSession } from '../lib/storage';
 	import CharacterForm from './CharacterForm.svelte';
 	import OraclePicker from './OraclePicker.svelte';
 
@@ -20,6 +21,7 @@
 	let synthesizing = $state(false);
 	let synthesisAddendum = $state('');
 	let synthesisFileInput = $state<HTMLInputElement>(null!);
+	let sessionFileInput = $state<HTMLInputElement>(null!);
 
 	function saveApiKey() {
 		if (appState.apiKey.trim()) {
@@ -106,6 +108,19 @@
 		// Reset so the same file can be re-imported
 		(e.target as HTMLInputElement).value = '';
 	}
+
+	async function handleImportSession(e: Event) {
+		const file = (e.target as HTMLInputElement).files?.[0];
+		if (!file) return;
+		(e.target as HTMLInputElement).value = '';
+
+		try {
+			const session = await parseSessionFile(file);
+			restoreSession(appState, session);
+		} catch (err) {
+			appState.errors.push(err instanceof Error ? err.message : String(err));
+		}
+	}
 </script>
 
 <div class="setup">
@@ -140,6 +155,16 @@
 					style="display:none"
 					bind:this={synthesisFileInput}
 					onchange={handleImportSynthesis}
+				/>
+				<button class="import-btn" onclick={() => sessionFileInput.click()}>
+					Import Session
+				</button>
+				<input
+					type="file"
+					accept=".json"
+					style="display:none"
+					bind:this={sessionFileInput}
+					onchange={handleImportSession}
 				/>
 			</div>
 		</div>

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { AppState } from '../lib/types';
 	import { runTurn } from '../lib/api';
-	import { exportState, importState } from '../lib/storage';
+	import { exportSession, parseSessionFile, restoreSession } from '../lib/storage';
 	import ErrorBanner from './ErrorBanner.svelte';
 	import MessageLog from './MessageLog.svelte';
 	import StatePanel from './StatePanel.svelte';
@@ -12,76 +12,27 @@
 	let input = $state('');
 	let fileInput: HTMLInputElement;
 
-	function handleExportState() {
-		exportState(appState);
+	function handleExportSession() {
+		exportSession(appState);
 	}
 
-	function handleExportLog() {
-		const lines: string[] = [];
-		for (let i = 0; i < appState.messages.length; i++) {
-			const msg = appState.messages[i];
-			if (msg.role === 'user' && typeof msg.content === 'string') {
-				const marker = '[PLAYER INPUT]\n';
-				const idx = msg.content.indexOf(marker);
-				let action: string;
-				if (idx !== -1) {
-					action = msg.content.slice(idx + marker.length).trim();
-				} else {
-					const parts = msg.content.split('\n\n');
-					action = parts[parts.length - 1].trim();
-				}
-				if (action && !action.startsWith('## Current State') && !action.startsWith('[CURRENT GAME STATE]')) {
-					lines.push(`PLAYER: ${action}`);
-				}
-			} else if (msg.role === 'assistant') {
-				const content = msg.content;
-				if (Array.isArray(content)) {
-					for (const block of content as Record<string, unknown>[]) {
-						if (block.type === 'tool_use' && block.name === 'roll_dice') {
-							const inp = block.input as Record<string, unknown>;
-							const toolId = block.id as string;
-							let resultStr = '';
-							if (i + 1 < appState.messages.length) {
-								const next = appState.messages[i + 1];
-								if (Array.isArray(next.content)) {
-									for (const rb of next.content as Record<string, unknown>[]) {
-										if (rb.type === 'tool_result' && rb.tool_use_id === toolId) {
-											try {
-												const r = JSON.parse(rb.content as string);
-												resultStr = ` → [${r.results}] = ${r.total}`;
-											} catch { /* ignore */ }
-										}
-									}
-								}
-							}
-							lines.push(`ROLL: ${inp.purpose} (${inp.notation})${resultStr}`);
-						} else if (block.type === 'tool_use' && block.name === 'submit_gm_response') {
-							const inp = block.input as Record<string, unknown>;
-							if (inp.playerText) {
-								lines.push(`WARDEN: ${inp.playerText}`);
-							}
-						}
-					}
-				}
-			}
-			lines.push('');
-		}
-
-		const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `zoltar-log-${new Date().toISOString().slice(0, 10)}.txt`;
-		a.click();
-		URL.revokeObjectURL(url);
-	}
-
-	async function handleImportState(e: Event) {
+	async function handleImportSession(e: Event) {
 		const file = (e.target as HTMLInputElement).files?.[0];
 		if (!file) return;
+		// Reset so the same file can be re-imported
+		(e.target as HTMLInputElement).value = '';
+
 		try {
-			const imported = await importState(file);
-			Object.assign(appState, imported);
+			const session = await parseSessionFile(file);
+
+			// Confirm overwrite if a session is in progress
+			const hasSession = appState.turn > 1 || appState.messages.length > 0;
+			if (hasSession) {
+				const ok = confirm('A session is in progress. Importing will replace all current state. Continue?');
+				if (!ok) return;
+			}
+
+			restoreSession(appState, session);
 		} catch (err) {
 			appState.errors.push(err instanceof Error ? err.message : String(err));
 		}
@@ -108,15 +59,14 @@
 	<div class="header">
 		<ErrorBanner bind:appState />
 		<div class="controls">
-			<button class="control-btn" onclick={handleExportState}>Export State</button>
-			<button class="control-btn" onclick={() => fileInput.click()}>Import State</button>
-			<button class="control-btn" onclick={handleExportLog}>Export Log</button>
+			<button class="control-btn" onclick={handleExportSession}>Export Session</button>
+			<button class="control-btn" onclick={() => fileInput.click()}>Import Session</button>
 			<input
 				type="file"
 				accept=".json"
 				style="display:none"
 				bind:this={fileInput}
-				onchange={handleImportState}
+				onchange={handleImportSession}
 			/>
 		</div>
 	</div>
