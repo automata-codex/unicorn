@@ -31,9 +31,12 @@ export type ResourcePools = Record<string, ResourcePool>;
 
 // --- Entities ---
 
+export type EntityStatus = 'alive' | 'dead' | 'unknown';
+
 export type EntityState = {
 	position?: { x: number; y: number };
 	visible: boolean;
+	status: EntityStatus;
 	npcState?: string;
 };
 
@@ -49,10 +52,39 @@ export type GmContextStructured = {
 		type: 'npc' | 'threat' | 'feature';
 		startingPosition?: { x: number; y: number };
 		visible: boolean;
+		status?: EntityStatus;
 		tags: string[];
 	}>;
 	initialFlags: Record<string, boolean>;
+	flagTriggers: Record<string, string>;
 	initialState: Record<string, unknown>;
+};
+
+// --- Messages ---
+
+export type GameMessage = {
+	role: 'user' | 'assistant';
+	content: string;
+	turn: number;
+	timestamp: string; // ISO 8601
+};
+
+// --- Turn Log ---
+
+export type TurnLogEntry = {
+	turn: number;
+	snapshotSent: object;
+	stateChanges: object | null;
+	diceRolls: Array<{
+		purpose: string;
+		notation: string;
+		result: number;
+		source: 'system' | 'player';
+	}>;
+	tokens: {
+		promptTokens: number;
+		completionTokens: number;
+	};
 };
 
 // --- App State ---
@@ -69,12 +101,14 @@ export type AppState = {
 	wounds: Record<string, string[]>;
 	entities: Record<string, EntityState>;
 	flags: Flags;
+	flagTriggers: Record<string, string>;
 	npcStates: Record<string, string>;
 	pendingCanon: Array<{ summary: string; context: string }>;
 
 	// Conversation
-	messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+	messages: GameMessage[];
 	canonLog: Array<{ turn: number; summary: string; context: string }>;
+	turnLog: TurnLogEntry[];
 	turn: number;
 
 	// UI
@@ -131,9 +165,11 @@ export type SubmitGmResponse = {
 			{
 				position?: { x: number; y: number };
 				visible?: boolean;
+				status?: EntityStatus;
 			}
 		>;
 		flags?: Record<string, boolean>;
+		flagTriggers?: Record<string, string>;
 	};
 	gmUpdates?: {
 		npcStates?: Record<string, string>;
@@ -152,4 +188,5 @@ export type SubmitGmContext = {
 		oracleConnections: string;
 	};
 	structured: GmContextStructured;
+	openingNarration: string;
 };

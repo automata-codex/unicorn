@@ -18,12 +18,14 @@ export function createAppState(overrides?: Partial<AppState>): AppState {
 		wounds: {},
 		entities: {},
 		flags: {},
+		flagTriggers: {},
 		npcStates: {},
 		pendingCanon: [],
 
 		// Conversation
 		messages: [],
 		canonLog: [],
+		turnLog: [],
 		turn: 1,
 
 		// UI
@@ -52,10 +54,12 @@ export function initializeFromGmContext(state: AppState, structured: GmContextSt
 	for (const entity of structured.entities) {
 		state.entities[entity.id] = {
 			visible: entity.visible,
+			status: entity.status ?? 'unknown',
 			position: entity.startingPosition
 		};
 	}
 	Object.assign(state.flags, structured.initialFlags);
+	Object.assign(state.flagTriggers, structured.flagTriggers ?? {});
 }
 
 export function applyGmResponse(state: AppState, response: SubmitGmResponse): void {
@@ -77,9 +81,10 @@ export function applyGmResponse(state: AppState, response: SubmitGmResponse): vo
 
 	// stateChanges.entities
 	for (const [entityId, update] of Object.entries(response.stateChanges?.entities ?? {})) {
-		state.entities[entityId] ??= { visible: true };
+		state.entities[entityId] ??= { visible: true, status: 'unknown' };
 		if (update.position !== undefined) state.entities[entityId].position = update.position;
 		if (update.visible !== undefined) state.entities[entityId].visible = update.visible;
+		if (update.status !== undefined) state.entities[entityId].status = update.status;
 	}
 
 	// stateChanges.flags
@@ -88,7 +93,7 @@ export function applyGmResponse(state: AppState, response: SubmitGmResponse): vo
 	// gmUpdates.npcStates
 	Object.assign(state.npcStates, response.gmUpdates?.npcStates ?? {});
 	for (const [entityId, npcState] of Object.entries(response.gmUpdates?.npcStates ?? {})) {
-		state.entities[entityId] ??= { visible: true };
+		state.entities[entityId] ??= { visible: true, status: 'unknown' };
 		state.entities[entityId].npcState = npcState;
 	}
 
