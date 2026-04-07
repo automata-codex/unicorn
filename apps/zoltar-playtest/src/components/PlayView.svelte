@@ -125,7 +125,9 @@
 		<div class="left-panel">
 			<MessageLog {appState} />
 
-			{#if appState.pendingDiceRequests.length > 0}
+			{#if appState.flags.adventure_complete}
+				<div class="session-complete">Session Complete</div>
+			{:else if appState.pendingDiceRequests.length > 0}
 				<DicePrompt bind:appState />
 			{:else}
 				<div class="input-area">
@@ -216,6 +218,19 @@
 		border-radius: 4px;
 		padding: 0.75rem;
 		overflow-y: auto;
+	}
+
+	.session-complete {
+		background: #2a4a2a;
+		border: 1px solid #7ec;
+		border-radius: 4px;
+		padding: 0.75rem;
+		color: #7ec;
+		font-weight: bold;
+		text-align: center;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		margin-top: 0.5rem;
 	}
 
 	.input-area {

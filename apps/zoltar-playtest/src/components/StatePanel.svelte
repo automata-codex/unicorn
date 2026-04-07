@@ -118,19 +118,25 @@
 		<section>
 			<h3>Entities</h3>
 			{#each entityEntries as [id, entity]}
-				<div class="entity-row">
+				<div class="entity-row" class:entity-dead={entity.status === 'dead'}>
 					<span class="entity-id">{id}</span>
+					<span class="entity-status" class:status-dead={entity.status === 'dead'} class:status-alive={entity.status === 'alive'}>
+						{entity.status}
+					</span>
 					<span class="entity-vis" class:hidden={!entity.visible}>
 						{entity.visible ? 'visible' : 'hidden'}
 					</span>
-					{#if entity.position}
-						<span class="entity-pos">({entity.position.x}, {entity.position.y})</span>
-					{/if}
 					{#if entity.npcState}
 						<div class="npc-state">{entity.npcState}</div>
 					{/if}
 				</div>
 			{/each}
+		</section>
+	{/if}
+
+	{#if appState.flags.adventure_complete}
+		<section>
+			<div class="adventure-complete-banner">Adventure Complete</div>
 		</section>
 	{/if}
 
@@ -273,9 +279,27 @@
 		padding: 0.25rem 0;
 	}
 
+	.entity-dead {
+		opacity: 0.5;
+		text-decoration: line-through;
+	}
+
 	.entity-id {
 		color: #c4a7e7;
 		font-family: monospace;
+	}
+
+	.entity-status {
+		font-size: 0.75rem;
+		color: #888;
+	}
+
+	.entity-status.status-alive {
+		color: #7ec;
+	}
+
+	.entity-status.status-dead {
+		color: #e55;
 	}
 
 	.entity-vis {
@@ -285,11 +309,6 @@
 
 	.entity-vis.hidden {
 		color: #888;
-	}
-
-	.entity-pos {
-		font-size: 0.75rem;
-		color: #666;
 	}
 
 	.npc-state {
@@ -307,6 +326,19 @@
 
 	.flag-value.flag-true {
 		color: #7ec;
+	}
+
+	.adventure-complete-banner {
+		background: #2a4a2a;
+		border: 1px solid #7ec;
+		border-radius: 4px;
+		padding: 0.5rem 0.75rem;
+		color: #7ec;
+		font-weight: bold;
+		text-align: center;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		font-size: 0.8125rem;
 	}
 
 	.canon-item {

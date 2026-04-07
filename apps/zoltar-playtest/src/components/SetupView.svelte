@@ -214,9 +214,19 @@
 							<h3>Initial Flags</h3>
 							<div class="flags-list">
 								{#each Object.entries(appState.gmContextStructured.initialFlags) as [flag, value]}
-									<div>{flag}: {value}</div>
+									<div class="flag-item">
+										<div>{flag}: {value}</div>
+										{#if appState.gmContextStructured?.flagTriggers?.[flag]}
+											<div class="flag-trigger">{appState.gmContextStructured.flagTriggers[flag]}</div>
+										{/if}
+									</div>
 								{/each}
 							</div>
+						{/if}
+
+						{#if appState.openingNarration}
+							<h3>Opening Narration</h3>
+							<div class="opening-narration">{appState.openingNarration}</div>
 						{/if}
 					{/if}
 
@@ -399,6 +409,32 @@
 		font-size: 0.875rem;
 		font-family: monospace;
 		color: #aaa;
+	}
+
+	.flag-item {
+		padding: 0.25rem 0;
+	}
+
+	.flag-trigger {
+		font-size: 0.75rem;
+		color: #888;
+		font-style: italic;
+		font-family: inherit;
+		padding-left: 0.75rem;
+		margin-top: 0.125rem;
+	}
+
+	.opening-narration {
+		background: #16213e;
+		border: 1px solid #333;
+		border-radius: 4px;
+		padding: 0.75rem;
+		font-size: 0.875rem;
+		white-space: pre-wrap;
+		word-wrap: break-word;
+		line-height: 1.5;
+		color: #ccc;
+		font-style: italic;
 	}
 
 	.review-actions {

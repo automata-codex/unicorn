@@ -16,8 +16,15 @@
 	type LogEntry = {
 		type: 'player' | 'gm' | 'roll' | 'system';
 		text: string;
+		turn?: number;
+		timestamp?: string;
 		rollDetail?: { notation: string; purpose: string; total: number; results: number[] };
 	};
+
+	function formatTimestamp(iso: string): string {
+		const d = new Date(iso);
+		return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+	}
 
 	function extractPlayerAction(content: string): string | null {
 		// New format: look for [PLAYER INPUT] marker
@@ -44,7 +51,7 @@
 			if (msg.role === 'user' && typeof msg.content === 'string') {
 				const action = extractPlayerAction(msg.content);
 				if (action) {
-					entries.push({ type: 'player', text: action });
+					entries.push({ type: 'player', text: action, turn: msg.turn, timestamp: msg.timestamp });
 				}
 			} else if (msg.role === 'assistant') {
 				const content = msg.content;
@@ -77,6 +84,8 @@
 								entries.push({
 									type: 'roll',
 									text: `${purpose}: ${notation}`,
+									turn: msg.turn,
+									timestamp: msg.timestamp,
 									rollDetail: {
 										notation,
 										purpose,
@@ -87,13 +96,15 @@
 							} else {
 								entries.push({
 									type: 'roll',
-									text: `${purpose}: ${notation} (result pending)`
+									text: `${purpose}: ${notation} (result pending)`,
+									turn: msg.turn,
+									timestamp: msg.timestamp
 								});
 							}
 						} else if (b.type === 'tool_use' && b.name === 'submit_gm_response') {
 							const input = b.input as Record<string, unknown>;
 							if (input.playerText) {
-								entries.push({ type: 'gm', text: input.playerText as string });
+								entries.push({ type: 'gm', text: input.playerText as string, turn: msg.turn, timestamp: msg.timestamp });
 							}
 						}
 					}
@@ -116,6 +127,9 @@
 	{#each buildLogEntries() as entry}
 		{#if entry.type === 'roll'}
 			<div class="log-entry roll">
+				{#if entry.turn != null}
+					<div class="entry-meta">Turn {entry.turn}{#if entry.timestamp} &middot; {formatTimestamp(entry.timestamp)}{/if}</div>
+				{/if}
 				<div class="roll-header">
 					<span class="roll-icon">&#9858;</span>
 					<span class="roll-purpose">{entry.rollDetail?.purpose ?? entry.text}</span>
@@ -131,6 +145,9 @@
 			</div>
 		{:else}
 			<div class="log-entry {entry.type}">
+				{#if entry.turn != null}
+					<div class="entry-meta">Turn {entry.turn}{#if entry.timestamp} &middot; {formatTimestamp(entry.timestamp)}{/if}</div>
+				{/if}
 				{#if entry.type === 'player'}
 					<span class="label">You:</span>
 				{:else if entry.type === 'gm'}
@@ -226,6 +243,12 @@
 	.roll-total {
 		color: #e0e0e0;
 		font-weight: bold;
+	}
+
+	.entry-meta {
+		font-size: 0.6875rem;
+		color: #666;
+		margin-bottom: 0.25rem;
 	}
 
 	.label {
