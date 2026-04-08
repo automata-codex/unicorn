@@ -32,9 +32,21 @@ export function buildGameState(state: AppState): string {
 	gameState.flagTriggers = state.flagTriggers;
 	gameState.npcStates = state.npcStates;
 
-	return `<game_state>
+	let output = `<game_state>
 ${JSON.stringify(gameState, null, 2)}
 </game_state>`;
+
+	// Scenario state — human-readable format, one line per counter
+	const scenarioEntries = Object.entries(state.scenarioState);
+	if (scenarioEntries.length > 0) {
+		const lines = scenarioEntries.map(([key, entry]) => {
+			const value = entry.max != null ? `${entry.current}/${entry.max}` : `${entry.current}`;
+			return entry.note ? `${key}: ${value} — ${entry.note}` : `${key}: ${value}`;
+		});
+		output += `\n\n<scenario_state>\n${lines.join('\n')}\n</scenario_state>`;
+	}
+
+	return output;
 }
 
 /**

@@ -53,6 +53,7 @@ The NestJS application structure, database connectivity, and core data model. No
 The Solo Blind campaign creation pipeline: oracle table filtering, coherence check, and GM context synthesis. This is a significant Phase 1 feature — the adventure is only as good as the GM context that seeds it. Milestone 1.0 gates this milestone: oracle table entries and the synthesis prompt should be validated manually before the pipeline is built.
 
 - [ ] `submit_gm_context` tool definition (Zod schema)
+- [ ] Rationalize state snapshot fields and finalize read/write contract between snapshot and tool schema.
 - [ ] Mothership oracle tables — survivors, threats, secrets, vessel type, tone (versioned JSON files)
 - [ ] Oracle table filtering data model — active/inactive entries per category, range dials
 - [ ] Character creation flow — Mothership mechanical character creation producing a character sheet that seeds oracle weighting

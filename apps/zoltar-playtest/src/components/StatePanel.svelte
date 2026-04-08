@@ -17,6 +17,7 @@
 	);
 
 	let entityEntries = $derived(Object.entries(appState.entities));
+	let scenarioEntries = $derived(Object.entries(appState.scenarioState));
 	let flagEntries = $derived(Object.entries(appState.flags));
 
 	function startEdit(poolName: string) {
@@ -110,6 +111,23 @@
 						</button>
 					{/if}
 				</div>
+			{/each}
+		</section>
+	{/if}
+
+	{#if scenarioEntries.length > 0}
+		<section>
+			<h3>Scenario State</h3>
+			{#each scenarioEntries as [name, entry]}
+				<div class="stat-row">
+					<span class="pool-label">{name}</span>
+					<span class="pool-value">
+						{entry.max != null ? `${entry.current}/${entry.max}` : `${entry.current}`}
+					</span>
+				</div>
+				{#if entry.note}
+					<div class="scenario-note">{entry.note}</div>
+				{/if}
 			{/each}
 		</section>
 	{/if}
@@ -277,6 +295,14 @@
 		gap: 0.25rem;
 		align-items: center;
 		padding: 0.25rem 0;
+	}
+
+	.scenario-note {
+		font-size: 0.6875rem;
+		color: #666;
+		font-style: italic;
+		padding-left: 0.5rem;
+		margin-bottom: 0.25rem;
 	}
 
 	.entity-dead {

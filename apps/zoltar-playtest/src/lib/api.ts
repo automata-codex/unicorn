@@ -445,7 +445,10 @@ export async function runTurn(
 					tokens: {
 						promptTokens: totalPromptTokens,
 						completionTokens: totalCompletionTokens
-					}
+					},
+					scenarioStateSnapshot: Object.keys(state.scenarioState).length > 0
+						? structuredClone(state.scenarioState)
+						: undefined
 				});
 
 				state.turn++;

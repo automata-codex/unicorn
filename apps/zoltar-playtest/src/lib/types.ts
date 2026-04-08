@@ -40,6 +40,14 @@ export type EntityState = {
 	npcState?: string;
 };
 
+// --- Scenario State ---
+
+export type ScenarioStateEntry = {
+	current: number;
+	max: number | null;
+	note: string;
+};
+
 // --- Flags ---
 
 export type Flags = Record<string, boolean>;
@@ -85,6 +93,7 @@ export type TurnLogEntry = {
 		promptTokens: number;
 		completionTokens: number;
 	};
+	scenarioStateSnapshot?: Record<string, ScenarioStateEntry>;
 };
 
 // --- App State ---
@@ -103,6 +112,7 @@ export type AppState = {
 	entities: Record<string, EntityState>;
 	flags: Flags;
 	flagTriggers: Record<string, string>;
+	scenarioState: Record<string, ScenarioStateEntry>;
 	npcStates: Record<string, string>;
 	pendingCanon: Array<{ summary: string; context: string }>;
 
@@ -171,6 +181,7 @@ export type SubmitGmResponse = {
 		>;
 		flags?: Record<string, boolean>;
 		flagTriggers?: Record<string, string>;
+		scenarioStateUpdates?: Record<string, number>;
 	};
 	gmUpdates?: {
 		npcStates?: Record<string, string>;

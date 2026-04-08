@@ -54,6 +54,12 @@ export const PLAY_TOOLS = [
 							description:
 								'Trigger descriptions for new flags. Required when introducing a new flag — describes the specific in-fiction event that flips it.',
 							additionalProperties: { type: 'string' }
+						},
+						scenarioStateUpdates: {
+							type: 'object',
+							description:
+								'Scenario state counter updates. Key is the counter name from <scenario_state>, value is the new current value (not a delta).',
+							additionalProperties: { type: 'integer' }
 						}
 					}
 				},

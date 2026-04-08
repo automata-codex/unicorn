@@ -52,6 +52,8 @@ Dots in identifier strings cause subtle bugs when code uses dot-notation propert
 **`diceRequests` IDs assigned by the backend, not Claude**
 An earlier design had Claude generate UUIDs for dice request entries. Claude doesn't generate UUIDs reliably. The backend assigns IDs after receiving `submit_gm_response` and returns them in the action response. Claude omits the ID field entirely.
 
+**State snapshot field consolidation deferred to Milestone 1.2.** 
+The snapshot has accumulated fields across playtesting — `initialState` counters, `world_facts` scratchpad, character state, entity positions, and flags — each solving a distinct problem as it was discovered. At 1.2, when the tool schema is being locked, both sides of the read/write contract should be rationalized together: what Claude reads in the snapshot and what it writes via tools. Doing this earlier would be premature; the playtest data doesn't exist yet to inform good consolidation decisions.
 ---
 
 ## Monorepo and Tooling

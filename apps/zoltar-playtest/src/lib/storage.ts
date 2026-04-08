@@ -1,4 +1,4 @@
-import type { AppState, GameMessage, TurnLogEntry } from './types';
+import type { AppState, GameMessage, ScenarioStateEntry, TurnLogEntry } from './types';
 
 const API_KEY_KEY = 'zoltar_playtest_api_key';
 const STATE_KEY = 'zoltar_playtest_state';
@@ -41,6 +41,7 @@ export type SessionExport = {
 		entities: AppState['entities'];
 		flags: AppState['flags'];
 		flagTriggers: AppState['flagTriggers'];
+		scenarioState: AppState['scenarioState'];
 		npcStates: AppState['npcStates'];
 		pendingCanon: AppState['pendingCanon'];
 		pendingDiceRequests: AppState['pendingDiceRequests'];
@@ -48,6 +49,7 @@ export type SessionExport = {
 	gmContextBlob: string;
 	gmContextStructured: AppState['gmContextStructured'];
 	openingNarration: string | null;
+	scenarioStateHistory: Array<{ turn: number; scenarioState: Record<string, ScenarioStateEntry> }>;
 };
 
 export function exportSession(state: AppState): void {
@@ -65,6 +67,7 @@ export function exportSession(state: AppState): void {
 			entities: state.entities,
 			flags: state.flags,
 			flagTriggers: state.flagTriggers,
+			scenarioState: state.scenarioState,
 			npcStates: state.npcStates,
 			pendingCanon: state.pendingCanon,
 			pendingDiceRequests: state.pendingDiceRequests,
@@ -72,6 +75,9 @@ export function exportSession(state: AppState): void {
 		gmContextBlob: state.gmContextBlob ?? '',
 		gmContextStructured: state.gmContextStructured,
 		openingNarration: state.openingNarration,
+		scenarioStateHistory: state.turnLog
+			.filter((entry) => entry.scenarioStateSnapshot != null)
+			.map((entry) => ({ turn: entry.turn, scenarioState: entry.scenarioStateSnapshot! })),
 	};
 
 	const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -121,6 +127,7 @@ export function restoreSession(state: AppState, session: SessionExport): void {
 	state.entities = session.finalState.entities;
 	state.flags = session.finalState.flags;
 	state.flagTriggers = session.finalState.flagTriggers;
+	state.scenarioState = session.finalState.scenarioState ?? {};
 	state.npcStates = session.finalState.npcStates;
 	state.pendingCanon = session.finalState.pendingCanon;
 	state.pendingDiceRequests = session.finalState.pendingDiceRequests;

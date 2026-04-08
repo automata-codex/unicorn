@@ -20,6 +20,7 @@ export function createAppState(overrides?: Partial<AppState>): AppState {
 		entities: {},
 		flags: {},
 		flagTriggers: {},
+		scenarioState: {},
 		npcStates: {},
 		pendingCanon: [],
 
@@ -61,6 +62,20 @@ export function initializeFromGmContext(state: AppState, structured: GmContextSt
 	}
 	Object.assign(state.flags, structured.initialFlags);
 	Object.assign(state.flagTriggers, structured.flagTriggers ?? {});
+
+	// Initialize scenario state from initialState entries
+	for (const [key, raw] of Object.entries(structured.initialState ?? {})) {
+		const entry = raw as Record<string, unknown>;
+		if (entry.current == null) {
+			state.errors.push(`[warn] initialState entry "${key}" missing current value — skipping.`);
+			continue;
+		}
+		state.scenarioState[key] = {
+			current: entry.current as number,
+			max: (entry.max as number) ?? null,
+			note: (entry.note as string) ?? ''
+		};
+	}
 }
 
 export function applyGmResponse(state: AppState, response: SubmitGmResponse): void {
@@ -108,6 +123,15 @@ export function applyGmResponse(state: AppState, response: SubmitGmResponse): vo
 			state.errors.push(`[warn] Flag "${key}" has no trigger description in flagTriggers.`);
 		}
 		state.flags[key] = value;
+	}
+
+	// stateChanges.scenarioStateUpdates
+	for (const [key, newValue] of Object.entries(response.stateChanges?.scenarioStateUpdates ?? {})) {
+		if (key in state.scenarioState) {
+			state.scenarioState[key].current = newValue;
+		} else {
+			state.errors.push(`[warn] scenarioStateUpdate for unknown key "${key}" — ignoring.`);
+		}
 	}
 
 	// gmUpdates.npcStates
