@@ -27,13 +27,20 @@
 		if (!allFilled()) return;
 
 		const lines = ['[Dice results]'];
+		const playerDiceRolls = [];
 		for (let i = 0; i < appState.pendingDiceRequests.length; i++) {
 			const req = appState.pendingDiceRequests[i];
 			lines.push(`${req.purpose} (${req.notation}): ${results[i]}`);
+			playerDiceRolls.push({
+				purpose: req.purpose,
+				notation: req.notation,
+				result: results[i]!,
+				source: 'player' as const
+			});
 		}
 
 		appState.pendingDiceRequests = [];
-		await runTurn(appState, lines.join('\n'));
+		await runTurn(appState, lines.join('\n'), playerDiceRolls);
 	}
 </script>
 

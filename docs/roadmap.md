@@ -26,6 +26,7 @@ Validate the campaign creation and play loop manually before building any pipeli
 - [ ] Evaluate: is the GM context rich enough? Does the oracle entry `claude_text` produce strong output or generic output? Are the interface hints doing useful work? How long does the GM context get in practice?
 - [ ] Revise oracle table entries and synthesis prompt until output is consistently good
 - [ ] Document what the structured section needs to contain based on what the manual sessions revealed
+- [ ] Document the gold-standard GM context quality bar based on playtest findings — what the Persephone's Wake context got right, as a written rubric for evaluating future synthesis outputs
 
 ### Milestone 1.1 — Backend Foundation
 
@@ -37,7 +38,7 @@ The NestJS application structure, database connectivity, and core data model. No
 - [ ] Initial migration: core relational tables (`campaigns`, `adventures`, `messages`, `gm_context`, `character_sheets`, `campaign_state`)
 - [ ] Initial migration: grid tables (`grid_cells`, `grid_entities`)
 - [ ] Initial migration: `game_events` audit table
-- [ ] Initial migration: `adventure_log` table (append-only, one row per turn, JSONB payload column)
+- [ ] Initial migration: `adventure_telemetry` table (append-only, one row per turn, JSONB payload column) — infrastructure-level diagnostic telemetry, distinct from the player-facing session export format
 - [ ] `map_geometry` stub table (not implemented, reserved for Phase 3)
 - [ ] Mothership Zod schemas — campaign state shape and character sheet shape
 - [ ] Basic CRUD endpoints for campaigns and adventures
@@ -52,6 +53,7 @@ The NestJS application structure, database connectivity, and core data model. No
 The Solo Blind campaign creation pipeline: oracle table filtering, coherence check, and GM context synthesis. This is a significant Phase 1 feature — the adventure is only as good as the GM context that seeds it. Milestone 1.0 gates this milestone: oracle table entries and the synthesis prompt should be validated manually before the pipeline is built.
 
 - [ ] `submit_gm_context` tool definition (Zod schema)
+- [ ] Rationalize state snapshot fields and finalize read/write contract between snapshot and tool schema.
 - [ ] Mothership oracle tables — survivors, threats, secrets, vessel type, tone (versioned JSON files)
 - [ ] Oracle table filtering data model — active/inactive entries per category, range dials
 - [ ] Character creation flow — Mothership mechanical character creation producing a character sheet that seeds oracle weighting
@@ -79,7 +81,9 @@ The GM-in-a-box core: state snapshot construction, Claude API communication, str
 - [ ] `proposed_canon` routing — write entries to pending canon queue; auto-promote in Solo Blind
 - [ ] `game_events` write path (all state changes logged with sequence numbers)
 - [ ] Correction mechanic (`superseded_by` write path)
-- [ ] `adventure_log` write path — per-turn record of player input, full `submit_gm_response` payload, all `roll_dice` calls with purpose annotations and results, prompt and completion token counts
+- [ ] `adventure_telemetry` write path — per-turn record of player input, full `submit_gm_response` payload, all `roll_dice` calls with purpose annotations and results, prompt and completion token counts
+- [ ] State snapshot builder must include `flagTriggers` object adjacent to flag values (mutable, updated when new flags are added during play via `stateChanges.flagTriggers`), `characterAttributes` block for persistent qualitative character state (armor mode, weapon loadout, active conditions), and must omit entity position fields — position tracking is deferred to the spatial system spec
+- [ ] Spatial system spec required before implementation — LOS computation approach and entity position tracking design to be agreed in a dedicated conversation before this milestone begins
 
 ### Milestone 1.4 — Tools
 
@@ -152,6 +156,7 @@ Target: UVG and OSE support, remaining campaign creation modes, synchronous mult
 - Presence indicators (requires Ably)
 - Private action affordance
 - Caller transfer UI polish
+- Multi-PC / caller model dedicated playtest — do not combine with mechanical coverage playtests; schedule after backend implements caller transfer and initiative sequencing
 
 ---
 

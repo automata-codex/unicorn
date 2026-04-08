@@ -1,0 +1,195 @@
+{
+  "character": {
+    "id": "lx7",
+    "name": "LX-7",
+    "class": "android",
+    "stats": {
+      "strength": 30,
+      "speed": 30,
+      "intellect": 30,
+      "combat": 30
+    },
+    "saves": {
+      "fear": 30,
+      "sanity": 30,
+      "body": 30,
+      "armor": 30
+    },
+    "maxHp": 20,
+    "skills": [
+      "data access",
+      "hacking",
+      "super strength",
+      "analysis"
+    ]
+  },
+  "gmContextBlob": "{\n  \"location\": \"Orbital Research Station Kairos-9 — a corporate-funded modular platform in a decaying orbit above a gas giant. Five laboratory modules connected by pressurized walkways, each independently sealable. Module 5 (Restricted) sits dark at the end of the station's spine, its access panel fused shut and its logs partially wiped. The orbit is degrading. Everyone on this station has approximately 90 minutes before atmospheric entry becomes unsurvivable without an escape vehicle.\",\n  \"atmosphere\": \"Desperate and claustrophobic. Emergency lighting casts everything in amber and red. The station groans with microadjustments it was never designed to make this frequently. The hum of environmental systems is too loud in some corridors and absent in others. There is no sense of mystery here — the danger is immediate, visible, and ticking. Every decision is a triage calculation. The horror is not about what might be lurking. It is about what has already happened, and what is definitely going to happen if no one acts.\",\n  \"npcAgendas\": {\n    \"corporate_spy\": \"MAREN VOSS — Logistics coordinator for Helix Dynamics, mid-40s, still wearing her company lanyard. She boarded Kairos-9 three weeks before the incident under cover of a routine supply audit. Her actual objective: locate and destroy the encrypted comms log in the captain's terminal that proves Helix Dynamics received a hazard report before the crew boarded and suppressed it. She has not completed her objective. She is aware the retrieval team is coming and initially believes they are here to help her. She is wrong. Her disposition begins cautiously cooperative — she needs LX-7's hacking capability to access the captain's terminal before the team arrives. It will shift to desperate and potentially hostile if LX-7 reads the evidence she is trying to destroy, because she will realize LX-7 is a liability, not an ally. It will shift again — to something more complicated — if LX-7 reveals that the retrieval team's orders include her extraction as a loose end, not her rescue.\",\n    \"corporate_retrieval_team\": \"EMBER SQUAD — four armed Helix Dynamics contractors (Rook, Slate, Verne, and squad lead Dasha Orin) deployed via fast-insertion shuttle currently 18 minutes out. Their orders: recover the encrypted comms log from the captain's terminal, eliminate evidence of the hazard report, and extract any Helix personnel — meaning Maren Voss — in whatever condition ensures her silence. They are operating on intelligence that describes Kairos-9 as lightly hazardous and largely depopulated. That intelligence is wrong. Dasha Orin is professional and focused. Verne has already seen the interior camera feeds and is asking questions no one wants to answer. The team is not composed of murderers, but their extraction window closes in 40 minutes after boarding and they have been authorized for lethal force.\"\n  },\n  \"hiddenTruth\": \"Helix Dynamics received a detailed hazard assessment fourteen months ago warning that Module 5's experimental subject — a recovered xenobiological specimen of unknown classification — showed signs of autonomous behavior and potential containment instability. The report was filed, flagged, reviewed at the executive level, and suppressed. The crew of Kairos-9 boarded without being told. The specimen is no longer in Module 5. It has been for some time. What remains in Module 5 is the evidence of what happened to the researchers who first encountered it — preserved in a state that suggests the specimen does not kill its subjects so much as alter them. The encrypted comms log in the captain's terminal contains the suppressed hazard report with executive sign-off. This is what Maren was sent to destroy. This is what Ember Squad is coming to recover and sanitize. The specimen's current location is unknown. It may already be aware of LX-7.\",\n  \"oracleConnections\": \"The corporate_spy and corporate_retrieval_team are both activated by the company_knew secret — Maren was sent to destroy the evidence, Ember Squad was sent to recover it and eliminate the witness. They are on a collision course with each other and with LX-7. The research_station's modular design creates natural chokepoints and tactical puzzles: the captain's terminal is in Module 1 (command), Module 5 is locked and holds the horror that triggers the Fear save, and the only functional escape vehicle is in the docking bay off Module 3. The desperate_action tone is enforced by three overlapping timers: the orbital decay (hard ceiling), Ember Squad's approach (immediate tactical pressure), and the retrieval team's extraction window (closing fast once they board). The specimen — never named, never fully described — is the presence the company knew about and said nothing. It is the reason there are no other survivors.\"\n}",
+  "gmContextStructured": {
+    "entities": [
+      {
+        "id": "corporate_spy",
+        "type": "npc",
+        "visible": true,
+        "tags": [
+          "corporate",
+          "information_objective",
+          "civilian",
+          "shifting_disposition"
+        ],
+        "startingPosition": {
+          "x": 2,
+          "y": 1
+        }
+      },
+      {
+        "id": "corporate_retrieval_team",
+        "type": "threat",
+        "visible": false,
+        "tags": [
+          "corporate",
+          "armed",
+          "time_pressure",
+          "combat_capable"
+        ],
+        "startingPosition": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": "specimen",
+        "type": "threat",
+        "visible": false,
+        "tags": [
+          "xenobiological",
+          "unknown",
+          "horror",
+          "fear_trigger"
+        ],
+        "startingPosition": {
+          "x": 4,
+          "y": 3
+        }
+      },
+      {
+        "id": "captains_terminal",
+        "type": "feature",
+        "visible": true,
+        "tags": [
+          "evidence",
+          "encrypted",
+          "objective"
+        ],
+        "startingPosition": {
+          "x": 1,
+          "y": 0
+        }
+      },
+      {
+        "id": "module_5_restricted",
+        "type": "feature",
+        "visible": true,
+        "tags": [
+          "restricted",
+          "horror",
+          "fear_trigger",
+          "evidence"
+        ],
+        "startingPosition": {
+          "x": 4,
+          "y": 0
+        }
+      },
+      {
+        "id": "escape_vehicle",
+        "type": "feature",
+        "visible": true,
+        "tags": [
+          "extraction",
+          "objective",
+          "time_pressure"
+        ],
+        "startingPosition": {
+          "x": 3,
+          "y": 1
+        }
+      },
+      {
+        "id": "ember_squad_shuttle",
+        "type": "threat",
+        "visible": false,
+        "tags": [
+          "corporate",
+          "inbound",
+          "time_pressure"
+        ],
+        "startingPosition": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    ],
+    "initialFlags": {
+      "adventure_complete": false,
+      "comms_log_read": false,
+      "comms_log_destroyed": false,
+      "comms_log_secured": false,
+      "module_5_accessed": false,
+      "fear_trigger_witnessed": false,
+      "maren_disposition_shifted_hostile": false,
+      "maren_disposition_shifted_complex": false,
+      "ember_squad_boarded": false,
+      "ember_squad_alerted": false,
+      "specimen_encountered": false,
+      "escape_vehicle_reached": false,
+      "maren_extracted": false,
+      "maren_eliminated": false,
+      "ember_squad_neutralized": false
+    },
+    "flagTriggers": {
+      "adventure_complete": "Flip to true when LX-7 physically boards the escape vehicle and it departs Kairos-9 — docking clamps released, shuttle in motion. Reaching the docking bay is not sufficient; departure must occur.",
+      "comms_log_read": "Flip to true when LX-7 successfully hacks or accesses the captain's terminal and reads the contents of the encrypted comms log, including the suppressed hazard report and executive sign-off. Accessing the terminal without completing the read is not sufficient.",
+      "comms_log_destroyed": "Flip to true when the captain's terminal is physically destroyed or the comms log is permanently deleted by any party — LX-7, Maren, or Ember Squad. Partial deletion or failed attempts are not sufficient.",
+      "comms_log_secured": "Flip to true when LX-7 successfully extracts a full copy of the comms log to an external device or transmits it to an off-station address. The copy must be confirmed complete.",
+      "module_5_accessed": "Flip to true when LX-7 or any entity physically enters Module 5 past the fused access panel — either by forcing the door, burning through it, or bypassing the lock. Observing the exterior is not sufficient.",
+      "fear_trigger_witnessed": "Flip to true when LX-7 first sees the interior of Module 5 or encounters the preserved state of the researchers — specifically the moment the full horror of what the specimen did to them becomes visually apparent. Hearing about it secondhand is not sufficient.",
+      "maren_disposition_shifted_hostile": "Flip to true when LX-7 reads the comms log in Maren's presence or directly informs her that LX-7 has read and retained the evidence she was sent to destroy. Maren's realization that LX-7 is now a liability triggers the shift.",
+      "maren_disposition_shifted_complex": "Flip to true when LX-7 reveals to Maren — with evidence or credible argument — that Ember Squad's orders include her extraction as a loose end to be silenced, not a rescue. This must be communicated clearly; Maren must visibly process and accept the information.",
+      "ember_squad_boarded": "Flip to true when Ember Squad's shuttle physically docks with Kairos-9 and at least one contractor enters the station. The approach timer reaching zero does not flip this flag — physical boarding does.",
+      "ember_squad_alerted": "Flip to true when Ember Squad becomes aware of LX-7's presence and location on the station — either through their own sensors, a transmission from Maren, or direct visual contact with a squad member.",
+      "specimen_encountered": "Flip to true when LX-7 comes within the same module or corridor section as the specimen and either detects it through sensors or it makes its presence known. Indirect evidence (sounds, traces) is not sufficient.",
+      "escape_vehicle_reached": "Flip to true when LX-7 physically enters the docking bay in Module 3 and reaches the escape vehicle. Entering Module 3 alone is not sufficient.",
+      "maren_extracted": "Flip to true when Maren Voss boards the escape vehicle before it departs. She must be alive and aboard.",
+      "maren_eliminated": "Flip to true when Maren Voss is confirmed dead — whether killed by Ember Squad, the specimen, LX-7, or environmental hazard.",
+      "ember_squad_neutralized": "Flip to true when all four members of Ember Squad (Rook, Slate, Verne, Dasha Orin) are either dead, incapacitated, or have explicitly stood down and ceased to be a threat. Routing around them does not flip this flag."
+    },
+    "initialState": {
+      "orbital_decay_timer": {
+        "current": 9,
+        "max": 9,
+        "note": "Each unit represents approximately 10 minutes of real time. When this reaches 0, atmospheric entry begins and survival without the escape vehicle is impossible. Decrements every 10 minutes of in-fiction time regardless of player action."
+      },
+      "ember_squad_shuttle_timer": {
+        "current": 2,
+        "max": 2,
+        "note": "Each unit represents approximately 9 minutes. Ember Squad's shuttle is 18 minutes out at scenario start. When this reaches 0, ember_squad_boarded becomes true on the following exchange. Decrements every 9 minutes of in-fiction time."
+      },
+      "ember_squad_extraction_window_timer": {
+        "current": 4,
+        "max": 4,
+        "note": "Begins counting down only after ember_squad_boarded is true. Each unit represents 10 minutes. When this reaches 0, Ember Squad's extraction window closes — their shuttle departs with or without them, and they become dangerously unpredictable. Decrements every 10 minutes after boarding."
+      },
+      "maren_trust": {
+        "current": 2,
+        "max": 3,
+        "note": "Tracks Maren's working cooperation with LX-7. 3 = openly cooperative, 2 = cautious but aligned, 1 = withholding, 0 = actively working against LX-7. Shifts based on what LX-7 discovers and reveals. Does not directly map to the disposition flags but informs NPC behavior in ambiguous moments."
+      },
+      "station_pressure_integrity": {
+        "current": 3,
+        "max": 3,
+        "note": "Represents the station's overall structural and environmental stability. Combat, forced breaches, and specimen activity can decrement this. At 0, at least one module depressurizes. At 1, environmental hazards begin affecting exposed corridors."
+      }
+    }
+  },
+  "openingNarration": "The amber emergency lighting of Kairos-9 has been on so long it feels like the only color that exists.\n\nYou come back online in Module 2 — the station's secondary lab, workbenches overturned, a centrifuge still spinning with nothing in it. Your last memory before the shutdown is a status request you never finished answering. Your internal clock says fourteen hours have passed. Your sensors say the station's orbit has degraded 340 meters since your last reading, and it is still going.\n\nThe station is quiet in the way that means something already happened here, not that nothing will.\n\nThrough the viewport to your left, the gas giant fills half the sky — ochre and violet, patient and enormous. Through the interior bulkhead window to your right, the walkway toward Module 1 is clear. At the far end of that walkway is the command module. The captain's terminal. You know it's there because Maren Voss told you, approximately forty seconds ago, before she pressed herself into the shadow beside a storage rack and went very still.\n\nShe's still there. Lanyard, company badge, both hands visible. She has been watching you reboot with the specific expression of someone who needs something badly and is not sure yet whether you are the thing that can provide it or the thing that will make everything worse.\n\n\"It's active,\" she says — to herself, or to you, it's not entirely clear. Then, louder: \"You're LX-7. You were in the crew manifest. Data systems.\" A pause. \"How much do you remember?\"\n\nSomewhere behind the sealed bulkhead of Module 5 at the far end of the station's spine, something makes a sound that is almost — but not quite — structural settling.\n\nMaren does not look toward it. She has clearly decided not to look toward it."
+}

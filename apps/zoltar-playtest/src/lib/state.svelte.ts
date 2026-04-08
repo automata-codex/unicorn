@@ -12,18 +12,25 @@ export function createAppState(overrides?: Partial<AppState>): AppState {
 		character: null,
 		gmContextBlob: null,
 		gmContextStructured: null,
+		openingNarration: null,
+		promptVersions: { generalWarden: '', system: '' },
+		promptText: { generalWarden: '', system: '' },
 
 		// Play
 		resourcePools: {},
 		wounds: {},
 		entities: {},
 		flags: {},
+		flagTriggers: {},
+		scenarioState: {},
+		worldFacts: {},
 		npcStates: {},
 		pendingCanon: [],
 
 		// Conversation
 		messages: [],
 		canonLog: [],
+		turnLog: [],
 		turn: 1,
 
 		// UI
@@ -52,10 +59,26 @@ export function initializeFromGmContext(state: AppState, structured: GmContextSt
 	for (const entity of structured.entities) {
 		state.entities[entity.id] = {
 			visible: entity.visible,
+			status: entity.status ?? 'unknown',
 			position: entity.startingPosition
 		};
 	}
 	Object.assign(state.flags, structured.initialFlags);
+	Object.assign(state.flagTriggers, structured.flagTriggers ?? {});
+
+	// Initialize scenario state from initialState entries
+	for (const [key, raw] of Object.entries(structured.initialState ?? {})) {
+		const entry = raw as Record<string, unknown>;
+		if (entry.current == null) {
+			state.errors.push(`[warn] initialState entry "${key}" missing current value — skipping.`);
+			continue;
+		}
+		state.scenarioState[key] = {
+			current: entry.current as number,
+			max: (entry.max as number) ?? null,
+			note: (entry.note as string) ?? ''
+		};
+	}
 }
 
 export function applyGmResponse(state: AppState, response: SubmitGmResponse): void {
@@ -77,18 +100,50 @@ export function applyGmResponse(state: AppState, response: SubmitGmResponse): vo
 
 	// stateChanges.entities
 	for (const [entityId, update] of Object.entries(response.stateChanges?.entities ?? {})) {
-		state.entities[entityId] ??= { visible: true };
+		state.entities[entityId] ??= { visible: true, status: 'unknown' };
 		if (update.position !== undefined) state.entities[entityId].position = update.position;
 		if (update.visible !== undefined) state.entities[entityId].visible = update.visible;
+		if (update.status !== undefined) {
+			state.entities[entityId].status = update.status;
+			// When an entity dies, zero all resource pools prefixed with its ID
+			if (update.status === 'dead') {
+				const prefix = `${entityId}_`;
+				for (const poolName of Object.keys(state.resourcePools)) {
+					if (poolName.startsWith(prefix)) {
+						state.resourcePools[poolName].current = 0;
+					}
+				}
+			}
+		}
 	}
 
+	// stateChanges.flagTriggers (merge before flags so triggers are in place for new flags)
+	Object.assign(state.flagTriggers, response.stateChanges?.flagTriggers ?? {});
+
 	// stateChanges.flags
-	Object.assign(state.flags, response.stateChanges?.flags ?? {});
+	for (const [key, value] of Object.entries(response.stateChanges?.flags ?? {})) {
+		if (!(key in state.flagTriggers)) {
+			state.errors.push(`[warn] Flag "${key}" has no trigger description in flagTriggers.`);
+		}
+		state.flags[key] = value;
+	}
+
+	// stateChanges.scenarioStateUpdates
+	for (const [key, newValue] of Object.entries(response.stateChanges?.scenarioStateUpdates ?? {})) {
+		if (key in state.scenarioState) {
+			state.scenarioState[key].current = newValue;
+		} else {
+			state.errors.push(`[warn] scenarioStateUpdate for unknown key "${key}" — ignoring.`);
+		}
+	}
+
+	// worldFacts (additive merge — same key overwrites)
+	Object.assign(state.worldFacts, response.worldFacts ?? {});
 
 	// gmUpdates.npcStates
 	Object.assign(state.npcStates, response.gmUpdates?.npcStates ?? {});
 	for (const [entityId, npcState] of Object.entries(response.gmUpdates?.npcStates ?? {})) {
-		state.entities[entityId] ??= { visible: true };
+		state.entities[entityId] ??= { visible: true, status: 'unknown' };
 		state.entities[entityId].npcState = npcState;
 	}
 

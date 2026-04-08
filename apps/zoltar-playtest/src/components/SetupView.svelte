@@ -3,6 +3,11 @@
 	import type { AppState, OracleEntry, MothershipCharacter, GmContextStructured } from '../lib/types';
 	import { runSynthesis, type OracleSelections } from '../lib/api';
 	import { initializePlayerPools, initializeFromGmContext } from '../lib/state.svelte';
+	import { parseSessionFile, restoreSession } from '../lib/storage';
+	import {
+		generalWardenPrompts, mothershipPrompts,
+		getDefaultPrompt, getPromptByFilename
+	} from '../lib/prompts';
 	import CharacterForm from './CharacterForm.svelte';
 	import OraclePicker from './OraclePicker.svelte';
 
@@ -20,6 +25,44 @@
 	let synthesizing = $state(false);
 	let synthesisAddendum = $state('');
 	let synthesisFileInput = $state<HTMLInputElement>(null!);
+	let sessionFileInput = $state<HTMLInputElement>(null!);
+	let promptConfigOpen = $state(false);
+
+	// Auto-load default prompts if not already loaded
+	$effect(() => {
+		if (!appState.promptText.generalWarden) {
+			const def = getDefaultPrompt(generalWardenPrompts);
+			if (def) {
+				appState.promptVersions.generalWarden = def.filename;
+				appState.promptText.generalWarden = def.content;
+			}
+		}
+		if (!appState.promptText.system) {
+			const def = getDefaultPrompt(mothershipPrompts);
+			if (def) {
+				appState.promptVersions.system = def.filename;
+				appState.promptText.system = def.content;
+			}
+		}
+	});
+
+	function onGeneralWardenChange(e: Event) {
+		const filename = (e.target as HTMLSelectElement).value;
+		const prompt = getPromptByFilename(generalWardenPrompts, filename);
+		if (prompt) {
+			appState.promptVersions.generalWarden = prompt.filename;
+			appState.promptText.generalWarden = prompt.content;
+		}
+	}
+
+	function onSystemPromptChange(e: Event) {
+		const filename = (e.target as HTMLSelectElement).value;
+		const prompt = getPromptByFilename(mothershipPrompts, filename);
+		if (prompt) {
+			appState.promptVersions.system = prompt.filename;
+			appState.promptText.system = prompt.content;
+		}
+	}
 
 	function saveApiKey() {
 		if (appState.apiKey.trim()) {
@@ -44,6 +87,15 @@
 	}
 
 	function beginAdventure() {
+		// Inject opening narration as the first assistant message
+		if (appState.openingNarration) {
+			appState.messages.push({
+				role: 'assistant',
+				content: appState.openingNarration,
+				turn: 0,
+				timestamp: new Date().toISOString()
+			});
+		}
 		appState.view = 'play';
 	}
 
@@ -51,6 +103,7 @@
 		character: MothershipCharacter;
 		gmContextBlob: string;
 		gmContextStructured: GmContextStructured;
+		openingNarration?: string | null;
 	};
 
 	function exportSynthesis() {
@@ -58,7 +111,8 @@
 		const data: SynthesisExport = {
 			character: appState.character,
 			gmContextBlob: appState.gmContextBlob,
-			gmContextStructured: appState.gmContextStructured
+			gmContextStructured: appState.gmContextStructured,
+			openingNarration: appState.openingNarration
 		};
 		const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
 		const url = URL.createObjectURL(blob);
@@ -83,6 +137,7 @@
 				appState.character = data.character;
 				appState.gmContextBlob = data.gmContextBlob;
 				appState.gmContextStructured = data.gmContextStructured;
+				appState.openingNarration = data.openingNarration ?? null;
 				initializePlayerPools(appState, data.character);
 				initializeFromGmContext(appState, data.gmContextStructured);
 				step = 4;
@@ -93,6 +148,19 @@
 		reader.readAsText(file);
 		// Reset so the same file can be re-imported
 		(e.target as HTMLInputElement).value = '';
+	}
+
+	async function handleImportSession(e: Event) {
+		const file = (e.target as HTMLInputElement).files?.[0];
+		if (!file) return;
+		(e.target as HTMLInputElement).value = '';
+
+		try {
+			const session = await parseSessionFile(file);
+			restoreSession(appState, session);
+		} catch (err) {
+			appState.errors.push(err instanceof Error ? err.message : String(err));
+		}
 	}
 </script>
 
@@ -129,6 +197,42 @@
 					bind:this={synthesisFileInput}
 					onchange={handleImportSynthesis}
 				/>
+				<button class="import-btn" onclick={() => sessionFileInput.click()}>
+					Import Session
+				</button>
+				<input
+					type="file"
+					accept=".json"
+					style="display:none"
+					bind:this={sessionFileInput}
+					onchange={handleImportSession}
+				/>
+			</div>
+
+			<div class="prompt-config">
+				<button class="prompt-config-toggle" onclick={() => promptConfigOpen = !promptConfigOpen}>
+					{promptConfigOpen ? '▾' : '▸'} Prompt Configuration
+				</button>
+				{#if promptConfigOpen}
+					<div class="prompt-config-body">
+						<div class="prompt-select">
+							<label for="general-warden-select">General Warden prompt</label>
+							<select id="general-warden-select" value={appState.promptVersions.generalWarden} onchange={onGeneralWardenChange}>
+								{#each generalWardenPrompts as prompt}
+									<option value={prompt.filename}>{prompt.filename}</option>
+								{/each}
+							</select>
+						</div>
+						<div class="prompt-select">
+							<label for="system-select">System prompt (Mothership)</label>
+							<select id="system-select" value={appState.promptVersions.system} onchange={onSystemPromptChange}>
+								{#each mothershipPrompts as prompt}
+									<option value={prompt.filename}>{prompt.filename}</option>
+								{/each}
+							</select>
+						</div>
+					</div>
+				{/if}
 			</div>
 		</div>
 	{:else if step === 2}
@@ -202,9 +306,19 @@
 							<h3>Initial Flags</h3>
 							<div class="flags-list">
 								{#each Object.entries(appState.gmContextStructured.initialFlags) as [flag, value]}
-									<div>{flag}: {value}</div>
+									<div class="flag-item">
+										<div>{flag}: {value}</div>
+										{#if appState.gmContextStructured?.flagTriggers?.[flag]}
+											<div class="flag-trigger">{appState.gmContextStructured.flagTriggers[flag]}</div>
+										{/if}
+									</div>
 								{/each}
 							</div>
+						{/if}
+
+						{#if appState.openingNarration}
+							<h3>Opening Narration</h3>
+							<div class="opening-narration">{appState.openingNarration}</div>
 						{/if}
 					{/if}
 
@@ -389,6 +503,32 @@
 		color: #aaa;
 	}
 
+	.flag-item {
+		padding: 0.25rem 0;
+	}
+
+	.flag-trigger {
+		font-size: 0.75rem;
+		color: #888;
+		font-style: italic;
+		font-family: inherit;
+		padding-left: 0.75rem;
+		margin-top: 0.125rem;
+	}
+
+	.opening-narration {
+		background: #16213e;
+		border: 1px solid #333;
+		border-radius: 4px;
+		padding: 0.75rem;
+		font-size: 0.875rem;
+		white-space: pre-wrap;
+		word-wrap: break-word;
+		line-height: 1.5;
+		color: #ccc;
+		font-style: italic;
+	}
+
 	.review-actions {
 		display: flex;
 		gap: 0.75rem;
@@ -458,6 +598,62 @@
 	}
 
 	.addendum-field textarea:focus {
+		outline: none;
+		border-color: #c4a7e7;
+	}
+
+	.prompt-config {
+		margin-top: 1rem;
+	}
+
+	.prompt-config-toggle {
+		background: none;
+		border: none;
+		color: #888;
+		font-size: 0.8125rem;
+		cursor: pointer;
+		padding: 0;
+		font-weight: normal;
+	}
+
+	.prompt-config-toggle:hover {
+		color: #e0e0e0;
+	}
+
+	.prompt-config-body {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		margin-top: 0.5rem;
+		padding: 0.75rem;
+		border: 1px solid #333;
+		border-radius: 4px;
+	}
+
+	.prompt-select {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.prompt-select label {
+		font-size: 0.75rem;
+		color: #aaa;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.prompt-select select {
+		background: #16213e;
+		color: #e0e0e0;
+		border: 1px solid #444;
+		border-radius: 4px;
+		padding: 0.375rem 0.5rem;
+		font-size: 0.8125rem;
+		font-family: monospace;
+	}
+
+	.prompt-select select:focus {
 		outline: none;
 		border-color: #c4a7e7;
 	}

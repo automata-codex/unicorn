@@ -23,6 +23,7 @@ export const PLAY_TOOLS = [
 						},
 						entities: {
 							type: 'object',
+							description: 'Entity state updates. Use entity IDs as keys.',
 							additionalProperties: {
 								type: 'object',
 								properties: {
@@ -34,13 +35,31 @@ export const PLAY_TOOLS = [
 										},
 										required: ['x', 'y']
 									},
-									visible: { type: 'boolean' }
+									visible: { type: 'boolean' },
+									status: {
+										type: 'string',
+										enum: ['alive', 'dead', 'unknown'],
+										description:
+											"Entity liveness. Set to 'dead' when an entity is killed — this also zeros all resource pools prefixed with the entity's ID."
+									}
 								}
 							}
 						},
 						flags: {
 							type: 'object',
 							additionalProperties: { type: 'boolean' }
+						},
+						flagTriggers: {
+							type: 'object',
+							description:
+								'Trigger descriptions for new flags. Required when introducing a new flag — describes the specific in-fiction event that flips it.',
+							additionalProperties: { type: 'string' }
+						},
+						scenarioStateUpdates: {
+							type: 'object',
+							description:
+								'Scenario state counter updates. Key is the counter name from <scenario_state>, value is the new current value (not a delta).',
+							additionalProperties: { type: 'integer' }
 						}
 					}
 				},
@@ -64,6 +83,12 @@ export const PLAY_TOOLS = [
 							}
 						}
 					}
+				},
+				worldFacts: {
+					type: 'object',
+					description:
+						'Concrete facts established in narration — physical measurements, named spatial attributes, environmental details. Key is a descriptive identifier, value is the established fact. Write here when establishing a specific detail for the first time. Update existing keys if a fact changes.',
+					additionalProperties: { type: 'string' }
 				},
 				diceRequests: {
 					type: 'array',
@@ -146,6 +171,12 @@ export const SYNTHESIS_TOOLS = [
 										required: ['x', 'y']
 									},
 									visible: { type: 'boolean' },
+									status: {
+										type: 'string',
+										enum: ['alive', 'dead', 'unknown'],
+										description:
+											"Starting liveness state. Use 'alive' for entities known to be alive at scenario start, 'unknown' for entities whose liveness is not yet established."
+									},
 									tags: { type: 'array', items: { type: 'string' } }
 								},
 								required: ['id', 'type', 'visible', 'tags']
@@ -153,14 +184,27 @@ export const SYNTHESIS_TOOLS = [
 						},
 						initialFlags: {
 							type: 'object',
+							description:
+								'Initial flag values. Must include adventure_complete: false.',
 							additionalProperties: { type: 'boolean' }
+						},
+						flagTriggers: {
+							type: 'object',
+							description:
+								'Trigger description for every flag in initialFlags. Each value names the specific in-fiction action or event that flips the flag.',
+							additionalProperties: { type: 'string' }
 						},
 						initialState: { type: 'object' }
 					},
-					required: ['entities', 'initialFlags', 'initialState']
+					required: ['entities', 'initialFlags', 'flagTriggers', 'initialState']
+				},
+				openingNarration: {
+					type: 'string',
+					description:
+						'The opening narration delivered before the player acts. Establishes the immediate physical situation, atmosphere, and one concrete detail the player did not put there.'
 				}
 			},
-			required: ['narrative', 'structured']
+			required: ['narrative', 'structured', 'openingNarration']
 		}
 	}
 ] as const;

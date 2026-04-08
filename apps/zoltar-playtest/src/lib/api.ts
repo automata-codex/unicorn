@@ -1,4 +1,4 @@
-import type { AppState, MothershipCharacter, OracleEntry, SubmitGmContext } from './types';
+import type { AppState, MothershipCharacter, OracleEntry, SubmitGmContext, TurnLogEntry } from './types';
 import { applyGmResponse, initializeFromGmContext } from './state.svelte';
 import { buildGameState, buildCanonLog } from './snapshot';
 import { executeDiceRoll } from './dice';
@@ -117,6 +117,10 @@ type ToolUseBlock = {
 type ApiResponse = {
 	content: unknown[];
 	stop_reason: string;
+	usage?: {
+		input_tokens: number;
+		output_tokens: number;
+	};
 };
 
 function withCacheBreakpoint(messages: ApiMessage[]): ApiMessage[] {
@@ -184,37 +188,25 @@ async function callAnthropic(
 	return response.json() as Promise<ApiResponse>;
 }
 
-function extractToolUse(response: ApiResponse): ToolUseBlock | null {
-	const block = response.content.find(
+function extractToolUses(response: ApiResponse): ToolUseBlock[] {
+	return response.content.filter(
 		(b: unknown) => (b as Record<string, unknown>).type === 'tool_use'
-	);
-	return (block as ToolUseBlock) ?? null;
+	) as ToolUseBlock[];
 }
 
 // --- System prompt ---
 
 export function buildSystemPrompt(state: AppState): string {
 	const gmContext = state.gmContextBlob ?? '';
+	const systemPrompt = state.promptText.system || '';
+	const generalWarden = state.promptText.generalWarden || '';
 
-	return `You are the Warden for a solo Mothership adventure. You are running a horror scenario on a derelict vessel.
+	// Structure: [system-specific preamble + GM context] + [general warden instructions]
+	return `${systemPrompt}
 
 ${gmContext}
 
-WARDEN INSTRUCTIONS:
-- You must call submit_gm_response to complete every turn. Never respond with plain text.
-- Call roll_dice for any roll the player does not make themselves — NPC actions, GM saves, random resolutions.
-- Use diceRequests in submit_gm_response for rolls the player makes.
-- All numeric resources — HP, stress, ammo — are tracked via resourcePools using delta values. Pool names follow the pattern {entity_id}_{pool_name} with underscores only.
-- Before referencing an NPC's resource pool in combat, establish it with a positive delta (e.g. xenomorph_hp: { delta: 45 }). A negative delta on an unknown pool is an error.
-- Entity identifiers from the GM context structured section are the canonical identifiers for all tool calls. Use them exactly.
-- Panic is an event, not a pool. When stress crosses a threshold requiring a panic check, call roll_dice and narrate the result. Set a flag for any lasting panic condition.
-- You know everything the Warden knows. Reveal GM context secrets only when fictionally appropriate — when the character could plausibly perceive or discover them.
-- playerText is the only thing the player sees. Everything else is backend state.
-- The <game_state> block injected at the top of each player message is the authoritative record of current world state. Your gmUpdates in submit_gm_response must reflect transitions from this state. Do not reconstruct entity states or flag values from your tool call history — the snapshot is always current.
-- Entity IDs (any value matching the patterns npc_*, threat_*, feature_*), flag keys, coordinate values, and any other field names from the game state are forbidden in playerText. These values belong exclusively in gmUpdates. A player should never see "position (2,1)" or "secret_company_knew" in the narrative.
-- Calibrate response size to the fictional moment. A single NPC line of dialogue warrants a single line of response, not a full interaction. A room description is one paragraph, not a scene. Do not resolve an entire exchange in one response — take the smallest meaningful turn and return control to the player. The player drives pacing.
-- At the start of a new adventure, deliver the opening scene without waiting for player input. Establish location, atmosphere, and immediate situation. End with a question or open moment that invites the player's first action.
-- If the player is clearly addressing you as Warden rather than acting in the fiction — rules questions, requests for clarification, "can I do X?", anything directed at you rather than a character — use playerText in submit_gm_response for a brief out-of-character reply. Do not advance the fiction or make state changes for OOC exchanges. When ambiguous, treat the input as in-fiction intent. The player can always clarify.`;
+${generalWarden}`.trim();
 }
 
 // --- Synthesis prompt ---
@@ -261,7 +253,22 @@ ${formatOracleForSynthesis('Vessel Type', selections.vessel_type)}
 
 ${formatOracleForSynthesis('Tone', selections.tone)}
 
-Each oracle entry includes an id, claude_text (the narrative seed), interfaces (hints for how entries connect across categories), and tags. Use the id values as the basis for entity IDs and flag keys in the structured output. Use the interfaces array to wire entries together coherently — condition values indicate which other entries this one connects to. Synthesize a coherent GM context from these elements and call submit_gm_context when complete.`;
+Each oracle entry includes an id, claude_text (the narrative seed), interfaces (hints for how entries connect across categories), and tags. Use the id values as the basis for entity IDs and flag keys in the structured output. Use the interfaces array to wire entries together coherently — condition values indicate which other entries this one connects to. Synthesize a coherent GM context from these elements and call submit_gm_context when complete.
+
+FLAG TRIGGERS:
+Every flag in initialFlags must have a corresponding entry in flagTriggers. Each trigger must name the specific in-fiction action or event that flips the flag — not just what the flag represents. Example: "Flip to true when Jones physically accesses Draven's datapad or terminal and reads the synthesis notes. Accessing the room is not sufficient — the notes must be read."
+
+REQUIRED FLAG — adventure_complete:
+Every scenario must include adventure_complete: false in initialFlags with a corresponding trigger in flagTriggers that names the specific end condition for this adventure.
+
+COUNTDOWN TIMERS:
+Any mechanic that involves a number counting down over the course of the adventure must be initialized as a named resource pool in initialState. Use the naming convention {entity_id}_timer — e.g. crewman_wick_timer: { current: 4, max: 4 }. Do not track countdowns as freeform state or narrative-only values.
+
+OPENING NARRATION:
+Write an openingNarration field — this is the first message the Warden delivers before the player acts. It establishes the immediate physical situation, conveys the atmosphere, and contains one concrete detail the player did not put there — something that signals the world has already been in motion without them. Do not end with exposition; end with a moment that invites the player's first action.
+
+MECHANICAL NOTES:
+Any scenario-specific mechanical guidance (e.g. "the first organism encounter is a mandatory Fear save") belongs in the freeform notes supplied by the scenario author, not in the base GM context. The narrative and structured outputs should remain system-agnostic.`;
 
 	if (addendum?.trim()) {
 		prompt += `\n\nADDITIONAL DIRECTION:\n${addendum.trim()}`;
@@ -272,7 +279,11 @@ Each oracle entry includes an id, claude_text (the narrative seed), interfaces (
 
 // --- Turn loop ---
 
-export async function runTurn(state: AppState, playerAction: string): Promise<boolean> {
+export async function runTurn(
+	state: AppState,
+	playerAction: string,
+	playerDiceRolls?: TurnLogEntry['diceRolls']
+): Promise<boolean> {
 	state.loading = true;
 	state.errors = [];
 	let success = false;
@@ -287,6 +298,19 @@ export async function runTurn(state: AppState, playerAction: string): Promise<bo
 			{ role: 'user', content: userMessage }
 		];
 
+		// Capture the snapshot sent this turn for the turn log
+		const snapshotSent = JSON.parse(
+			buildGameState(state).replace(/^<game_state>\n/, '').replace(/\n<\/game_state>$/, '')
+		);
+
+		// Accumulate dice rolls across the tool loop for the turn log.
+		// Include any player dice rolls from the previous turn's diceRequests.
+		const diceRolls: TurnLogEntry['diceRolls'] = [...(playerDiceRolls ?? [])];
+
+		// Track token usage across all API calls in this turn
+		let totalPromptTokens = 0;
+		let totalCompletionTokens = 0;
+
 		while (true) {
 			const response = await callAnthropic(
 				state.apiKey,
@@ -296,39 +320,109 @@ export async function runTurn(state: AppState, playerAction: string): Promise<bo
 				{ type: 'any' }
 			);
 
-			const toolUse = extractToolUse(response);
+			totalPromptTokens += response.usage?.input_tokens ?? 0;
+			totalCompletionTokens += response.usage?.output_tokens ?? 0;
 
-			if (!toolUse) {
+			const toolUses = extractToolUses(response);
+
+			if (toolUses.length === 0) {
 				state.errors.push('Unexpected response: no tool call found.');
 				break;
 			}
 
-			if (toolUse.name === 'roll_dice') {
-				const result = executeDiceRoll(toolUse.input.notation as string);
-				messages.push({ role: 'assistant', content: response.content });
-				messages.push({
-					role: 'user',
-					content: [
-						{
-							type: 'tool_result',
-							tool_use_id: toolUse.id,
-							content: JSON.stringify(result)
-						}
-					]
-				});
-			} else if (toolUse.name === 'submit_gm_response') {
-				applyGmResponse(state, toolUse.input as unknown as import('./types').SubmitGmResponse);
+			// Process all tool_use blocks and build tool_results for each.
+			// A single response can contain multiple roll_dice calls and/or
+			// a submit_gm_response — we must provide a tool_result for every
+			// tool_use, or the next API call will reject.
+			const toolResults: Array<{ type: 'tool_result'; tool_use_id: string; content: string }> = [];
+			let gmResponse: import('./types').SubmitGmResponse | null = null;
+			let hasUnknownTool = false;
+
+			for (const tu of toolUses) {
+				if (tu.name === 'roll_dice') {
+					const result = executeDiceRoll(tu.input.notation as string);
+					diceRolls.push({
+						purpose: tu.input.purpose as string,
+						notation: tu.input.notation as string,
+						result: result.total,
+						source: 'system'
+					});
+					toolResults.push({
+						type: 'tool_result',
+						tool_use_id: tu.id,
+						content: JSON.stringify(result)
+					});
+				} else if (tu.name === 'submit_gm_response') {
+					gmResponse = tu.input as unknown as import('./types').SubmitGmResponse;
+					toolResults.push({
+						type: 'tool_result',
+						tool_use_id: tu.id,
+						content: JSON.stringify({ status: 'ok' })
+					});
+				} else {
+					state.errors.push(`Unexpected tool call: ${tu.name}`);
+					toolResults.push({
+						type: 'tool_result',
+						tool_use_id: tu.id,
+						content: JSON.stringify({ error: `Unknown tool: ${tu.name}` })
+					});
+					hasUnknownTool = true;
+				}
+			}
+
+			// Always push the assistant message and all tool results together
+			messages.push({ role: 'assistant', content: response.content });
+			messages.push({ role: 'user', content: toolResults });
+
+			if (hasUnknownTool && !gmResponse) {
+				break;
+			}
+
+			if (gmResponse) {
+				applyGmResponse(state, gmResponse);
+
+				const now = new Date().toISOString();
+
 				// Store the full exchange in message history for extraction by
 				// future turns' extractRecentExchanges and for export/review.
-				state.messages.push({ role: 'user', content: userMessage } as AppState['messages'][number]);
-				state.messages.push({ role: 'assistant', content: response.content } as unknown as AppState['messages'][number]);
+				state.messages.push({
+					role: 'user',
+					content: userMessage,
+					turn: state.turn,
+					timestamp: now
+				});
+				state.messages.push({
+					role: 'assistant',
+					content: response.content as unknown as string,
+					turn: state.turn,
+					timestamp: now
+				});
+
+				// Build and append the turn log entry
+				state.turnLog.push({
+					turn: state.turn,
+					snapshotSent,
+					stateChanges: gmResponse.stateChanges ?? null,
+					diceRolls,
+					tokens: {
+						promptTokens: totalPromptTokens,
+						completionTokens: totalCompletionTokens
+					},
+					scenarioStateSnapshot: Object.keys(state.scenarioState).length > 0
+						? structuredClone(state.scenarioState)
+						: undefined,
+					worldFactsSnapshot: Object.keys(state.worldFacts).length > 0
+						? { ...state.worldFacts }
+						: undefined
+				});
+
 				state.turn++;
 				success = true;
 				break;
-			} else {
-				state.errors.push(`Unexpected tool call: ${toolUse.name}`);
-				break;
 			}
+
+			// No submit_gm_response yet — continue the tool loop
+			// (Claude made roll_dice calls and needs to see results before submitting)
 		}
 	} catch (e) {
 		state.errors.push(e instanceof Error ? e.message : String(e));
@@ -362,7 +456,7 @@ export async function runSynthesis(
 			{ type: 'any' }
 		);
 
-		const toolUse = extractToolUse(response);
+		const toolUse = extractToolUses(response)[0] ?? null;
 
 		if (!toolUse || toolUse.name !== 'submit_gm_context') {
 			state.errors.push('Synthesis failed: expected submit_gm_context tool call.');
@@ -372,7 +466,13 @@ export async function runSynthesis(
 		const context = toolUse.input as unknown as SubmitGmContext;
 		state.gmContextBlob = JSON.stringify(context.narrative, null, 2);
 		state.gmContextStructured = context.structured;
+		state.openingNarration = context.openingNarration ?? null;
 		initializeFromGmContext(state, context.structured);
+
+		// Validate adventure_complete flag
+		if (!('adventure_complete' in (context.structured.initialFlags ?? {}))) {
+			state.errors.push('[warn] Synthesis output is missing required adventure_complete flag.');
+		}
 	} catch (e) {
 		state.errors.push(e instanceof Error ? e.message : String(e));
 	} finally {
