@@ -55,7 +55,9 @@
 				}
 			} else if (msg.role === 'assistant') {
 				const content = msg.content;
-				if (Array.isArray(content)) {
+				if (typeof content === 'string') {
+					entries.push({ type: 'gm', text: content, turn: msg.turn, timestamp: msg.timestamp });
+				} else if (Array.isArray(content)) {
 					for (const block of content) {
 						const b = block as Record<string, unknown>;
 						if (b.type === 'tool_use' && b.name === 'roll_dice') {
