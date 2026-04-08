@@ -188,11 +188,10 @@ async function callAnthropic(
 	return response.json() as Promise<ApiResponse>;
 }
 
-function extractToolUse(response: ApiResponse): ToolUseBlock | null {
-	const block = response.content.find(
+function extractToolUses(response: ApiResponse): ToolUseBlock[] {
+	return response.content.filter(
 		(b: unknown) => (b as Record<string, unknown>).type === 'tool_use'
-	);
-	return (block as ToolUseBlock) ?? null;
+	) as ToolUseBlock[];
 }
 
 // --- System prompt ---
@@ -362,34 +361,62 @@ export async function runTurn(
 			totalPromptTokens += response.usage?.input_tokens ?? 0;
 			totalCompletionTokens += response.usage?.output_tokens ?? 0;
 
-			const toolUse = extractToolUse(response);
+			const toolUses = extractToolUses(response);
 
-			if (!toolUse) {
+			if (toolUses.length === 0) {
 				state.errors.push('Unexpected response: no tool call found.');
 				break;
 			}
 
-			if (toolUse.name === 'roll_dice') {
-				const result = executeDiceRoll(toolUse.input.notation as string);
-				diceRolls.push({
-					purpose: toolUse.input.purpose as string,
-					notation: toolUse.input.notation as string,
-					result: result.total,
-					source: 'system'
-				});
-				messages.push({ role: 'assistant', content: response.content });
-				messages.push({
-					role: 'user',
-					content: [
-						{
-							type: 'tool_result',
-							tool_use_id: toolUse.id,
-							content: JSON.stringify(result)
-						}
-					]
-				});
-			} else if (toolUse.name === 'submit_gm_response') {
-				const gmResponse = toolUse.input as unknown as import('./types').SubmitGmResponse;
+			// Process all tool_use blocks and build tool_results for each.
+			// A single response can contain multiple roll_dice calls and/or
+			// a submit_gm_response — we must provide a tool_result for every
+			// tool_use, or the next API call will reject.
+			const toolResults: Array<{ type: 'tool_result'; tool_use_id: string; content: string }> = [];
+			let gmResponse: import('./types').SubmitGmResponse | null = null;
+			let hasUnknownTool = false;
+
+			for (const tu of toolUses) {
+				if (tu.name === 'roll_dice') {
+					const result = executeDiceRoll(tu.input.notation as string);
+					diceRolls.push({
+						purpose: tu.input.purpose as string,
+						notation: tu.input.notation as string,
+						result: result.total,
+						source: 'system'
+					});
+					toolResults.push({
+						type: 'tool_result',
+						tool_use_id: tu.id,
+						content: JSON.stringify(result)
+					});
+				} else if (tu.name === 'submit_gm_response') {
+					gmResponse = tu.input as unknown as import('./types').SubmitGmResponse;
+					toolResults.push({
+						type: 'tool_result',
+						tool_use_id: tu.id,
+						content: JSON.stringify({ status: 'ok' })
+					});
+				} else {
+					state.errors.push(`Unexpected tool call: ${tu.name}`);
+					toolResults.push({
+						type: 'tool_result',
+						tool_use_id: tu.id,
+						content: JSON.stringify({ error: `Unknown tool: ${tu.name}` })
+					});
+					hasUnknownTool = true;
+				}
+			}
+
+			// Always push the assistant message and all tool results together
+			messages.push({ role: 'assistant', content: response.content });
+			messages.push({ role: 'user', content: toolResults });
+
+			if (hasUnknownTool && !gmResponse) {
+				break;
+			}
+
+			if (gmResponse) {
 				applyGmResponse(state, gmResponse);
 
 				const now = new Date().toISOString();
@@ -424,10 +451,10 @@ export async function runTurn(
 				state.turn++;
 				success = true;
 				break;
-			} else {
-				state.errors.push(`Unexpected tool call: ${toolUse.name}`);
-				break;
 			}
+
+			// No submit_gm_response yet — continue the tool loop
+			// (Claude made roll_dice calls and needs to see results before submitting)
 		}
 	} catch (e) {
 		state.errors.push(e instanceof Error ? e.message : String(e));
@@ -461,7 +488,7 @@ export async function runSynthesis(
 			{ type: 'any' }
 		);
 
-		const toolUse = extractToolUse(response);
+		const toolUse = extractToolUses(response)[0] ?? null;
 
 		if (!toolUse || toolUse.name !== 'submit_gm_context') {
 			state.errors.push('Synthesis failed: expected submit_gm_context tool call.');
