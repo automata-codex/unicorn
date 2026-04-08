@@ -13,6 +13,8 @@ export function createAppState(overrides?: Partial<AppState>): AppState {
 		gmContextBlob: null,
 		gmContextStructured: null,
 		openingNarration: null,
+		promptVersions: { generalWarden: '', system: '' },
+		promptText: { generalWarden: '', system: '' },
 
 		// Play
 		resourcePools: {},

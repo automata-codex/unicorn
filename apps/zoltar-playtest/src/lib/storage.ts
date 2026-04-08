@@ -50,6 +50,8 @@ export type SessionExport = {
 	gmContextBlob: string;
 	gmContextStructured: AppState['gmContextStructured'];
 	openingNarration: string | null;
+	promptVersions: { generalWarden: string; system: string };
+	promptText: { generalWarden: string; system: string };
 	scenarioStateHistory: Array<{ turn: number; scenarioState: Record<string, ScenarioStateEntry> }>;
 	worldFactsHistory: Array<{ turn: number; worldFacts: Record<string, string> }>;
 };
@@ -78,6 +80,8 @@ export function exportSession(state: AppState): void {
 		gmContextBlob: state.gmContextBlob ?? '',
 		gmContextStructured: state.gmContextStructured,
 		openingNarration: state.openingNarration,
+		promptVersions: state.promptVersions,
+		promptText: state.promptText,
 		scenarioStateHistory: state.turnLog
 			.filter((entry) => entry.scenarioStateSnapshot != null)
 			.map((entry) => ({ turn: entry.turn, scenarioState: entry.scenarioStateSnapshot! })),
@@ -143,6 +147,8 @@ export function restoreSession(state: AppState, session: SessionExport): void {
 	state.gmContextBlob = session.gmContextBlob;
 	state.gmContextStructured = session.gmContextStructured;
 	state.openingNarration = session.openingNarration;
+	if (session.promptVersions) state.promptVersions = session.promptVersions;
+	if (session.promptText) state.promptText = session.promptText;
 
 	// Ensure we're in play view
 	state.view = 'play';

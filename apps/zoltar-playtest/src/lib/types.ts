@@ -106,6 +106,8 @@ export type AppState = {
 	gmContextBlob: string | null;
 	gmContextStructured: GmContextStructured | null;
 	openingNarration: string | null;
+	promptVersions: { generalWarden: string; system: string };
+	promptText: { generalWarden: string; system: string };
 
 	// Play
 	resourcePools: ResourcePools;

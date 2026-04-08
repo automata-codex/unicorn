@@ -4,6 +4,10 @@
 	import { runSynthesis, type OracleSelections } from '../lib/api';
 	import { initializePlayerPools, initializeFromGmContext } from '../lib/state.svelte';
 	import { parseSessionFile, restoreSession } from '../lib/storage';
+	import {
+		generalWardenPrompts, mothershipPrompts,
+		getDefaultPrompt, getPromptByFilename
+	} from '../lib/prompts';
 	import CharacterForm from './CharacterForm.svelte';
 	import OraclePicker from './OraclePicker.svelte';
 
@@ -22,6 +26,43 @@
 	let synthesisAddendum = $state('');
 	let synthesisFileInput = $state<HTMLInputElement>(null!);
 	let sessionFileInput = $state<HTMLInputElement>(null!);
+	let promptConfigOpen = $state(false);
+
+	// Auto-load default prompts if not already loaded
+	$effect(() => {
+		if (!appState.promptText.generalWarden) {
+			const def = getDefaultPrompt(generalWardenPrompts);
+			if (def) {
+				appState.promptVersions.generalWarden = def.filename;
+				appState.promptText.generalWarden = def.content;
+			}
+		}
+		if (!appState.promptText.system) {
+			const def = getDefaultPrompt(mothershipPrompts);
+			if (def) {
+				appState.promptVersions.system = def.filename;
+				appState.promptText.system = def.content;
+			}
+		}
+	});
+
+	function onGeneralWardenChange(e: Event) {
+		const filename = (e.target as HTMLSelectElement).value;
+		const prompt = getPromptByFilename(generalWardenPrompts, filename);
+		if (prompt) {
+			appState.promptVersions.generalWarden = prompt.filename;
+			appState.promptText.generalWarden = prompt.content;
+		}
+	}
+
+	function onSystemPromptChange(e: Event) {
+		const filename = (e.target as HTMLSelectElement).value;
+		const prompt = getPromptByFilename(mothershipPrompts, filename);
+		if (prompt) {
+			appState.promptVersions.system = prompt.filename;
+			appState.promptText.system = prompt.content;
+		}
+	}
 
 	function saveApiKey() {
 		if (appState.apiKey.trim()) {
@@ -166,6 +207,32 @@
 					bind:this={sessionFileInput}
 					onchange={handleImportSession}
 				/>
+			</div>
+
+			<div class="prompt-config">
+				<button class="prompt-config-toggle" onclick={() => promptConfigOpen = !promptConfigOpen}>
+					{promptConfigOpen ? '▾' : '▸'} Prompt Configuration
+				</button>
+				{#if promptConfigOpen}
+					<div class="prompt-config-body">
+						<div class="prompt-select">
+							<label for="general-warden-select">General Warden prompt</label>
+							<select id="general-warden-select" value={appState.promptVersions.generalWarden} onchange={onGeneralWardenChange}>
+								{#each generalWardenPrompts as prompt}
+									<option value={prompt.filename}>{prompt.filename}</option>
+								{/each}
+							</select>
+						</div>
+						<div class="prompt-select">
+							<label for="system-select">System prompt (Mothership)</label>
+							<select id="system-select" value={appState.promptVersions.system} onchange={onSystemPromptChange}>
+								{#each mothershipPrompts as prompt}
+									<option value={prompt.filename}>{prompt.filename}</option>
+								{/each}
+							</select>
+						</div>
+					</div>
+				{/if}
 			</div>
 		</div>
 	{:else if step === 2}
@@ -531,6 +598,62 @@
 	}
 
 	.addendum-field textarea:focus {
+		outline: none;
+		border-color: #c4a7e7;
+	}
+
+	.prompt-config {
+		margin-top: 1rem;
+	}
+
+	.prompt-config-toggle {
+		background: none;
+		border: none;
+		color: #888;
+		font-size: 0.8125rem;
+		cursor: pointer;
+		padding: 0;
+		font-weight: normal;
+	}
+
+	.prompt-config-toggle:hover {
+		color: #e0e0e0;
+	}
+
+	.prompt-config-body {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		margin-top: 0.5rem;
+		padding: 0.75rem;
+		border: 1px solid #333;
+		border-radius: 4px;
+	}
+
+	.prompt-select {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.prompt-select label {
+		font-size: 0.75rem;
+		color: #aaa;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.prompt-select select {
+		background: #16213e;
+		color: #e0e0e0;
+		border: 1px solid #444;
+		border-radius: 4px;
+		padding: 0.375rem 0.5rem;
+		font-size: 0.8125rem;
+		font-family: monospace;
+	}
+
+	.prompt-select select:focus {
 		outline: none;
 		border-color: #c4a7e7;
 	}
