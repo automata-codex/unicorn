@@ -18,6 +18,7 @@
 
 	let entityEntries = $derived(Object.entries(appState.entities));
 	let scenarioEntries = $derived(Object.entries(appState.scenarioState));
+	let worldFactEntries = $derived(Object.entries(appState.worldFacts));
 	let flagEntries = $derived(Object.entries(appState.flags));
 
 	function startEdit(poolName: string) {
@@ -170,6 +171,18 @@
 		</section>
 	{/if}
 
+	{#if worldFactEntries.length > 0}
+		<section>
+			<h3>World Facts</h3>
+			{#each worldFactEntries as [key, value]}
+				<div class="world-fact">
+					<span class="world-fact-key">{key}</span>
+					<span class="world-fact-value">{value}</span>
+				</div>
+			{/each}
+		</section>
+	{/if}
+
 	{#if appState.pendingCanon.length > 0}
 		<section>
 			<h3>Pending Canon</h3>
@@ -295,6 +308,24 @@
 		gap: 0.25rem;
 		align-items: center;
 		padding: 0.25rem 0;
+	}
+
+	.world-fact {
+		display: flex;
+		flex-direction: column;
+		padding: 0.125rem 0;
+	}
+
+	.world-fact-key {
+		color: #888;
+		font-family: monospace;
+		font-size: 0.75rem;
+	}
+
+	.world-fact-value {
+		color: #e0e0e0;
+		font-size: 0.8125rem;
+		padding-left: 0.5rem;
 	}
 
 	.scenario-note {

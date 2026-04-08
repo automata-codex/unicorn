@@ -94,6 +94,7 @@ export type TurnLogEntry = {
 		completionTokens: number;
 	};
 	scenarioStateSnapshot?: Record<string, ScenarioStateEntry>;
+	worldFactsSnapshot?: Record<string, string>;
 };
 
 // --- App State ---
@@ -113,6 +114,7 @@ export type AppState = {
 	flags: Flags;
 	flagTriggers: Record<string, string>;
 	scenarioState: Record<string, ScenarioStateEntry>;
+	worldFacts: Record<string, string>;
 	npcStates: Record<string, string>;
 	pendingCanon: Array<{ summary: string; context: string }>;
 
@@ -188,6 +190,7 @@ export type SubmitGmResponse = {
 		notes?: string;
 		proposedCanon?: Array<{ summary: string; context: string }>;
 	};
+	worldFacts?: Record<string, string>;
 	diceRequests?: DiceRequest[];
 };
 

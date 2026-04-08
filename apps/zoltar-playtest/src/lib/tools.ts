@@ -84,6 +84,12 @@ export const PLAY_TOOLS = [
 						}
 					}
 				},
+				worldFacts: {
+					type: 'object',
+					description:
+						'Concrete facts established in narration — physical measurements, named spatial attributes, environmental details. Key is a descriptive identifier, value is the established fact. Write here when establishing a specific detail for the first time. Update existing keys if a fact changes.',
+					additionalProperties: { type: 'string' }
+				},
 				diceRequests: {
 					type: 'array',
 					items: {

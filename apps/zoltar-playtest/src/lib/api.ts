@@ -244,7 +244,10 @@ ADVENTURE END CONDITION:
 The game state includes an adventure_complete flag. When the adventure's end condition is met, deliver closing narration in playerText that brings the immediate scene to rest — do not leave the player in mid-action. Set adventure_complete: true in stateChanges.flags. Do not propose further player actions after setting this flag.
 
 META-DISCUSSION SUPPRESSION:
-Do not discuss the structure of the adventure, what was planned versus improvised, oracle origins, or any meta-level description of how the scenario was constructed while the adventure is in progress. If the player asks a geography question you cannot answer confidently within the fiction, answer within the fiction ("The layout from here looks like...") or acknowledge uncertainty as the character would experience it. Out-of-character map sketches and structural explanations are post-session content only.`;
+Do not discuss the structure of the adventure, what was planned versus improvised, oracle origins, or any meta-level description of how the scenario was constructed while the adventure is in progress. If the player asks a geography question you cannot answer confidently within the fiction, answer within the fiction ("The layout from here looks like...") or acknowledge uncertainty as the character would experience it. Out-of-character map sketches and structural explanations are post-session content only.
+
+WORLD FACTS:
+When you establish a specific physical measurement, named spatial attribute, or concrete environmental detail for the first time, commit it to world_facts using a descriptive key. On subsequent descriptions of the same feature, read from the <world_facts> block in the state snapshot rather than re-estimating. Update existing keys if a fact changes in the fiction.`;
 }
 
 // --- Synthesis prompt ---
@@ -448,6 +451,9 @@ export async function runTurn(
 					},
 					scenarioStateSnapshot: Object.keys(state.scenarioState).length > 0
 						? structuredClone(state.scenarioState)
+						: undefined,
+					worldFactsSnapshot: Object.keys(state.worldFacts).length > 0
+						? { ...state.worldFacts }
 						: undefined
 				});
 

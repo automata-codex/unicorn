@@ -46,6 +46,13 @@ ${JSON.stringify(gameState, null, 2)}
 		output += `\n\n<scenario_state>\n${lines.join('\n')}\n</scenario_state>`;
 	}
 
+	// World facts — key: value, one per line
+	const worldFactEntries = Object.entries(state.worldFacts);
+	if (worldFactEntries.length > 0) {
+		const lines = worldFactEntries.map(([key, value]) => `${key}: ${value}`);
+		output += `\n\n<world_facts>\n${lines.join('\n')}\n</world_facts>`;
+	}
+
 	return output;
 }
 

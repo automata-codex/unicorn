@@ -21,6 +21,7 @@ export function createAppState(overrides?: Partial<AppState>): AppState {
 		flags: {},
 		flagTriggers: {},
 		scenarioState: {},
+		worldFacts: {},
 		npcStates: {},
 		pendingCanon: [],
 
@@ -133,6 +134,9 @@ export function applyGmResponse(state: AppState, response: SubmitGmResponse): vo
 			state.errors.push(`[warn] scenarioStateUpdate for unknown key "${key}" — ignoring.`);
 		}
 	}
+
+	// worldFacts (additive merge — same key overwrites)
+	Object.assign(state.worldFacts, response.worldFacts ?? {});
 
 	// gmUpdates.npcStates
 	Object.assign(state.npcStates, response.gmUpdates?.npcStates ?? {});

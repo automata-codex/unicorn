@@ -42,6 +42,7 @@ export type SessionExport = {
 		flags: AppState['flags'];
 		flagTriggers: AppState['flagTriggers'];
 		scenarioState: AppState['scenarioState'];
+		worldFacts: AppState['worldFacts'];
 		npcStates: AppState['npcStates'];
 		pendingCanon: AppState['pendingCanon'];
 		pendingDiceRequests: AppState['pendingDiceRequests'];
@@ -50,6 +51,7 @@ export type SessionExport = {
 	gmContextStructured: AppState['gmContextStructured'];
 	openingNarration: string | null;
 	scenarioStateHistory: Array<{ turn: number; scenarioState: Record<string, ScenarioStateEntry> }>;
+	worldFactsHistory: Array<{ turn: number; worldFacts: Record<string, string> }>;
 };
 
 export function exportSession(state: AppState): void {
@@ -68,6 +70,7 @@ export function exportSession(state: AppState): void {
 			flags: state.flags,
 			flagTriggers: state.flagTriggers,
 			scenarioState: state.scenarioState,
+			worldFacts: state.worldFacts,
 			npcStates: state.npcStates,
 			pendingCanon: state.pendingCanon,
 			pendingDiceRequests: state.pendingDiceRequests,
@@ -78,6 +81,9 @@ export function exportSession(state: AppState): void {
 		scenarioStateHistory: state.turnLog
 			.filter((entry) => entry.scenarioStateSnapshot != null)
 			.map((entry) => ({ turn: entry.turn, scenarioState: entry.scenarioStateSnapshot! })),
+		worldFactsHistory: state.turnLog
+			.filter((entry) => entry.worldFactsSnapshot != null)
+			.map((entry) => ({ turn: entry.turn, worldFacts: entry.worldFactsSnapshot! })),
 	};
 
 	const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -128,6 +134,7 @@ export function restoreSession(state: AppState, session: SessionExport): void {
 	state.flags = session.finalState.flags;
 	state.flagTriggers = session.finalState.flagTriggers;
 	state.scenarioState = session.finalState.scenarioState ?? {};
+	state.worldFacts = session.finalState.worldFacts ?? {};
 	state.npcStates = session.finalState.npcStates;
 	state.pendingCanon = session.finalState.pendingCanon;
 	state.pendingDiceRequests = session.finalState.pendingDiceRequests;
