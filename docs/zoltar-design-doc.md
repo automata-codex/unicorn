@@ -307,8 +307,8 @@ WebSocket real-time sync (Ably) handles cross-instance message delivery for the 
 
 ```typescript
 campaigns         { id, org_id (nullable), name, system, created_at }
-adventures        { id, campaign_id, gm_context_id, mode, initiative_order: jsonb,
-                    rolling_summary: text, created_at, completed_at }
+adventures        { id, campaign_id, mode, initiative_order: jsonb,
+                    caller_id, rolling_summary: text, created_at, completed_at }
 messages          { id, adventure_id, role, content, created_at }
 gm_context        { id, adventure_id, blob: jsonb }
 character_sheets  { id, campaign_id, player_id, system, schema_version, data: jsonb }
@@ -480,6 +480,19 @@ This mirrors how good tabletop GMing actually works — you improvise something 
 **Canon review by mode:** In Solo Blind, proposed canon is auto-promoted by Claude — the player has no visibility into the GM context anyway, so Claude's editorial judgment is sufficient and human review would require spoiling the player's own campaign. In Solo Authored, the player reviews their own proposed canon. In Collaborative, the campaign author reviews. In Solo with Overseer, the designated overseer reviews. The review UI and queue infrastructure are shared across all modes; the routing of who sees the queue is mode-specific.
 
 **Phase:** Phase 1. This affects the core solo experience and the integrity of the GM context across sessions. It is not optional polish.
+
+### Campaign canon
+
+Within an adventure, promoted canon entries are appended to that adventure's GM context blob — they become permanent facts about the scenario. But some facts outgrow the adventure that produced them: the corporate conspiracy that runs deeper than one derelict vessel, the NPC who survived and will appear again, the crew's reputation with a faction they antagonized.
+
+`campaign_canon` is the campaign-level counterpart to `pending_canon`. It holds narrative truth that persists across adventures and feeds into the synthesis of every subsequent one. The promotion path has two levels:
+
+1. **Adventure promotion** — during play, `proposed_canon` entries are promoted to the adventure's GM context blob (existing behavior).
+2. **Campaign promotion** — at adventure completion, a subset of those facts are promoted again to `campaign_canon`. This is a deliberate editorial act: the reviewer identifies which discoveries have campaign-level significance and lifts them up. Not every promoted adventure fact warrants campaign promotion — only the ones that should be true about the world from now on.
+
+When a new adventure is synthesized, `campaign_canon` is included in the synthesis prompt alongside oracle results. Claude receives the persistent world truth before generating the new GM context, so the big bad's scheme, prior NPC histories, and faction dynamics are present from turn one of the next adventure.
+
+This is a Phase 2 feature — single-adventure campaigns don't require it, and the canon review UI needs to be in place first. The schema stub is defined early to avoid a painful retrofit.
 
 ### State changes validation
 

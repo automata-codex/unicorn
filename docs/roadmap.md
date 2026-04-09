@@ -254,6 +254,8 @@ Target: UVG and OSE support, remaining campaign creation modes, synchronous mult
 - Private action affordance
 - Caller transfer UI polish
 - Multi-PC / caller model dedicated playtest — do not combine with mechanical coverage playtests; schedule after backend implements caller transfer and initiative sequencing
+- Campaign canon — second promotion step at adventure completion; `campaign_canon` table; synthesis reads campaign canon alongside oracle results for subsequent adventures
+- Campaign canon review UI — surfaces `campaign_canon` entries with `pending` status to the appropriate reviewer at adventure completion
 
 ---
 

@@ -691,6 +691,20 @@ export const adventureTelemetry = pgTable('adventure_telemetry', {
   uniqueIndex('adventure_telemetry_adventure_seq_idx').on(table.adventureId, table.sequenceNumber),
   index('adventure_telemetry_adventure_idx').on(table.adventureId),
 ]);
+
+// ---------------------------------------------------------------------------
+// Phase 2+
+// ---------------------------------------------------------------------------
+
+export const campaignCanon = pgTable('campaign_canon', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  campaignId:  uuid('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
+  summary:     text('summary').notNull(),
+  context:     text('context').notNull(),
+  status:      canonStatusEnum('status').notNull().default('pending'),
+  createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  reviewedAt:  timestamp('reviewed_at', { withTimezone: true }),
+});
 ```
 
 ---
@@ -722,6 +736,14 @@ export type NewRulesChunk         = InferInsertModel<typeof schema.rulesChunks>;
 export type AdventureTelemetry    = InferSelectModel<typeof schema.adventureTelemetry>;
 export type NewAdventureTelemetry = InferInsertModel<typeof schema.adventureTelemetry>;
 // etc.
+
+// ---------------------------------------------------------------------------
+// Phase 2+
+// ---------------------------------------------------------------------------
+
+export type CampaignCanon    = InferSelectModel<typeof schema.campaignCanon>;
+export type NewCampaignCanon = InferInsertModel<typeof schema.campaignCanon>;
+// etc.
 ```
 
 ---
@@ -732,6 +754,19 @@ Tables and columns not yet defined, to be added as migrations when the relevant 
 
 - **`campaign.creation_mode` column** — `'solo_blind' | 'solo_authored' | 'collaborative' | 'solo_with_overseer'`; canon review routing is mode-specific (Phase 2)
 - **`campaign.overseer_id` column** — user designated as canon reviewer in Solo with Overseer mode (Phase 2)
+- **`campaign_canon` table** — campaign-level narrative truth that persists across adventures. Mirrors the `pending_canon` lifecycle but scoped to the campaign rather than a single adventure. Populated by a second promotion step at adventure completion: facts with campaign-level significance are promoted from the adventure's GM context blob to `campaign_canon`. Feeds into synthesis for subsequent adventures alongside oracle results. Schema:
+```sql
+  CREATE TABLE campaign_canon (
+    id           uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+    campaign_id  uuid         NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+    summary      text         NOT NULL,
+    context      text         NOT NULL,  -- which adventure it emerged from, and how
+    status       canon_status NOT NULL DEFAULT 'pending',
+    created_at   timestamptz  NOT NULL DEFAULT now(),
+    reviewed_at  timestamptz
+  );
+```
+Uses the existing `canon_status` enum (`pending`, `promoted`, `discarded`). The `context` field records which adventure the fact emerged from and the circumstances.
 - **`campaign_state.system` and `character_sheet.system` → FK** — convert slug text columns to `system_id uuid` FKs to `game_system.id` for consistency with `campaign.system_id` (Phase 2, when OSE/UVG systems are added and the slug set stabilizes)
 - **Rule system tables** — `rule_override`, `constraint_module`, `constraint_module_activation` (Phase 3)
 - **`org` table** — billing unit for SaaS (Phase 3, SaaS layer only)
