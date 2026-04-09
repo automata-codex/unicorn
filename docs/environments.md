@@ -18,6 +18,29 @@ DEPLOYMENT_MODE=selfhosted
 
 The Anthropic API key is a personal key for development use. The NoopRealtimeService is active — real-time features (live typing preview, presence indicators) are not available in this environment.
 
+### Local Dev Reverse Proxy (Deferred)
+
+The intended local dev setup uses **Traefik** as a reverse proxy with `*.zoltar.local` hostnames and
+mkcert-issued TLS certificates. This gives SSL parity with production, catches secure-cookie and
+CORS issues early, and routes multiple services without manual port management:
+
+| Hostname                | Target                  |
+|-------------------------|-------------------------|
+| `app.zoltar.local`      | `zoltar-fe` (SvelteKit) |
+| `api.zoltar.local`      | `zoltar-be` (NestJS)    |
+| `playtest.zoltar.local` | `zoltar-playtest`       |
+
+**This is not set up yet.** It becomes worthwhile once the frontend and backend are integrated and
+Auth.js is in place — secure cookies and OAuth redirect URIs are where the SSL gap actually bites.
+Until then, services run on their assigned ports and are accessed directly.
+
+When the time comes, setup will require:
+- [`mkcert`](https://github.com/FiloSottile/mkcert) installed and CA trusted on each dev machine
+- `/etc/hosts` entries for each `*.zoltar.local` hostname
+- A Traefik service added to `docker-compose.yml` with label-based routing per service
+
+Document the setup procedure here when it's implemented.
+
 ## Personal DigitalOcean Droplet (Self-Hosted)
 
 **Branch:** tagged releases

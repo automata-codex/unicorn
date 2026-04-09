@@ -1,6 +1,11 @@
 # Roadmap
 
-This document tracks planned work by phase and milestone. Per-feature specs live in `docs/specs/` and are written when a feature is about to be built. This roadmap is scope-focused — no time estimates.
+This document tracks planned work by phase. Per-feature specs live in `docs/specs/` and are written when a feature is about to be built. This roadmap is scope-focused — no time estimates.
+
+Phase 1 is organized in two sections:
+
+- **Feature Requirements** — the full inventory of what needs to be built, organized by domain. These are the canonical task lists.
+- **Delivery Milestones** — the sequence in which work is built and shipped. Each milestone is independently testable and represents a meaningful step toward the phase target. Most milestones include both frontend and backend work.
 
 ---
 
@@ -8,13 +13,11 @@ This document tracks planned work by phase and milestone. Per-feature specs live
 
 Target: a playable solo Mothership adventure on a personal Droplet.
 
-Milestones within a phase are logical groupings, not a strict sequence. Frontend work should be interleaved with backend milestones as features become available rather than deferred to a single frontend milestone. The hard dependencies within Phase 1 are: 
+---
 
-- 1.0 gates 1.2 (validate the GM context design manually before building the pipeline)
-- 1.1 gates everything else (the data model must exist first)
-- 1.2 and 1.3 should be sketched together since the two tool definitions are closely related
+### Completed
 
-### Milestone 1.0 — Manual GM Context Prototyping
+#### Milestone 1.0 — Manual GM Context Prototyping
 
 Validate the campaign creation and play loop manually before building any pipeline. This milestone produces no shippable code — it produces confidence that the GM context design is right and that oracle table entries are rich enough to sustain a session. Discoveries here are cheap to act on. Discoveries after the pipeline is built are not.
 
@@ -28,108 +31,202 @@ Validate the campaign creation and play loop manually before building any pipeli
 - [x] Document what the structured section needs to contain based on what the manual sessions revealed
 - [x] Document the gold-standard GM context quality bar based on playtest findings — what the Persephone's Wake context got right, as a written rubric for evaluating future synthesis outputs
 
-### Milestone 1.1 — Backend Foundation
+---
 
-The NestJS application structure, database connectivity, and core data model. No game logic yet — just the skeleton everything else hangs on.
+### Feature Requirements
 
-- [ ] NestJS module hierarchy established (`CampaignModule`, `AdventureModule`, `GridModule`, `AuthModule`, etc.)
-- [ ] PostgreSQL connection via Drizzle ORM with `node-postgres` driver
-- [ ] Flyway migration setup in Docker Compose (`infra/db/migrations/`)
-- [ ] Initial migration: core relational tables (`campaigns`, `adventures`, `messages`, `gm_context`, `character_sheets`, `campaign_state`)
-- [ ] Initial migration: grid tables (`grid_cells`, `grid_entities`)
-- [ ] Initial migration: `game_events` audit table
-- [ ] Initial migration: `adventure_telemetry` table (append-only, one row per turn, JSONB payload column) — infrastructure-level diagnostic telemetry, distinct from the player-facing session export format
-- [ ] `map_geometry` stub table (not implemented, reserved for Phase 3)
-- [ ] Mothership Zod schemas — campaign state shape and character sheet shape
-- [ ] Basic CRUD endpoints for campaigns and adventures
-- [ ] Auth.js integration (`AuthService` interface + `AuthJsService` implementation)
-- [ ] Service interface stubs: `EntitlementsService`, `MeteringService`, `EmailService`, `AssetStorageService`, `RealtimeService`, `FeatureFlagService`
-- [ ] Noop implementations for all deferred service interfaces
-- [ ] Docker Compose setup for local development (Postgres + NestJS + Svelte + Flyway)
-- [ ] Environment config loading and validation
+#### Backend Foundation
 
-### Milestone 1.2 — Campaign Creation (Solo Blind)
+The NestJS application structure, database connectivity, and core data model. No game logic — just the skeleton everything else hangs on.
 
-The Solo Blind campaign creation pipeline: oracle table filtering, coherence check, and GM context synthesis. This is a significant Phase 1 feature — the adventure is only as good as the GM context that seeds it. Milestone 1.0 gates this milestone: oracle table entries and the synthesis prompt should be validated manually before the pipeline is built.
+- NestJS module hierarchy established (`CampaignModule`, `AdventureModule`, `GridModule`, `AuthModule`, etc.)
+- PostgreSQL connection via Drizzle ORM with `node-postgres` driver
+- Flyway migration setup in Docker Compose (`infra/db/migrations/`)
+- Initial migration: core relational tables (`campaigns`, `adventures`, `messages`, `gm_context`, `character_sheets`, `campaign_state`)
+- Initial migration: grid tables (`grid_cells`, `grid_entities`)
+- Initial migration: `game_events` audit table
+- Initial migration: `adventure_telemetry` table (append-only, one row per turn, JSONB payload column) — infrastructure-level diagnostic telemetry, distinct from the player-facing session export format
+- `map_geometry` stub table (not implemented, reserved for Phase 3)
+- Docker Compose setup for local development (Postgres + NestJS + Svelte + Flyway)
+- Environment config loading and validation
 
-- [ ] `submit_gm_context` tool definition (Zod schema)
-- [ ] Rationalize state snapshot fields and finalize read/write contract between snapshot and tool schema.
-- [ ] Mothership oracle tables — survivors, threats, secrets, vessel type, tone (versioned JSON files)
-- [ ] Oracle table filtering data model — active/inactive entries per category, range dials
-- [ ] Character creation flow — Mothership mechanical character creation producing a character sheet that seeds oracle weighting
-- [ ] Coherence check — three-tier resolution (silent reroll, silent synthesis resolution, player surfacing)
-- [ ] GM context synthesis — Claude constructs GM context blob from resolved oracle results and calls `submit_gm_context`
-- [ ] `submit_gm_context` write path — validates structured section, writes GM context blob and initial entities to DB
-- [ ] Entity ID alignment — entity identifiers in the structured section match what session tools reference from turn one
-- [ ] Pending canon queue — auto-promote in Solo Blind; queue infrastructure in place for other modes (Phase 2)
+#### Auth & CRUD
 
-### Milestone 1.3 — Claude Integration
+- Auth.js integration (`AuthService` interface + `AuthJsService` implementation)
+- Service interface stubs: `EntitlementsService`, `MeteringService`, `EmailService`, `AssetStorageService`, `RealtimeService`, `FeatureFlagService`
+- Noop implementations for all deferred service interfaces
+- Mothership Zod schemas — campaign state shape and character sheet shape
+- Basic CRUD endpoints for campaigns and adventures
+- Frontend: auth flow (login, adventure management), campaign list, adventure list shell
 
-The GM-in-a-box core: state snapshot construction, Claude API communication, structured response handling, and context window management.
+#### Oracle Tables & Character Creation
 
-- [ ] `submit_gm_response` tool definition (Zod schema) including `proposed_canon` field
-- [ ] State snapshot builder — visibility-filtered, GM context injected
-- [ ] LOS computation service (shadowcasting or Bresenham — decision in spec)
-- [ ] Claude API client with prompt caching for GM context blob
-- [ ] Prompt structure: `[GM context blob] → [state snapshot] → [rolling summary] → [last N kb of messages]`
-- [ ] Rolling N-kb message window — measure in kb not message count; threshold TBD in spec (32–48 kb likely)
-- [ ] Rolling summary — stored in `adventures.rolling_summary`; lazy generation at adventure resume time
-- [ ] Summarization prompt guidance — prioritize uncanonized improvised fiction over mechanical events; exclude facts already in GM context
-- [ ] `GmService` orchestrating the full request/response cycle
-- [ ] Backend state change validation (resource deductions, HP thresholds, flag changes)
-- [ ] State change application to DB
-- [ ] `proposed_canon` routing — write entries to pending canon queue; auto-promote in Solo Blind
-- [ ] `game_events` write path (all state changes logged with sequence numbers)
-- [ ] Correction mechanic (`superseded_by` write path)
-- [ ] `adventure_telemetry` write path — per-turn record of player input, full `submit_gm_response` payload, all `roll_dice` calls with purpose annotations and results, prompt and completion token counts
-- [ ] State snapshot builder must include `flagTriggers` object adjacent to flag values (mutable, updated when new flags are added during play via `stateChanges.flagTriggers`), `characterAttributes` block for persistent qualitative character state (armor mode, weapon loadout, active conditions), and must omit entity position fields — position tracking is deferred to the spatial system spec
-- [ ] Spatial system spec required before implementation — LOS computation approach and entity position tracking design to be agreed in a dedicated conversation before this milestone begins
+- Mothership oracle tables — survivors, threats, secrets, vessel type, tone (versioned JSON files)
+- Oracle table filtering data model — active/inactive entries per category, range dials
+- Character creation flow — Mothership mechanical character creation producing a character sheet that seeds oracle weighting
+- Frontend: oracle filtering UI (activate/deactivate entries, range dials), character creation UI
 
-### Milestone 1.4 — Tools
+#### Campaign Creation (Solo Blind)
 
-The day-one tool implementations Claude can call during an adventure.
+The Solo Blind campaign creation pipeline: oracle table filtering, coherence check, and GM context synthesis. This is a significant Phase 1 feature — the adventure is only as good as the GM context that seeds it. Milestone 1.0 must be complete before this pipeline is built.
+
+- `submit_gm_context` tool definition (Zod schema)
+- Rationalize state snapshot fields and finalize read/write contract between snapshot and tool schema
+- Coherence check — three-tier resolution (silent reroll, silent synthesis resolution, player surfacing)
+- GM context synthesis — Claude constructs GM context blob from resolved oracle results and calls `submit_gm_context`
+- `submit_gm_context` write path — validates structured section, writes GM context blob and initial entities to DB
+- Entity ID alignment — entity identifiers in the structured section match what session tools reference from turn one
+- Pending canon queue — auto-promote in Solo Blind; queue infrastructure in place for other modes (Phase 2)
+- Frontend: full Solo Blind adventure creation flow wired end-to-end
+
+#### Claude API Client & Prompt Assembly
+
+A spatial system spec must be written and agreed before this area is implemented. LOS computation approach and entity position tracking design are to be decided in a dedicated conversation.
+
+- `submit_gm_response` tool definition (Zod schema) including `proposed_canon` field
+- State snapshot builder — visibility-filtered, GM context injected; must include `flagTriggers` object adjacent to flag values (mutable, updated when new flags are added during play via `stateChanges.flagTriggers`), `characterAttributes` block for persistent qualitative character state (armor mode, weapon loadout, active conditions); must omit entity position fields — position tracking is deferred to the spatial system spec
+- LOS computation service (shadowcasting or Bresenham — decision in spec)
+- Claude API client with prompt caching for GM context blob
+- Prompt structure: `[GM context blob] → [state snapshot] → [rolling summary] → [last N kb of messages]`
+- Rolling N-kb message window — measure in kb not message count; threshold TBD in spec (32–48 kb likely)
+- Rolling summary — stored in `adventures.rolling_summary`; lazy generation at adventure resume time
+- Summarization prompt guidance — prioritize uncanonized improvised fiction over mechanical events; exclude facts already in GM context
+
+#### GmService & State Management
+
+- `GmService` orchestrating the full request/response cycle
+- Backend state change validation (resource deductions, HP thresholds, flag changes)
+- State change application to DB
+- `proposed_canon` routing — write entries to pending canon queue; auto-promote in Solo Blind
+- `game_events` write path (all state changes logged with sequence numbers)
+- Correction mechanic (`superseded_by` write path)
+- `adventure_telemetry` write path — per-turn record of player input, full `submit_gm_response` payload, all `roll_dice` calls with purpose annotations and results, prompt and completion token counts
+- Frontend: play view (message log, input field)
+
+#### Tools
 
 > **Adjudication scope note:** Phase 1 has no formal rule evaluator. Mechanical adjudication for Mothership is Claude's responsibility, informed by the rules lookup tool rather than confabulation. The backend enforces structural constraints only (resource availability, HP thresholds, death triggers). The full constraint module system and rule evaluation engine are Phase 3 work. This is an acceptable tradeoff for Mothership — it's a slim ruleset and the horror is in the fiction more than the mechanics.
 
-- [ ] `roll_dice` tool — dice notation parser, server-side execution, audit log write
-- [ ] Rules lookup tool — vector embedding pipeline for Mothership rules text; pgvector extension on Postgres; query endpoint
+- `roll_dice` tool — dice notation parser, server-side execution, audit log write; audit log records player-entered vs system-generated rolls
+- Rules lookup tool — vector embedding pipeline for Mothership rules text; pgvector extension on Postgres; query endpoint
+- Tool call routing in `GmService`
+- Frontend: dice entry UI — "roll for me" button and manual raw roll entry (with explicit modifier language: "enter the number showing on the die")
+
+#### Multiplayer Foundation
+
+- Caller role enforcement — only the caller can submit input
+- Voluntary caller transfer
+- Caller request with configurable auto-approve timeout
+- Offline claim (caller disconnected)
+- Narrative transfer via `caller_transfer` in `submit_gm_response`
+- Initiative mode — adventure mode flip, initiative order stored in adventure record
+- `advance_initiative` handling in `GmService`
+- Frontend: caller indicator and transfer UI, initiative order display and active player highlighting
+
+#### Self-Hosted Deployment
+
+- Docker Compose production configuration
+- Environment variable documentation
+- Self-hosted setup guide
+- DigitalOcean Droplet deployment walkthrough
+- Mobile-first layout pass on frontend (thumb reach, responsive)
+- First tagged release (`v0.1.0`)
+
+---
+
+### Delivery Milestones
+
+#### M1 — Dev Environment & Data Model
+
+*Infrastructure only — no game logic, no UI. Everything else depends on this.*
+
+- [ ] Docker Compose local dev setup (Postgres + NestJS + Svelte + Flyway)
+- [ ] NestJS module hierarchy, DB connection via Drizzle ORM + `node-postgres`
+- [ ] Flyway migration setup; all Phase 1 migrations (core tables, grid tables, audit/telemetry tables, `map_geometry` stub)
+- [ ] Environment config loading and validation
+- [ ] Service interface stubs + noop implementations for all deferred services
+
+#### M2 — Auth, Campaign & Adventure CRUD
+
+*First shippable frontend + backend slice.*
+
+- [ ] Auth.js integration (`AuthService` interface + `AuthJsService` implementation)
+- [ ] Add Traefik to local dev stack
+- [ ] Mothership Zod schemas (campaign state, character sheet)
+- [ ] Basic CRUD endpoints for campaigns and adventures
+- [ ] Frontend: auth flow, campaign list, adventure list shell
+
+#### M3 — Oracle Tables & Character Creation
+
+*The raw material for GM context synthesis.*
+
+- [ ] Mothership oracle tables — versioned JSON files (survivors, threats, secrets, vessel type, tone)
+- [ ] Oracle table filtering data model (active/inactive entries, range dials)
+- [ ] Character creation flow (mechanical Mothership character creation, seeds oracle weighting)
+- [ ] Frontend: oracle filtering UI (activate/deactivate, range dials), character creation UI
+
+#### M4 — Solo Blind Campaign Creation Pipeline
+
+*End-to-end adventure creation: from oracle picks to GM context in DB.*
+
+- [ ] `submit_gm_context` tool definition + write path
+- [ ] State snapshot fields rationalized; read/write contract between snapshot and tool schema finalized
+- [ ] Coherence check (three-tier resolution: silent reroll, silent synthesis resolution, player surfacing)
+- [ ] GM context synthesis (Claude constructs blob from resolved oracle results, calls `submit_gm_context`)
+- [ ] Entity ID alignment
+- [ ] Pending canon queue + auto-promote for Solo Blind
+- [ ] Frontend: full Solo Blind adventure creation flow wired end-to-end
+
+#### M5 — Claude API Client & Prompt Assembly
+
+*Get a coherent GM response back from Claude. No state changes applied yet. Write spatial system spec before starting this milestone.*
+
+- [ ] `submit_gm_response` tool definition (including `proposed_canon` field)
+- [ ] State snapshot builder (visibility-filtered, GM context injected, `flagTriggers`, `characterAttributes`, no entity positions)
+- [ ] LOS computation service (shadowcasting or Bresenham — per spec)
+- [ ] Claude API client with prompt caching for GM context blob
+- [ ] Prompt structure: `[GM context blob] → [state snapshot] → [rolling summary] → [last N kb of messages]`
+- [ ] Rolling N-kb message window (measure in kb; threshold per spec)
+- [ ] Rolling summary — stored in `adventures.rolling_summary`; lazy generation at resume; summarization guidance applied
+
+#### M6 — GmService & State Management
+
+*Apply GM responses to game state and close the play loop.*
+
+- [ ] `GmService` orchestrating request/response cycle
+- [ ] Backend state change validation (resource deductions, HP thresholds, flag changes) + application to DB
+- [ ] `proposed_canon` routing + auto-promote in Solo Blind
+- [ ] `game_events` write path (all state changes, sequence numbers)
+- [ ] Correction mechanic (`superseded_by` write path)
+- [ ] `adventure_telemetry` write path (per-turn: player input, full `submit_gm_response` payload, all `roll_dice` calls with purpose annotations and results, token counts)
+- [ ] Frontend: play view (message log, input field)
+
+#### M7 — Tools
+
+*Dice and rules lookup wired into the play loop.*
+
+- [ ] `roll_dice` tool (dice notation parser, server-side execution, audit log; records player-entered vs system-generated rolls)
+- [ ] Rules lookup tool (vector embedding pipeline, pgvector, query endpoint)
 - [ ] Tool call routing in `GmService`
-- [ ] Audit log records player-entered vs system-generated rolls
+- [ ] Frontend: dice entry UI — "roll for me" button and manual raw roll entry paths
 
-### Milestone 1.5 — Multiplayer Foundation
+#### M8 — Multiplayer Foundation
 
-The caller model and adventure mode management.
+*Caller model and initiative mode.*
 
-- [ ] Caller role enforcement — only the caller can submit input
-- [ ] Voluntary caller transfer
-- [ ] Caller request with configurable auto-approve timeout
-- [ ] Offline claim (caller disconnected)
+- [ ] Caller role enforcement, voluntary transfer, request + auto-approve timeout, offline claim
 - [ ] Narrative transfer via `caller_transfer` in `submit_gm_response`
-- [ ] Initiative mode — adventure mode flip, initiative order stored in adventure record
-- [ ] `advance_initiative` handling in `GmService`
+- [ ] Initiative mode (adventure mode flip, order stored in record, `advance_initiative` handling in `GmService`)
+- [ ] Frontend: caller indicator and transfer UI, initiative order display and active player highlighting
 
-### Milestone 1.6 — Frontend
+#### M9 — Self-Hosted Deployment
 
-The Svelte SPA for solo and async multiplayer play.
-
-- [ ] Campaign creation flow — system selection, dice mode selection
-- [ ] Solo Blind adventure creation flow — oracle table filtering (activate/deactivate entries, range dials), character creation
-- [ ] Play view — message log, input field, dice entry
-- [ ] Raw roll entry UI with explicit modifier language ("enter the number showing on the die")
-- [ ] Both roll paths presented: "roll for me" button and manual entry
-- [ ] Caller indicator and transfer UI
-- [ ] Initiative order display and active player highlighting
-- [ ] Mobile-first layout (thumb reach, responsive)
-- [ ] Auth flow (login, adventure management)
-
-### Milestone 1.7 — Self-Hosted Deployment
-
-The open-core product running on a Droplet and usable by a self-hoster.
+*Shippable open-core product.*
 
 - [ ] Docker Compose production configuration
 - [ ] Environment variable documentation
-- [ ] Self-hosted setup guide
-- [ ] DigitalOcean Droplet deployment walkthrough
+- [ ] Self-hosted setup guide + DigitalOcean Droplet walkthrough
+- [ ] Mobile-first layout pass (thumb reach, responsive)
 - [ ] First tagged release (`v0.1.0`)
 
 ---
@@ -138,7 +235,7 @@ The open-core product running on a Droplet and usable by a self-hoster.
 
 Target: UVG and OSE support, remaining campaign creation modes, synchronous multiplayer, and the first wave of quality-of-life tooling.
 
-### Milestones (to be broken down when Phase 1 ships)
+### Requirements (to be broken into milestones when Phase 1 ships)
 
 - UVG and OSE Zod schemas (campaign state and character sheet shapes) and rules-as-code backend validation
 - UVG and OSE oracle tables
@@ -164,7 +261,7 @@ Target: UVG and OSE support, remaining campaign creation modes, synchronous mult
 
 Target: D&D 5e and Infinity 2d20 support, the 2D renderer, and the first SaaS infrastructure.
 
-### Milestones (to be broken down when Phase 2 ships)
+### Requirements (to be broken into milestones when Phase 2 ships)
 
 - Infinity 2d20 and D&D 5e system support
 - Full constraint module system and rule evaluation engine

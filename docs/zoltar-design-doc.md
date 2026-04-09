@@ -426,7 +426,7 @@ submit_gm_response({
   player_text: string,          // narrative delivered to the player
   state_changes: {
     resource_pools?: Record<string, { delta: number }>,
-    entities?: Record<string, { hp?: { delta: number }, position?: Position }>,
+    entities?: Record<string, { position?: Position, visible?: boolean }>,  // HP belongs in resource_pools, not here
     flags?: Record<string, boolean>
   },
   gm_updates: {
@@ -442,7 +442,7 @@ submit_gm_response({
     purpose: string,
     target?: string
   }>,
-  session_mode?: 'freeform' | 'initiative' | null,
+  adventure_mode?: 'freeform' | 'initiative' | null,
   initiative_order?: string[],
   advance_initiative?: boolean,
   caller_transfer?: string      // player_id to transfer caller role to
@@ -510,6 +510,18 @@ The rolling summary is never redundant with the message window — it always sum
 
 **Summarization prompt guidance:** Prioritize uncanonized improvised fiction over mechanical events. "Vasquez lied to the corporate liaison about the cargo manifest, and the liaison appeared to believe it" is more valuable to preserve than "the party spent two turns fighting the guard." Facts that were already promoted to GM context via the canon queue do not need to be in the summary.
 
+### State snapshot
+
+The state snapshot is the visibility-filtered current DB state injected into every prompt. It is constructed fresh on each request and is never cached — it reflects the game as it stands at the moment of the player's action.
+
+Key fields and conventions:
+
+- **Resource pools** — all named resource pools for all entities, current values and min/max bounds. Names follow the `{entity_id}_{pool_name}` convention (`dr_chen_hp`, `vasquez_stress`).
+- **`flagTriggers`** — an object adjacent to the flag values listing what each flag's state change means narratively. Mutable: updated when new flags are introduced during play via `stateChanges.flags`. Gives Claude the context to narrate flag changes correctly without re-reading the GM context blob.
+- **`characterAttributes`** — persistent qualitative character state that doesn't fit a numeric pool: armor mode, weapon loadout, active conditions, worn equipment. Stable across turns; updated when the character's loadout changes.
+- **Entity visibility** — grid entities filtered to those visible to the player party per LOS computation. Claude never sees hidden entity positions.
+- **Entity positions are omitted.** Position tracking is part of the spatial system (specced separately). Claude receives visibility state but not coordinates — it narrates from the GM context's spatial description, not from a coordinate grid.
+
 ### Prompt caching
 
 The GM context — the hidden truth doc, faction agendas, location facts — is identical on every request. It sits at the top of the prompt and qualifies for prompt caching. Cache reads cost ~10% of base input price, making the "we're sending a lot of data" concern largely moot after the first request.
@@ -521,7 +533,7 @@ The GM context — the hidden truth doc, faction agendas, location facts — is 
 ### Dice rolling (non-negotiable)
 
 ```typescript
-roll_dice(notation: string): { results: number[], total: number, notation: string }
+roll_dice(notation: string): { notation: string, results: number[], modifier: number, total: number }
 ```
 
 Results are computed outside Claude's narration, logged server-side before Claude narrates, and auditable. Claude receives the actual number and narrates from it. The audit log records whether the roll was system-generated or player-entered.
@@ -636,7 +648,9 @@ game_events {
   adventure_id
   sequence_number       // monotonically increasing, never gaps
   event_type            // player_action | gm_response | dice_roll | state_update | correction
-  actor                 // player_id | 'system' | 'gm'
+  actor_type            // 'player' | 'system' | 'gm'
+  actor_id              // user_id for player events; null for system/gm
+  roll_source           // 'system_generated' | 'player_entered' — populated for dice_roll events only
   payload: jsonb        // full content
   created_at
   superseded_by         // nullable — points to correction event
@@ -653,6 +667,19 @@ game_events {
 - *Player input error:* Cancel within a short window before GM processing — not undo, just cancel
 - *Rules error:* GM ruling review — flag the response, Claude re-examines, issues a logged correction with `superseded_by` pointing to the original
 - *Technical failure:* Admin-level state rollback from snapshots, not a player-facing feature
+
+### Adventure Telemetry
+
+A separate append-only table, `adventure_telemetry`, captures one row per GM turn for infrastructure-level diagnostics. It is distinct from `game_events` in both purpose and audience:
+
+- **`game_events`** is the player-visible audit trail — what happened, in what order, with correction history. It answers "what did the session record say?"
+- **`adventure_telemetry`** is internal engineering telemetry — the full Claude API exchange per turn, including token counts. It answers "what did the system actually send and receive?"
+
+The payload carries: player input text, the full `submit_gm_response` output, all `roll_dice` calls with purpose annotations and results, and prompt and completion token counts. Rows are never updated or deleted.
+
+`adventure_telemetry.sequence_number` matches the `sequence_number` of the corresponding `gm_response` event in `game_events`, so the two tables can be joined for debugging without redundant metadata in either payload.
+
+This table is also not the session export format. A player-facing portable export — covering messages, canon decisions, and final state — is a separate future feature. Telemetry is infrastructure; export is a product feature.
 
 ---
 
@@ -911,15 +938,15 @@ unicorn/
     @uv/rules-engine      # dice, constraint evaluator, state machine — open source, ELv2
     @uv/auth-core         # service interface definitions — open source, ELv2
   apps/
-    zoltar/               # Svelte SPA — AI-GM frontend
-    unicorn/              # Svelte SPA — traditional VTT frontend
-    zoltar-api/           # NestJS backend — Zoltar
-    unicorn-api/          # NestJS backend — Unicorn VTT
+    zoltar-be/            # NestJS backend — Zoltar
+    zoltar-fe/            # Svelte SPA — AI-GM frontend
+    unicorn-be/           # NestJS backend — Unicorn VTT
+    unicorn-fe/           # Svelte SPA — traditional VTT frontend
   infra/                  # Docker Compose, deployment config, CI/CD
   docs/                   # Design docs, ADRs
 ```
 
-Packages are not published to npm — they are workspace packages resolved locally by pnpm workspaces or Turborepo.
+Packages are not published to npm — they are workspace packages resolved locally by npm workspaces or Turborepo (deferred).
 
 ### 3D renderer: separate private repository
 
