@@ -15,5 +15,19 @@ services:
       timeout: 5s
       retries: 10
 
+  flyway:
+    image: flyway/flyway:10
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./infra/db/migrations:/flyway/sql:ro
+    environment:
+      FLYWAY_URL: ${FLYWAY_URL}
+      FLYWAY_USER: ${FLYWAY_USER}
+      FLYWAY_PASSWORD: ${FLYWAY_PASSWORD}
+    command: migrate
+    restart: on-failure
+
 volumes:
   pgdata:
