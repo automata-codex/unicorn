@@ -299,9 +299,9 @@ export async function runTurn(
 		];
 
 		// Capture the snapshot sent this turn for the turn log
-		const snapshotSent = JSON.parse(
-			buildGameState(state).replace(/^<game_state>\n/, '').replace(/\n<\/game_state>$/, '')
-		);
+		const fullSnapshot = buildGameState(state);
+		const gameStateMatch = fullSnapshot.match(/<game_state>\n([\s\S]*?)\n<\/game_state>/);
+		const snapshotSent = gameStateMatch ? JSON.parse(gameStateMatch[1]) : {};
 
 		// Accumulate dice rolls across the tool loop for the turn log.
 		// Include any player dice rolls from the previous turn's diceRequests.
@@ -409,10 +409,10 @@ export async function runTurn(
 						completionTokens: totalCompletionTokens
 					},
 					scenarioStateSnapshot: Object.keys(state.scenarioState).length > 0
-						? structuredClone(state.scenarioState)
+						? JSON.parse(JSON.stringify(state.scenarioState))
 						: undefined,
 					worldFactsSnapshot: Object.keys(state.worldFacts).length > 0
-						? { ...state.worldFacts }
+						? JSON.parse(JSON.stringify(state.worldFacts))
 						: undefined
 				});
 

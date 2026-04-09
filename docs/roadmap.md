@@ -18,15 +18,15 @@ Milestones within a phase are logical groupings, not a strict sequence. Frontend
 
 Validate the campaign creation and play loop manually before building any pipeline. This milestone produces no shippable code — it produces confidence that the GM context design is right and that oracle table entries are rich enough to sustain a session. Discoveries here are cheap to act on. Discoveries after the pipeline is built are not.
 
-- [ ] Write a rough synthesis prompt by hand
-- [ ] Select oracle results manually (no filtering UI — just pick entries)
-- [ ] Paste in a Mothership character sheet
-- [ ] Ask Claude to produce a GM context blob in a plain conversation
-- [ ] Run one or two sessions manually — construct the state snapshot by hand each turn, no backend
-- [ ] Evaluate: is the GM context rich enough? Does the oracle entry `claude_text` produce strong output or generic output? Are the interface hints doing useful work? How long does the GM context get in practice?
-- [ ] Revise oracle table entries and synthesis prompt until output is consistently good
-- [ ] Document what the structured section needs to contain based on what the manual sessions revealed
-- [ ] Document the gold-standard GM context quality bar based on playtest findings — what the Persephone's Wake context got right, as a written rubric for evaluating future synthesis outputs
+- [x] Write a rough synthesis prompt by hand
+- [x] Select oracle results manually (no filtering UI — just pick entries)
+- [x] Paste in a Mothership character sheet
+- [x] Ask Claude to produce a GM context blob in a plain conversation
+- [x] Run one or two sessions manually — construct the state snapshot by hand each turn, no backend
+- [x] Evaluate: is the GM context rich enough? Does the oracle entry `claude_text` produce strong output or generic output? Are the interface hints doing useful work? How long does the GM context get in practice?
+- [x] Revise oracle table entries and synthesis prompt until output is consistently good
+- [x] Document what the structured section needs to contain based on what the manual sessions revealed
+- [x] Document the gold-standard GM context quality bar based on playtest findings — what the Persephone's Wake context got right, as a written rubric for evaluating future synthesis outputs
 
 ### Milestone 1.1 — Backend Foundation
 
