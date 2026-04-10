@@ -1,0 +1,22 @@
+version: '3'
+
+tasks:
+  migrate:
+    desc: Apply pending Flyway migrations against the local dev database.
+    cmds:
+      - docker compose run --rm flyway migrate
+
+  info:
+    desc: Show the status of all Flyway migrations.
+    cmds:
+      - docker compose run --rm flyway info
+
+  clean:
+    desc: Drop all objects in the configured schemas. Destructive — local dev only.
+    cmds:
+      - docker compose run --rm flyway clean
+
+  repair:
+    desc: Repair the Flyway schema history table after a failed migration.
+    cmds:
+      - docker compose run --rm flyway repair

@@ -26,6 +26,7 @@ services:
       FLYWAY_URL: ${FLYWAY_URL}
       FLYWAY_USER: ${FLYWAY_USER}
       FLYWAY_PASSWORD: ${FLYWAY_PASSWORD}
+      FLYWAY_CLEAN_DISABLED: "false"  # local dev only — never enable in prod
     command: migrate
     restart: on-failure
 

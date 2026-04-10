@@ -18,6 +18,19 @@ DEPLOYMENT_MODE=selfhosted
 
 The Anthropic API key is a personal key for development use. The NoopRealtimeService is active — real-time features (live typing preview, presence indicators) are not available in this environment.
 
+### Common commands
+
+Database migrations are managed by Flyway, run as a one-shot container in the Compose stack. The `task` wrappers (defined in `infra/db/Taskfile.yml` and namespaced from the root `Taskfile.yml`) are the recommended interface:
+
+| Command               | What it does                                                              |
+|-----------------------|---------------------------------------------------------------------------|
+| `task flyway:migrate` | Apply pending migrations against the local dev database                   |
+| `task flyway:info`    | Show the status of all migrations                                         |
+| `task flyway:clean`   | Drop all objects in the configured schemas (destructive — local dev only) |
+| `task flyway:repair`  | Repair the schema history table after a failed migration                  |
+
+Each verb runs `docker compose run --rm flyway <verb>`, so the same connection config and migration volume mount is used regardless of how Flyway is invoked. The compose service also has `command: migrate` set, so a plain `docker compose up` will apply migrations automatically as part of stack startup once the backend service is wired in to depend on it.
+
 ### Local Dev Reverse Proxy (Deferred)
 
 The intended local dev setup uses **Traefik** as a reverse proxy with `*.zoltar.local` hostnames and
