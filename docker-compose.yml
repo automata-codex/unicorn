@@ -30,5 +30,26 @@ services:
     command: migrate
     restart: on-failure
 
+  backend:
+    build:
+      context: .
+      dockerfile: apps/zoltar-be/Dockerfile
+    depends_on:
+      flyway:
+        condition: service_completed_successfully
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      NODE_ENV: development
+      PORT: 3000
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/zoltar-fe/Dockerfile
+    ports:
+      - "5173:5173"
+
 volumes:
   pgdata:

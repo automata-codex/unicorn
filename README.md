@@ -12,15 +12,36 @@ This repository contains the open-core versions of both products, licensed under
 - [Task](https://taskfile.dev/) — `brew install go-task` on macOS
 - Node.js `>=22` (a `volta` pin is set in `package.json`)
 
-### First run
+### First run (full stack in Docker)
 
 ```sh
 cp .env.example .env
-docker compose up -d db
-task flyway:migrate
+docker compose up --build
 ```
 
-This brings up Postgres with `pgvector` and applies all schema migrations. The backend and frontend services are not yet wired into the compose stack — that lands later in milestone M1. See `docs/specs/zoltar/m1-local-dev-environment.md` for the in-progress spec.
+This brings up Postgres + pgvector, applies all Flyway migrations, starts the NestJS backend on `http://localhost:3000`, and starts the SvelteKit frontend dev server on `http://localhost:5173`. Use this path for first-clone setup, sanity checks, or when you want a one-command stack.
+
+### Daily development (host-run backend / frontend)
+
+For day-to-day development the recommended workflow is to run only the infrastructure services in Docker and run the apps directly on the host. This gives you native debugger attach, fast file watch, and IDE-integrated test runners — all of which are clunkier through a container.
+
+```sh
+# Start infra (Postgres + Flyway migrations)
+docker compose up -d db flyway
+
+# In one terminal: backend
+cd apps/zoltar-be
+npm run start:dev
+
+# In another terminal: frontend
+cd apps/zoltar-fe
+npm run dev
+```
+
+Two important notes about this mode:
+
+1. **Do not also start the `backend` / `frontend` compose services** — they'll fight the host processes for ports 3000 and 5173. `docker compose up -d db flyway` only brings up the two infra services.
+2. **`DATABASE_URL` differs by mode.** Inside compose the database host is `db` (the service name); from the host it's `localhost`. The `.env.example` value is the compose form. For host-run development, override `DATABASE_URL` to `postgresql://zoltar:zoltar_dev@localhost:5432/zoltar` — either via shell env, a per-app `.env.local`, or your run configuration.
 
 ### Database / Flyway commands
 

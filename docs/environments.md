@@ -7,7 +7,7 @@ This document describes the environments in use for Zoltar and Unicorn VTT devel
 **Branch:** `main`
 **Deployment mode:** `selfhosted`
 
-The standard development environment. All services run locally via Docker Compose.
+The standard development environment. The Docker Compose stack defines four services — `db`, `flyway`, `backend`, `frontend` — but two distinct workflows are supported.
 
 ```
 AUTH_PROVIDER=authjs
@@ -18,7 +18,44 @@ DEPLOYMENT_MODE=selfhosted
 
 The Anthropic API key is a personal key for development use. The NoopRealtimeService is active — real-time features (live typing preview, presence indicators) are not available in this environment.
 
-### Common commands
+### Workflow A — Full stack in Docker (first run, sanity checks, CI)
+
+```sh
+docker compose up --build
+```
+
+Brings up Postgres + pgvector, runs Flyway migrations to completion, then starts the backend (`http://localhost:3000`) and frontend (`http://localhost:5173`) in containers. Use this when:
+
+- Setting up a fresh clone for the first time
+- Sanity-checking that the whole stack still composes after a non-trivial change
+- Reproducing a CI failure locally
+- Onboarding a new contributor (no need to install Node, just Docker)
+
+The `backend` service has `depends_on: { flyway: { condition: service_completed_successfully } }`, so the API waits for migrations before starting.
+
+### Workflow B — Host-run apps with infra in Docker (daily development)
+
+The recommended day-to-day loop. Run only the database and Flyway in Docker; run the apps directly on your host. This gives you native debugger attach, fast file watch, IDE-integrated test runners, and simpler stack traces — all of which are clunky through a container.
+
+```sh
+# Start infra only
+docker compose up -d db flyway
+
+# Backend (terminal 1)
+cd apps/zoltar-be
+npm run start:dev      # or `npm run start:debug` for the inspector
+
+# Frontend (terminal 2)
+cd apps/zoltar-fe
+npm run dev
+```
+
+Two important notes:
+
+1. **Do not also start the `backend` / `frontend` compose services** in this mode — they'll fight the host processes for ports 3000 and 5173. `docker compose up -d db flyway` brings up only the two infra services.
+2. **`DATABASE_URL` differs by mode.** Inside compose, the database host is the service name `db`; from the host, it's `localhost`. The `.env.example` value is the compose form. For host-run development, override `DATABASE_URL` to `postgresql://zoltar:zoltar_dev@localhost:5432/zoltar` via shell env, a per-app `.env.local`, or your IDE run configuration.
+
+### Database / Flyway commands
 
 Database migrations are managed by Flyway, run as a one-shot container in the Compose stack. The `task` wrappers (defined in `infra/db/Taskfile.yml` and namespaced from the root `Taskfile.yml`) are the recommended interface:
 
@@ -29,7 +66,7 @@ Database migrations are managed by Flyway, run as a one-shot container in the Co
 | `task flyway:clean`   | Drop all objects in the configured schemas (destructive — local dev only) |
 | `task flyway:repair`  | Repair the schema history table after a failed migration                  |
 
-Each verb runs `docker compose run --rm flyway <verb>`, so the same connection config and migration volume mount is used regardless of how Flyway is invoked. The compose service also has `command: migrate` set, so a plain `docker compose up` will apply migrations automatically as part of stack startup once the backend service is wired in to depend on it.
+Each verb runs `docker compose run --rm flyway <verb>`, so the same connection config and migration volume mount is used regardless of how Flyway is invoked. The `flyway` compose service also has `command: migrate` set and the `backend` service depends on it via `service_completed_successfully`, so `docker compose up` applies migrations automatically as part of stack startup.
 
 ### Local Dev Reverse Proxy (Deferred)
 
