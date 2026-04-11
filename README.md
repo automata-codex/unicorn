@@ -16,10 +16,10 @@ This repository contains the open-core versions of both products, licensed under
 
 ```sh
 cp .env.example .env
-docker compose up --build
+task up:all
 ```
 
-This brings up Postgres + pgvector, applies all Flyway migrations, starts the NestJS backend on `http://localhost:3000`, and starts the SvelteKit frontend dev server on `http://localhost:5173`. Use this path for first-clone setup, sanity checks, or when you want a one-command stack.
+This brings up Postgres + pgvector, applies all Flyway migrations, starts the NestJS backend on `http://localhost:3000`, and starts the SvelteKit frontend dev server on `http://localhost:5173`. Use this path for first-clone setup, sanity checks, or when you want a one-command stack. Logs stream in the foreground; Ctrl-C to stop.
 
 ### Daily development (host-run backend / frontend)
 
@@ -27,7 +27,7 @@ For day-to-day development the recommended workflow is to run only the infrastru
 
 ```sh
 # Start infra (Postgres + Flyway migrations)
-docker compose up -d db flyway
+task up
 
 # In one terminal: backend
 cd apps/zoltar-be
@@ -38,9 +38,17 @@ cd apps/zoltar-fe
 npm run dev
 ```
 
-Two important notes about this mode:
+When you're done:
 
-1. **Do not also start the `backend` / `frontend` compose services** — they'll fight the host processes for ports 3000 and 5173. `docker compose up -d db flyway` only brings up the two infra services.
+```sh
+task down
+```
+
+`task down` stops and removes the Docker stack. Volumes (and database data) are preserved across sessions.
+
+Two important notes about the host-run mode:
+
+1. **Do not also start the `backend` / `frontend` compose services** — they'll fight the host processes for ports 3000 and 5173. `task up` only brings up the two infra services. If you previously ran `task up:all`, run `task down` before switching modes.
 2. **`DATABASE_URL` differs by mode.** Inside compose the database host is `db` (the service name); from the host it's `localhost`. The `.env.example` value is the compose form. For host-run development, override `DATABASE_URL` to `postgresql://zoltar:zoltar_dev@localhost:5432/zoltar` — either via shell env, a per-app `.env.local`, or your run configuration.
 
 ### Database / Flyway commands

@@ -21,25 +21,25 @@ The Anthropic API key is a personal key for development use. The NoopRealtimeSer
 ### Workflow A — Full stack in Docker (first run, sanity checks, CI)
 
 ```sh
-docker compose up --build
+task up:all
 ```
 
-Brings up Postgres + pgvector, runs Flyway migrations to completion, then starts the backend (`http://localhost:3000`) and frontend (`http://localhost:5173`) in containers. Use this when:
+Brings up Postgres + pgvector, runs Flyway migrations to completion, then starts the backend (`http://localhost:3000`) and frontend (`http://localhost:5173`) in containers. Logs stream in the foreground; Ctrl-C to stop. Use this when:
 
 - Setting up a fresh clone for the first time
 - Sanity-checking that the whole stack still composes after a non-trivial change
 - Reproducing a CI failure locally
 - Onboarding a new contributor (no need to install Node, just Docker)
 
-The `backend` service has `depends_on: { flyway: { condition: service_completed_successfully } }`, so the API waits for migrations before starting.
+The `backend` service has `depends_on: { flyway: { condition: service_completed_successfully } }`, so the API waits for migrations before starting. Under the hood, `task up:all` runs `docker compose up --build`.
 
 ### Workflow B — Host-run apps with infra in Docker (daily development)
 
 The recommended day-to-day loop. Run only the database and Flyway in Docker; run the apps directly on your host. This gives you native debugger attach, fast file watch, IDE-integrated test runners, and simpler stack traces — all of which are clunky through a container.
 
 ```sh
-# Start infra only
-docker compose up -d db flyway
+# Start infra (db + flyway migrate, blocks until migrations are applied)
+task up
 
 # Backend (terminal 1)
 cd apps/zoltar-be
@@ -48,11 +48,16 @@ npm run start:dev      # or `npm run start:debug` for the inspector
 # Frontend (terminal 2)
 cd apps/zoltar-fe
 npm run dev
+
+# When done
+task down
 ```
+
+`task up` starts the `db` service, waits until it reports healthy, then runs `flyway migrate` as a separate blocking step (rather than relying on Compose `--wait`, which only confirms the container is running, not that the one-shot job has finished). `task down` stops and removes the Docker stack but preserves the `pgdata` volume, so your database survives across sessions.
 
 Two important notes:
 
-1. **Do not also start the `backend` / `frontend` compose services** in this mode — they'll fight the host processes for ports 3000 and 5173. `docker compose up -d db flyway` brings up only the two infra services.
+1. **Do not also start the `backend` / `frontend` compose services** in this mode — they'll fight the host processes for ports 3000 and 5173. `task up` brings up only the two infra services. If you previously used `task up:all`, run `task down` before switching modes.
 2. **`DATABASE_URL` differs by mode.** Inside compose, the database host is the service name `db`; from the host, it's `localhost`. The `.env.example` value is the compose form. For host-run development, override `DATABASE_URL` to `postgresql://zoltar:zoltar_dev@localhost:5432/zoltar` via shell env, a per-app `.env.local`, or your IDE run configuration.
 
 ### Database / Flyway commands
