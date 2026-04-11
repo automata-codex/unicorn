@@ -10,7 +10,9 @@ describe('validateEnv', () => {
 
   it('parses a fully valid env', () => {
     const result = validateEnv(validEnv);
-    expect(result.DATABASE_URL).toBe('postgresql://zoltar:zoltar_dev@db:5432/zoltar');
+    expect(result.DATABASE_URL).toBe(
+      'postgresql://zoltar:zoltar_dev@db:5432/zoltar',
+    );
     expect(result.NODE_ENV).toBe('development');
     expect(result.PORT).toBe(3000);
   });
@@ -33,9 +35,9 @@ describe('validateEnv', () => {
   });
 
   it('throws when DATABASE_URL is not a URL', () => {
-    expect(() => validateEnv({ ...validEnv, DATABASE_URL: 'not-a-url' })).toThrow(
-      /DATABASE_URL/,
-    );
+    expect(() =>
+      validateEnv({ ...validEnv, DATABASE_URL: 'not-a-url' }),
+    ).toThrow(/DATABASE_URL/);
   });
 
   it('throws when NODE_ENV is not one of the allowed values', () => {
