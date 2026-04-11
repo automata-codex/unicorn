@@ -340,6 +340,27 @@ CREATE INDEX rules_chunk_embedding_idx ON rules_chunk
 
 ---
 
+### Adventure Telemetry (`V8__adventure_telemetry.sql`)
+
+Infrastructure-level diagnostic telemetry. One row per GM turn. Append-only — rows are never updated or deleted. Distinct from the player-facing session export format (messages, canon, final state), which is a separate future feature.
+
+```sql
+CREATE TABLE adventure_telemetry (
+  id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  adventure_id     uuid        NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
+  sequence_number  integer     NOT NULL,    -- matches game_events.sequence_number for the gm_response event
+  payload          jsonb       NOT NULL,    -- player input, full submit_gm_response output,
+                                            -- all roll_dice calls (notation, purpose, results),
+                                            -- prompt_tokens, completion_tokens
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (adventure_id, sequence_number)
+);
+
+CREATE INDEX adventure_telemetry_adventure_idx ON adventure_telemetry (adventure_id);
+```
+
+---
+
 ## Drizzle Schema
 
 `apps/zoltar-be/src/db/schema.ts`
@@ -655,6 +676,35 @@ export const rulesChunks = pgTable('rules_chunk', {
 }, (table) => [
   index('rules_chunk_system_idx').on(table.systemId),
 ]);
+
+// ---------------------------------------------------------------------------
+// Adventure Telemetry
+// ---------------------------------------------------------------------------
+
+export const adventureTelemetry = pgTable('adventure_telemetry', {
+  id:             uuid('id').primaryKey().defaultRandom(),
+  adventureId:    uuid('adventure_id').notNull().references(() => adventures.id, { onDelete: 'cascade' }),
+  sequenceNumber: integer('sequence_number').notNull(),
+  payload:        jsonb('payload').notNull(),
+  createdAt:      timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('adventure_telemetry_adventure_seq_idx').on(table.adventureId, table.sequenceNumber),
+  index('adventure_telemetry_adventure_idx').on(table.adventureId),
+]);
+
+// ---------------------------------------------------------------------------
+// Phase 2+
+// ---------------------------------------------------------------------------
+
+export const campaignCanon = pgTable('campaign_canon', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  campaignId:  uuid('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
+  summary:     text('summary').notNull(),
+  context:     text('context').notNull(),
+  status:      canonStatusEnum('status').notNull().default('pending'),
+  createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  reviewedAt:  timestamp('reviewed_at', { withTimezone: true }),
+});
 ```
 
 ---
@@ -667,22 +717,32 @@ Drizzle infers insert and select types from the schema definition. Use these in 
 import { type InferSelectModel, type InferInsertModel } from 'drizzle-orm';
 import * as schema from './schema';
 
-export type GameSystem        = InferSelectModel<typeof schema.gameSystems>;
-export type NewGameSystem     = InferInsertModel<typeof schema.gameSystems>;
-export type Campaign          = InferSelectModel<typeof schema.campaigns>;
-export type NewCampaign       = InferInsertModel<typeof schema.campaigns>;
-export type Adventure         = InferSelectModel<typeof schema.adventures>;
-export type NewAdventure      = InferInsertModel<typeof schema.adventures>;
-export type GmContext         = InferSelectModel<typeof schema.gmContexts>;
-export type NewGmContext      = InferInsertModel<typeof schema.gmContexts>;
-export type Message           = InferSelectModel<typeof schema.messages>;
-export type NewMessage        = InferInsertModel<typeof schema.messages>;
-export type GameEvent         = InferSelectModel<typeof schema.gameEvents>;
-export type NewGameEvent      = InferInsertModel<typeof schema.gameEvents>;
-export type PendingCanon      = InferSelectModel<typeof schema.pendingCanon>;
-export type NewPendingCanon   = InferInsertModel<typeof schema.pendingCanon>;
-export type RulesChunk        = InferSelectModel<typeof schema.rulesChunks>;
-export type NewRulesChunk     = InferInsertModel<typeof schema.rulesChunks>;
+export type GameSystem            = InferSelectModel<typeof schema.gameSystems>;
+export type NewGameSystem         = InferInsertModel<typeof schema.gameSystems>;
+export type Campaign              = InferSelectModel<typeof schema.campaigns>;
+export type NewCampaign           = InferInsertModel<typeof schema.campaigns>;
+export type Adventure             = InferSelectModel<typeof schema.adventures>;
+export type NewAdventure          = InferInsertModel<typeof schema.adventures>;
+export type GmContext             = InferSelectModel<typeof schema.gmContexts>;
+export type NewGmContext          = InferInsertModel<typeof schema.gmContexts>;
+export type Message               = InferSelectModel<typeof schema.messages>;
+export type NewMessage            = InferInsertModel<typeof schema.messages>;
+export type GameEvent             = InferSelectModel<typeof schema.gameEvents>;
+export type NewGameEvent          = InferInsertModel<typeof schema.gameEvents>;
+export type PendingCanon          = InferSelectModel<typeof schema.pendingCanon>;
+export type NewPendingCanon       = InferInsertModel<typeof schema.pendingCanon>;
+export type RulesChunk            = InferSelectModel<typeof schema.rulesChunks>;
+export type NewRulesChunk         = InferInsertModel<typeof schema.rulesChunks>;
+export type AdventureTelemetry    = InferSelectModel<typeof schema.adventureTelemetry>;
+export type NewAdventureTelemetry = InferInsertModel<typeof schema.adventureTelemetry>;
+// etc.
+
+// ---------------------------------------------------------------------------
+// Phase 2+
+// ---------------------------------------------------------------------------
+
+export type CampaignCanon    = InferSelectModel<typeof schema.campaignCanon>;
+export type NewCampaignCanon = InferInsertModel<typeof schema.campaignCanon>;
 // etc.
 ```
 
@@ -694,6 +754,19 @@ Tables and columns not yet defined, to be added as migrations when the relevant 
 
 - **`campaign.creation_mode` column** — `'solo_blind' | 'solo_authored' | 'collaborative' | 'solo_with_overseer'`; canon review routing is mode-specific (Phase 2)
 - **`campaign.overseer_id` column** — user designated as canon reviewer in Solo with Overseer mode (Phase 2)
+- **`campaign_canon` table** — campaign-level narrative truth that persists across adventures. Mirrors the `pending_canon` lifecycle but scoped to the campaign rather than a single adventure. Populated by a second promotion step at adventure completion: facts with campaign-level significance are promoted from the adventure's GM context blob to `campaign_canon`. Feeds into synthesis for subsequent adventures alongside oracle results. Schema:
+```sql
+  CREATE TABLE campaign_canon (
+    id           uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+    campaign_id  uuid         NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+    summary      text         NOT NULL,
+    context      text         NOT NULL,  -- which adventure it emerged from, and how
+    status       canon_status NOT NULL DEFAULT 'pending',
+    created_at   timestamptz  NOT NULL DEFAULT now(),
+    reviewed_at  timestamptz
+  );
+```
+Uses the existing `canon_status` enum (`pending`, `promoted`, `discarded`). The `context` field records which adventure the fact emerged from and the circumstances.
 - **`campaign_state.system` and `character_sheet.system` → FK** — convert slug text columns to `system_id uuid` FKs to `game_system.id` for consistency with `campaign.system_id` (Phase 2, when OSE/UVG systems are added and the slug set stabilizes)
 - **Rule system tables** — `rule_override`, `constraint_module`, `constraint_module_activation` (Phase 3)
 - **`org` table** — billing unit for SaaS (Phase 3, SaaS layer only)

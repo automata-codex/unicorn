@@ -1,0 +1,23 @@
+version: '3'
+
+includes:
+  flyway:
+    taskfile: ./infra/db/Taskfile.yml
+    dir: .
+
+tasks:
+  up:
+    desc: Start infra (db, then flyway migrate). For Workflow B — host-run apps in separate terminals.
+    cmds:
+      - docker compose up -d --wait db
+      - task: flyway:migrate
+
+  up:all:
+    desc: Build and start the entire stack in Docker (Workflow A — first run / sanity check).
+    cmds:
+      - docker compose up --build
+
+  down:
+    desc: Stop and remove the Docker stack. Volumes (and database data) are preserved.
+    cmds:
+      - docker compose down

@@ -31,18 +31,18 @@ Packages are internal workspace packages — they are not published to npm.
 
 ## Tech Stack
 
-| Layer              | Technology                             |
-|--------------------|----------------------------------------|
-| Frontend           | Svelte 5 / SvelteKit                   |
-| Backend            | NestJS 11                              |
-| Database           | PostgreSQL                             |
-| AI                 | Anthropic Claude API (claude-sonnet-4) |
-| Auth (self-hosted) | Auth.js                                |
-| Auth (SaaS)        | Clerk                                  |
-| Real-time (SaaS)   | Ably                                   |
-| Language           | TypeScript throughout                  |
-| Package manager    | npm workspaces                         |
-| Node version       | >=22.0.0                               |
+| Layer              | Technology                               |
+|--------------------|------------------------------------------|
+| Frontend           | Svelte 5 / SvelteKit                     |
+| Backend            | NestJS 11                                |
+| Database           | PostgreSQL                               |
+| AI                 | Anthropic Claude API (claude-sonnet-4-6) |
+| Auth (self-hosted) | Auth.js                                  |
+| Auth (SaaS)        | Clerk                                    |
+| Real-time (SaaS)   | Ably                                     |
+| Language           | TypeScript throughout                    |
+| Package manager    | npm workspaces                           |
+| Node version       | >=22.0.0                                 |
 
 ## Key Architectural Decisions
 
@@ -63,6 +63,24 @@ Packages are internal workspace packages — they are not published to npm.
 - App names: `zoltar-fe`, `zoltar-be` (frontend/backend suffix convention)
 - Entity identifiers use underscores only — no dots, hyphens, or other separators: `corporate_spy_1`, `dr_chen`, not `corporate-spy-1` or `dr.chen`
 - Resource pool names use underscores and follow the pattern `{entity_id}_{pool_name}`: `dr_chen_hp`, `dr_chen_stress`, `vasquez_ammo`
+
+## Testing Standards
+
+Testing expectations apply uniformly across all milestones — they are not tracked per-feature in the roadmap.
+
+**Backend**
+- All service-layer code requires unit tests. Mock dependencies at the service boundary; do not hit the database in unit tests.
+- Integration tests are required for any endpoint that touches the database. Use a dedicated test database spun up via Docker Compose.
+- Tool handlers (`roll_dice`, `submit_gm_response`, etc.) require unit tests covering valid input, malformed input, and boundary conditions.
+- Zod schemas require unit tests covering valid shapes and representative invalid shapes.
+
+**Frontend**
+- Component logic that can be extracted into plain functions should be tested as plain functions.
+- UI integration tests are not required in Phase 1 but should not be actively avoided.
+
+**General**
+- Do not mock what you own. Prefer thin integration tests over heavily mocked unit tests for code where the behavior is the integration.
+- Tests live adjacent to the code they test (`*.test.ts` or `*.spec.ts`), not in a separate top-level directory.
 
 ## License
 

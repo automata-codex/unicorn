@@ -1,0 +1,27 @@
+# VCS
+.git
+.gitignore
+
+# Dependencies (installed inside the image)
+**/node_modules
+
+# Build outputs
+**/dist
+**/build
+**/.svelte-kit
+**/coverage
+**/.turbo
+
+# Local env / secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+.idea
+.vscode
+*.swp
+
+# Test artifacts
+**/*.tsbuildinfo
