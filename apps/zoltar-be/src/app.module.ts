@@ -15,7 +15,7 @@ import {
   RealtimeService,
 } from '@uv/service-interfaces';
 import { NoopAssetStorageService } from './services/noop/noop-asset-storage.service';
-import { NoopEmailService } from './services/noop/noop-email.service';
+import { SmtpEmailService } from './services/smtp-email.service';
 import { NoopEntitlementsService } from './services/noop/noop-entitlements.service';
 import { NoopFeatureFlagService } from './services/noop/noop-feature-flag.service';
 import { NoopMeteringService } from './services/noop/noop-metering.service';
@@ -24,7 +24,7 @@ import { NoopRealtimeService } from './services/noop/noop-realtime.service';
 const deferredServiceProviders = [
   { provide: EntitlementsService, useClass: NoopEntitlementsService },
   { provide: MeteringService, useClass: NoopMeteringService },
-  { provide: EmailService, useClass: NoopEmailService },
+  { provide: EmailService, useClass: SmtpEmailService },
   { provide: AssetStorageService, useClass: NoopAssetStorageService },
   { provide: RealtimeService, useClass: NoopRealtimeService },
   { provide: FeatureFlagService, useClass: NoopFeatureFlagService },
