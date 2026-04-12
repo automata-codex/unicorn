@@ -291,7 +291,7 @@ WebSocket real-time sync (Ably) handles cross-instance message delivery for the 
 
 | Layer         | Technology                                                                      |
 |---------------|---------------------------------------------------------------------------------|
-| Frontend      | Svelte SPA                                                                      |
+| Frontend      | Svelte 5 (SPA) — no SvelteKit; Vite build                                      |
 | Backend       | NestJS                                                                          |
 | Database      | PostgreSQL                                                                      |
 | AI            | Claude API (Sonnet 4)                                                           |
@@ -343,33 +343,32 @@ const schemas = {
 
 ### Mothership Campaign State Schema
 
-The `campaign_state.data` JSONB for a Mothership campaign is validated against `MothershipCampaignStateSchema` from `@uv/game-systems`. The shape:
+The `campaign_state.data` JSONB for a Mothership campaign is validated against `MothershipCampaignStateSchema` (`@uv/game-systems`):
 
 ```typescript
 {
   schemaVersion: 1,
 
-  // Flat map keyed as {entity_id}_{pool_name}. All numeric resources live here.
-  // e.g. dr_chen_hp, vasquez_stress, airlock_integrity
+  // Flat map keyed {entity_id}_{pool_name}. All numeric resources live here.
+  // e.g. dr_chen_hp, vasquez_stress, reactor_integrity
   resourcePools: Record<string, { current: number, max: number | null }>,
 
-  // Entity visibility, status, and narrative NPC state.
-  // Positions are NOT here — they live in grid_entities.
+  // Visibility, status, and NPC narrative state. Positions live in grid_entities.
   entities: Record<string, {
-    visible:  boolean,
-    status:   'alive' | 'dead' | 'unknown',
-    npcState?: string,   // updated whenever disposition or knowledge changes
+    visible:   boolean,
+    status:    'alive' | 'dead' | 'unknown',
+    npcState?: string,   // update whenever disposition or knowledge changes
   }>,
 
-  // Each flag carries its value and the in-fiction condition that flips it.
-  // The trigger is set at initialization and does not change.
-  // stateChanges.flag_triggers only carries { flagName: newBooleanValue }.
+  // Each flag is self-contained: value + the in-fiction condition that flips it.
+  // trigger is set at init and never changes.
+  // stateChanges.flag_triggers carries only { flagName: newBooleanValue }.
   flags: Record<string, { value: boolean, trigger: string }>,
 
   // Non-entity numeric state: oxygen levels, reactor power, countdown timers, etc.
   scenarioState: Record<string, { current: number, max: number | null, note: string }>,
 
-  // Environmental scratchpad: first-mention details that must remain consistent.
+  // Environmental scratchpad: first-mention details that must stay consistent.
   worldFacts: Record<string, string>,
 }
 ```
@@ -463,8 +462,9 @@ submit_gm_response({
   player_text: string,          // narrative delivered to the player
   state_changes: {
     resource_pools?: Record<string, { delta: number }>,
-    entities?: Record<string, { visible?: boolean }>,   // HP in resource_pools; positions in grid_entities
-    // flags: carry only { flagName: newValue } — trigger is immutable after initialization
+    // entities: visibility and status only — HP in resource_pools, positions in grid_entities
+    entities?: Record<string, { visible?: boolean, status?: 'alive' | 'dead' | 'unknown' }>,
+    // flag_triggers: carries only { flagName: newValue } — trigger description is immutable
     flag_triggers?: Record<string, boolean>
   },
   gm_updates: {
@@ -853,18 +853,20 @@ Claude receives the actual applied outcome including which rules fired, so it ca
 
 **SaaS:** Clerk — email/password, OAuth (Google, Discord — priority for gaming audience), magic links, MFA. Discord OAuth is day-one given the TTRPG demographic. Clerk Organizations maps onto the multi-tenant SaaS model.
 
-**Self-hosted:** Auth.js — self-hosters who want Clerk can configure ClerkAuthService instead of AuthJsService by bringing their own Clerk account and API keys. This is a config choice, no code change needed.
+**Self-hosted:** Backend-owned magic link auth — token generation, email delivery, and session management are handled natively by the NestJS backend using the `user`, `session`, and `verification_token` tables. No external auth provider is required. Self-hosters who prefer Clerk can configure `ClerkAuthService` by bringing their own Clerk account — this is a config choice, no code change needed.
+
+Auth.js is not used. The frontend is a pure Svelte 5 SPA with no server-side hooks, and Auth.js requires SvelteKit's SSR infrastructure. Magic link email is delivered via `EmailService.sendTransactional()` so local dev (MailHog) and production (self-hoster's SMTP) share one configuration path.
 
 **The abstraction layer:**
 
 ```typescript
-interface AuthService {
-  validateToken(token: string): Promise<User>
-  getUserById(id: string): Promise<User>
+abstract class AuthService {
+  abstract validateSession(sessionToken: string): Promise<AuthUser | null>
+  abstract getUserById(id: string): Promise<AuthUser | null>
 }
 ```
 
-NestJS DI selects the concrete implementation at bootstrap based on environment config.
+`LocalAuthService` is the self-hosted implementation. `ClerkAuthService` (closed-source SaaS package) is the SaaS implementation. NestJS DI selects at bootstrap based on `AUTH_PROVIDER` env var.
 
 ---
 
@@ -872,7 +874,7 @@ NestJS DI selects the concrete implementation at bootstrap based on environment 
 
 Every SaaS/self-hosted divergence point is a NestJS provider interface. SaaS implementations live in a closed-source package not included in the open source repository.
 
-**Package locations:** `AuthService` is defined in `packages/auth-core` (`@uv/auth-core`). The remaining six interfaces (`EntitlementsService`, `MeteringService`, `EmailService`, `AssetStorageService`, `RealtimeService`, `FeatureFlagService`) are defined in `packages/service-interfaces` (`@uv/service-interfaces`). Both packages are importable by the closed-source SaaS implementation repo without depending on the open-source backend app. `AuthService` is kept in a separate package because it has a different consumer profile — it is relevant to frontend-adjacent concerns and may be consumed outside a pure backend context. See `docs/decisions.md`.
+**Package locations:** `AuthService` is defined in `packages/auth-core` (`@uv/auth-core`). The remaining six interfaces (`EntitlementsService`, `MeteringService`, `EmailService`, `AssetStorageService`, `RealtimeService`, `FeatureFlagService`) are defined in `packages/service-interfaces` (`@uv/service-interfaces`). Both are importable by the closed-source SaaS repo without depending on the open-source backend app. `AuthService` is in a separate package because it has a different consumer profile from the six backend-only interfaces. See `docs/decisions.md`.
 
 | Interface           | SaaS Implementation       | Self-hosted Default       | Self-hosted Alternative                      |
 |---------------------|---------------------------|---------------------------|----------------------------------------------|
@@ -1105,4 +1107,4 @@ SaaS infrastructure is intentionally deferred until the 2D VTT renderer is compl
 
 ---
 
-*Draft 7 adds: Explicit `status` column on `adventures` table (no inference from `gm_context` row presence). `AuthService` in `@uv/auth-core`, remaining six service interfaces in `@uv/service-interfaces` — rationale for the split documented in decisions.md. `flags` structure merged: value and trigger bundled per flag, parallel maps eliminated. `npcState` field added to entity records; NPC state removed as a separate top-level map. Mothership Campaign State Schema subsection added with corrected structure: flat `resourcePools`, `entities` with `npcState`, merged `flags`, `scenarioState`, `worldFacts`. `submit_gm_context` and `submit_gm_response` tool schemas updated to match.*
+*Draft 7 adds: Frontend changed from SvelteKit to pure Svelte 5 SPA — no SSR, no server-side hooks. Auth.js dropped; magic link auth implemented natively in NestJS backend using existing auth tables. `LocalAuthService` replaces `AuthJsService`. Explicit `status` column added to `adventures` table (enum: synthesizing | ready | completed | failed); status is never inferred from gm_context row presence. `AuthService` in `@uv/auth-core`; remaining six service interfaces moved to `@uv/service-interfaces`. `flags` structure merged: value and trigger bundled per flag. `npcState` moved onto entity record. Mothership Campaign State Schema subsection added: flat `resourcePools`, `entities` with `npcState`, merged `flags`, `scenarioState`, `worldFacts`. Tool schemas updated accordingly.*

@@ -77,14 +77,14 @@ Each verb runs `docker compose run --rm flyway <verb>`, so the same connection c
 
 Traefik runs as a reverse proxy in the Docker Compose stack, routing all local dev traffic via
 Host-based rules over HTTPS. mkcert issues a wildcard certificate trusted by the local machine.
-This gives SSL parity with production and means Auth.js session cookies and OAuth redirect URIs
-behave identically in local dev and on the Droplet.
+This gives SSL parity with production and ensures session cookies and CORS behave identically in
+local dev and on the Droplet.
 
-| Hostname                | Target                  | Port |
-|-------------------------|-------------------------|------|
-| `app.zoltar.local`      | `zoltar-fe` (SvelteKit) | 5173 |
-| `api.zoltar.local`      | `zoltar-be` (NestJS)    | 3000 |
-| `playtest.zoltar.local` | `zoltar-playtest`       | 5174 |
+| Hostname                | Target            | Port |
+|-------------------------|-------------------|------|
+| `app.zoltar.local`      | `zoltar-fe`       | 5173 |
+| `api.zoltar.local`      | `zoltar-be`       | 3000 |
+| `playtest.zoltar.local` | `zoltar-playtest` | 5174 |
 
 HTTP (port 80) redirects to HTTPS automatically. The Traefik dashboard is available at
 `https://api.zoltar.local:8080` in local dev.
@@ -97,7 +97,7 @@ brew install mkcert   # macOS; see https://github.com/FiloSottile/mkcert for oth
 mkcert -install
 
 # Generate the wildcard cert (run from repo root)
-# Output goes to infra/traefik/certs/ — this directory is gitignored
+# infra/traefik/certs/ is gitignored — certs are not committed
 mkcert -cert-file infra/traefik/certs/local.crt \
        -key-file  infra/traefik/certs/local.key \
        "*.zoltar.local" zoltar.local
@@ -107,27 +107,22 @@ echo "127.0.0.1 app.zoltar.local api.zoltar.local playtest.zoltar.local" \
   | sudo tee -a /etc/hosts
 ```
 
-Certs are per-machine and must be generated locally — they are not committed to the repository.
-Each developer runs this once. The `infra/traefik/certs/` directory is in `.gitignore`.
+Certs are per-machine and must be generated locally — they are not committed. Each developer runs
+this once.
 
 #### Verify the setup
 
 ```sh
-# Health check through Traefik
-curl -k https://api.zoltar.local/health   # should return {"status":"ok"}
-
-# Frontend
-curl -k https://app.zoltar.local/         # should return SvelteKit HTML
-
-# MailHog web UI (magic link emails)
-open http://localhost:8025
+curl -k https://api.zoltar.local/health   # {"status":"ok"}
+curl -k https://app.zoltar.local/         # SvelteKit HTML
+open http://localhost:8025                # MailHog web UI
 ```
 
 #### MailHog
 
-MailHog runs as a service in the Compose stack, providing an SMTP sink for local dev. Auth.js magic
-link emails are delivered via `SmtpEmailService` configured to `mailhog:1025`. Click magic links by
-visiting the MailHog web UI at `http://localhost:8025` — emails do not leave the local machine.
+MailHog runs in the Compose stack as an SMTP sink for local dev. Magic link emails are delivered
+via `SmtpEmailService` pointed at `mailhog:1025`. Click magic links by visiting the MailHog web UI
+at `http://localhost:8025` — emails never leave the local machine.
 
 ## Personal DigitalOcean Droplet (Self-Hosted)
 

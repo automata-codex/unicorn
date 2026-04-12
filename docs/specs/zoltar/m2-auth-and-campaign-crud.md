@@ -9,13 +9,15 @@
 
 First shippable frontend + backend slice. After M2 a user can sign in via magic link, create a campaign, and see a list of adventures. No game logic — no synthesis, no GM pipeline, no oracle tables.
 
+**Frontend note:** `apps/zoltar-fe` is a pure Svelte 5 SPA — no SvelteKit, no SSR, no server-side hooks. Auth is owned entirely by the NestJS backend. The frontend makes API calls and manages session state client-side.
+
 ---
 
 ## Part 1: V9 Migration — Adventure Status Column
 
 M1 produced migrations V1–V8. This milestone adds V9, which must be applied before any backend code that references `adventures.status`.
 
-**Why a new migration:** The original design inferred adventure status from the presence or absence of a `gm_context` row. This is brittle — absence is ambiguous between "synthesis in progress," "synthesis failed," and "a bug." An explicit column is necessary to represent failure states and to make status queryable without a join.
+**Why a new migration:** The original design inferred adventure status from the presence or absence of a `gm_context` row. Row absence is ambiguous — it could mean synthesis is in progress, synthesis failed, or a bug prevented row creation. An explicit column is required to represent failure states and to make status queryable without a join.
 
 Create `infra/db/migrations/V9__adventure_status.sql`:
 
@@ -45,7 +47,7 @@ export const adventureStatusEnum = pgEnum('adventure_status', [
   'synthesizing', 'ready', 'completed', 'failed',
 ]);
 
-// In adventures table definition, add:
+// In the adventures table definition, add:
 status: adventureStatusEnum('status').notNull().default('synthesizing'),
 ```
 
@@ -65,7 +67,7 @@ In M2, newly created adventures always start as `synthesizing` and stay there (s
 
 The six abstract service classes currently stubbed in `apps/zoltar-be/src/services/interfaces/` need to be importable by the future closed-source SaaS implementation package without pulling in the entire backend app. They belong in a published workspace package, exactly like `@uv/auth-core`.
 
-`@uv/auth-core` (`packages/auth-core/`) stays separate from this new package. The distinction: `AuthService` has a different consumer profile — it is relevant to frontend-adjacent concerns (session validation) and may be consumed outside the backend context. The six remaining service interfaces are backend-only concerns. See DECISIONS.md for the full rationale.
+`@uv/auth-core` (`packages/auth-core/`) stays separate. `AuthService` has a different consumer profile — it is relevant to frontend-adjacent concerns and may be consumed outside the backend context. The six remaining service interfaces are backend-only concerns. See DECISIONS.md for the full rationale.
 
 ### 2.2 New package: `packages/service-interfaces/`
 
@@ -91,43 +93,11 @@ The six abstract service classes currently stubbed in `apps/zoltar-be/src/servic
 }
 ```
 
-Move the six abstract classes from `apps/zoltar-be/src/services/interfaces/` into `packages/service-interfaces/src/`:
+Move the six abstract classes from `apps/zoltar-be/src/services/interfaces/` into `packages/service-interfaces/src/`. The noop implementations stay in `apps/zoltar-be/src/services/noop/` — they are backend-internal and do not move.
 
-```
-packages/service-interfaces/src/
-  entitlements.service.ts
-  metering.service.ts
-  email.service.ts
-  asset-storage.service.ts
-  realtime.service.ts
-  feature-flag.service.ts
-  index.ts
-```
+`index.ts` re-exports all six. Add `@uv/service-interfaces` to `apps/zoltar-be/package.json`. Update all import paths from the old local paths to the package import. Delete `apps/zoltar-be/src/services/interfaces/` once all imports are updated.
 
-`index.ts` re-exports all six.
-
-The noop implementations stay in `apps/zoltar-be/src/services/noop/` — they are backend-internal and should not move.
-
-### 2.3 Dependency wiring
-
-Add `@uv/service-interfaces` to `apps/zoltar-be/package.json` dependencies:
-
-```json
-"@uv/service-interfaces": "*"
-```
-
-Update all import paths in `zoltar-be` from the old local paths to the package import:
-
-```typescript
-// Before
-import { EmailService } from '../services/interfaces/email.service';
-// After
-import { EmailService } from '@uv/service-interfaces';
-```
-
-Delete `apps/zoltar-be/src/services/interfaces/` directory once all imports are updated.
-
-### 2.4 Resolve the `packages/auth-core` TODO
+### 2.3 Resolve the `packages/auth-core` TODO
 
 `packages/auth-core/src/index.ts` contains a TODO block. Remove it and replace with the real abstract class:
 
@@ -139,7 +109,6 @@ export type AuthUser = {
 };
 
 export abstract class AuthService {
-  /** Validate a session token. Returns the associated user or null if invalid/expired. */
   abstract validateSession(sessionToken: string): Promise<AuthUser | null>;
   abstract getUserById(id: string): Promise<AuthUser | null>;
 }
@@ -147,17 +116,13 @@ export abstract class AuthService {
 
 ---
 
-## Part 3: Backend Auth
+## Part 3: Backend Auth — Magic Link (Backend-Owned)
 
-### 3.1 How Auth Works in This Stack
+Auth.js is not used. The NestJS backend owns the full magic link lifecycle: token generation, email delivery, session creation, and session validation. The `user`, `session`, and `verification_token` tables from V1 are the right shape and are used as-is — we write to them directly.
 
-Auth.js (`@auth/sveltekit`) runs on the SvelteKit frontend (`apps/zoltar-fe`). It owns sign-in, session creation, and the `session`, `account`, `user`, and `verification_token` DB tables (already migrated in V1). Magic link emails go through `EmailService.sendTransactional()` — see Part 4.
+### 3.1 `LocalAuthService`
 
-The NestJS backend never handles sign-in. It authenticates API requests by reading the session token from the cookie and looking it up in the `session` table.
-
-### 3.2 `AuthJsService`
-
-Create `apps/zoltar-be/src/auth/auth-js.service.ts`:
+Create `apps/zoltar-be/src/auth/local-auth.service.ts`. This is the `AuthService` implementation — it reads sessions from the DB:
 
 ```typescript
 import { Injectable, Inject } from '@nestjs/common';
@@ -168,7 +133,7 @@ import { DB_TOKEN } from '../db/db.module';
 import * as schema from '../db/schema';
 
 @Injectable()
-export class AuthJsService extends AuthService {
+export class LocalAuthService extends AuthService {
   constructor(@Inject(DB_TOKEN) private readonly db: NodePgDatabase<typeof schema>) {
     super();
   }
@@ -176,7 +141,7 @@ export class AuthJsService extends AuthService {
   async validateSession(sessionToken: string): Promise<AuthUser | null> {
     const rows = await this.db
       .select({
-        userId: schema.sessions.userId,
+        userId:  schema.sessions.userId,
         expires: schema.sessions.expires,
         name:    schema.users.name,
         email:   schema.users.email,
@@ -204,50 +169,68 @@ export class AuthJsService extends AuthService {
 }
 ```
 
-### 3.3 `AuthModule`
+### 3.2 Magic Link Endpoints
 
-Fill in `apps/zoltar-be/src/auth/auth.module.ts`:
+Four endpoints in `AuthController`. None except `/me` and `/signout` require `SessionGuard`.
+
+**`POST /api/v1/auth/magic-link`** — unauthenticated.
+
+1. Look up or create a `user` row for the submitted email (`id` = `nanoid()` or `crypto.randomUUID()`).
+2. Generate a cryptographically random raw token: `crypto.randomBytes(32).toString('hex')`.
+3. Hash it: `SHA-256(rawToken)`.
+4. Upsert `verification_token`: `{ identifier: email, token: hashedToken, expires: now + 24h }`.
+5. Call `EmailService.sendTransactional()` with the magic link: `${PUBLIC_APP_URL}/auth/verify?token=${rawToken}&email=${encodeURIComponent(email)}`.
+6. Return `202` — no body. Do not reveal whether the email exists (prevents enumeration).
+
+**`GET /api/v1/auth/verify`** — unauthenticated. Query params: `token`, `email`.
+
+1. Hash the token. Look up `verification_token` by `{ identifier: email, token: hashedToken }`.
+2. Not found or expired → redirect to `${PUBLIC_APP_URL}/signin?error=invalid_token`.
+3. Delete the `verification_token` row (single-use).
+4. Ensure `user` row exists (it should from the magic-link step).
+5. Generate session token: `crypto.randomBytes(32).toString('hex')`.
+6. Insert `session`: `{ sessionToken, userId, expires: now + 30d }`.
+7. Set `Set-Cookie` header: `authjs.session-token=<token>; HttpOnly; Secure; SameSite=Lax; Path=/; Domain=${COOKIE_DOMAIN}; Max-Age=2592000`.
+8. Redirect to `${PUBLIC_APP_URL}/campaigns`.
+
+**`POST /api/v1/auth/signout`** — protected by `SessionGuard`. Deletes the session row, clears the cookie (`Max-Age=0`). Returns `204`.
+
+**`GET /api/v1/auth/me`** — protected by `SessionGuard`. Returns `{ id, email, name }`. Frontend calls this on app load to establish session state.
+
+### 3.3 Cookie Domain
+
+Set with `Domain=${COOKIE_DOMAIN}` from env (`.zoltar.local` in local dev, the actual domain in production). The leading dot allows the cookie to be sent to both `app.zoltar.local` and `api.zoltar.local`.
+
+### 3.4 `SessionGuard`
+
+Create `apps/zoltar-be/src/auth/session.guard.ts`:
+
+- Reads `authjs.session-token` cookie from the Fastify request. Falls back to `Authorization: Bearer <token>` for curl/testing.
+- Calls `AuthService.validateSession(token)`.
+- `null` → `UnauthorizedException`.
+- Valid → attaches `AuthUser` to `request.user`.
+
+Create `apps/zoltar-be/src/auth/current-user.decorator.ts` extracting `request.user`. Controllers use `@CurrentUser() user: AuthUser`.
+
+### 3.5 `AuthModule`
 
 ```typescript
 @Module({
   providers: [
-    { provide: AuthService, useClass: AuthJsService },
+    { provide: AuthService, useClass: LocalAuthService },
   ],
   exports: [AuthService],
 })
 export class AuthModule {}
 ```
 
-Import in `AppModule`. Not global — feature modules import it explicitly.
-
-### 3.4 `SessionGuard`
-
-Create `apps/zoltar-be/src/auth/session.guard.ts`:
-
-- Reads the `authjs.session-token` cookie from the Fastify request. Falls back to `Authorization: Bearer <token>` for curl/testing convenience.
-- Calls `AuthService.validateSession(token)`.
-- `null` → `UnauthorizedException`.
-- Valid → attaches `AuthUser` to `request.user`.
-
-Create `apps/zoltar-be/src/auth/current-user.decorator.ts` — a param decorator that extracts `request.user`. Controllers use `@CurrentUser() user: AuthUser` throughout.
+Import in `AppModule`. Not global.
 
 ---
 
-## Part 4: Auth.js Frontend + EmailService Wiring
+## Part 4: Email — `SmtpEmailService`
 
-### 4.1 Install Dependencies
-
-In `apps/zoltar-fe`:
-
-```sh
-npm install @auth/sveltekit @auth/drizzle-adapter
-```
-
-In `apps/zoltar-be` (if not already present): `nodemailer` and `@types/nodemailer` for the SMTP email implementation.
-
-### 4.2 `SmtpEmailService`
-
-The local dev email implementation. Sends via SMTP — in local dev this points at MailHog; in production it uses the self-hoster's SMTP server.
+No Auth.js packages anywhere. Email delivery flows directly through `EmailService`.
 
 Create `apps/zoltar-be/src/services/smtp-email.service.ts`:
 
@@ -265,8 +248,8 @@ export class SmtpEmailService extends EmailService {
   constructor(private config: ConfigService) {
     super();
     this.transporter = nodemailer.createTransport({
-      host: config.get('SMTP_HOST'),
-      port: config.get<number>('SMTP_PORT'),
+      host:   config.get('SMTP_HOST'),
+      port:   config.get<number>('SMTP_PORT'),
       secure: false,
     });
   }
@@ -283,89 +266,19 @@ export class SmtpEmailService extends EmailService {
 }
 ```
 
-Wire `SmtpEmailService` in `ServicesModule` for local dev (replacing `NoopEmailService` for `EmailService`). `NoopEmailService` is retained for any context where email genuinely should not be delivered.
+Wire `SmtpEmailService` as the `EmailService` binding in `ServicesModule` for local dev. `NoopEmailService` is retained for test contexts only.
 
-### 4.3 Auth.js Configuration
-
-Create `apps/zoltar-fe/src/auth.ts`:
-
-```typescript
-import { SvelteKitAuth } from '@auth/sveltekit';
-import { DrizzleAdapter } from '@auth/drizzle-adapter';
-import { db } from '$lib/db';
-import { env } from '$env/dynamic/private';
-import { EmailService } from '@uv/service-interfaces';
-
-// EmailService is resolved via the backend API — see sendVerificationRequest below.
-// Auth.js's built-in email providers are NOT used; delivery goes through the
-// backend EmailService abstraction so local dev and production share one config path.
-
-export const { handle, signIn, signOut } = SvelteKitAuth({
-  adapter: DrizzleAdapter(db),
-  providers: [
-    {
-      id: 'email',
-      name: 'Email',
-      type: 'email',
-      from: env.AUTH_EMAIL_FROM,
-      server: {},
-      maxAge: 24 * 60 * 60,
-      async sendVerificationRequest({ identifier: email, url }) {
-        // POST to the backend's internal send-verification endpoint.
-        // The backend resolves EmailService (SmtpEmailService in dev → MailHog,
-        // SmtpEmailService in production → self-hoster's SMTP config).
-        await fetch(`${env.INTERNAL_API_URL}/api/v1/auth/send-verification`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, url }),
-        });
-      },
-    },
-  ],
-});
-```
-
-### 4.4 Backend Verification Endpoint
-
-Add a minimal internal endpoint to `AuthModule` that the SvelteKit layer calls to deliver magic link emails. This endpoint is not protected by `SessionGuard` (the user isn't authenticated yet).
-
-`POST /api/v1/auth/send-verification`:
-
-```typescript
-@Post('send-verification')
-async sendVerification(
-  @Body() body: { email: string; url: string },
-) {
-  await this.emailService.sendTransactional(
-    body.email,
-    'Sign in to Zoltar',
-    `<p>Click <a href="${body.url}">here</a> to sign in. This link expires in 24 hours.</p>`,
-  );
-}
-```
-
-**Security note:** This endpoint should only be reachable from the internal Docker network (not exposed through Traefik). In local dev this is naturally the case since `INTERNAL_API_URL` points to `http://backend:3000` (Docker internal). Document this in the endpoint's inline comment.
-
-### 4.5 SvelteKit Hooks
-
-`apps/zoltar-fe/src/hooks.server.ts`:
-
-```typescript
-import { handle as authHandle } from './auth';
-import { sequence } from '@sveltejs/kit/hooks';
-
-export const handle = sequence(authHandle);
+Add to `apps/zoltar-be/package.json`:
+```json
+"nodemailer": "^6.9.0",
+"@types/nodemailer": "^6.4.0"
 ```
 
 ---
 
 ## Part 5: Traefik + MailHog in Docker Compose
 
-### 5.1 Overview
-
-Traefik routes all local dev traffic through a single entry point using Host-based routing. MailHog provides an SMTP sink and web UI for inspecting magic link emails.
-
-Routing table:
+### 5.1 Routing Table
 
 | Hostname                | Target            | Port |
 |-------------------------|-------------------|------|
@@ -373,41 +286,29 @@ Routing table:
 | `api.zoltar.local`      | `zoltar-be`       | 3000 |
 | `playtest.zoltar.local` | `zoltar-playtest` | 5174 |
 
-All traffic is HTTPS using mkcert-issued certificates.
+HTTP (port 80) redirects to HTTPS automatically.
 
 ### 5.2 Developer Prerequisites (document in README.md)
 
-Each developer must complete this once per machine:
-
 ```sh
-# Install mkcert
-brew install mkcert        # macOS
-# or: sudo apt install mkcert  (Ubuntu)
-
-# Trust the local CA
+brew install mkcert
 mkcert -install
 
-# Generate the wildcard cert for local dev
-# Run from repo root — cert files are gitignored
+# From repo root — infra/traefik/certs/ is gitignored
 mkcert -cert-file infra/traefik/certs/local.crt \
        -key-file  infra/traefik/certs/local.key \
        "*.zoltar.local" zoltar.local
 
-# Add /etc/hosts entries
 echo "127.0.0.1 app.zoltar.local api.zoltar.local playtest.zoltar.local" \
   | sudo tee -a /etc/hosts
 ```
 
-The `infra/traefik/certs/` directory is gitignored. Certs must be generated locally on each dev machine — they are not committed.
-
-### 5.3 Traefik Static Config
-
-Create `infra/traefik/traefik.yml`:
+### 5.3 `infra/traefik/traefik.yml`
 
 ```yaml
 api:
   dashboard: true
-  insecure: true    # dashboard available at https://api.zoltar.local:8080; disable in prod
+  insecure: true
 
 entryPoints:
   web:
@@ -430,8 +331,6 @@ tls:
       keyFile:  /certs/local.key
 ```
 
-HTTP (port 80) redirects to HTTPS automatically.
-
 ### 5.4 `docker-compose.yml` additions
 
 ```yaml
@@ -440,7 +339,7 @@ traefik:
   ports:
     - "80:80"
     - "443:443"
-    - "8080:8080"     # dashboard
+    - "8080:8080"
   volumes:
     - /var/run/docker.sock:/var/run/docker.sock:ro
     - ./infra/traefik/traefik.yml:/traefik.yml:ro
@@ -452,22 +351,22 @@ traefik:
 mailhog:
   image: mailhog/mailhog
   ports:
-    - "1025:1025"     # SMTP (internal Docker network only)
-    - "8025:8025"     # Web UI: http://localhost:8025
+    - "1025:1025"
+    - "8025:8025"
 ```
 
-Add Traefik labels to `backend` and `frontend` compose services:
-
+Backend labels:
 ```yaml
-# backend
 labels:
   - "traefik.enable=true"
   - "traefik.http.routers.backend.rule=Host(`api.zoltar.local`)"
   - "traefik.http.routers.backend.entrypoints=websecure"
   - "traefik.http.routers.backend.tls=true"
   - "traefik.http.services.backend.loadbalancer.server.port=3000"
+```
 
-# frontend
+Frontend labels:
+```yaml
 labels:
   - "traefik.enable=true"
   - "traefik.http.routers.frontend.rule=Host(`app.zoltar.local`)"
@@ -481,48 +380,26 @@ labels:
 Add to `.env.example`:
 
 ```env
-# Auth.js
-AUTH_SECRET=                          # generate: openssl rand -base64 32
-AUTH_URL=https://app.zoltar.local
+# Auth
 AUTH_EMAIL_FROM=noreply@zoltar.local
+COOKIE_DOMAIN=.zoltar.local
 
 # SMTP (MailHog in local dev)
 SMTP_HOST=mailhog
 SMTP_PORT=1025
 
-# Internal API URL (Docker network — used by SvelteKit server-side)
-INTERNAL_API_URL=http://backend:3000
-
-# Public base URLs (through Traefik — used in browser)
+# Public URLs
 PUBLIC_APP_URL=https://app.zoltar.local
 PUBLIC_API_URL=https://api.zoltar.local
 ```
-
-Update `environments.md` "Local Dev Reverse Proxy" section from "Deferred" to "Implemented in M2" and document the mkcert setup procedure.
 
 ---
 
 ## Part 6: Mothership Zod Schemas
 
-Create `packages/game-systems/` (`@uv/game-systems`).
+Create `packages/game-systems/` (`@uv/game-systems`). Both `apps/zoltar-fe` and `apps/zoltar-be` declare it as a workspace dependency.
 
-### 6.1 Package setup
-
-```json
-{
-  "name": "@uv/game-systems",
-  "version": "0.0.1",
-  "private": true,
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts"
-}
-```
-
-Both `apps/zoltar-fe` and `apps/zoltar-be` declare it as a workspace dependency.
-
-### 6.2 Shared primitive schemas
-
-`packages/game-systems/src/shared.ts`:
+### 6.1 `packages/game-systems/src/shared.ts`
 
 ```typescript
 import { z } from 'zod';
@@ -532,66 +409,45 @@ export const ResourcePoolSchema = z.object({
   max:     z.number().int().nullable(),
 });
 
-export const EntityStatusSchema = z.enum(['alive', 'dead', 'unknown']);
-
 export const EntitySchema = z.object({
   visible:  z.boolean(),
-  status:   EntityStatusSchema.default('unknown'),
+  status:   z.enum(['alive', 'dead', 'unknown']).default('unknown'),
   npcState: z.string().optional(),
   // npcState: update whenever NPC disposition or knowledge changes.
-  // e.g. "Hostile — witnessed player kill the guard" or "Frightened — cornered, low ammo"
 });
 
 export const FlagSchema = z.object({
   value:   z.boolean(),
   trigger: z.string(),
-  // trigger: in-fiction condition that flips this flag.
-  // Set at initialization; does not change. Carried as delta in stateChanges.flagTriggers.
+  // trigger: in-fiction condition that flips this flag. Immutable after init.
+  // stateChanges.flag_triggers carries only { flagName: newBooleanValue }.
 });
 
 export const ScenarioStateEntrySchema = z.object({
   current: z.number().int(),
   max:     z.number().int().nullable(),
   note:    z.string().default(''),
-  // Use for non-entity numeric state: oxygen levels, power grid status, countdown timers, etc.
 });
 ```
 
-### 6.3 Mothership Campaign State Schema
-
-`packages/game-systems/src/mothership/campaign-state.schema.ts`:
+### 6.2 `packages/game-systems/src/mothership/campaign-state.schema.ts`
 
 ```typescript
 import { z } from 'zod';
-import {
-  ResourcePoolSchema,
-  EntitySchema,
-  FlagSchema,
-  ScenarioStateEntrySchema,
-} from '../shared';
+import { ResourcePoolSchema, EntitySchema, FlagSchema, ScenarioStateEntrySchema } from '../shared';
 
 export const MothershipCampaignStateSchema = z.object({
   schemaVersion: z.literal(1),
-
-  // Flat map keyed as {entity_id}_{pool_name}: dr_chen_hp, vasquez_stress.
-  // HP and all numeric resources live here — not on the entity record.
+  // Flat map keyed as {entity_id}_{pool_name}: dr_chen_hp, vasquez_stress
   resourcePools: z.record(z.string(), ResourcePoolSchema).default({}),
-
-  // Entity visibility, status, and narrative NPC state.
-  // Positions are NOT stored here — they live in grid_entities.
-  entities: z.record(z.string(), EntitySchema).default({}),
-
-  // Flags with their flip conditions bundled together.
-  // { adventure_complete: { value: false, trigger: "Player reaches escape pod" } }
-  // stateChanges.flagTriggers only carries { flagName: newValue } — trigger is immutable.
-  flags: z.record(z.string(), FlagSchema).default({}),
-
+  // Visibility, status, NPC narrative state. Positions live in grid_entities.
+  entities:      z.record(z.string(), EntitySchema).default({}),
+  // Each flag carries its value and the in-fiction condition that flips it.
+  flags:         z.record(z.string(), FlagSchema).default({}),
   // Non-entity numeric state: oxygen, reactor power, countdown timers, etc.
   scenarioState: z.record(z.string(), ScenarioStateEntrySchema).default({}),
-
-  // Environmental scratchpad. First-mention details Claude generates on the fly
-  // that must be consistent across turns: specific console display text, graffiti content, etc.
-  worldFacts: z.record(z.string(), z.string()).default({}),
+  // Environmental scratchpad: first-mention details that must stay consistent.
+  worldFacts:    z.record(z.string(), z.string()).default({}),
 });
 
 export type MothershipCampaignState = z.infer<typeof MothershipCampaignStateSchema>;
@@ -606,21 +462,15 @@ export const emptyMothershipState = (): MothershipCampaignState => ({
 });
 ```
 
-### 6.4 Mothership Character Sheet Schema
-
-`packages/game-systems/src/mothership/character-sheet.schema.ts`:
+### 6.3 `packages/game-systems/src/mothership/character-sheet.schema.ts`
 
 ```typescript
 import { z } from 'zod';
 
-export const MothershipClassEnum = z.enum([
-  'teamster', 'scientist', 'android', 'marine',
-]);
-
 export const MothershipCharacterSheetSchema = z.object({
   name:      z.string().min(1).max(100),
   pronouns:  z.string().max(50).optional(),
-  class:     MothershipClassEnum,
+  class:     z.enum(['teamster', 'scientist', 'android', 'marine']),
   level:     z.number().int().min(1).max(10).default(1),
   stats: z.object({
     strength:  z.number().int().min(0).max(100),
@@ -643,16 +493,6 @@ export const MothershipCharacterSheetSchema = z.object({
 export type MothershipCharacterSheet = z.infer<typeof MothershipCharacterSheetSchema>;
 ```
 
-### 6.5 Index export
-
-`packages/game-systems/src/index.ts`:
-
-```typescript
-export * from './shared';
-export * from './mothership/campaign-state.schema';
-export * from './mothership/character-sheet.schema';
-```
-
 ---
 
 ## Part 7: Backend — CRUD Endpoints
@@ -660,192 +500,181 @@ export * from './mothership/character-sheet.schema';
 ### 7.1 Shared Patterns
 
 - `app.setGlobalPrefix('api/v1')` in `main.ts`.
-- All controllers: `@UseGuards(SessionGuard)` at class level.
-- **Membership check:** `CampaignService.assertMember(campaignId, userId)` — throws `ForbiddenException` if no `campaign_member` row. Used by both `CampaignController` and `AdventureController`.
-- **Owner check:** `CampaignService.assertOwner(campaignId, userId)` — used for owner-only write operations (not needed in M2 endpoints but scaffold now for M3+).
-- Validation: use a `ZodValidationPipe` (install `nestjs-zod` or write a minimal custom pipe).
-- Error responses: NestJS built-in exceptions (`NotFoundException`, `ForbiddenException`, `UnauthorizedException`).
+- All controllers except `AuthController`: `@UseGuards(SessionGuard)` at class level.
+- `CampaignService.assertMember(campaignId, userId)` — `ForbiddenException` if not a member.
+- `CampaignService.assertOwner(campaignId, userId)` — scaffold now, used from M3+.
+- Validation: `ZodValidationPipe`.
+- CORS: configure `@fastify/cors` in `main.ts` — `origin: process.env.PUBLIC_APP_URL, credentials: true`.
 
 ### 7.2 `CampaignModule`
 
-```
-apps/zoltar-be/src/campaign/
-  campaign.module.ts
-  campaign.controller.ts
-  campaign.service.ts
-  dto/
-    create-campaign.dto.ts
-```
+**`POST /campaigns`** — create campaign + `campaign_member` (owner) + `campaign_state` (empty Mothership state). Response `201`.
 
-**`POST /campaigns`** — create a campaign. Authenticated. Also creates `campaign_member` row with `role: 'owner'` and initializes `campaign_state` with `emptyMothershipState()` (Mothership only in Phase 1; system is hardcoded).
-
-Request DTO:
 ```typescript
-const CreateCampaignSchema = z.object({
+z.object({
   name:       z.string().min(1).max(120),
   visibility: z.enum(['private', 'invite', 'org']).default('private'),
   diceMode:   z.enum(['soft_accountability', 'commitment']).default('soft_accountability'),
-});
+})
 ```
 
-Response `201`:
-```json
-{
-  "id": "uuid",
-  "name": "The Persephone Incident",
-  "system": "mothership",
-  "visibility": "private",
-  "diceMode": "soft_accountability",
-  "createdAt": "2026-03-01T00:00:00Z"
-}
-```
+**`GET /campaigns`** — list campaigns the authenticated user is a member of.
 
-**`GET /campaigns`** — list campaigns the authenticated user is a member of. No pagination in M2.
-
-**`GET /campaigns/:campaignId`** — membership check, return campaign. `403` if not a member. `404` if not found.
+**`GET /campaigns/:campaignId`** — membership check. `403`/`404` as appropriate.
 
 ### 7.3 `AdventureModule`
 
-```
-apps/zoltar-be/src/adventure/
-  adventure.module.ts
-  adventure.controller.ts
-  adventure.service.ts
-  dto/
-    create-adventure.dto.ts
-```
+**`POST /campaigns/:campaignId/adventures`** — membership check. Creates adventure with `status: 'synthesizing'`, `caller_id` = authenticated user. Oracle selections accepted but ignored (M4). Response `202`.
 
-**`POST /campaigns/:campaignId/adventures`** — membership check. Creates adventure row with `status: 'synthesizing'` and `caller_id` set to the authenticated user. Does **not** trigger synthesis (M4). Returns `202`.
+**`GET /campaigns/:campaignId/adventures`** — membership check. Most recent first.
 
-Request DTO:
-```typescript
-const CreateAdventureSchema = z.object({
-  // Oracle selections accepted but ignored in M2 — synthesis pipeline is M4.
-  oracleSelections: z.record(z.string(), z.array(z.string())).optional(),
-  ranges:           z.record(z.string(), z.number().int()).optional(),
-});
-```
-
-Response `202`:
-```json
-{
-  "id": "uuid",
-  "campaignId": "uuid",
-  "status": "synthesizing",
-  "createdAt": "2026-03-01T00:00:00Z"
-}
-```
-
-**`GET /campaigns/:campaignId/adventures`** — membership check. List adventures, most recent first. No pagination in M2.
-
-Adventure object: `id`, `campaignId`, `status` (from the explicit column — no inference), `adventureMode`, `callerId`, `createdAt`, `completedAt`.
+Adventure response object: `id`, `campaignId`, `status`, `adventureMode`, `callerId`, `createdAt`, `completedAt`.
 
 **`GET /campaigns/:campaignId/adventures/:adventureId`** — membership check.
 
 ---
 
-## Part 8: Frontend
+## Part 8: Frontend — Svelte SPA
 
-`apps/zoltar-fe` — minimal but real. Function over form in M2; a design pass is deferred to M8.
+`apps/zoltar-fe` is a plain Svelte 5 + Vite SPA. No SvelteKit.
 
-### 8.1 Route Structure
+### 8.1 Project Setup
 
-```
-src/routes/
-  +layout.server.ts       ← session guard; redirects unauthenticated to /signin
-  +layout.svelte          ← nav with sign-out button
-  signin/
-    +layout.server.ts     ← allow-list: no session required here
-    +page.svelte          ← email input; calls signIn()
-  campaigns/
-    +page.server.ts       ← GET /api/v1/campaigns
-    +page.svelte          ← campaign list + "New Campaign" modal
-  campaigns/[id]/
-    +page.server.ts       ← GET campaign + adventures
-    +page.svelte          ← adventure list shell
+If the existing project was scaffolded as SvelteKit, strip it back:
+
+```sh
+cd apps/zoltar-fe
+npm remove @sveltejs/kit @sveltejs/adapter-auto
+npm install svelte@^5 vite @sveltejs/vite-plugin-svelte
 ```
 
-### 8.2 Auth Layout Guard
+`vite.config.ts`:
+```typescript
+import { defineConfig } from 'vite';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
 
-`src/routes/+layout.server.ts`:
+export default defineConfig({
+  plugins: [svelte()],
+  server: { port: 5173, host: '0.0.0.0' },
+});
+```
+
+`index.html` → `src/main.ts` → mounts `App.svelte` to `#app`. Standard Vite SPA entry point.
+
+### 8.2 Session State
+
+The session cookie is `HttpOnly` — JS cannot read it. Call `GET /api/v1/auth/me` on app load to establish session state.
 
 ```typescript
-import { redirect } from '@sveltejs/kit';
+// src/lib/session.svelte.ts
+import { writable } from 'svelte/store';
 
-export const load = async ({ locals, url }) => {
-  const session = await locals.auth();
-  if (!session && !url.pathname.startsWith('/signin')) {
-    redirect(303, '/signin');
+export type SessionUser = { id: string; email: string | null; name: string | null };
+export const session = writable<SessionUser | null>(null);
+export const sessionLoading = writable(true);
+
+export async function loadSession() {
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/auth/me`, {
+      credentials: 'include',
+    });
+    session.set(res.ok ? await res.json() : null);
+  } catch {
+    session.set(null);
+  } finally {
+    sessionLoading.set(false);
   }
-  return { session };
-};
+}
 ```
 
-### 8.3 Sign-In Page
+`credentials: 'include'` is required on all API calls so the session cookie is sent cross-origin.
 
-Simple email form. On submit: `signIn('email', { email, redirectTo: '/campaigns' })`. Include a note directing developers to MailHog at `http://localhost:8025` for the magic link.
+Add to `.env` (frontend):
+```env
+VITE_API_URL=https://api.zoltar.local
+```
 
-### 8.4 Campaign List Page
+### 8.3 Client-Side Routing
 
-Server-side load: fetch `https://api.zoltar.local/api/v1/campaigns` (using SvelteKit `fetch`, session cookie forwarded automatically). Render campaign cards linking to `/campaigns/[id]`.
+Simple history-based router is sufficient for M2:
 
-"New Campaign" opens a modal with a `name` field. On submit: `POST /api/v1/campaigns` with defaults for `visibility` and `diceMode`, then navigate to the new campaign.
+```typescript
+// src/lib/router.svelte.ts
+import { writable } from 'svelte/store';
 
-### 8.5 Adventure List Shell
+export const route = writable(window.location.pathname);
+window.addEventListener('popstate', () => route.set(window.location.pathname));
+export function navigate(path: string) {
+  window.history.pushState({}, '', path);
+  route.set(path);
+}
+```
 
-Shows campaign name and a list of adventures with `status` badges (`synthesizing`, `ready`, `completed`, `failed`). Adventure rows are not clickable yet. "New Adventure" button is present but disabled with a tooltip: "Oracle table selection coming soon."
+`App.svelte` switches on `$route` after session load completes. Unauthenticated users are redirected to `/signin` client-side.
+
+### 8.4 Sign-In Page
+
+```typescript
+async function handleSignIn(email: string) {
+  await fetch(`${import.meta.env.VITE_API_URL}/api/v1/auth/magic-link`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ email }),
+  });
+  showConfirmation = true;  // "Check your email"
+}
+```
+
+Include a local-dev note: "Check MailHog at http://localhost:8025 for your link."
+
+The `/auth/verify` route is handled entirely by the backend — the verify endpoint redirects to `/campaigns` after writing the session cookie. No frontend route needed for it.
+
+### 8.5 Campaign List and Adventure Shell
+
+Server calls use `credentials: 'include'`. Campaign list shows cards linking to `/campaigns/:id`. "New Campaign" inline form POSTs and navigates. Adventure list shows status badges; "New Adventure" button disabled.
 
 ---
 
 ## Part 9: Documentation Updates
 
-The following documents must be updated as part of M2. CC should make these changes alongside the code.
+CC must apply these alongside the code:
 
-### 9.1 `docs/environments.md`
-
-Replace the "Local Dev Reverse Proxy (Deferred)" section with an "Implemented" version documenting the mkcert setup procedure and the routing table.
-
-### 9.2 `docs/decisions.md`
-
-Add the four entries from the M2 decisions addendum (provided separately as `m2-decisions-addendum.md`).
-
-### 9.3 `docs/zoltar-design-doc.md`
-
-Apply the targeted patches from `m2-design-doc-patches.md` (provided separately). Key sections affected: Service Interfaces, Database Schema (adventures table + Mothership state schema), `submit_gm_context` tool schema, `submit_gm_response` flags field.
+- **`docs/environments.md`** — apply `m2-environments-patch.md`
+- **`docs/decisions.md`** — append entries from `m2-decisions-addendum.md`
+- **`docs/zoltar-design-doc.md`** — apply patches from `m2-design-doc-patches.md`
 
 ---
 
 ## Verification Checklist
 
-M2 is done when all of the following pass:
-
-1. **V9 migration applied** — `docker compose logs flyway` shows `Successfully applied 9 migrations`. `SELECT status FROM adventure LIMIT 1;` returns a valid enum value.
-2. **`@uv/service-interfaces` builds** — `tsc --noEmit` in `packages/service-interfaces` passes. `apps/zoltar-be` imports from the package without error.
-3. **`@uv/auth-core` TODO resolved** — `packages/auth-core/src/index.ts` exports the real `AuthService` abstract class with no TODO comment.
-4. **Traefik routes** — `curl -k https://api.zoltar.local/health` returns `{"status":"ok"}`. `curl -k https://app.zoltar.local/` returns SvelteKit HTML.
-5. **MailHog running** — `http://localhost:8025` opens the MailHog web UI.
-6. **Sign-in flow** — navigate to `https://app.zoltar.local`, redirected to `/signin`, submit email, magic link appears in MailHog, clicking it signs in and lands on `/campaigns`.
-7. **Email routing** — magic link email is delivered via SmtpEmailService → MailHog (not a built-in Auth.js provider). Verify by checking MailHog received the email while `SMTP_HOST=mailhog` is set.
-8. **Send-verification endpoint is internal-only** — `curl -k https://api.zoltar.local/api/v1/auth/send-verification` returns 404 (Traefik does not expose this route; it is only reachable at `http://backend:3000` from the Docker internal network).
-9. **Campaign CRUD** — create a campaign, list it, fetch it by ID. `403` for campaigns you're not a member of.
-10. **Adventure CRUD** — create an adventure (status = `synthesizing`), list it, fetch it.
-11. **Session persistence** — refreshing stays signed in. Sign out returns to `/signin`.
-12. **Auth guard** — `curl -k https://api.zoltar.local/api/v1/campaigns` without a session cookie returns `401`.
-13. **Membership isolation** — create two accounts via MailHog. Campaign created by user A is not visible to user B.
-14. **Zod schemas** — `tsc --noEmit` in `packages/game-systems` passes. `MothershipCampaignStateSchema.parse(emptyMothershipState())` succeeds. `MothershipCharacterSheetSchema` imports cleanly in both `zoltar-fe` and `zoltar-be`.
-15. **`tsc --noEmit`** (backend and frontend) — no type errors.
-16. **Documentation updated** — `environments.md` Traefik section updated, `decisions.md` new entries added, design doc patches applied.
+1. **V9 applied** — 9 migrations. `SELECT status FROM adventure LIMIT 1;` returns a valid enum value.
+2. **`@uv/service-interfaces` builds** — `tsc --noEmit` passes. `zoltar-be` imports from package cleanly.
+3. **`@uv/auth-core` TODO resolved** — exports the real `AuthService` abstract class.
+4. **Traefik routes** — `curl -k https://api.zoltar.local/health` → `{"status":"ok"}`. `curl -k https://app.zoltar.local/` → HTML.
+5. **MailHog running** — `http://localhost:8025` opens the web UI.
+6. **Magic link flow** — submit email on signin page → link appears in MailHog → clicking it sets cookie and redirects to `/campaigns`.
+7. **Cookie shape** — `HttpOnly`, `Secure`, `SameSite=Lax`, `Domain=.zoltar.local`.
+8. **`GET /auth/me`** — `{ id, email, name }` when authenticated. `401` when not.
+9. **Sign-out** — `POST /auth/signout` deletes session row, clears cookie, returns `204`.
+10. **No Auth.js packages** — `zoltar-fe/package.json` contains no `@auth/*` dependencies.
+11. **No SvelteKit** — `zoltar-fe/package.json` contains no `@sveltejs/kit`. No `+page` files. No `hooks.server.ts`.
+12. **CORS** — `fetch` from `app.zoltar.local` to `api.zoltar.local` with `credentials: 'include'` succeeds.
+13. **Campaign CRUD** — create, list, fetch. `403` for non-member campaigns.
+14. **Adventure CRUD** — create (`status = synthesizing`), list, fetch.
+15. **Membership isolation** — two accounts; campaigns not visible across accounts.
+16. **Zod schemas** — `tsc --noEmit` in `packages/game-systems` passes. `emptyMothershipState()` parses successfully.
+17. **`tsc --noEmit`** (backend and frontend) — no type errors.
+18. **Documentation updated** — all three doc patches applied.
 
 ---
 
 ## Out of Scope for M2
 
-- Oracle table selection UI or endpoint processing (M3)
+- Oracle tables (M3)
 - Character sheet creation UI (M3)
 - GM context synthesis (M4)
 - Play view / action submission (M6)
-- Canon review (M6)
-- Production Dockerfile stage (M6)
-- SSL on the Droplet (deferred — Traefik TLS config for production is M8 scope)
-- Campaign invite flows (no UX needed until multiplayer milestone)
-- Any game logic, state validation beyond schema parse, or rule evaluation
+- Production Dockerfile / Droplet deployment (M8)
+- Campaign invite flows
+- Any game logic or rule evaluation

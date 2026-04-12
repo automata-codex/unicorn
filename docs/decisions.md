@@ -38,9 +38,13 @@ Both packages exist so the future closed-source SaaS implementation repo can imp
 
 An earlier design derived adventure status from whether a `gm_context` row existed for the adventure. Row absence is ambiguous: it could mean synthesis is in progress, synthesis failed, or a bug prevented row creation. There is no clean way to represent synthesis failure without an explicit status field. An explicit `adventure_status` enum column (`synthesizing`, `ready`, `completed`, `failed`) makes status queryable without a join and allows the `failed` state to be surfaced to users rather than leaving them with a stuck adventure. The column is added in V9 migration with a back-fill for any existing adventures.
 
-**Auth.js magic link email routed through `EmailService.sendTransactional()`**
+**Magic link auth is backend-owned; Auth.js is not used**
 
-Auth.js supports a custom `sendVerificationRequest` callback. Rather than configuring Auth.js with its own email provider (Resend, Nodemailer, etc.), this callback posts to an internal NestJS endpoint (`POST /api/v1/auth/send-verification`) that delivers the email via `EmailService`. This means all email — magic links and future transactional emails — flows through the same abstraction, and self-hosters configure email in one place (SMTP env vars) rather than in two separate layers. In local dev, `SmtpEmailService` is configured to point at MailHog (`SMTP_HOST=mailhog`, `SMTP_PORT=1025`); magic links appear in the MailHog web UI at `localhost:8025`. The send-verification endpoint is only reachable from the Docker internal network and is not exposed through Traefik.
+Auth.js (`@auth/sveltekit`) requires SvelteKit's server-side hooks infrastructure to function. The frontend is a pure Svelte 5 SPA with no SSR or server-side hooks, so Auth.js cannot be used. Rather than pull in SvelteKit as a dependency for a single feature, magic link auth is implemented natively in the NestJS backend: the backend owns token generation, email delivery, session creation, and session validation. The `user`, `session`, and `verification_token` tables from V1 (originally created in the Auth.js schema format) are used as-is — we write to them directly. `AuthService.validateSession()` is unchanged: it reads the `session` table regardless of how the session was created.
+
+**Frontend is Svelte 5 SPA, not SvelteKit**
+
+SvelteKit's SSR and routing conventions add complexity without meaningful benefit for this product: the GM pipeline is entirely backend-driven, there is no SEO requirement, and the auth flow is owned by the backend. A plain Svelte 5 + Vite SPA is simpler to reason about, has no server-side rendering surface, and makes the frontend/backend boundary explicit. The tech stack entry in the design doc and README reflects this: "Svelte 5 (SPA)" not "SvelteKit."
 
 ---
 
