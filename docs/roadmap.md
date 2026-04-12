@@ -140,11 +140,11 @@ A spatial system spec must be written and agreed before this area is implemented
 
 *Infrastructure only — no game logic, no UI. Everything else depends on this.*
 
-- [ ] Docker Compose local dev setup (Postgres + NestJS + Svelte + Flyway)
-- [ ] NestJS module hierarchy, DB connection via Drizzle ORM + `node-postgres`
-- [ ] Flyway migration setup; all Phase 1 migrations (core tables, grid tables, audit/telemetry tables, `map_geometry` stub)
-- [ ] Environment config loading and validation
-- [ ] Service interface stubs + noop implementations for all deferred services
+- [x] Docker Compose local dev setup (Postgres + NestJS + Svelte + Flyway)
+- [x] NestJS module hierarchy, DB connection via Drizzle ORM + `node-postgres`
+- [x] Flyway migration setup; all Phase 1 migrations (core tables, grid tables, audit/telemetry tables, `map_geometry` stub)
+- [x] Environment config loading and validation
+- [x] Service interface stubs + noop implementations for all deferred services
 
 #### M2 — Auth, Campaign & Adventure CRUD
 

@@ -30,6 +30,18 @@ The API follows a CQRS-flavored pattern with clean separation between the comman
 **No event sourcing**
 ES is a natural fit for games in theory but awkward with an AI GM layer — Claude's responses aren't deterministic, so replaying events doesn't reproduce the same narrative. The message log plus state snapshot approach provides most of the practical ES benefits (audit trail, session reconstruction, correction without deletion) without the full ceremony.
 
+**`@uv/auth-core` and `@uv/service-interfaces` are separate packages**
+
+Both packages exist so the future closed-source SaaS implementation repo can import abstract classes without depending on the open-source backend app. The split between the two packages reflects a difference in consumer profile: `AuthService` is a cross-cutting concern relevant to frontend-adjacent code (session validation, future SSR auth checks) and may be consumed outside a pure backend context. The six remaining service interfaces (`EntitlementsService`, `MeteringService`, `EmailService`, `AssetStorageService`, `RealtimeService`, `FeatureFlagService`) are backend-only concerns with no plausible frontend consumer. Keeping `auth-core` separate preserves the existing package boundary established in M1 and avoids mixing concerns that evolve at different rates.
+
+**Explicit `status` column on `adventures` table; no inference from `gm_context` row presence**
+
+An earlier design derived adventure status from whether a `gm_context` row existed for the adventure. Row absence is ambiguous: it could mean synthesis is in progress, synthesis failed, or a bug prevented row creation. There is no clean way to represent synthesis failure without an explicit status field. An explicit `adventure_status` enum column (`synthesizing`, `ready`, `completed`, `failed`) makes status queryable without a join and allows the `failed` state to be surfaced to users rather than leaving them with a stuck adventure. The column is added in V9 migration with a back-fill for any existing adventures.
+
+**Auth.js magic link email routed through `EmailService.sendTransactional()`**
+
+Auth.js supports a custom `sendVerificationRequest` callback. Rather than configuring Auth.js with its own email provider (Resend, Nodemailer, etc.), this callback posts to an internal NestJS endpoint (`POST /api/v1/auth/send-verification`) that delivers the email via `EmailService`. This means all email — magic links and future transactional emails — flows through the same abstraction, and self-hosters configure email in one place (SMTP env vars) rather than in two separate layers. In local dev, `SmtpEmailService` is configured to point at MailHog (`SMTP_HOST=mailhog`, `SMTP_PORT=1025`); magic links appear in the MailHog web UI at `localhost:8025`. The send-verification endpoint is only reachable from the Docker internal network and is not exposed through Traefik.
+
 ---
 
 ## Claude Integration
@@ -54,6 +66,17 @@ An earlier design had Claude generate UUIDs for dice request entries. Claude doe
 
 **State snapshot field consolidation deferred to Milestone 1.2.** 
 The snapshot has accumulated fields across playtesting — `initialState` counters, `world_facts` scratchpad, character state, entity positions, and flags — each solving a distinct problem as it was discovered. At 1.2, when the tool schema is being locked, both sides of the read/write contract should be rationalized together: what Claude reads in the snapshot and what it writes via tools. Doing this earlier would be premature; the playtest data doesn't exist yet to inform good consolidation decisions.
+
+**`flags` structure merges value and trigger into a single object**
+
+An earlier design kept flags and flag triggers as two parallel top-level maps in campaign state: `flags: Record<string, boolean>` and `flagTriggers: Record<string, string>`. These were merged into a single structure keyed by flag name:
+
+```typescript
+flags: Record<string, { value: boolean, trigger: string }>
+```
+
+Keeping them parallel required maintaining two maps in sync — a flag with no corresponding trigger entry was an invisible bug waiting to happen. The merged structure makes each flag self-contained. The trigger is immutable after initialization (it describes the in-fiction condition that flips the flag, which doesn't change). `stateChanges.flagTriggers` on the `submit_gm_response` write path only carries the new value (`{ flagName: newValue }`) — it does not restate the trigger.
+
 ---
 
 ## Monorepo and Tooling

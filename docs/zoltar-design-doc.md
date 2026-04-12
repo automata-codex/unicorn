@@ -1,5 +1,5 @@
 # Zoltar — Design Document
-*Draft 6 — March 2026*
+*Draft 7 — April 2026*
 
 ---
 
@@ -217,7 +217,10 @@ submit_gm_context({
       visible: boolean,
       tags: string[]
     }>,
-    initial_flags: Record<string, boolean>,
+    flags: Record<string, {
+      value:   boolean,  // initial value
+      trigger: string    // in-fiction condition that flips this flag; immutable after init
+    }>,
     initial_state: Record<string, unknown> // validated against system Zod schema
   }
 })
@@ -307,7 +310,8 @@ WebSocket real-time sync (Ably) handles cross-instance message delivery for the 
 
 ```typescript
 campaigns         { id, org_id (nullable), name, system, created_at }
-adventures        { id, campaign_id, mode, initiative_order: jsonb,
+adventures        { id, campaign_id, status: adventure_status,
+                    mode, initiative_order: text[],
                     caller_id, rolling_summary: text, created_at, completed_at }
 messages          { id, adventure_id, role, content, created_at }
 gm_context        { id, adventure_id, blob: jsonb }
@@ -334,6 +338,39 @@ const schemas = {
   uvg:        UVGCampaignStateSchema,
   fived:      FiveDCampaignStateSchema,
   ose:        OSECampaignStateSchema,
+}
+```
+
+### Mothership Campaign State Schema
+
+The `campaign_state.data` JSONB for a Mothership campaign is validated against `MothershipCampaignStateSchema` from `@uv/game-systems`. The shape:
+
+```typescript
+{
+  schemaVersion: 1,
+
+  // Flat map keyed as {entity_id}_{pool_name}. All numeric resources live here.
+  // e.g. dr_chen_hp, vasquez_stress, airlock_integrity
+  resourcePools: Record<string, { current: number, max: number | null }>,
+
+  // Entity visibility, status, and narrative NPC state.
+  // Positions are NOT here — they live in grid_entities.
+  entities: Record<string, {
+    visible:  boolean,
+    status:   'alive' | 'dead' | 'unknown',
+    npcState?: string,   // updated whenever disposition or knowledge changes
+  }>,
+
+  // Each flag carries its value and the in-fiction condition that flips it.
+  // The trigger is set at initialization and does not change.
+  // stateChanges.flag_triggers only carries { flagName: newBooleanValue }.
+  flags: Record<string, { value: boolean, trigger: string }>,
+
+  // Non-entity numeric state: oxygen levels, reactor power, countdown timers, etc.
+  scenarioState: Record<string, { current: number, max: number | null, note: string }>,
+
+  // Environmental scratchpad: first-mention details that must remain consistent.
+  worldFacts: Record<string, string>,
 }
 ```
 
@@ -426,10 +463,13 @@ submit_gm_response({
   player_text: string,          // narrative delivered to the player
   state_changes: {
     resource_pools?: Record<string, { delta: number }>,
-    entities?: Record<string, { position?: Position, visible?: boolean }>,  // HP belongs in resource_pools, not here
-    flags?: Record<string, boolean>
+    entities?: Record<string, { visible?: boolean }>,   // HP in resource_pools; positions in grid_entities
+    // flags: carry only { flagName: newValue } — trigger is immutable after initialization
+    flag_triggers?: Record<string, boolean>
   },
   gm_updates: {
+    // npc_states: update whenever NPC disposition or knowledge changes.
+    // e.g. "Hostile — witnessed player kill guard" or "Frightened, cornered"
     npc_states?: Record<string, string>,
     notes?: string,             // stored in gm_context, never shown to player
     proposed_canon?: Array<{    // improvised fiction that may warrant permanence
@@ -618,9 +658,10 @@ Adapted from Gygax's AD&D caller concept. Players coordinate in a back channel (
 ```typescript
 adventures {
   id, campaign_id,
+  status: 'synthesizing' | 'ready' | 'completed' | 'failed',
   mode: 'freeform' | 'initiative',
-  initiative_order: jsonb,  // string[] of entity ids, null when freeform
-  caller_id,                // one player, globally, at all times
+  initiative_order: text[],   // entity ids in order, null when freeform
+  caller_id,                  // one player, globally, at all times
   ...
 }
 ```
@@ -830,6 +871,8 @@ NestJS DI selects the concrete implementation at bootstrap based on environment 
 ## Service Interfaces and Self-Hosted Configuration
 
 Every SaaS/self-hosted divergence point is a NestJS provider interface. SaaS implementations live in a closed-source package not included in the open source repository.
+
+**Package locations:** `AuthService` is defined in `packages/auth-core` (`@uv/auth-core`). The remaining six interfaces (`EntitlementsService`, `MeteringService`, `EmailService`, `AssetStorageService`, `RealtimeService`, `FeatureFlagService`) are defined in `packages/service-interfaces` (`@uv/service-interfaces`). Both packages are importable by the closed-source SaaS implementation repo without depending on the open-source backend app. `AuthService` is kept in a separate package because it has a different consumer profile — it is relevant to frontend-adjacent concerns and may be consumed outside a pure backend context. See `docs/decisions.md`.
 
 | Interface           | SaaS Implementation       | Self-hosted Default       | Self-hosted Alternative                      |
 |---------------------|---------------------------|---------------------------|----------------------------------------------|
@@ -1062,4 +1105,4 @@ SaaS infrastructure is intentionally deferred until the 2D VTT renderer is compl
 
 ---
 
-*Draft 6 adds: Campaigns, Adventures, and Sessions section defining the domain hierarchy and explaining why sessions are not a first-class concept. Database schema updated: sessions table dropped; adventures table added with id, campaign_id, gm_context_id, mode, initiative_order, rolling_summary, created_at, completed_at; messages and game_events now reference adventure_id; gm_context_id moved from campaigns to adventures to support multiple adventures per campaign. Message History and Context Window section added under Claude API Integration, covering last-N-kb rolling window, prompt structure, lazy rolling summary generation, and summarization prompt guidance. SaaS Infrastructure Roadmap updated with billing model direction: subscription tiers with adventure creation as the tier gate, no user-facing token metering, internal UsageMeteringService for cost accounting. Phase 1 plan updated to reflect adventure management instead of session management.*
+*Draft 7 adds: Explicit `status` column on `adventures` table (no inference from `gm_context` row presence). `AuthService` in `@uv/auth-core`, remaining six service interfaces in `@uv/service-interfaces` — rationale for the split documented in decisions.md. `flags` structure merged: value and trigger bundled per flag, parallel maps eliminated. `npcState` field added to entity records; NPC state removed as a separate top-level map. Mothership Campaign State Schema subsection added with corrected structure: flat `resourcePools`, `entities` with `npcState`, merged `flags`, `scenarioState`, `worldFacts`. `submit_gm_context` and `submit_gm_response` tool schemas updated to match.*
