@@ -5,12 +5,12 @@ export default defineConfig({
   test: {
     globals: false,
     root: './',
-    include: ['src/**/*.spec.ts'],
-    exclude: ['src/**/*.spec-int.ts'],
+    include: ['src/**/*.spec-int.ts'],
     environment: 'node',
+    testTimeout: 30_000,
+    hookTimeout: 60_000,
   },
   plugins: [
-    // SWC handles TypeScript + decorator metadata so NestJS DI works in tests.
     swc.vite({
       module: { type: 'es6' },
     }),
