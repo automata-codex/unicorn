@@ -129,7 +129,7 @@ A spatial system spec must be written and agreed before this area is implemented
 - Environment variable documentation
 - Self-hosted setup guide
 - DigitalOcean Droplet deployment walkthrough
-- Mobile-first layout pass on frontend (thumb reach, responsive)
+- Responsive polish pass on frontend (thumb reach, viewport refinement)
 - First tagged release (`v0.1.0`)
 
 ---
@@ -155,6 +155,16 @@ A spatial system spec must be written and agreed before this area is implemented
 - [ ] Mothership Zod schemas (campaign state, character sheet)
 - [ ] Basic CRUD endpoints for campaigns and adventures
 - [ ] Frontend: auth flow, campaign list, adventure list shell
+
+#### M2.5 — Design Sprint
+
+*Establish visual foundation before any feature UI is built. Mobile-first throughout.*
+
+- [ ] Primitive token definitions (`themes/base.css`)
+- [ ] Mothership theme — semantic token layer (`themes/mothership.css`)
+- [ ] Base component set: button, input, panel, typography scale — styled against Mothership theme, mobile-first
+- [ ] Mobile layout sketches for play view (message log, input, character status, dice UI)
+- [ ] Mobile layout sketches for oracle filtering and character creation flows
 
 #### M3 — Oracle Tables & Character Creation
 
@@ -226,7 +236,7 @@ A spatial system spec must be written and agreed before this area is implemented
 - [ ] Docker Compose production configuration
 - [ ] Environment variable documentation
 - [ ] Self-hosted setup guide + DigitalOcean Droplet walkthrough
-- [ ] Mobile-first layout pass (thumb reach, responsive)
+- [ ] Responsive polish pass (thumb reach, viewport refinement)
 - [ ] First tagged release (`v0.1.0`)
 
 ---
