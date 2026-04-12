@@ -43,6 +43,15 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       NODE_ENV: development
       PORT: 3000
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      AUTH_EMAIL_FROM: ${AUTH_EMAIL_FROM}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`api.zoltar.local`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls=true"
+      - "traefik.http.services.backend.loadbalancer.server.port=3000"
 
   frontend:
     build:
@@ -50,6 +59,39 @@ services:
       dockerfile: apps/zoltar-fe/Dockerfile
     ports:
       - "5173:5173"
+    environment:
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_URL: ${AUTH_URL}
+      AUTH_EMAIL_FROM: ${AUTH_EMAIL_FROM}
+      INTERNAL_API_URL: http://backend:3000
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL}
+      PUBLIC_API_URL: ${PUBLIC_API_URL}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`app.zoltar.local`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.services.frontend.loadbalancer.server.port=5173"
+
+  traefik:
+    image: traefik:v3.0
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"     # dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./infra/traefik/traefik.yml:/traefik.yml:ro
+      - ./infra/traefik/certs:/certs:ro
+    depends_on:
+      - backend
+      - frontend
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"     # SMTP
+      - "8025:8025"     # Web UI: http://localhost:8025
 
 volumes:
   pgdata:
