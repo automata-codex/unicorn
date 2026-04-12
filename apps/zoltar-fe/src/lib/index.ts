@@ -1,1 +1,1 @@
-// place files you want to import through the `$lib` alias in this folder.
+// Shared library code for the Zoltar frontend.
