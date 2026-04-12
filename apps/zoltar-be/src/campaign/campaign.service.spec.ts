@@ -2,21 +2,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { CampaignService } from './campaign.service';
 
-function mockDb() {
-  const chain = {
-    select: vi.fn().mockReturnThis(),
-    from: vi.fn().mockReturnThis(),
-    innerJoin: vi.fn().mockReturnThis(),
-    where: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockResolvedValue([]),
-    insert: vi.fn().mockReturnValue({
-      values: vi.fn().mockReturnValue({
-        returning: vi.fn().mockResolvedValue([]),
-      }),
-    }),
+function mockRepo() {
+  return {
+    findGameSystemBySlug: vi.fn(),
+    insertCampaign: vi.fn(),
+    insertMember: vi.fn().mockResolvedValue(undefined),
+    insertState: vi.fn().mockResolvedValue(undefined),
+    findAllForUser: vi.fn(),
+    findById: vi.fn(),
+    findMember: vi.fn(),
+    findOwner: vi.fn(),
   };
-  chain.select.mockReturnValue(chain);
-  return chain;
 }
 
 const fakeCampaign = {
@@ -30,24 +26,18 @@ const fakeCampaign = {
 };
 
 describe('CampaignService', () => {
-  let db: ReturnType<typeof mockDb>;
+  let repo: ReturnType<typeof mockRepo>;
   let service: CampaignService;
 
   beforeEach(() => {
-    db = mockDb();
-    service = new CampaignService(db as any);
+    repo = mockRepo();
+    service = new CampaignService(repo as any);
   });
 
   describe('create', () => {
     it('creates campaign, membership, and state', async () => {
-      // game system lookup
-      db.limit.mockResolvedValueOnce([{ id: 'sys1', slug: 'mothership' }]);
-      // campaign insert
-      db.insert.mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([fakeCampaign]),
-        }),
-      });
+      repo.findGameSystemBySlug.mockResolvedValue({ id: 'sys1', slug: 'mothership' });
+      repo.insertCampaign.mockResolvedValue(fakeCampaign);
 
       const result = await service.create(
         { name: 'Test', visibility: 'private', diceMode: 'soft_accountability' },
@@ -55,12 +45,27 @@ describe('CampaignService', () => {
       );
 
       expect(result).toEqual(fakeCampaign);
-      // insert called 3 times: campaign, membership, state
-      expect(db.insert).toHaveBeenCalledTimes(3);
+      expect(repo.findGameSystemBySlug).toHaveBeenCalledWith('mothership');
+      expect(repo.insertCampaign).toHaveBeenCalledWith({
+        systemId: 'sys1',
+        name: 'Test',
+        visibility: 'private',
+        diceMode: 'soft_accountability',
+      });
+      expect(repo.insertMember).toHaveBeenCalledWith({
+        campaignId: 'c1',
+        userId: 'u1',
+        role: 'owner',
+      });
+      expect(repo.insertState).toHaveBeenCalledWith({
+        campaignId: 'c1',
+        system: 'mothership',
+        data: expect.objectContaining({ schemaVersion: 1 }),
+      });
     });
 
     it('throws NotFoundException when mothership system is missing', async () => {
-      db.limit.mockResolvedValueOnce([]);
+      repo.findGameSystemBySlug.mockResolvedValue(null);
 
       await expect(
         service.create({ name: 'Test', visibility: 'private', diceMode: 'soft_accountability' }, 'u1'),
@@ -70,37 +75,37 @@ describe('CampaignService', () => {
 
   describe('findById', () => {
     it('returns the campaign when found', async () => {
-      db.limit.mockResolvedValue([fakeCampaign]);
+      repo.findById.mockResolvedValue(fakeCampaign);
       const result = await service.findById('c1');
       expect(result).toEqual(fakeCampaign);
     });
 
     it('throws NotFoundException when not found', async () => {
-      db.limit.mockResolvedValue([]);
+      repo.findById.mockResolvedValue(null);
       await expect(service.findById('missing')).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('assertMember', () => {
     it('resolves when user is a member', async () => {
-      db.limit.mockResolvedValue([{ campaignId: 'c1', userId: 'u1', role: 'player' }]);
+      repo.findMember.mockResolvedValue({ campaignId: 'c1', userId: 'u1', role: 'player' });
       await expect(service.assertMember('c1', 'u1')).resolves.toBeUndefined();
     });
 
     it('throws ForbiddenException when not a member', async () => {
-      db.limit.mockResolvedValue([]);
+      repo.findMember.mockResolvedValue(null);
       await expect(service.assertMember('c1', 'u1')).rejects.toThrow(ForbiddenException);
     });
   });
 
   describe('assertOwner', () => {
     it('resolves when user is the owner', async () => {
-      db.limit.mockResolvedValue([{ campaignId: 'c1', userId: 'u1', role: 'owner' }]);
+      repo.findOwner.mockResolvedValue({ campaignId: 'c1', userId: 'u1', role: 'owner' });
       await expect(service.assertOwner('c1', 'u1')).resolves.toBeUndefined();
     });
 
     it('throws ForbiddenException when not the owner', async () => {
-      db.limit.mockResolvedValue([]);
+      repo.findOwner.mockResolvedValue(null);
       await expect(service.assertOwner('c1', 'u1')).rejects.toThrow(ForbiddenException);
     });
   });
