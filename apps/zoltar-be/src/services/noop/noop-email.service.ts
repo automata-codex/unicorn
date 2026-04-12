@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { EmailService } from '../interfaces/email.service';
+import { EmailService } from '@uv/service-interfaces';
 
 @Injectable()
 export class NoopEmailService extends EmailService {

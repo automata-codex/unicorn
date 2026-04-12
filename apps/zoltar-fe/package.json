@@ -15,6 +15,9 @@
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run"
 	},
+	"dependencies": {
+		"@uv/game-systems": "*"
+	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.3",
 		"@eslint/js": "^10.0.1",

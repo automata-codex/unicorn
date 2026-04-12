@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AssetStorageService } from '../interfaces/asset-storage.service';
+import { AssetStorageService } from '@uv/service-interfaces';
 
 @Injectable()
 export class NoopAssetStorageService extends AssetStorageService {

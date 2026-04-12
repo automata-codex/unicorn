@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { EntitlementsService } from '../interfaces/entitlements.service';
+import { EntitlementsService } from '@uv/service-interfaces';
 
 @Injectable()
 export class NoopEntitlementsService extends EntitlementsService {

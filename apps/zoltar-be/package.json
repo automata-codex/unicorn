@@ -22,6 +22,8 @@
     "@nestjs/platform-fastify": "^11.0.1",
     "@uv/auth-core": "*",
     "@uv/rules-engine": "*",
+    "@uv/game-systems": "*",
+    "@uv/service-interfaces": "*",
     "drizzle-orm": "^0.38.0",
     "pg": "^8.13.0",
     "reflect-metadata": "^0.2.2",
