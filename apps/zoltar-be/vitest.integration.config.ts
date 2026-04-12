@@ -9,6 +9,7 @@ export default defineConfig({
     environment: 'node',
     testTimeout: 30_000,
     hookTimeout: 60_000,
+    fileParallelism: false,
   },
   plugins: [
     swc.vite({
