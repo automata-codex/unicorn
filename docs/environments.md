@@ -114,7 +114,7 @@ this once.
 
 ```sh
 curl -k https://api.zoltar.local/health   # {"status":"ok"}
-curl -k https://app.zoltar.local/         # SvelteKit HTML
+curl -k https://app.zoltar.local/         # Svelte SPA HTML
 open http://localhost:8025                # MailHog web UI
 ```
 
