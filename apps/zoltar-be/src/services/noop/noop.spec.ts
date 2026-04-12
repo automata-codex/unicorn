@@ -12,7 +12,9 @@ beforeEach(() => {
 });
 
 function spyDebug() {
-  return vi.spyOn(Logger.prototype, 'debug').mockImplementation(() => undefined);
+  return vi
+    .spyOn(Logger.prototype, 'debug')
+    .mockImplementation(() => undefined);
 }
 
 describe('NoopEntitlementsService', () => {
@@ -34,7 +36,9 @@ describe('NoopEntitlementsService', () => {
 describe('NoopMeteringService', () => {
   it('returns void', async () => {
     const svc = new NoopMeteringService();
-    await expect(svc.recordTokenUsage('adv_1', 100, 200)).resolves.toBeUndefined();
+    await expect(
+      svc.recordTokenUsage('adv_1', 100, 200),
+    ).resolves.toBeUndefined();
   });
 
   it('warns once across many calls', async () => {
