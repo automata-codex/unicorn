@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AuthJsService } from './auth-js.service';
+import { LocalAuthService } from './local-auth.service';
 
 function mockDb() {
   const chain = {
@@ -9,18 +9,17 @@ function mockDb() {
     where: vi.fn().mockReturnThis(),
     limit: vi.fn().mockResolvedValue([]),
   };
-  // select() starts a new chain each call, so re-bind
   chain.select.mockReturnValue(chain);
   return chain;
 }
 
-describe('AuthJsService', () => {
+describe('LocalAuthService', () => {
   let db: ReturnType<typeof mockDb>;
-  let service: AuthJsService;
+  let service: LocalAuthService;
 
   beforeEach(() => {
     db = mockDb();
-    service = new AuthJsService(db as any);
+    service = new LocalAuthService(db as any);
   });
 
   describe('validateSession', () => {

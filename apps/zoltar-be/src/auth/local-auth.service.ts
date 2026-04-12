@@ -6,7 +6,7 @@ import type { Db } from '../db/db.provider';
 import * as schema from '../db/schema';
 
 @Injectable()
-export class AuthJsService extends AuthService {
+export class LocalAuthService extends AuthService {
   constructor(@Inject(DB_TOKEN) private readonly db: Db) {
     super();
   }
