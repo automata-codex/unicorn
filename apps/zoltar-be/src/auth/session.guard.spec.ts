@@ -35,7 +35,10 @@ describe('SessionGuard', () => {
 
   beforeEach(() => {
     authService = mockAuthService();
-    guard = new SessionGuard(authService as any, mockConfigService('development') as any);
+    guard = new SessionGuard(
+      authService as any,
+      mockConfigService('development') as any,
+    );
   });
 
   it('extracts token from authjs.session-token cookie', async () => {

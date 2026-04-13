@@ -17,7 +17,11 @@ export class SmtpEmailService extends EmailService {
     });
   }
 
-  async sendTransactional(to: string, subject: string, body: string): Promise<void> {
+  async sendTransactional(
+    to: string,
+    subject: string,
+    body: string,
+  ): Promise<void> {
     await this.transporter.sendMail({
       from: this.config.get('AUTH_EMAIL_FROM'),
       to,

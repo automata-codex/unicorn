@@ -20,7 +20,9 @@ import { execSync } from 'child_process';
 import * as schema from '../src/db/schema';
 
 const TEST_DB = 'zoltar_test';
-const BASE_URL = process.env.DATABASE_URL ?? 'postgresql://zoltar:zoltar_dev@localhost:5432/zoltar';
+const BASE_URL =
+  process.env.DATABASE_URL ??
+  'postgresql://zoltar:zoltar_dev@localhost:5432/zoltar';
 
 // Derive connection strings
 const baseUrlObj = new URL(BASE_URL);
@@ -89,7 +91,5 @@ const TRUNCATE_TABLES = [
 ];
 
 export async function truncateAll(): Promise<void> {
-  await db.execute(
-    sql.raw(`TRUNCATE ${TRUNCATE_TABLES.join(', ')} CASCADE`),
-  );
+  await db.execute(sql.raw(`TRUNCATE ${TRUNCATE_TABLES.join(', ')} CASCADE`));
 }

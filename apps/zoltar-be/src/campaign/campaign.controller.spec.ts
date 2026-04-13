@@ -35,12 +35,20 @@ describe('CampaignController', () => {
       svc.create.mockResolvedValue(campaign);
 
       const result = await controller.create(
-        { name: 'The Persephone Incident', visibility: 'private', diceMode: 'soft_accountability' },
+        {
+          name: 'The Persephone Incident',
+          visibility: 'private',
+          diceMode: 'soft_accountability',
+        },
         fakeUser,
       );
 
       expect(svc.create).toHaveBeenCalledWith(
-        { name: 'The Persephone Incident', visibility: 'private', diceMode: 'soft_accountability' },
+        {
+          name: 'The Persephone Incident',
+          visibility: 'private',
+          diceMode: 'soft_accountability',
+        },
         'u1',
       );
       expect(result.id).toBe('c1');
@@ -72,13 +80,17 @@ describe('CampaignController', () => {
     it('throws ForbiddenException when not a member', async () => {
       svc.assertMember.mockRejectedValue(new ForbiddenException());
 
-      await expect(controller.findOne('c1', fakeUser)).rejects.toThrow(ForbiddenException);
+      await expect(controller.findOne('c1', fakeUser)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('throws NotFoundException when campaign does not exist', async () => {
       svc.findById.mockRejectedValue(new NotFoundException());
 
-      await expect(controller.findOne('missing', fakeUser)).rejects.toThrow(NotFoundException);
+      await expect(controller.findOne('missing', fakeUser)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

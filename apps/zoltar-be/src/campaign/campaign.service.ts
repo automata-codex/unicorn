@@ -14,7 +14,9 @@ export class CampaignService {
   async create(dto: CreateCampaignDto, userId: string) {
     const system = await this.repo.findGameSystemBySlug('mothership');
     if (!system) {
-      throw new NotFoundException('Game system "mothership" not found — ensure migrations are applied');
+      throw new NotFoundException(
+        'Game system "mothership" not found — ensure migrations are applied',
+      );
     }
 
     const campaign = await this.repo.insertCampaign({

@@ -27,7 +27,11 @@ async function seedMothershipSystem(): Promise<string> {
   const db = getTestDb();
   const rows = await db
     .insert(schema.gameSystems)
-    .values({ slug: 'mothership', name: 'Mothership', indexSource: 'user_provided' })
+    .values({
+      slug: 'mothership',
+      name: 'Mothership',
+      indexSource: 'user_provided',
+    })
     .returning();
   return rows[0].id;
 }
@@ -48,7 +52,7 @@ describe('CampaignRepository (integration)', () => {
       await seedMothershipSystem();
       const result = await repo.findGameSystemBySlug('mothership');
       expect(result).not.toBeNull();
-      expect(result!.slug).toBe('mothership');
+      expect(result.slug).toBe('mothership');
     });
   });
 
@@ -68,13 +72,15 @@ describe('CampaignRepository (integration)', () => {
 
       const found = await repo.findById(campaign.id);
       expect(found).not.toBeNull();
-      expect(found!.id).toBe(campaign.id);
+      expect(found.id).toBe(campaign.id);
     });
   });
 
   describe('findById', () => {
     it('returns null for a non-existent campaign', async () => {
-      const result = await repo.findById('00000000-0000-0000-0000-000000000000');
+      const result = await repo.findById(
+        '00000000-0000-0000-0000-000000000000',
+      );
       expect(result).toBeNull();
     });
   });
@@ -91,11 +97,15 @@ describe('CampaignRepository (integration)', () => {
         diceMode: 'soft_accountability',
       });
 
-      await repo.insertMember({ campaignId: campaign.id, userId: 'u1', role: 'owner' });
+      await repo.insertMember({
+        campaignId: campaign.id,
+        userId: 'u1',
+        role: 'owner',
+      });
 
       const member = await repo.findMember(campaign.id, 'u1');
       expect(member).not.toBeNull();
-      expect(member!.role).toBe('owner');
+      expect(member.role).toBe('owner');
     });
 
     it('returns null for a non-member', async () => {
@@ -126,7 +136,11 @@ describe('CampaignRepository (integration)', () => {
         diceMode: 'soft_accountability',
       });
 
-      await repo.insertMember({ campaignId: campaign.id, userId: 'u1', role: 'owner' });
+      await repo.insertMember({
+        campaignId: campaign.id,
+        userId: 'u1',
+        role: 'owner',
+      });
 
       const owner = await repo.findOwner(campaign.id, 'u1');
       expect(owner).not.toBeNull();
@@ -143,7 +157,11 @@ describe('CampaignRepository (integration)', () => {
         diceMode: 'soft_accountability',
       });
 
-      await repo.insertMember({ campaignId: campaign.id, userId: 'u1', role: 'player' });
+      await repo.insertMember({
+        campaignId: campaign.id,
+        userId: 'u1',
+        role: 'player',
+      });
 
       const owner = await repo.findOwner(campaign.id, 'u1');
       expect(owner).toBeNull();
@@ -156,11 +174,29 @@ describe('CampaignRepository (integration)', () => {
       await seedUser('u1', 'alice@example.com');
       await seedUser('u2', 'bob@example.com');
 
-      const c1 = await repo.insertCampaign({ systemId, name: 'Campaign A', visibility: 'private', diceMode: 'soft_accountability' });
-      const c2 = await repo.insertCampaign({ systemId, name: 'Campaign B', visibility: 'private', diceMode: 'soft_accountability' });
+      const c1 = await repo.insertCampaign({
+        systemId,
+        name: 'Campaign A',
+        visibility: 'private',
+        diceMode: 'soft_accountability',
+      });
+      const c2 = await repo.insertCampaign({
+        systemId,
+        name: 'Campaign B',
+        visibility: 'private',
+        diceMode: 'soft_accountability',
+      });
 
-      await repo.insertMember({ campaignId: c1.id, userId: 'u1', role: 'owner' });
-      await repo.insertMember({ campaignId: c2.id, userId: 'u2', role: 'owner' });
+      await repo.insertMember({
+        campaignId: c1.id,
+        userId: 'u1',
+        role: 'owner',
+      });
+      await repo.insertMember({
+        campaignId: c2.id,
+        userId: 'u2',
+        role: 'owner',
+      });
 
       const u1Campaigns = await repo.findAllForUser('u1');
       expect(u1Campaigns).toHaveLength(1);
@@ -192,7 +228,14 @@ describe('CampaignRepository (integration)', () => {
       await repo.insertState({
         campaignId: campaign.id,
         system: 'mothership',
-        data: { schemaVersion: 1, resourcePools: {}, entities: {}, flags: {}, scenarioState: {}, worldFacts: {} },
+        data: {
+          schemaVersion: 1,
+          resourcePools: {},
+          entities: {},
+          flags: {},
+          scenarioState: {},
+          worldFacts: {},
+        },
       });
     });
   });

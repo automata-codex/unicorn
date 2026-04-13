@@ -36,11 +36,18 @@ describe('CampaignService', () => {
 
   describe('create', () => {
     it('creates campaign, membership, and state', async () => {
-      repo.findGameSystemBySlug.mockResolvedValue({ id: 'sys1', slug: 'mothership' });
+      repo.findGameSystemBySlug.mockResolvedValue({
+        id: 'sys1',
+        slug: 'mothership',
+      });
       repo.insertCampaign.mockResolvedValue(fakeCampaign);
 
       const result = await service.create(
-        { name: 'Test', visibility: 'private', diceMode: 'soft_accountability' },
+        {
+          name: 'Test',
+          visibility: 'private',
+          diceMode: 'soft_accountability',
+        },
         'u1',
       );
 
@@ -68,7 +75,14 @@ describe('CampaignService', () => {
       repo.findGameSystemBySlug.mockResolvedValue(null);
 
       await expect(
-        service.create({ name: 'Test', visibility: 'private', diceMode: 'soft_accountability' }, 'u1'),
+        service.create(
+          {
+            name: 'Test',
+            visibility: 'private',
+            diceMode: 'soft_accountability',
+          },
+          'u1',
+        ),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -82,31 +96,45 @@ describe('CampaignService', () => {
 
     it('throws NotFoundException when not found', async () => {
       repo.findById.mockResolvedValue(null);
-      await expect(service.findById('missing')).rejects.toThrow(NotFoundException);
+      await expect(service.findById('missing')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('assertMember', () => {
     it('resolves when user is a member', async () => {
-      repo.findMember.mockResolvedValue({ campaignId: 'c1', userId: 'u1', role: 'player' });
+      repo.findMember.mockResolvedValue({
+        campaignId: 'c1',
+        userId: 'u1',
+        role: 'player',
+      });
       await expect(service.assertMember('c1', 'u1')).resolves.toBeUndefined();
     });
 
     it('throws ForbiddenException when not a member', async () => {
       repo.findMember.mockResolvedValue(null);
-      await expect(service.assertMember('c1', 'u1')).rejects.toThrow(ForbiddenException);
+      await expect(service.assertMember('c1', 'u1')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
   describe('assertOwner', () => {
     it('resolves when user is the owner', async () => {
-      repo.findOwner.mockResolvedValue({ campaignId: 'c1', userId: 'u1', role: 'owner' });
+      repo.findOwner.mockResolvedValue({
+        campaignId: 'c1',
+        userId: 'u1',
+        role: 'owner',
+      });
       await expect(service.assertOwner('c1', 'u1')).resolves.toBeUndefined();
     });
 
     it('throws ForbiddenException when not the owner', async () => {
       repo.findOwner.mockResolvedValue(null);
-      await expect(service.assertOwner('c1', 'u1')).rejects.toThrow(ForbiddenException);
+      await expect(service.assertOwner('c1', 'u1')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 });

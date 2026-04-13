@@ -57,7 +57,13 @@ describe('LocalAuthService', () => {
 
     it('returns the user when found', async () => {
       db.limit.mockResolvedValue([
-        { id: 'u1', name: 'Alice', email: 'a@x.com', emailVerified: null, image: null },
+        {
+          id: 'u1',
+          name: 'Alice',
+          email: 'a@x.com',
+          emailVerified: null,
+          image: null,
+        },
       ]);
       const result = await service.getUserById('u1');
       expect(result).toEqual({ id: 'u1', name: 'Alice', email: 'a@x.com' });

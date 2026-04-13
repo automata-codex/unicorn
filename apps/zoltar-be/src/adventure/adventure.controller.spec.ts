@@ -53,9 +53,9 @@ describe('AdventureController', () => {
       svc.create.mockRejectedValue(new ForbiddenException());
       const reply = mockReply();
 
-      await expect(controller.create('c1', {}, fakeUser, reply)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        controller.create('c1', {}, fakeUser, reply),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -83,9 +83,9 @@ describe('AdventureController', () => {
     it('throws NotFoundException when not found', async () => {
       svc.findById.mockRejectedValue(new NotFoundException());
 
-      await expect(controller.findOne('c1', 'missing', fakeUser)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        controller.findOne('c1', 'missing', fakeUser),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

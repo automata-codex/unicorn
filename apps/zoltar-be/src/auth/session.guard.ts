@@ -5,7 +5,13 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { FastifyRequest } from 'fastify';
 import { AuthService } from '@uv/auth-core';
+import type { AuthUser } from '@uv/auth-core';
+
+interface AuthenticatedRequest extends FastifyRequest {
+  user: AuthUser;
+}
 
 const SESSION_COOKIE = 'authjs.session-token';
 
@@ -21,7 +27,7 @@ export class SessionGuard implements CanActivate {
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const token = this.extractToken(request);
 
     if (!token) {
@@ -37,9 +43,9 @@ export class SessionGuard implements CanActivate {
     return true;
   }
 
-  private extractToken(request: any): string | null {
+  private extractToken(request: FastifyRequest): string | null {
     // 1. Try the session cookie
-    const cookieHeader: string | undefined = request.headers?.cookie;
+    const cookieHeader = request.headers.cookie;
     if (cookieHeader) {
       const token = this.parseCookie(cookieHeader, SESSION_COOKIE);
       if (token) return token;
@@ -47,7 +53,7 @@ export class SessionGuard implements CanActivate {
 
     // 2. Fall back to Authorization: Bearer <token> (local dev only — curl/testing convenience)
     if (this.isDev) {
-      const authHeader: string | undefined = request.headers?.authorization;
+      const authHeader = request.headers.authorization;
       if (authHeader?.startsWith('Bearer ')) {
         return authHeader.slice(7);
       }

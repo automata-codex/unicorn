@@ -12,8 +12,12 @@ function mockDb() {
     from: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
     limit: vi.fn().mockResolvedValue([]),
-    insert: vi.fn().mockReturnValue({ values: vi.fn().mockResolvedValue(undefined) }),
-    delete: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) }),
+    insert: vi
+      .fn()
+      .mockReturnValue({ values: vi.fn().mockResolvedValue(undefined) }),
+    delete: vi
+      .fn()
+      .mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) }),
   };
 }
 
@@ -50,7 +54,11 @@ describe('AuthController', () => {
     db = mockDb();
     emailService = mockEmailService();
     config = mockConfigService();
-    controller = new AuthController(db as any, emailService as any, config as any);
+    controller = new AuthController(
+      db as any,
+      emailService as any,
+      config as any,
+    );
   });
 
   describe('POST /auth/magic-link', () => {
@@ -64,7 +72,9 @@ describe('AuthController', () => {
       expect(emailService.sendTransactional).toHaveBeenCalledWith(
         'new@example.com',
         'Sign in to Zoltar',
-        expect.stringContaining('https://api.zoltar.local/api/v1/auth/verify?token='),
+        expect.stringContaining(
+          'https://api.zoltar.local/api/v1/auth/verify?token=',
+        ),
       );
       expect(reply.status).toHaveBeenCalledWith(202);
     });
@@ -100,8 +110,13 @@ describe('AuthController', () => {
 
     it('redirects to signin with error when token is expired', async () => {
       const pastDate = new Date(Date.now() - 60_000);
-      db.limit
-        .mockResolvedValueOnce([{ identifier: 'user@example.com', token: hashToken('tok'), expires: pastDate }])
+      db.limit.mockResolvedValueOnce([
+        {
+          identifier: 'user@example.com',
+          token: hashToken('tok'),
+          expires: pastDate,
+        },
+      ]);
       const reply = mockReply();
       await controller.verify('tok', 'user@example.com', reply);
       expect(reply.redirect).toHaveBeenCalledWith(
@@ -113,7 +128,13 @@ describe('AuthController', () => {
       const futureDate = new Date(Date.now() + 3_600_000);
       db.limit
         // verification_token lookup
-        .mockResolvedValueOnce([{ identifier: 'user@example.com', token: hashToken('tok'), expires: futureDate }])
+        .mockResolvedValueOnce([
+          {
+            identifier: 'user@example.com',
+            token: hashToken('tok'),
+            expires: futureDate,
+          },
+        ])
         // user lookup
         .mockResolvedValueOnce([{ id: 'u1', email: 'user@example.com' }]);
 
@@ -137,7 +158,10 @@ describe('AuthController', () => {
   describe('POST /auth/signout', () => {
     it('deletes session and clears cookie', async () => {
       const reply = mockReply();
-      await controller.signout({ id: 'u1', email: 'a@x.com', name: 'Alice' }, reply);
+      await controller.signout(
+        { id: 'u1', email: 'a@x.com', name: 'Alice' },
+        reply,
+      );
 
       expect(db.delete).toHaveBeenCalled();
       expect(reply.header).toHaveBeenCalledWith(

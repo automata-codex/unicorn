@@ -44,14 +44,19 @@ describe('AdventureService', () => {
       const result = await service.create('c1', 'u1');
 
       expect(campaignSvc.assertMember).toHaveBeenCalledWith('c1', 'u1');
-      expect(repo.insert).toHaveBeenCalledWith({ campaignId: 'c1', callerId: 'u1' });
+      expect(repo.insert).toHaveBeenCalledWith({
+        campaignId: 'c1',
+        callerId: 'u1',
+      });
       expect(result).toEqual(fakeAdventure);
     });
 
     it('throws ForbiddenException when not a member', async () => {
       campaignSvc.assertMember.mockRejectedValue(new ForbiddenException());
 
-      await expect(service.create('c1', 'u1')).rejects.toThrow(ForbiddenException);
+      await expect(service.create('c1', 'u1')).rejects.toThrow(
+        ForbiddenException,
+      );
       expect(repo.insert).not.toHaveBeenCalled();
     });
   });
@@ -78,7 +83,9 @@ describe('AdventureService', () => {
     it('throws NotFoundException when not found', async () => {
       repo.findById.mockResolvedValue(null);
 
-      await expect(service.findById('c1', 'missing', 'u1')).rejects.toThrow(NotFoundException);
+      await expect(service.findById('c1', 'missing', 'u1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

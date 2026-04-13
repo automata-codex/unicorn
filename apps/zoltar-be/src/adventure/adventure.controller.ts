@@ -7,6 +7,7 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
+import type { FastifyReply } from 'fastify';
 import type { AuthUser } from '@uv/auth-core';
 import { SessionGuard } from '../auth/session.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -23,9 +24,10 @@ export class AdventureController {
   @Post()
   async create(
     @Param('campaignId') campaignId: string,
-    @Body(new ZodValidationPipe(CreateAdventureSchema)) _dto: CreateAdventureDto,
+    @Body(new ZodValidationPipe(CreateAdventureSchema))
+    _dto: CreateAdventureDto,
     @CurrentUser() user: AuthUser,
-    @Res() reply: any,
+    @Res() reply: FastifyReply,
   ): Promise<void> {
     const adventure = await this.adventureService.create(campaignId, user.id);
     reply.status(202).send({

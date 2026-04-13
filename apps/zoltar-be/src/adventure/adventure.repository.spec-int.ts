@@ -23,15 +23,27 @@ beforeEach(async () => {
   await truncateAll();
 });
 
-async function seedSystemAndCampaign(): Promise<{ systemId: string; campaignId: string }> {
+async function seedSystemAndCampaign(): Promise<{
+  systemId: string;
+  campaignId: string;
+}> {
   const db = getTestDb();
   const [system] = await db
     .insert(schema.gameSystems)
-    .values({ slug: 'mothership', name: 'Mothership', indexSource: 'user_provided' })
+    .values({
+      slug: 'mothership',
+      name: 'Mothership',
+      indexSource: 'user_provided',
+    })
     .returning();
   const [campaign] = await db
     .insert(schema.campaigns)
-    .values({ systemId: system.id, name: 'Test Campaign', visibility: 'private', diceMode: 'soft_accountability' })
+    .values({
+      systemId: system.id,
+      name: 'Test Campaign',
+      visibility: 'private',
+      diceMode: 'soft_accountability',
+    })
     .returning();
   return { systemId: system.id, campaignId: campaign.id };
 }
@@ -56,14 +68,17 @@ describe('AdventureRepository (integration)', () => {
 
       const found = await repo.findById(adventure.id, campaignId);
       expect(found).not.toBeNull();
-      expect(found!.id).toBe(adventure.id);
+      expect(found.id).toBe(adventure.id);
     });
   });
 
   describe('findById', () => {
     it('returns null for non-existent adventure', async () => {
       const { campaignId } = await seedSystemAndCampaign();
-      const result = await repo.findById('00000000-0000-0000-0000-000000000000', campaignId);
+      const result = await repo.findById(
+        '00000000-0000-0000-0000-000000000000',
+        campaignId,
+      );
       expect(result).toBeNull();
     });
 
@@ -74,7 +89,10 @@ describe('AdventureRepository (integration)', () => {
       const adventure = await repo.insert({ campaignId, callerId: 'u1' });
 
       // Look up with wrong campaign ID
-      const result = await repo.findById(adventure.id, '00000000-0000-0000-0000-000000000000');
+      const result = await repo.findById(
+        adventure.id,
+        '00000000-0000-0000-0000-000000000000',
+      );
       expect(result).toBeNull();
     });
   });
@@ -105,7 +123,12 @@ describe('AdventureRepository (integration)', () => {
       const { systemId, campaignId: c1 } = await seedSystemAndCampaign();
       const [c2] = await db
         .insert(schema.campaigns)
-        .values({ systemId, name: 'Other Campaign', visibility: 'private', diceMode: 'soft_accountability' })
+        .values({
+          systemId,
+          name: 'Other Campaign',
+          visibility: 'private',
+          diceMode: 'soft_accountability',
+        })
         .returning();
       await seedUser('u1', 'alice@example.com');
 

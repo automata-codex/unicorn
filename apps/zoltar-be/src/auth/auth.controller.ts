@@ -11,6 +11,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
 import { and, eq } from 'drizzle-orm';
+import type { FastifyReply } from 'fastify';
 import { EmailService } from '@uv/service-interfaces';
 import type { AuthUser } from '@uv/auth-core';
 import { DB_TOKEN } from '../db/db.provider';
@@ -37,7 +38,7 @@ export class AuthController {
   @Post('magic-link')
   async magicLink(
     @Body() body: { email: string },
-    @Res() reply: any,
+    @Res() reply: FastifyReply,
   ): Promise<void> {
     const email = body.email.toLowerCase().trim();
 
@@ -73,7 +74,7 @@ export class AuthController {
 
     // Send magic link email — link points to the backend verify endpoint,
     // which sets the session cookie and redirects to the frontend.
-    const apiUrl = this.config.get('PUBLIC_API_URL');
+    const apiUrl = this.config.get<string>('PUBLIC_API_URL');
     const magicUrl = `${apiUrl}/api/v1/auth/verify?token=${rawToken}&email=${encodeURIComponent(email)}`;
     await this.emailService.sendTransactional(
       email,
@@ -89,9 +90,9 @@ export class AuthController {
   async verify(
     @Query('token') rawToken: string,
     @Query('email') email: string,
-    @Res() reply: any,
+    @Res() reply: FastifyReply,
   ): Promise<void> {
-    const appUrl = this.config.get('PUBLIC_APP_URL');
+    const appUrl = this.config.get<string>('PUBLIC_APP_URL');
 
     if (!rawToken || !email) {
       reply.redirect(`${appUrl}/signin?error=invalid_token`);
@@ -151,7 +152,7 @@ export class AuthController {
     });
 
     // Set cookie and redirect
-    const cookieDomain = this.config.get('COOKIE_DOMAIN');
+    const cookieDomain = this.config.get<string>('COOKIE_DOMAIN');
     reply.header(
       'Set-Cookie',
       `authjs.session-token=${sessionToken}; HttpOnly; Secure; SameSite=Lax; Path=/; Domain=${cookieDomain}; Max-Age=${SESSION_MAX_AGE_S}`,
@@ -163,14 +164,14 @@ export class AuthController {
   @UseGuards(SessionGuard)
   async signout(
     @CurrentUser() user: AuthUser,
-    @Res() reply: any,
+    @Res() reply: FastifyReply,
   ): Promise<void> {
     // Delete all sessions for this user (simple approach)
     await this.db
       .delete(schema.authSessions)
       .where(eq(schema.authSessions.userId, user.id));
 
-    const cookieDomain = this.config.get('COOKIE_DOMAIN');
+    const cookieDomain = this.config.get<string>('COOKIE_DOMAIN');
     reply
       .header(
         'Set-Cookie',
