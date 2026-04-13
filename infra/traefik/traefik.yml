@@ -1,0 +1,20 @@
+api:
+  dashboard: true
+  insecure: true    # dashboard available at https://api.zoltar.local:8080; disable in prod
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entrypoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    exposedByDefault: false
+  file:
+    filename: /traefik-tls.yml

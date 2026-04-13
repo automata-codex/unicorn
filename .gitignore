@@ -89,4 +89,7 @@ build/
 # OS files
 .DS_Store
 
+# Local dev certificates (generated per-machine via mkcert)
+infra/traefik/certs/
+
 docs/plans

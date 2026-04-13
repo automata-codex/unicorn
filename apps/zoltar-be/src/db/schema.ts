@@ -38,6 +38,13 @@ export const adventureModeEnum = pgEnum('adventure_mode', [
   'initiative',
 ]);
 
+export const adventureStatusEnum = pgEnum('adventure_status', [
+  'synthesizing',
+  'ready',
+  'completed',
+  'failed',
+]);
+
 export const messageRoleEnum = pgEnum('message_role', [
   'player',
   'gm',
@@ -171,6 +178,7 @@ export const adventures = pgTable('adventure', {
   campaignId: uuid('campaign_id')
     .notNull()
     .references(() => campaigns.id, { onDelete: 'cascade' }),
+  status: adventureStatusEnum('status').notNull().default('synthesizing'),
   mode: adventureModeEnum('mode').notNull().default('freeform'),
   callerId: text('caller_id').references(() => users.id, {
     onDelete: 'set null',

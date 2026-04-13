@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { RealtimeService } from '../interfaces/realtime.service';
+import { RealtimeService } from '@uv/service-interfaces';
 
 @Injectable()
 export class NoopRealtimeService extends RealtimeService {

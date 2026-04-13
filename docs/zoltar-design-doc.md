@@ -1,5 +1,5 @@
 # Zoltar — Design Document
-*Draft 6 — March 2026*
+*Draft 7 — April 2026*
 
 ---
 
@@ -217,7 +217,10 @@ submit_gm_context({
       visible: boolean,
       tags: string[]
     }>,
-    initial_flags: Record<string, boolean>,
+    flags: Record<string, {
+      value:   boolean,  // initial value
+      trigger: string    // in-fiction condition that flips this flag; immutable after init
+    }>,
     initial_state: Record<string, unknown> // validated against system Zod schema
   }
 })
@@ -288,7 +291,7 @@ WebSocket real-time sync (Ably) handles cross-instance message delivery for the 
 
 | Layer         | Technology                                                                      |
 |---------------|---------------------------------------------------------------------------------|
-| Frontend      | Svelte SPA                                                                      |
+| Frontend      | Svelte 5 (SPA) — no SvelteKit; Vite build                                      |
 | Backend       | NestJS                                                                          |
 | Database      | PostgreSQL                                                                      |
 | AI            | Claude API (Sonnet 4)                                                           |
@@ -307,7 +310,8 @@ WebSocket real-time sync (Ably) handles cross-instance message delivery for the 
 
 ```typescript
 campaigns         { id, org_id (nullable), name, system, created_at }
-adventures        { id, campaign_id, mode, initiative_order: jsonb,
+adventures        { id, campaign_id, status: adventure_status,
+                    mode, initiative_order: text[],
                     caller_id, rolling_summary: text, created_at, completed_at }
 messages          { id, adventure_id, role, content, created_at }
 gm_context        { id, adventure_id, blob: jsonb }
@@ -334,6 +338,38 @@ const schemas = {
   uvg:        UVGCampaignStateSchema,
   fived:      FiveDCampaignStateSchema,
   ose:        OSECampaignStateSchema,
+}
+```
+
+### Mothership Campaign State Schema
+
+The `campaign_state.data` JSONB for a Mothership campaign is validated against `MothershipCampaignStateSchema` (`@uv/game-systems`):
+
+```typescript
+{
+  schemaVersion: 1,
+
+  // Flat map keyed {entity_id}_{pool_name}. All numeric resources live here.
+  // e.g. dr_chen_hp, vasquez_stress, reactor_integrity
+  resourcePools: Record<string, { current: number, max: number | null }>,
+
+  // Visibility, status, and NPC narrative state. Positions live in grid_entities.
+  entities: Record<string, {
+    visible:   boolean,
+    status:    'alive' | 'dead' | 'unknown',
+    npcState?: string,   // update whenever disposition or knowledge changes
+  }>,
+
+  // Each flag is self-contained: value + the in-fiction condition that flips it.
+  // trigger is set at init and never changes.
+  // stateChanges.flag_triggers carries only { flagName: newBooleanValue }.
+  flags: Record<string, { value: boolean, trigger: string }>,
+
+  // Non-entity numeric state: oxygen levels, reactor power, countdown timers, etc.
+  scenarioState: Record<string, { current: number, max: number | null, note: string }>,
+
+  // Environmental scratchpad: first-mention details that must stay consistent.
+  worldFacts: Record<string, string>,
 }
 ```
 
@@ -426,10 +462,14 @@ submit_gm_response({
   player_text: string,          // narrative delivered to the player
   state_changes: {
     resource_pools?: Record<string, { delta: number }>,
-    entities?: Record<string, { position?: Position, visible?: boolean }>,  // HP belongs in resource_pools, not here
-    flags?: Record<string, boolean>
+    // entities: visibility and status only — HP in resource_pools, positions in grid_entities
+    entities?: Record<string, { visible?: boolean, status?: 'alive' | 'dead' | 'unknown' }>,
+    // flag_triggers: carries only { flagName: newValue } — trigger description is immutable
+    flag_triggers?: Record<string, boolean>
   },
   gm_updates: {
+    // npc_states: update whenever NPC disposition or knowledge changes.
+    // e.g. "Hostile — witnessed player kill guard" or "Frightened, cornered"
     npc_states?: Record<string, string>,
     notes?: string,             // stored in gm_context, never shown to player
     proposed_canon?: Array<{    // improvised fiction that may warrant permanence
@@ -618,9 +658,10 @@ Adapted from Gygax's AD&D caller concept. Players coordinate in a back channel (
 ```typescript
 adventures {
   id, campaign_id,
+  status: 'synthesizing' | 'ready' | 'completed' | 'failed',
   mode: 'freeform' | 'initiative',
-  initiative_order: jsonb,  // string[] of entity ids, null when freeform
-  caller_id,                // one player, globally, at all times
+  initiative_order: text[],   // entity ids in order, null when freeform
+  caller_id,                  // one player, globally, at all times
   ...
 }
 ```
@@ -812,24 +853,28 @@ Claude receives the actual applied outcome including which rules fired, so it ca
 
 **SaaS:** Clerk — email/password, OAuth (Google, Discord — priority for gaming audience), magic links, MFA. Discord OAuth is day-one given the TTRPG demographic. Clerk Organizations maps onto the multi-tenant SaaS model.
 
-**Self-hosted:** Auth.js — self-hosters who want Clerk can configure ClerkAuthService instead of AuthJsService by bringing their own Clerk account and API keys. This is a config choice, no code change needed.
+**Self-hosted:** Backend-owned magic link auth — token generation, email delivery, and session management are handled natively by the NestJS backend using the `user`, `session`, and `verification_token` tables. No external auth provider is required. Self-hosters who prefer Clerk can configure `ClerkAuthService` by bringing their own Clerk account — this is a config choice, no code change needed.
+
+Auth.js is not used. The frontend is a pure Svelte 5 SPA with no server-side hooks, and Auth.js requires SvelteKit's SSR infrastructure. Magic link email is delivered via `EmailService.sendTransactional()` so local dev (MailHog) and production (self-hoster's SMTP) share one configuration path.
 
 **The abstraction layer:**
 
 ```typescript
-interface AuthService {
-  validateToken(token: string): Promise<User>
-  getUserById(id: string): Promise<User>
+abstract class AuthService {
+  abstract validateSession(sessionToken: string): Promise<AuthUser | null>
+  abstract getUserById(id: string): Promise<AuthUser | null>
 }
 ```
 
-NestJS DI selects the concrete implementation at bootstrap based on environment config.
+`LocalAuthService` is the self-hosted implementation. `ClerkAuthService` (closed-source SaaS package) is the SaaS implementation. NestJS DI selects at bootstrap based on `AUTH_PROVIDER` env var.
 
 ---
 
 ## Service Interfaces and Self-Hosted Configuration
 
 Every SaaS/self-hosted divergence point is a NestJS provider interface. SaaS implementations live in a closed-source package not included in the open source repository.
+
+**Package locations:** `AuthService` is defined in `packages/auth-core` (`@uv/auth-core`). The remaining six interfaces (`EntitlementsService`, `MeteringService`, `EmailService`, `AssetStorageService`, `RealtimeService`, `FeatureFlagService`) are defined in `packages/service-interfaces` (`@uv/service-interfaces`). Both are importable by the closed-source SaaS repo without depending on the open-source backend app. `AuthService` is in a separate package because it has a different consumer profile from the six backend-only interfaces. See `docs/decisions.md`.
 
 | Interface           | SaaS Implementation       | Self-hosted Default       | Self-hosted Alternative                      |
 |---------------------|---------------------------|---------------------------|----------------------------------------------|
@@ -1062,4 +1107,4 @@ SaaS infrastructure is intentionally deferred until the 2D VTT renderer is compl
 
 ---
 
-*Draft 6 adds: Campaigns, Adventures, and Sessions section defining the domain hierarchy and explaining why sessions are not a first-class concept. Database schema updated: sessions table dropped; adventures table added with id, campaign_id, gm_context_id, mode, initiative_order, rolling_summary, created_at, completed_at; messages and game_events now reference adventure_id; gm_context_id moved from campaigns to adventures to support multiple adventures per campaign. Message History and Context Window section added under Claude API Integration, covering last-N-kb rolling window, prompt structure, lazy rolling summary generation, and summarization prompt guidance. SaaS Infrastructure Roadmap updated with billing model direction: subscription tiers with adventure creation as the tier gate, no user-facing token metering, internal UsageMeteringService for cost accounting. Phase 1 plan updated to reflect adventure management instead of session management.*
+*Draft 7 adds: Frontend changed from SvelteKit to pure Svelte 5 SPA — no SSR, no server-side hooks. Auth.js dropped; magic link auth implemented natively in NestJS backend using existing auth tables. `LocalAuthService` replaces `AuthJsService`. Explicit `status` column added to `adventures` table (enum: synthesizing | ready | completed | failed); status is never inferred from gm_context row presence. `AuthService` in `@uv/auth-core`; remaining six service interfaces moved to `@uv/service-interfaces`. `flags` structure merged: value and trigger bundled per flag. `npcState` moved onto entity record. Mothership Campaign State Schema subsection added: flat `resourcePools`, `entities` with `npcState`, merged `flags`, `scenarioState`, `worldFacts`. Tool schemas updated accordingly.*
