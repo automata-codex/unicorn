@@ -126,7 +126,9 @@ describe('AuthController', () => {
         'Set-Cookie',
         expect.stringContaining('authjs.session-token='),
       );
-      expect(reply.redirect).toHaveBeenCalledWith(
+      expect(reply.status).toHaveBeenCalledWith(302);
+      expect(reply.header).toHaveBeenCalledWith(
+        'Location',
         'https://app.zoltar.local/campaigns',
       );
     });

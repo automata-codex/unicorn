@@ -5,7 +5,6 @@ import {
   Param,
   Post,
   UseGuards,
-  UsePipes,
 } from '@nestjs/common';
 import type { AuthUser } from '@uv/auth-core';
 import { SessionGuard } from '../auth/session.guard';
@@ -21,9 +20,8 @@ export class CampaignController {
   constructor(private readonly campaignService: CampaignService) {}
 
   @Post()
-  @UsePipes(new ZodValidationPipe(CreateCampaignSchema))
   async create(
-    @Body() dto: CreateCampaignDto,
+    @Body(new ZodValidationPipe(CreateCampaignSchema)) dto: CreateCampaignDto,
     @CurrentUser() user: AuthUser,
   ) {
     const campaign = await this.campaignService.create(dto, user.id);

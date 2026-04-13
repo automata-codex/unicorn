@@ -6,7 +6,6 @@ import {
   Post,
   Res,
   UseGuards,
-  UsePipes,
 } from '@nestjs/common';
 import type { AuthUser } from '@uv/auth-core';
 import { SessionGuard } from '../auth/session.guard';
@@ -22,10 +21,9 @@ export class AdventureController {
   constructor(private readonly adventureService: AdventureService) {}
 
   @Post()
-  @UsePipes(new ZodValidationPipe(CreateAdventureSchema))
   async create(
     @Param('campaignId') campaignId: string,
-    @Body() _dto: CreateAdventureDto,
+    @Body(new ZodValidationPipe(CreateAdventureSchema)) _dto: CreateAdventureDto,
     @CurrentUser() user: AuthUser,
     @Res() reply: any,
   ): Promise<void> {
