@@ -49,12 +49,6 @@ services:
       COOKIE_DOMAIN: ${COOKIE_DOMAIN}
       PUBLIC_APP_URL: ${PUBLIC_APP_URL}
       PUBLIC_API_URL: ${PUBLIC_API_URL}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`api.zoltar.local`)"
-      - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.tls=true"
-      - "traefik.http.services.backend.loadbalancer.server.port=3000"
 
   frontend:
     build:
@@ -64,12 +58,6 @@ services:
       - "5173:5173"
     environment:
       VITE_API_URL: ${PUBLIC_API_URL}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`app.zoltar.local`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls=true"
-      - "traefik.http.services.frontend.loadbalancer.server.port=5173"
 
   traefik:
     image: traefik:v3
@@ -80,13 +68,10 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./infra/traefik/traefik.yml:/traefik.yml:ro
-      - ./infra/traefik/traefik-tls.yml:/traefik-tls.yml:ro
+      - ./infra/traefik/dynamic:/traefik-dynamic:ro
       - ./infra/traefik/certs:/certs:ro
     environment:
       - DOCKER_HOST=unix:///var/run/docker.sock
-    depends_on:
-      - backend
-      - frontend
 
   mailhog:
     image: mailhog/mailhog

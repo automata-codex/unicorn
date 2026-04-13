@@ -1,0 +1,30 @@
+## Routes for Workflow B — host-run apps (daily development)
+## Traefik runs in Docker; the apps run on the host.
+## "host.docker.internal" resolves to the Docker host on macOS / Docker Desktop.
+
+http:
+  routers:
+    frontend:
+      rule: "Host(`app.zoltar.local`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      service: frontend
+
+    backend:
+      rule: "Host(`api.zoltar.local`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      service: backend
+
+  services:
+    frontend:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:5173"
+
+    backend:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3000"
