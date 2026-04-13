@@ -17,4 +17,5 @@ providers:
   docker:
     exposedByDefault: false
   file:
-    filename: /traefik-tls.yml
+    directory: /traefik-dynamic/
+    watch: true
