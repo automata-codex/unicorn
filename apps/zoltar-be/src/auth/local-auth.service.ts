@@ -1,9 +1,11 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { Inject, Injectable } from '@nestjs/common';
 import { AuthService, AuthUser } from '@uv/auth-core';
+import { eq } from 'drizzle-orm';
+
 import { DB_TOKEN } from '../db/db.provider';
-import type { Db } from '../db/db.provider';
 import * as schema from '../db/schema';
+
+import type { Db } from '../db/db.provider';
 
 @Injectable()
 export class LocalAuthService extends AuthService {

@@ -1,10 +1,13 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import type { AuthUser } from '@uv/auth-core';
-import { SessionGuard } from '../auth/session.guard';
+
 import { CurrentUser } from '../auth/current-user.decorator';
+import { SessionGuard } from '../auth/session.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
+
 import { CampaignService } from './campaign.service';
 import { CreateCampaignSchema } from './dto/create-campaign.dto';
+
+import type { AuthUser } from '@uv/auth-core';
 import type { CreateCampaignDto } from './dto/create-campaign.dto';
 
 @Controller('campaigns')

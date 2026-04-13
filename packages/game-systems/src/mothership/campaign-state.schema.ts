@@ -1,8 +1,9 @@
 import { z } from 'zod';
+
 import {
-  ResourcePoolSchema,
   EntitySchema,
   FlagSchema,
+  ResourcePoolSchema,
   ScenarioStateEntrySchema,
 } from '../shared';
 
@@ -30,13 +31,15 @@ export const MothershipCampaignStateSchema = z.object({
   worldFacts: z.record(z.string(), z.string()).default({}),
 });
 
-export type MothershipCampaignState = z.infer<typeof MothershipCampaignStateSchema>;
+export type MothershipCampaignState = z.infer<
+  typeof MothershipCampaignStateSchema
+>;
 
 export const emptyMothershipState = (): MothershipCampaignState => ({
   schemaVersion: 1,
   resourcePools: {},
-  entities:      {},
-  flags:         {},
+  entities: {},
+  flags: {},
   scenarioState: {},
-  worldFacts:    {},
+  worldFacts: {},
 });

@@ -5,9 +5,10 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { FastifyRequest } from 'fastify';
 import { AuthService } from '@uv/auth-core';
+
 import type { AuthUser } from '@uv/auth-core';
+import type { FastifyRequest } from 'fastify';
 
 interface AuthenticatedRequest extends FastifyRequest {
   user: AuthUser;

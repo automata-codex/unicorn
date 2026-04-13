@@ -17,5 +17,8 @@
   "volta": {
     "node": "24.14.1",
     "npm": "11.12.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.11"
   }
 }

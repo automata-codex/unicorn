@@ -1,4 +1,5 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+
 import type { AuthUser } from '@uv/auth-core';
 
 export const CurrentUser = createParamDecorator(

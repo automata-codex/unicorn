@@ -13,10 +13,11 @@
  *   beforeEach(() => truncateAll());
  */
 
-import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { sql } from 'drizzle-orm';
-import { Pool, Client } from 'pg';
 import { execSync } from 'child_process';
+import { sql } from 'drizzle-orm';
+import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { Client, Pool } from 'pg';
+
 import * as schema from '../src/db/schema';
 
 const TEST_DB = 'zoltar_test';

@@ -1,15 +1,15 @@
 import {
-  pgTable,
-  pgEnum,
-  uuid,
-  text,
   boolean,
+  index,
   integer,
   jsonb,
-  timestamp,
+  pgEnum,
+  pgTable,
   primaryKey,
+  text,
+  timestamp,
   uniqueIndex,
-  index,
+  uuid,
   vector,
 } from 'drizzle-orm/pg-core';
 

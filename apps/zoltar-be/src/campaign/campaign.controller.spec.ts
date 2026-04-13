@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { CampaignController } from './campaign.controller';
 
 const fakeUser = { id: 'u1', email: 'a@x.com', name: 'Alice' };

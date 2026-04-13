@@ -7,13 +7,16 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import type { FastifyReply } from 'fastify';
-import type { AuthUser } from '@uv/auth-core';
-import { SessionGuard } from '../auth/session.guard';
+
 import { CurrentUser } from '../auth/current-user.decorator';
+import { SessionGuard } from '../auth/session.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
+
 import { AdventureService } from './adventure.service';
 import { CreateAdventureSchema } from './dto/create-adventure.dto';
+
+import type { AuthUser } from '@uv/auth-core';
+import type { FastifyReply } from 'fastify';
 import type { CreateAdventureDto } from './dto/create-adventure.dto';
 
 @Controller('campaigns/:campaignId/adventures')
