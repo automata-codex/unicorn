@@ -62,7 +62,7 @@ Three important notes:
    cd apps/zoltar-be && ln -s ../../.env
    ```
 2. **Do not also start the `backend` / `frontend` compose services** in this mode — they'll fight the host processes for ports 3000 and 5173. `task up` brings up only the two infra services. If you previously used `task up:all`, run `task down` before switching modes.
-3. **`DATABASE_URL` differs by mode.** Inside compose, the database host is the service name `db`; from the host, it's `localhost`. The `.env.example` value is the compose form. For host-run development, override `DATABASE_URL` to `postgresql://zoltar:zoltar_dev@localhost:5432/zoltar` via shell env, a per-app `.env.local`, or your IDE run configuration.
+3. **`DATABASE_URL` and `SMTP_HOST` differ by mode.** Inside compose, the database host is the service name `db` and the mail server is `mailhog`; from the host, both are `localhost`. The `.env.example` defaults are the Workflow B (host-run) values. For Workflow A, override `DATABASE_URL` to use `db` and `SMTP_HOST` to use `mailhog`.
 
 ### Database / Flyway commands
 
