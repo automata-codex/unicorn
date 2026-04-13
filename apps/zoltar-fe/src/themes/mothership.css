@@ -1,0 +1,246 @@
+/*
+ * mothership.css — Mothership Theme
+ *
+ * Semantic token layer for the Mothership RPG genre.
+ * Aesthetic: deep space horror, industrial, emergency amber.
+ * All values reference primitives from base.css.
+ *
+ * Applied via: <html data-theme="mothership">
+ * Requires:    themes/base.css loaded first
+ *
+ * Naming convention: --color-{purpose}, --font-{purpose}, --space-{purpose}
+ */
+
+[data-theme="mothership"] {
+
+    /* -----------------------------------------------------------------------
+     * Backgrounds
+     * ----------------------------------------------------------------------- */
+
+    /* Page/app background — near-black, the void */
+    --color-bg:               var(--primitive-slate-960);
+
+    /* Card/panel surfaces — slightly lifted from bg */
+    --color-surface:          var(--primitive-slate-940);
+
+    /* Elevated surfaces — inputs, entry rows */
+    --color-surface-raised:   var(--primitive-slate-920);
+
+    /* Deep surface — within-input background */
+    --color-surface-deep:     var(--primitive-slate-960);
+
+    /* -----------------------------------------------------------------------
+     * Borders
+     * ----------------------------------------------------------------------- */
+
+    /* Barely-there dividers */
+    --color-border-subtle:    var(--primitive-slate-900);
+
+    /* Default card and panel borders */
+    --color-border:           var(--primitive-slate-850);
+
+    /* Inputs, entry rows */
+    --color-border-input:     var(--primitive-slate-800);
+
+    /* Strong borders — phone frame, outer containers */
+    --color-border-strong:    var(--primitive-slate-700);
+
+    /* -----------------------------------------------------------------------
+     * Text
+     * ----------------------------------------------------------------------- */
+
+    /* Primary content — GM narrative, entry names */
+    --color-text-primary:     var(--primitive-slate-300);
+
+    /* Secondary content — player input text, stats */
+    --color-text-secondary:   var(--primitive-slate-400);
+
+    /* Tertiary — labels, category headers */
+    --color-text-tertiary:    var(--primitive-slate-500);
+
+    /* Ghost — near-invisible, structural labels, placeholders */
+    --color-text-ghost:       var(--primitive-slate-600);
+
+    /* -----------------------------------------------------------------------
+     * Accent — Amber (emergency lighting, primary interactive)
+     * ----------------------------------------------------------------------- */
+
+    --color-accent:           var(--primitive-amber-400);
+    --color-accent-hover:     var(--primitive-amber-300);
+    --color-accent-border:    var(--primitive-amber-700);
+    --color-accent-bg:        var(--primitive-amber-800);
+    --color-accent-bg-subtle: var(--primitive-amber-900);
+
+    /* Text on amber background */
+    --color-accent-fg:        var(--primitive-slate-960);
+
+    /* -----------------------------------------------------------------------
+     * Message log — channel colors
+     * ----------------------------------------------------------------------- */
+
+    /* Warden messages — amber left border (authority, the world speaking) */
+    --color-warden-channel:   var(--primitive-amber-400);
+
+    /* Warden message surface */
+    --color-warden-surface:   var(--primitive-slate-940);
+    --color-warden-border:    var(--primitive-slate-850);
+
+    /* Player messages — dim steel right border (comms channel) */
+    --color-player-channel:   var(--primitive-steel-400);
+
+    /* Player message surface */
+    --color-player-surface:   var(--primitive-player-surface);
+    --color-player-border:    var(--primitive-player-border);
+
+    /* -----------------------------------------------------------------------
+     * Inline game elements
+     * ----------------------------------------------------------------------- */
+
+    /* Roll prompt chips (d100 · INSTINCT) */
+    --color-roll-prompt-bg:     var(--primitive-slate-900);
+    --color-roll-prompt-border: var(--primitive-slate-800);
+    --color-roll-prompt-label:  var(--primitive-amber-400);
+    --color-roll-prompt-text:   var(--primitive-slate-500);
+
+    /* Roll result — neutral container */
+    --color-roll-result-bg:     var(--primitive-slate-940);
+    --color-roll-result-border: var(--primitive-steel-400);
+    --color-roll-result-value:  var(--primitive-amber-400);
+
+    /* -----------------------------------------------------------------------
+     * Status — resource bars
+     * ----------------------------------------------------------------------- */
+
+    /* HP bar */
+    --color-hp:               var(--primitive-amber-400);
+
+    /* Stress bar */
+    --color-stress:           var(--primitive-purple-400);
+
+    /* Bar track (empty) */
+    --color-bar-track:        var(--primitive-slate-850);
+
+    /* -----------------------------------------------------------------------
+     * Semantic states
+     * ----------------------------------------------------------------------- */
+
+    --color-success:          var(--primitive-green-400);
+    --color-success-text:     var(--primitive-green-300);
+
+    --color-danger:           var(--primitive-red-300);
+    --color-danger-text:      var(--primitive-red-200);
+    --color-danger-bg:        var(--primitive-red-500);
+
+    --color-warning:          var(--primitive-amber-400);
+
+    /* Online/presence indicator */
+    --color-presence-online:  var(--primitive-green-400);
+
+    /* -----------------------------------------------------------------------
+     * Typography
+     * ----------------------------------------------------------------------- */
+
+    /* Mothership uses monospace throughout — ship terminal aesthetic */
+    --font-primary:           var(--primitive-font-mono);
+
+    /* Fallback for non-game UI surfaces if needed */
+    --font-ui:                var(--primitive-font-sans);
+
+    /* -----------------------------------------------------------------------
+     * Font size aliases (components use these, not primitives)
+     * ----------------------------------------------------------------------- */
+
+    --font-size-2xs:          var(--primitive-font-size-2xs);  /* 8px  metadata, icon labels */
+    --font-size-xs:           var(--primitive-font-size-xs);   /* 9px  category labels */
+    --font-size-sm:           var(--primitive-font-size-sm);   /* 10px hints */
+    --font-size-md:           var(--primitive-font-size-md);   /* 11px body, entry names */
+    --font-size-base:         var(--primitive-font-size-base); /* 12px message text */
+    --font-size-lg:           var(--primitive-font-size-lg);   /* 13px stats, char name */
+    --font-size-xl:           var(--primitive-font-size-xl);   /* 14px screen titles */
+    --font-size-2xl:          var(--primitive-font-size-2xl);  /* 16px campaign name */
+    --font-size-3xl:          var(--primitive-font-size-3xl);  /* 20px hero text */
+
+    /* -----------------------------------------------------------------------
+     * Letter spacing aliases
+     * ----------------------------------------------------------------------- */
+
+    --tracking-tight:         var(--primitive-tracking-tight);
+    --tracking-base:          var(--primitive-tracking-base);
+    --tracking-wide:          var(--primitive-tracking-wide);
+    --tracking-wider:         var(--primitive-tracking-wider);
+    --tracking-widest:        var(--primitive-tracking-widest);
+
+    /* -----------------------------------------------------------------------
+     * Line height aliases
+     * ----------------------------------------------------------------------- */
+
+    --line-height-tight:      var(--primitive-line-height-tight);
+    --line-height-base:       var(--primitive-line-height-base);
+    --line-height-loose:      var(--primitive-line-height-loose);
+
+    /* -----------------------------------------------------------------------
+     * Spacing aliases
+     * ----------------------------------------------------------------------- */
+
+    --space-1:                var(--primitive-space-1);   /* 4px  */
+    --space-2:                var(--primitive-space-2);   /* 6px  */
+    --space-3:                var(--primitive-space-3);   /* 8px  */
+    --space-4:                var(--primitive-space-4);   /* 10px */
+    --space-5:                var(--primitive-space-5);   /* 12px */
+    --space-6:                var(--primitive-space-6);   /* 14px */
+    --space-7:                var(--primitive-space-7);   /* 16px */
+    --space-8:                var(--primitive-space-8);   /* 20px */
+    --space-9:                var(--primitive-space-9);   /* 24px */
+    --space-10:               var(--primitive-space-10);  /* 32px */
+
+    /* -----------------------------------------------------------------------
+     * Border radius aliases
+     * ----------------------------------------------------------------------- */
+
+    --radius-sm:              var(--primitive-radius-sm);   /* 4px  chips, inputs */
+    --radius-md:              var(--primitive-radius-md);   /* 6px  buttons */
+    --radius-lg:              var(--primitive-radius-lg);   /* 8px  cards, panels */
+    --radius-xl:              var(--primitive-radius-xl);   /* 12px large cards */
+    --radius-full:            var(--primitive-radius-full); /* pills, indicators */
+
+    /* -----------------------------------------------------------------------
+     * Component-specific tokens
+     * (derived here to keep components free of theme logic)
+     * ----------------------------------------------------------------------- */
+
+    /* Input fields */
+    --input-bg:               var(--color-surface-deep);
+    --input-border:           var(--color-border-input);
+    --input-text:             var(--color-text-secondary);
+    --input-placeholder:      var(--color-text-ghost);
+    --input-radius:           var(--radius-sm);
+    --input-padding:          var(--space-3) var(--space-4);
+
+    /* Primary button (amber) */
+    --btn-primary-bg:         var(--color-accent);
+    --btn-primary-bg-hover:   var(--color-accent-hover);
+    --btn-primary-text:       var(--color-accent-fg);
+    --btn-primary-radius:     var(--radius-md);
+
+    /* Ghost button */
+    --btn-ghost-bg:           transparent;
+    --btn-ghost-text:         var(--color-text-ghost);
+    --btn-ghost-text-active:  var(--color-accent);
+
+    /* Disabled state */
+    --btn-disabled-bg:        var(--color-surface-raised);
+    --btn-disabled-border:    var(--color-border);
+    --btn-disabled-text:      var(--color-text-ghost);
+
+    /* Card */
+    --card-bg:                var(--color-surface);
+    --card-border:            var(--color-border);
+    --card-radius:            var(--radius-lg);
+    --card-padding:           var(--space-5);
+
+    /* Section label (SURVIVORS, STATS, etc.) */
+    --label-text:             var(--color-text-ghost);
+    --label-size:             var(--font-size-xs);
+    --label-tracking:         var(--tracking-wider);
+
+}

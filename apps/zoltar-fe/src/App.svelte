@@ -6,6 +6,7 @@
   import { loadSession, session, sessionLoading } from './lib/session.svelte';
   import CampaignDetail from './pages/CampaignDetail.svelte';
   import CampaignList from './pages/CampaignList.svelte';
+  import DevComponents from './pages/DevComponents.svelte';
   import SignIn from './pages/SignIn.svelte';
 
   onMount(() => {
@@ -42,7 +43,9 @@
     </nav>
   {/if}
 
-  {#if $route.startsWith('/signin')}
+  {#if $route.startsWith('/dev/components')}
+    <DevComponents />
+  {:else if $route.startsWith('/signin')}
     <SignIn />
   {:else if getCampaignId($route)}
     <CampaignDetail campaignId={getCampaignId($route)!} />

@@ -64,6 +64,10 @@ Packages are internal workspace packages — they are not published to npm.
 - Entity identifiers use underscores only — no dots, hyphens, or other separators: `corporate_spy_1`, `dr_chen`, not `corporate-spy-1` or `dr.chen`
 - Resource pool names use underscores and follow the pattern `{entity_id}_{pool_name}`: `dr_chen_hp`, `dr_chen_stress`, `vasquez_ammo`
 
+## Design System
+
+For all frontend work, read `docs/design-system.md` before writing any code. It covers the token architecture, semantic token reference, and component conventions.
+
 ## Testing Standards
 
 Testing expectations apply uniformly across all milestones — they are not tracked per-feature in the roadmap.
