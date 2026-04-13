@@ -1,0 +1,52 @@
+/* typography.css */
+
+.type-screen-label {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-ghost);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+}
+
+.type-screen-title {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-xl);
+  color: var(--color-text-primary);
+  letter-spacing: var(--tracking-tight);
+}
+
+.type-campaign-name {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-2xl);
+  color: var(--color-text-primary);
+  letter-spacing: var(--tracking-tight);
+}
+
+.type-body {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-loose);
+}
+
+.type-label {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.type-meta {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-ghost);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+}
+
+.type-stat-value {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-lg);
+  color: var(--color-text-secondary);
+}
