@@ -1,11 +1,11 @@
-// TODO(M2): Decide whether AuthService stays in this package or moves into
-// apps/zoltar-be/src/services/interfaces/ alongside the six other deferred
-// service interfaces (Entitlements, Metering, Email, AssetStorage, Realtime,
-// FeatureFlag) that were stubbed in M1 Phase 5. The current split is
-// inconsistent — the rationale for `auth-core` being a package is so a future
-// closed-source SaaS package can import the abstract class, but the same
-// rationale applies to the other six. Resolve this before implementing
-// AuthJsService for real, since the decision affects where new files land.
-interface AuthService {}
+export type AuthUser = {
+  id: string;
+  email: string | null;
+  name: string | null;
+};
 
-type User = {};
+export abstract class AuthService {
+  /** Validate a session token. Returns the associated user or null if invalid/expired. */
+  abstract validateSession(sessionToken: string): Promise<AuthUser | null>;
+  abstract getUserById(id: string): Promise<AuthUser | null>;
+}

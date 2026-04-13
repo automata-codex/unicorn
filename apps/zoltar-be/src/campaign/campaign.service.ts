@@ -1,0 +1,63 @@
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { emptyMothershipState } from '@uv/game-systems';
+import { CampaignRepository } from './campaign.repository';
+import type { CreateCampaignDto } from './dto/create-campaign.dto';
+
+@Injectable()
+export class CampaignService {
+  constructor(private readonly repo: CampaignRepository) {}
+
+  async create(dto: CreateCampaignDto, userId: string) {
+    const system = await this.repo.findGameSystemBySlug('mothership');
+    if (!system) {
+      throw new NotFoundException(
+        'Game system "mothership" not found — ensure migrations are applied',
+      );
+    }
+
+    const campaign = await this.repo.insertCampaign({
+      systemId: system.id,
+      name: dto.name,
+      visibility: dto.visibility,
+      diceMode: dto.diceMode,
+    });
+
+    await this.repo.insertMember({
+      campaignId: campaign.id,
+      userId,
+      role: 'owner',
+    });
+
+    await this.repo.insertState({
+      campaignId: campaign.id,
+      system: 'mothership',
+      data: emptyMothershipState(),
+    });
+
+    return campaign;
+  }
+
+  async findAllForUser(userId: string) {
+    return this.repo.findAllForUser(userId);
+  }
+
+  async findById(campaignId: string) {
+    const campaign = await this.repo.findById(campaignId);
+    if (!campaign) throw new NotFoundException('Campaign not found');
+    return campaign;
+  }
+
+  async assertMember(campaignId: string, userId: string): Promise<void> {
+    const member = await this.repo.findMember(campaignId, userId);
+    if (!member) throw new ForbiddenException('Not a member of this campaign');
+  }
+
+  async assertOwner(campaignId: string, userId: string): Promise<void> {
+    const owner = await this.repo.findOwner(campaignId, userId);
+    if (!owner) throw new ForbiddenException('Not the owner of this campaign');
+  }
+}

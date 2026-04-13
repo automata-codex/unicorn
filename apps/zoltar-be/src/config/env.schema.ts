@@ -4,6 +4,12 @@ export const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   NODE_ENV: z.enum(['development', 'production', 'test']),
   PORT: z.coerce.number().int().positive().default(3000),
+  SMTP_HOST: z.string().default('localhost'),
+  SMTP_PORT: z.coerce.number().int().positive().default(1025),
+  AUTH_EMAIL_FROM: z.string().email().default('noreply@zoltar.local'),
+  COOKIE_DOMAIN: z.string().default('.zoltar.local'),
+  PUBLIC_APP_URL: z.string().url().default('https://app.zoltar.local'),
+  PUBLIC_API_URL: z.string().url().default('https://api.zoltar.local'),
 });
 
 export type Env = z.infer<typeof envSchema>;

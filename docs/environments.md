@@ -73,28 +73,56 @@ Database migrations are managed by Flyway, run as a one-shot container in the Co
 
 Each verb runs `docker compose run --rm flyway <verb>`, so the same connection config and migration volume mount is used regardless of how Flyway is invoked. The `flyway` compose service also has `command: migrate` set and the `backend` service depends on it via `service_completed_successfully`, so `docker compose up` applies migrations automatically as part of stack startup.
 
-### Local Dev Reverse Proxy (Deferred)
+### Local Dev Reverse Proxy
 
-The intended local dev setup uses **Traefik** as a reverse proxy with `*.zoltar.local` hostnames and
-mkcert-issued TLS certificates. This gives SSL parity with production, catches secure-cookie and
-CORS issues early, and routes multiple services without manual port management:
+Traefik runs as a reverse proxy in the Docker Compose stack, routing all local dev traffic via
+Host-based rules over HTTPS. mkcert issues a wildcard certificate trusted by the local machine.
+This gives SSL parity with production and ensures session cookies and CORS behave identically in
+local dev and on the Droplet.
 
-| Hostname                | Target                  |
-|-------------------------|-------------------------|
-| `app.zoltar.local`      | `zoltar-fe` (SvelteKit) |
-| `api.zoltar.local`      | `zoltar-be` (NestJS)    |
-| `playtest.zoltar.local` | `zoltar-playtest`       |
+| Hostname                | Target            | Port |
+|-------------------------|-------------------|------|
+| `app.zoltar.local`      | `zoltar-fe`       | 5173 |
+| `api.zoltar.local`      | `zoltar-be`       | 3000 |
+| `playtest.zoltar.local` | `zoltar-playtest` | 5174 |
 
-**This is not set up yet.** It becomes worthwhile once the frontend and backend are integrated and
-Auth.js is in place — secure cookies and OAuth redirect URIs are where the SSL gap actually bites.
-Until then, services run on their assigned ports and are accessed directly.
+HTTP (port 80) redirects to HTTPS automatically. The Traefik dashboard is available at
+`https://api.zoltar.local:8080` in local dev.
 
-When the time comes, setup will require:
-- [`mkcert`](https://github.com/FiloSottile/mkcert) installed and CA trusted on each dev machine
-- `/etc/hosts` entries for each `*.zoltar.local` hostname
-- A Traefik service added to `docker-compose.yml` with label-based routing per service
+#### One-time setup (per dev machine)
 
-Document the setup procedure here when it's implemented.
+```sh
+# Install mkcert and trust the local CA
+brew install mkcert   # macOS; see https://github.com/FiloSottile/mkcert for other platforms
+mkcert -install
+
+# Generate the wildcard cert (run from repo root)
+# infra/traefik/certs/ is gitignored — certs are not committed
+mkcert -cert-file infra/traefik/certs/local.crt \
+       -key-file  infra/traefik/certs/local.key \
+       "*.zoltar.local" zoltar.local
+
+# Add /etc/hosts entries
+echo "127.0.0.1 app.zoltar.local api.zoltar.local playtest.zoltar.local" \
+  | sudo tee -a /etc/hosts
+```
+
+Certs are per-machine and must be generated locally — they are not committed. Each developer runs
+this once.
+
+#### Verify the setup
+
+```sh
+curl -k https://api.zoltar.local/health   # {"status":"ok"}
+curl -k https://app.zoltar.local/         # Svelte SPA HTML
+open http://localhost:8025                # MailHog web UI
+```
+
+#### MailHog
+
+MailHog runs in the Compose stack as an SMTP sink for local dev. Magic link emails are delivered
+via `SmtpEmailService` pointed at `mailhog:1025`. Click magic links by visiting the MailHog web UI
+at `http://localhost:8025` — emails never leave the local machine.
 
 ## Personal DigitalOcean Droplet (Self-Hosted)
 

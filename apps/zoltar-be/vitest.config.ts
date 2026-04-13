@@ -6,6 +6,7 @@ export default defineConfig({
     globals: false,
     root: './',
     include: ['src/**/*.spec.ts'],
+    exclude: ['src/**/*.spec-int.ts'],
     environment: 'node',
   },
   plugins: [

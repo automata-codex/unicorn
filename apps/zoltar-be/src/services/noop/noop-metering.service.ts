@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { MeteringService } from '../interfaces/metering.service';
+import { MeteringService } from '@uv/service-interfaces';
 
 @Injectable()
 export class NoopMeteringService extends MeteringService {

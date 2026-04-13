@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { FeatureFlagService } from '../interfaces/feature-flag.service';
+import { FeatureFlagService } from '@uv/service-interfaces';
 
 @Injectable()
 export class NoopFeatureFlagService extends FeatureFlagService {
