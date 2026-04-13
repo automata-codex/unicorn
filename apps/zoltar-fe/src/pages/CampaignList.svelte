@@ -1,46 +1,47 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { api } from '../lib/api';
-	import { navigate } from '../lib/router.svelte';
+  import { onMount } from 'svelte';
 
-	type Campaign = {
-		id: string;
-		name: string;
-		visibility: string;
-		diceMode: string;
-		createdAt: string;
-	};
+  import { api } from '../lib/api';
+  import { navigate } from '../lib/router.svelte';
 
-	let campaigns = $state<Campaign[]>([]);
-	let loading = $state(true);
-	let showForm = $state(false);
-	let newName = $state('');
-	let creating = $state(false);
+  type Campaign = {
+    id: string;
+    name: string;
+    visibility: string;
+    diceMode: string;
+    createdAt: string;
+  };
 
-	onMount(async () => {
-		const res = await api('/api/v1/campaigns');
-		if (res.ok) {
-			campaigns = await res.json();
-		}
-		loading = false;
-	});
+  let campaigns = $state<Campaign[]>([]);
+  let loading = $state(true);
+  let showForm = $state(false);
+  let newName = $state('');
+  let creating = $state(false);
 
-	async function handleCreate(e: Event) {
-		e.preventDefault();
-		creating = true;
+  onMount(async () => {
+    const res = await api('/api/v1/campaigns');
+    if (res.ok) {
+      campaigns = await res.json();
+    }
+    loading = false;
+  });
 
-		const res = await api('/api/v1/campaigns', {
-			method: 'POST',
-			body: JSON.stringify({ name: newName }),
-		});
+  async function handleCreate(e: Event) {
+    e.preventDefault();
+    creating = true;
 
-		if (res.ok) {
-			const campaign = await res.json();
-			navigate(`/campaigns/${campaign.id}`);
-		}
+    const res = await api('/api/v1/campaigns', {
+      method: 'POST',
+      body: JSON.stringify({ name: newName }),
+    });
 
-		creating = false;
-	}
+    if (res.ok) {
+      const campaign = await res.json();
+      navigate(`/campaigns/${campaign.id}`);
+    }
+
+    creating = false;
+  }
 </script>
 
 <main>

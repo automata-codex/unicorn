@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from 'crypto';
 import {
   Body,
   Controller,
@@ -9,16 +10,18 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHash, randomBytes } from 'crypto';
-import { and, eq } from 'drizzle-orm';
-import type { FastifyReply } from 'fastify';
 import { EmailService } from '@uv/service-interfaces';
-import type { AuthUser } from '@uv/auth-core';
+import { and, eq } from 'drizzle-orm';
+
 import { DB_TOKEN } from '../db/db.provider';
-import type { Db } from '../db/db.provider';
 import * as schema from '../db/schema';
-import { SessionGuard } from './session.guard';
+
 import { CurrentUser } from './current-user.decorator';
+import { SessionGuard } from './session.guard';
+
+import type { AuthUser } from '@uv/auth-core';
+import type { FastifyReply } from 'fastify';
+import type { Db } from '../db/db.provider';
 
 function hashToken(raw: string): string {
   return createHash('sha256').update(raw).digest('hex');

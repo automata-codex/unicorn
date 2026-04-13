@@ -1,11 +1,13 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+
 import {
-  setupTestDb,
   getTestDb,
+  setupTestDb,
   teardownTestDb,
   truncateAll,
 } from '../../test/db-test-helper';
 import * as schema from '../db/schema';
+
 import { CampaignRepository } from './campaign.repository';
 
 let repo: CampaignRepository;

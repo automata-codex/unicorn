@@ -1,61 +1,62 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { api } from '../lib/api';
-	import { navigate } from '../lib/router.svelte';
+  import { onMount } from 'svelte';
 
-	type Adventure = {
-		id: string;
-		campaignId: string;
-		status: string;
-		mode: string;
-		callerId: string;
-		createdAt: string;
-		completedAt: string | null;
-	};
+  import { api } from '../lib/api';
+  import { navigate } from '../lib/router.svelte';
 
-	type Campaign = {
-		id: string;
-		name: string;
-	};
+  type Adventure = {
+    id: string;
+    campaignId: string;
+    status: string;
+    mode: string;
+    callerId: string;
+    createdAt: string;
+    completedAt: string | null;
+  };
 
-	interface Props {
-		campaignId: string;
-	}
+  type Campaign = {
+    id: string;
+    name: string;
+  };
 
-	let { campaignId }: Props = $props();
+  interface Props {
+    campaignId: string;
+  }
 
-	let campaign = $state<Campaign | null>(null);
-	let adventures = $state<Adventure[]>([]);
-	let loading = $state(true);
-	let error = $state('');
+  let { campaignId }: Props = $props();
 
-	onMount(async () => {
-		const [campRes, advRes] = await Promise.all([
-			api(`/api/v1/campaigns/${campaignId}`),
-			api(`/api/v1/campaigns/${campaignId}/adventures`),
-		]);
+  let campaign = $state<Campaign | null>(null);
+  let adventures = $state<Adventure[]>([]);
+  let loading = $state(true);
+  let error = $state('');
 
-		if (campRes.ok) {
-			campaign = await campRes.json();
-		} else if (campRes.status === 403) {
-			error = 'You are not a member of this campaign.';
-		} else {
-			error = 'Campaign not found.';
-		}
+  onMount(async () => {
+    const [campRes, advRes] = await Promise.all([
+      api(`/api/v1/campaigns/${campaignId}`),
+      api(`/api/v1/campaigns/${campaignId}/adventures`),
+    ]);
 
-		if (advRes.ok) {
-			adventures = await advRes.json();
-		}
+    if (campRes.ok) {
+      campaign = await campRes.json();
+    } else if (campRes.status === 403) {
+      error = 'You are not a member of this campaign.';
+    } else {
+      error = 'Campaign not found.';
+    }
 
-		loading = false;
-	});
+    if (advRes.ok) {
+      adventures = await advRes.json();
+    }
 
-	const statusColors: Record<string, string> = {
-		synthesizing: '#f59e0b',
-		ready: '#10b981',
-		completed: '#6b7280',
-		failed: '#ef4444',
-	};
+    loading = false;
+  });
+
+  const statusColors: Record<string, string> = {
+    synthesizing: '#f59e0b',
+    ready: '#10b981',
+    completed: '#6b7280',
+    failed: '#ef4444',
+  };
 </script>
 
 <main>

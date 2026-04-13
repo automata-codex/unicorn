@@ -1,34 +1,35 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { session, sessionLoading, loadSession } from './lib/session.svelte';
-	import { route, navigate } from './lib/router.svelte';
-	import { api } from './lib/api';
-	import SignIn from './pages/SignIn.svelte';
-	import CampaignList from './pages/CampaignList.svelte';
-	import CampaignDetail from './pages/CampaignDetail.svelte';
+  import { onMount } from 'svelte';
 
-	onMount(() => {
-		loadSession();
-	});
+  import { api } from './lib/api';
+  import { navigate, route } from './lib/router.svelte';
+  import { loadSession, session, sessionLoading } from './lib/session.svelte';
+  import CampaignDetail from './pages/CampaignDetail.svelte';
+  import CampaignList from './pages/CampaignList.svelte';
+  import SignIn from './pages/SignIn.svelte';
 
-	// Redirect unauthenticated users to /signin after session load completes
-	$effect(() => {
-		if (!$sessionLoading && !$session && !$route.startsWith('/signin')) {
-			navigate('/signin');
-		}
-	});
+  onMount(() => {
+    loadSession();
+  });
 
-	async function handleSignOut() {
-		await api('/api/v1/auth/signout', { method: 'POST' });
-		session.set(null);
-		navigate('/signin');
-	}
+  // Redirect unauthenticated users to /signin after session load completes
+  $effect(() => {
+    if (!$sessionLoading && !$session && !$route.startsWith('/signin')) {
+      navigate('/signin');
+    }
+  });
 
-	// Extract campaignId from /campaigns/:id paths
-	function getCampaignId(path: string): string | null {
-		const match = path.match(/^\/campaigns\/([^/]+)/);
-		return match ? match[1] : null;
-	}
+  async function handleSignOut() {
+    await api('/api/v1/auth/signout', { method: 'POST' });
+    session.set(null);
+    navigate('/signin');
+  }
+
+  // Extract campaignId from /campaigns/:id paths
+  function getCampaignId(path: string): string | null {
+    const match = path.match(/^\/campaigns\/([^/]+)/);
+    return match ? match[1] : null;
+  }
 </script>
 
 {#if $sessionLoading}

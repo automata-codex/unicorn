@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createHash } from 'crypto';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { AuthController } from './auth.controller';
 
 function hashToken(raw: string): string {

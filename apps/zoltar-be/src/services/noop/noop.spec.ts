@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { NoopAssetStorageService } from './noop-asset-storage.service';
 import { NoopEmailService } from './noop-email.service';
 import { NoopEntitlementsService } from './noop-entitlements.service';

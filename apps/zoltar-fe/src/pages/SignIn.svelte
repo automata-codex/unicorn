@@ -1,31 +1,31 @@
 <script lang="ts">
-	import { api } from '../lib/api';
+  import { api } from '../lib/api';
 
-	let email = $state('');
-	let submitted = $state(false);
-	let error = $state('');
+  let email = $state('');
+  let submitted = $state(false);
+  let error = $state('');
 
-	// Check for error from failed verify redirect
-	const params = new URLSearchParams(window.location.search);
-	if (params.get('error') === 'invalid_token') {
-		error = 'That link is invalid or expired. Please request a new one.';
-	}
+  // Check for error from failed verify redirect
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('error') === 'invalid_token') {
+    error = 'That link is invalid or expired. Please request a new one.';
+  }
 
-	async function handleSubmit(e: Event) {
-		e.preventDefault();
-		error = '';
+  async function handleSubmit(e: Event) {
+    e.preventDefault();
+    error = '';
 
-		const res = await api('/api/v1/auth/magic-link', {
-			method: 'POST',
-			body: JSON.stringify({ email }),
-		});
+    const res = await api('/api/v1/auth/magic-link', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
 
-		if (res.ok) {
-			submitted = true;
-		} else {
-			error = 'Something went wrong. Please try again.';
-		}
-	}
+    if (res.ok) {
+      submitted = true;
+    } else {
+      error = 'Something went wrong. Please try again.';
+    }
+  }
 </script>
 
 <main>
