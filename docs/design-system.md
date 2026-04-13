@@ -50,6 +50,20 @@ Future themes (fantasy, space-opera, etc.) are additional CSS files that redefin
 
 ---
 
+## Typography
+
+### Typeface: IBM Plex Mono
+
+Zoltar uses **IBM Plex Mono** as its sole typeface, self-hosted from `apps/zoltar-fe/static/fonts/`. Three weights are in use: 400 regular, 400 italic, 500 medium.
+
+**Why IBM Plex Mono:** The Mothership theme requires a monospace that reads as functional and industrial — ship systems, terminal output, engineering readouts. IBM Plex Mono has the right register: engineered and utilitarian without being quirky or retro-styled. It is legible at the small sizes the UI uses (8–9px labels) and carries no strong sci-fi genre signaling of its own, which means it serves the horror atmosphere without competing with it. More stylized options (Space Mono, Departure Mono) were considered and rejected for being too on-the-nose.
+
+**Why monospace throughout:** The game content — warden narrative, player input, dice results, status readouts — all benefit from the terminal/comms aesthetic that monospace provides. Using a separate sans-serif for UI chrome would create a register split that works against the immersion. Monospace throughout is a deliberate choice, not a shortcut.
+
+**Do not swap this font** without a considered aesthetic reason and a design review. System font fallbacks in `--primitive-font-mono` exist only for cases where the font files fail to load — they are not an acceptable substitute for the intended experience.
+
+---
+
 ## Semantic Token Reference
 
 All tokens are defined on `[data-theme="mothership"]`. Use these in components.
