@@ -84,9 +84,6 @@ services:
       - ./infra/traefik/certs:/certs:ro
     environment:
       - DOCKER_HOST=unix:///var/run/docker.sock
-    depends_on:
-      - backend
-      - frontend
 
   mailhog:
     image: mailhog/mailhog

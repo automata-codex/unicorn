@@ -9,7 +9,7 @@ tasks:
   up:
     desc: Start infra (db, then flyway migrate). For Workflow B — host-run apps in separate terminals.
     cmds:
-      - docker compose up -d --wait db
+      - docker compose up -d --wait db mailhog traefik
       - task: flyway:migrate
 
   up:all:
