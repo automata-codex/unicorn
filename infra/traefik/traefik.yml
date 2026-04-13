@@ -16,8 +16,5 @@ entryPoints:
 providers:
   docker:
     exposedByDefault: false
-
-tls:
-  certificates:
-    - certFile: /certs/local.crt
-      keyFile:  /certs/local.key
+  file:
+    filename: /traefik-tls.yml

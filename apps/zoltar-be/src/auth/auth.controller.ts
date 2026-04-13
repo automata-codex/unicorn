@@ -71,9 +71,10 @@ export class AuthController {
       expires,
     });
 
-    // Send magic link email
-    const appUrl = this.config.get('PUBLIC_APP_URL');
-    const magicUrl = `${appUrl}/auth/verify?token=${rawToken}&email=${encodeURIComponent(email)}`;
+    // Send magic link email — link points to the backend verify endpoint,
+    // which sets the session cookie and redirects to the frontend.
+    const apiUrl = this.config.get('PUBLIC_API_URL');
+    const magicUrl = `${apiUrl}/api/v1/auth/verify?token=${rawToken}&email=${encodeURIComponent(email)}`;
     await this.emailService.sendTransactional(
       email,
       'Sign in to Zoltar',
@@ -151,12 +152,11 @@ export class AuthController {
 
     // Set cookie and redirect
     const cookieDomain = this.config.get('COOKIE_DOMAIN');
-    reply
-      .header(
-        'Set-Cookie',
-        `authjs.session-token=${sessionToken}; HttpOnly; Secure; SameSite=Lax; Path=/; Domain=${cookieDomain}; Max-Age=${SESSION_MAX_AGE_S}`,
-      )
-      .redirect(`${appUrl}/campaigns`);
+    reply.header(
+      'Set-Cookie',
+      `authjs.session-token=${sessionToken}; HttpOnly; Secure; SameSite=Lax; Path=/; Domain=${cookieDomain}; Max-Age=${SESSION_MAX_AGE_S}`,
+    );
+    reply.status(302).header('Location', `${appUrl}/campaigns`).send();
   }
 
   @Post('signout')

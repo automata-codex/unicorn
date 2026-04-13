@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { AdventureModule } from './adventure/adventure.module';
 import { AuthModule } from './auth/auth.module';
 import { CampaignModule } from './campaign/campaign.module';
@@ -30,6 +30,7 @@ const deferredServiceProviders = [
   { provide: FeatureFlagService, useClass: NoopFeatureFlagService },
 ];
 
+@Global()
 @Module({
   imports: [
     ConfigModule,

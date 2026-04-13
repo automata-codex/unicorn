@@ -24,6 +24,7 @@ function mockEmailService() {
 function mockConfigService() {
   const values: Record<string, string> = {
     PUBLIC_APP_URL: 'https://app.zoltar.local',
+    PUBLIC_API_URL: 'https://api.zoltar.local',
     COOKIE_DOMAIN: '.zoltar.local',
   };
   return { get: vi.fn((key: string) => values[key]) };
@@ -63,7 +64,7 @@ describe('AuthController', () => {
       expect(emailService.sendTransactional).toHaveBeenCalledWith(
         'new@example.com',
         'Sign in to Zoltar',
-        expect.stringContaining('https://app.zoltar.local/auth/verify?token='),
+        expect.stringContaining('https://api.zoltar.local/api/v1/auth/verify?token='),
       );
       expect(reply.status).toHaveBeenCalledWith(202);
     });
