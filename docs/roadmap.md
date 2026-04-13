@@ -150,21 +150,21 @@ A spatial system spec must be written and agreed before this area is implemented
 
 *First shippable frontend + backend slice.*
 
-- [ ] Auth.js integration (`AuthService` interface + `AuthJsService` implementation)
-- [ ] Add Traefik to local dev stack
-- [ ] Mothership Zod schemas (campaign state, character sheet)
-- [ ] Basic CRUD endpoints for campaigns and adventures
-- [ ] Frontend: auth flow, campaign list, adventure list shell
+- [x] Auth.js integration (`AuthService` interface + `AuthJsService` implementation)
+- [x] Add Traefik to local dev stack
+- [x] Mothership Zod schemas (campaign state, character sheet)
+- [x] Basic CRUD endpoints for campaigns and adventures
+- [x] Frontend: auth flow, campaign list, adventure list shell
 
 #### M2.5 — Design Sprint
 
 *Establish visual foundation before any feature UI is built. Mobile-first throughout.*
 
-- [ ] Primitive token definitions (`themes/base.css`)
-- [ ] Mothership theme — semantic token layer (`themes/mothership.css`)
-- [ ] Base component set: button, input, panel, typography scale — styled against Mothership theme, mobile-first
-- [ ] Mobile layout sketches for play view (message log, input, character status, dice UI)
-- [ ] Mobile layout sketches for oracle filtering and character creation flows
+- [x] Primitive token definitions (`themes/base.css`)
+- [x] Mothership theme — semantic token layer (`themes/mothership.css`)
+- [x] Base component set: button, input, panel, typography scale — styled against Mothership theme, mobile-first
+- [x] Mobile layout sketches for play view (message log, input, character status, dice UI)
+- [x] Mobile layout sketches for oracle filtering and character creation flows
 
 #### M3 — Oracle Tables & Character Creation
 
