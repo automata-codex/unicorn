@@ -52,4 +52,17 @@ export default tseslint.config(
       '@typescript-eslint/require-await': 'off',
     },
   },
+  {
+    // Test files use `as any` casts to create partial mocks of interfaces.
+    // Enforcing full type coverage on mocks adds boilerplate without
+    // catching real bugs — the type safety that matters lives in production code.
+    files: ['src/**/*.spec.ts', 'src/**/*.spec-int.ts', 'test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+    },
+  },
 );
