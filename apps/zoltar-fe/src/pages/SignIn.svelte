@@ -33,7 +33,12 @@
 
 	{#if submitted}
 		<p>Check your email for a sign-in link.</p>
-		<p><small>Local dev: check MailHog at <a href="http://localhost:8025">http://localhost:8025</a></small></p>
+		<p>
+			<small
+				>Local dev: check MailHog at <a href="http://localhost:8025">http://localhost:8025</a
+				></small
+			>
+		</p>
 	{:else}
 		<form onsubmit={handleSubmit}>
 			{#if error}

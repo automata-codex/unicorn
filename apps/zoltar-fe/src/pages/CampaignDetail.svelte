@@ -61,8 +61,11 @@
 <main>
 	<a
 		href="/campaigns"
-		onclick={(e) => { e.preventDefault(); navigate('/campaigns'); }}
-	>&larr; Campaigns</a>
+		onclick={(e) => {
+			e.preventDefault();
+			navigate('/campaigns');
+		}}>&larr; Campaigns</a
+	>
 
 	{#if loading}
 		<p>Loading...</p>
@@ -77,10 +80,12 @@
 			<p>No adventures yet.</p>
 		{:else}
 			<ul>
-				{#each adventures as adventure}
+				{#each adventures as adventure (adventure.id)}
 					<li>
 						<span
-							style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; color: white; background: {statusColors[adventure.status] ?? '#6b7280'}"
+							style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; color: white; background: {statusColors[
+								adventure.status
+							] ?? '#6b7280'}"
 						>
 							{adventure.status}
 						</span>
@@ -91,8 +96,6 @@
 			</ul>
 		{/if}
 
-		<button disabled title="Oracle table selection coming soon">
-			New Adventure
-		</button>
+		<button disabled title="Oracle table selection coming soon"> New Adventure </button>
 	{/if}
 </main>

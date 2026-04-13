@@ -53,11 +53,14 @@
 			<p>No campaigns yet.</p>
 		{:else}
 			<ul>
-				{#each campaigns as campaign}
+				{#each campaigns as campaign (campaign.id)}
 					<li>
 						<a
 							href="/campaigns/{campaign.id}"
-							onclick={(e) => { e.preventDefault(); navigate(`/campaigns/${campaign.id}`); }}
+							onclick={(e) => {
+								e.preventDefault();
+								navigate(`/campaigns/${campaign.id}`);
+							}}
 						>
 							{campaign.name}
 						</a>
@@ -75,10 +78,19 @@
 				<button type="submit" disabled={creating}>
 					{creating ? 'Creating...' : 'Create'}
 				</button>
-				<button type="button" onclick={() => { showForm = false; }}>Cancel</button>
+				<button
+					type="button"
+					onclick={() => {
+						showForm = false;
+					}}>Cancel</button
+				>
 			</form>
 		{:else}
-			<button onclick={() => { showForm = true; }}>New Campaign</button>
+			<button
+				onclick={() => {
+					showForm = true;
+				}}>New Campaign</button
+			>
 		{/if}
 	{/if}
 </main>
