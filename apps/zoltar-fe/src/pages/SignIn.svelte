@@ -29,26 +29,26 @@
 </script>
 
 <main>
-	<h1>Sign in to Zoltar</h1>
+  <h1>Sign in to Zoltar</h1>
 
-	{#if submitted}
-		<p>Check your email for a sign-in link.</p>
-		<p>
-			<small
-				>Local dev: check MailHog at <a href="http://localhost:8025">http://localhost:8025</a
-				></small
-			>
-		</p>
-	{:else}
-		<form onsubmit={handleSubmit}>
-			{#if error}
-				<p style="color: red">{error}</p>
-			{/if}
-			<label>
-				Email
-				<input type="email" bind:value={email} required />
-			</label>
-			<button type="submit">Send magic link</button>
-		</form>
-	{/if}
+  {#if submitted}
+    <p>Check your email for a sign-in link.</p>
+    <p>
+      <small>
+        Local dev: check MailHog at
+        <a href="http://localhost:8025">http://localhost:8025</a>
+      </small>
+    </p>
+  {:else}
+    <form onsubmit={handleSubmit}>
+      {#if error}
+        <p style="color: red">{error}</p>
+      {/if}
+      <label>
+        Email
+        <input type="email" bind:value={email} required />
+      </label>
+      <button type="submit">Send magic link</button>
+    </form>
+  {/if}
 </main>

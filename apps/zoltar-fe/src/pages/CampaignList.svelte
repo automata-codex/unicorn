@@ -45,53 +45,48 @@
 </script>
 
 <main>
-	<h1>Campaigns</h1>
+  <h1>Campaigns</h1>
 
-	{#if loading}
-		<p>Loading...</p>
-	{:else}
-		{#if campaigns.length === 0}
-			<p>No campaigns yet.</p>
-		{:else}
-			<ul>
-				{#each campaigns as campaign (campaign.id)}
-					<li>
-						<a
-							href="/campaigns/{campaign.id}"
-							onclick={(e) => {
-								e.preventDefault();
-								navigate(`/campaigns/${campaign.id}`);
-							}}
-						>
-							{campaign.name}
-						</a>
-					</li>
-				{/each}
-			</ul>
-		{/if}
+  {#if loading}
+    <p>Loading...</p>
+  {:else}
+    {#if campaigns.length === 0}
+      <p>No campaigns yet.</p>
+    {:else}
+      <ul>
+        {#each campaigns as campaign (campaign.id)}
+          <li>
+            <a
+              href="/campaigns/{campaign.id}"
+              onclick={(e) => {
+                e.preventDefault();
+                navigate(`/campaigns/${campaign.id}`);
+              }}
+            >
+              {campaign.name}
+            </a>
+          </li>
+        {/each}
+      </ul>
+    {/if}
 
-		{#if showForm}
-			<form onsubmit={handleCreate}>
-				<label>
-					Campaign name
-					<input type="text" bind:value={newName} required maxlength="120" />
-				</label>
-				<button type="submit" disabled={creating}>
-					{creating ? 'Creating...' : 'Create'}
-				</button>
-				<button
-					type="button"
-					onclick={() => {
-						showForm = false;
-					}}>Cancel</button
-				>
-			</form>
-		{:else}
-			<button
-				onclick={() => {
-					showForm = true;
-				}}>New Campaign</button
-			>
-		{/if}
-	{/if}
+    {#if showForm}
+      <form onsubmit={handleCreate}>
+        <label>
+          Campaign name
+          <input type="text" bind:value={newName} required maxlength="120" />
+        </label>
+        <button type="submit" disabled={creating}>
+          {creating ? 'Creating...' : 'Create'}
+        </button>
+        <button type="button" onclick={() => { showForm = false; }}>
+          Cancel
+        </button>
+      </form>
+    {:else}
+      <button onclick={() => { showForm = true; }}>
+        New Campaign
+      </button>
+    {/if}
+  {/if}
 </main>

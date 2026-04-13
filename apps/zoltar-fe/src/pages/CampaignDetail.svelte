@@ -60,43 +60,45 @@
 </script>
 
 <main>
-	<a
-		href="/campaigns"
-		onclick={(e) => {
-			e.preventDefault();
-			navigate('/campaigns');
-		}}>&larr; Campaigns</a
-	>
+  <a
+    href="/campaigns"
+    onclick={(e) => {
+      e.preventDefault();
+      navigate('/campaigns');
+    }}
+  >
+    &larr; Campaigns
+  </a>
 
-	{#if loading}
-		<p>Loading...</p>
-	{:else if error}
-		<p style="color: red">{error}</p>
-	{:else if campaign}
-		<h1>{campaign.name}</h1>
+  {#if loading}
+    <p>Loading...</p>
+  {:else if error}
+    <p style="color: red">{error}</p>
+  {:else if campaign}
+    <h1>{campaign.name}</h1>
 
-		<h2>Adventures</h2>
+    <h2>Adventures</h2>
 
-		{#if adventures.length === 0}
-			<p>No adventures yet.</p>
-		{:else}
-			<ul>
-				{#each adventures as adventure (adventure.id)}
-					<li>
-						<span
-							style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; color: white; background: {statusColors[
-								adventure.status
-							] ?? '#6b7280'}"
-						>
-							{adventure.status}
-						</span>
-						{adventure.id.slice(0, 8)}...
-						<small>{new Date(adventure.createdAt).toLocaleDateString()}</small>
-					</li>
-				{/each}
-			</ul>
-		{/if}
+    {#if adventures.length === 0}
+      <p>No adventures yet.</p>
+    {:else}
+      <ul>
+        {#each adventures as adventure (adventure.id)}
+          <li>
+            <span
+              style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; color: white; background: {statusColors[adventure.status] ?? '#6b7280'}"
+            >
+              {adventure.status}
+            </span>
+            {adventure.id.slice(0, 8)}...
+            <small>{new Date(adventure.createdAt).toLocaleDateString()}</small>
+          </li>
+        {/each}
+      </ul>
+    {/if}
 
-		<button disabled title="Oracle table selection coming soon"> New Adventure </button>
-	{/if}
+    <button disabled title="Oracle table selection coming soon">
+      New Adventure
+    </button>
+  {/if}
 </main>

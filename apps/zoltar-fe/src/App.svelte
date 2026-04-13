@@ -33,22 +33,22 @@
 </script>
 
 {#if $sessionLoading}
-	<p>Loading...</p>
+  <p>Loading...</p>
 {:else}
-	{#if $session}
-		<nav>
-			<span>{$session.email}</span>
-			<button onclick={handleSignOut}>Sign out</button>
-		</nav>
-	{/if}
+  {#if $session}
+    <nav>
+      <span>{$session.email}</span>
+      <button onclick={handleSignOut}>Sign out</button>
+    </nav>
+  {/if}
 
-	{#if $route.startsWith('/signin')}
-		<SignIn />
-	{:else if getCampaignId($route)}
-		<CampaignDetail campaignId={getCampaignId($route)!} />
-	{:else if $route === '/campaigns' || $route === '/'}
-		<CampaignList />
-	{:else}
-		<p>Not found</p>
-	{/if}
+  {#if $route.startsWith('/signin')}
+    <SignIn />
+  {:else if getCampaignId($route)}
+    <CampaignDetail campaignId={getCampaignId($route)!} />
+  {:else if $route === '/campaigns' || $route === '/'}
+    <CampaignList />
+  {:else}
+    <p>Not found</p>
+  {/if}
 {/if}
