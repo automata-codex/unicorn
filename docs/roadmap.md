@@ -191,6 +191,7 @@ A spatial system spec must be written and agreed before this area is implemented
 
 *Get a coherent GM response back from Claude. No state changes applied yet. Write spatial system spec before starting this milestone.*
 
+- [ ] - Migrate client-side router to `svelte-spa-router` v5 (prerequisite for M6 play view layout; see hash URL tradeoff note in M3 spec)
 - [ ] `submit_gm_response` tool definition (including `proposed_canon` field)
 - [ ] State snapshot builder (visibility-filtered, GM context injected, `flagTriggers`, `characterAttributes`, no entity positions)
 - [ ] LOS computation service (shadowcasting or Bresenham — per spec)
