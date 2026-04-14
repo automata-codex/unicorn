@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { MothershipCharacterSheetSchema } from '@uv/game-systems';
 
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -14,6 +14,14 @@ import type { MothershipCharacterSheet } from '@uv/game-systems';
 @UseGuards(SessionGuard)
 export class CharacterController {
   constructor(private readonly characterService: CharacterService) {}
+
+  @Get()
+  async findByCampaign(
+    @Param('campaignId') campaignId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.characterService.findByCampaignId(campaignId, user.id);
+  }
 
   @Post()
   async create(

@@ -8,7 +8,7 @@
   import SectionLabel from '../lib/components/SectionLabel.svelte';
   import { navigate } from '../lib/router.svelte';
 
-  import type { Adventure, Campaign, Character } from '../lib/types';
+  import type { Adventure, Campaign, CharacterSheet } from '../lib/types';
 
   interface Props {
     campaignId: string;
@@ -18,7 +18,7 @@
 
   let campaign = $state<Campaign | null>(null);
   let adventures = $state<Adventure[]>([]);
-  let character = $state<Character | null>(null);
+  let character = $state<CharacterSheet | null>(null);
   let loading = $state(true);
   let error = $state('');
   let showCompleted = $state(false);
@@ -46,9 +46,10 @@
   });
 
   onMount(async () => {
-    const [campRes, advRes] = await Promise.all([
+    const [campRes, advRes, charRes] = await Promise.all([
       api(`/api/v1/campaigns/${campaignId}`),
       api(`/api/v1/campaigns/${campaignId}/adventures`),
+      api(`/api/v1/campaigns/${campaignId}/characters`),
     ]);
 
     if (campRes.ok) {
@@ -63,7 +64,10 @@
       adventures = await advRes.json();
     }
 
-    // TODO: fetch character when endpoint exists
+    if (charRes.ok) {
+      character = await charRes.json();
+    }
+
     loading = false;
   });
 
@@ -104,18 +108,16 @@
 
       {#if character}
         <div class="character-info">
-          <span class="type-screen-title">{character.name}</span>
-          <span class="type-label character-meta">{character.class}</span>
-          {#if character.stats}
-            <div class="stat-row">
-              {#each Object.entries(character.stats) as [label, value] (label)}
-                <div class="stat-item">
-                  <span class="type-stat-value">{value}</span>
-                  <span class="type-label">{label.toUpperCase()}</span>
-                </div>
-              {/each}
-            </div>
-          {/if}
+          <span class="type-screen-title">{character.data.name}</span>
+          <span class="type-label character-meta">{character.data.class}</span>
+          <div class="stat-row">
+            {#each Object.entries(character.data.stats) as [label, value] (label)}
+              <div class="stat-item">
+                <span class="type-stat-value">{value}</span>
+                <span class="type-label">{label.toUpperCase()}</span>
+              </div>
+            {/each}
+          </div>
         </div>
       {:else}
         <p class="type-meta empty-character">NO CREW ASSIGNED</p>

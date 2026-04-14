@@ -23,6 +23,7 @@ const fakeData: MothershipCharacterSheet = {
   entityId: 'vasquez',
   name: 'Vasquez',
   class: 'marine',
+  level: 1,
   stats: {
     strength: 40,
     speed: 35,

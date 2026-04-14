@@ -13,6 +13,11 @@ export class CharacterService {
     private readonly campaignService: CampaignService,
   ) {}
 
+  async findByCampaignId(campaignId: string, userId: string) {
+    await this.campaignService.assertMember(campaignId, userId);
+    return this.repo.findByCampaignId(campaignId);
+  }
+
   async create(
     campaignId: string,
     userId: string,

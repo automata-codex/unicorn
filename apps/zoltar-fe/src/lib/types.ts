@@ -16,10 +16,22 @@ export type Adventure = {
   completedAt: string | null;
 };
 
-export type Character = {
+export type CharacterSheet = {
   id: string;
-  name: string;
-  class: string;
-  pronouns?: string;
-  stats?: Record<string, number>;
+  campaignId: string;
+  system: string;
+  data: {
+    name: string;
+    class: string;
+    pronouns?: string;
+    entityId: string;
+    stats: Record<string, number>;
+    saves: Record<string, number>;
+    currentHp: number;
+    maxHp: number;
+    stress: { current: number; max: number };
+    skills: string[];
+    equipment: string[];
+    notes?: string;
+  };
 };
