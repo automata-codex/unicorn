@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
 
-import type { Db } from '../db/db.provider';
 import type { MothershipCharacterSheet } from '@uv/game-systems';
+import type { Db } from '../db/db.provider';
 
 @Injectable()
 export class CharacterRepository {

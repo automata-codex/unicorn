@@ -1,12 +1,11 @@
 import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { MothershipCharacterSheetSchema } from '@uv/game-systems';
 
 import { CurrentUser } from '../auth/current-user.decorator';
 import { SessionGuard } from '../auth/session.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 import { CharacterService } from './character.service';
-
-import { MothershipCharacterSheetSchema } from '@uv/game-systems';
 
 import type { AuthUser } from '@uv/auth-core';
 import type { MothershipCharacterSheet } from '@uv/game-systems';
