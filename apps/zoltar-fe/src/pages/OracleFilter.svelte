@@ -3,7 +3,6 @@
   import Card from '../lib/components/Card.svelte';
   import PageLayout from '../lib/components/PageLayout.svelte';
   import SectionLabel from '../lib/components/SectionLabel.svelte';
-  import type { OracleCategory } from '../lib/data/oracle/types';
   import {
     activeCount,
     canBegin,
@@ -13,9 +12,13 @@
     toggleEntry,
   } from '../lib/oracle/state.svelte';
 
-  let { categories }: { categories: OracleCategory[] } = $props();
+  import type { OracleCategory } from '../lib/data/oracle/types';
 
+  const { categories }: { categories: OracleCategory[] } = $props();
+
+  // svelte-ignore state_referenced_locally
   let filterState = $state(createOracleFilterState(categories));
+  // svelte-ignore state_referenced_locally
   let expanded = $state<Record<string, boolean>>(
     Object.fromEntries(categories.map((c) => [c.id, true])),
   );
