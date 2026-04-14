@@ -1,0 +1,116 @@
+{
+  "id": "mothership_survivors",
+  "system": "mothership",
+  "category": "survivors",
+  "version": "0.1.0",
+  "entries": [
+    {
+      "id": "corporate_spy",
+      "player_text": "Corporate spy",
+      "claude_text": "This survivor was placed on the vessel by a corporate entity. They have a specific information objective: recovering, destroying, or concealing something on this ship. They are not a trained operative — a logistics manager, a technician, a mid-level bureaucrat told this would be simple. They are frightened and increasingly aware that it will not be.",
+      "interfaces": [
+        {
+          "condition": "secret_company_knew",
+          "note": "This survivor knew before boarding. Their fear is guilt as much as danger."
+        },
+        {
+          "condition": "threat_corporate_asset",
+          "note": "They may have a relationship with the threat, intended or not."
+        }
+      ],
+      "tags": ["corporate", "information_objective", "civilian"]
+    },
+    {
+      "id": "burned_out_medic",
+      "player_text": "Burned-out medic",
+      "claude_text": "A field medic who has seen too many casualties across too many contracts. They are competent but emotionally dissociated. They will perform triage efficiently and without visible distress, which other survivors may find either reassuring or deeply unsettling. They self-medicate. Their supply is running low.",
+      "interfaces": [
+        {
+          "condition": "threat_biological",
+          "note": "A medic who has seen infections before may recognize early signs — or may dismiss them as familiar."
+        }
+      ],
+      "tags": ["medical", "trauma", "substance_dependency"]
+    },
+    {
+      "id": "union_enforcer",
+      "player_text": "Union enforcer",
+      "claude_text": "A labour organizer embedded in the crew roster. Their real job is to ensure the company honours hazard clauses and evacuation protocols. They know the ship's legal obligations better than the captain does. They are confrontational, principled, and accustomed to being lied to by authority figures.",
+      "interfaces": [
+        {
+          "condition": "secret_contract_violation",
+          "note": "If the mission itself violates labour law, the enforcer becomes a political threat to the operation."
+        }
+      ],
+      "tags": ["political", "confrontational", "authority_challenge"]
+    },
+    {
+      "id": "stowaway_child",
+      "player_text": "Stowaway child",
+      "claude_text": "A child, somewhere between ten and fourteen, found hiding in cargo after departure. They will not say where they came from or why they are here. They are resourceful, quiet, and clearly accustomed to danger. Their presence changes the moral calculus of every survival decision.",
+      "interfaces": [
+        {
+          "condition": "secret_experiment_subject",
+          "note": "The child may be fleeing from the same thing the crew is heading toward."
+        },
+        {
+          "condition": "threat_psychological",
+          "note": "Protecting a child under threat amplifies panic and irrational decision-making."
+        }
+      ],
+      "tags": ["vulnerable", "mystery_origin", "moral_weight"]
+    },
+    {
+      "id": "decommissioned_android",
+      "player_text": "Decommissioned android",
+      "claude_text": "An android unit scheduled for memory wipe and chassis recycling at the next port. They are aware of their termination date. Their behaviour is nominally compliant but subtly erratic — moments of unexpected initiative, fragments of personality that should have been suppressed. They are not malfunctioning. They are grieving.",
+      "interfaces": [
+        {
+          "condition": "threat_ai_malfunction",
+          "note": "Other crew may blame the android first when systems behave unexpectedly."
+        }
+      ],
+      "tags": ["synthetic", "existential", "unreliable_narrator"]
+    },
+    {
+      "id": "deep_space_cartographer",
+      "player_text": "Deep-space cartographer",
+      "claude_text": "A navigation specialist who has spent years mapping jump routes in uncharted sectors. They have seen things in deep space that do not appear in any official survey. They are quiet, precise, and prone to long silences. When they say a route is dangerous, they mean something specific that they will not elaborate on.",
+      "interfaces": [
+        {
+          "condition": "secret_signal_origin",
+          "note": "The cartographer may have encountered the signal source before — or something like it."
+        }
+      ],
+      "tags": ["navigation", "deep_space", "hidden_knowledge"]
+    },
+    {
+      "id": "company_chaplain",
+      "player_text": "Company chaplain",
+      "claude_text": "A religious counsellor employed by the corporation to maintain crew morale on long-haul contracts. Their faith is genuine but their employer is not interested in their theology — only in productivity metrics. They are kind, perceptive, and increasingly aware that the company views them as a tool. Under extreme stress, their faith becomes either an anchor or a liability.",
+      "interfaces": [
+        {
+          "condition": "threat_psychological",
+          "note": "The chaplain becomes a focal point when crew morale fractures — either a stabiliser or a target."
+        }
+      ],
+      "tags": ["faith", "morale", "corporate_tool"]
+    },
+    {
+      "id": "cargo_loader",
+      "player_text": "Cargo loader",
+      "claude_text": "A dockworker with mechanical augmentation in both arms, designed for heavy lifting in low-gravity cargo bays. They are physically imposing and socially invisible — crew talk around them, not to them. They know every cargo manifest discrepancy on this vessel. They have been keeping a list.",
+      "interfaces": [
+        {
+          "condition": "secret_smuggled_cargo",
+          "note": "The loader knows exactly which crates don't match the manifest."
+        },
+        {
+          "condition": "threat_corporate_asset",
+          "note": "Augmented workers are sometimes fitted with monitoring hardware they were not told about."
+        }
+      ],
+      "tags": ["augmented", "manual_labour", "overlooked", "observant"]
+    }
+  ]
+}

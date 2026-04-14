@@ -1,0 +1,80 @@
+{
+  "id": "mothership_vessel_type",
+  "system": "mothership",
+  "category": "vessel_type",
+  "version": "0.1.0",
+  "entries": [
+    {
+      "id": "freight_hauler",
+      "player_text": "Freight hauler",
+      "claude_text": "A bulk cargo transport — long corridors, cavernous holds, minimal crew quarters. The ship is built for economics, not comfort. Sound carries strangely through the empty cargo bays. The crew is a skeleton complement, alone with a lot of dark space between them.",
+      "interfaces": [
+        {
+          "condition": "secret_smuggled_cargo",
+          "note": "A freight hauler's manifests are complex enough to hide additional cargo easily."
+        }
+      ],
+      "tags": ["industrial", "isolation", "cargo_focused", "skeleton_crew"]
+    },
+    {
+      "id": "research_station",
+      "player_text": "Research station",
+      "claude_text": "An orbital or deep-space research platform. Modular lab sections, quarantine facilities, and a central habitat ring. The station was designed for a specific research programme that may or may not be the one currently in operation. The labs contain equipment that the current crew does not fully understand.",
+      "interfaces": [
+        {
+          "condition": "secret_experiment_subject",
+          "note": "A research station is the natural origin point for experimental modifications."
+        }
+      ],
+      "tags": ["scientific", "modular", "quarantine_capable", "mystery_purpose"]
+    },
+    {
+      "id": "colony_transport",
+      "player_text": "Colony transport",
+      "claude_text": "A vessel designed to carry several hundred colonists in cryogenic suspension to a settlement site. The colonists are cargo — alive but inert, vulnerable, and consuming resources. The active crew is small. Every decision about the ship's survival is also a decision about hundreds of unconscious lives.",
+      "interfaces": [
+        {
+          "condition": "threat_parasitic_organism",
+          "note": "Hundreds of immobile hosts in cryo pods represent either a containment opportunity or a catastrophe."
+        }
+      ],
+      "tags": ["high_population", "cryo", "moral_weight", "vulnerable_cargo"]
+    },
+    {
+      "id": "salvage_vessel",
+      "player_text": "Salvage vessel",
+      "claude_text": "A ship built for boarding and stripping derelict vessels. Heavy cutting equipment, flexible docking arms, compartmentalised storage. The crew is accustomed to entering dead ships and taking them apart. They are comfortable with darkness, vacuum, and the belongings of people who are no longer alive.",
+      "interfaces": [
+        {
+          "condition": "threat_rival_salvage_crew",
+          "note": "Competing salvage claims are an occupational hazard with legal and physical dimensions."
+        }
+      ],
+      "tags": ["industrial", "boarding_capable", "experienced_crew", "scavenger"]
+    },
+    {
+      "id": "military_surplus",
+      "player_text": "Decommissioned military vessel",
+      "claude_text": "A warship sold to the private sector after decommissioning. The weapons systems have been removed — officially. The armour plating remains. So do the classified compartments that do not appear on the civilian deck plans. The ship is tougher than it should be and has rooms that the crew has never opened.",
+      "interfaces": [
+        {
+          "condition": "secret_not_first_crew",
+          "note": "Military vessels have histories that survive multiple crew rotations and ownership transfers."
+        }
+      ],
+      "tags": ["military", "armoured", "hidden_compartments", "classified_history"]
+    },
+    {
+      "id": "luxury_liner",
+      "player_text": "Derelict luxury liner",
+      "claude_text": "A passenger liner that once served wealthy travellers on interstellar routes. Now adrift, systems failing, opulence decaying. The grand atrium is dark. The staterooms are sealed. The ship's automated hospitality systems still activate occasionally — lights, music, a welcome announcement for guests who will never arrive.",
+      "interfaces": [
+        {
+          "condition": "threat_ai_malfunction",
+          "note": "The liner's hospitality AI may still be running, treating the crew as guests with unsettling attentiveness."
+        }
+      ],
+      "tags": ["derelict", "atmospheric", "uncanny", "former_grandeur"]
+    }
+  ]
+}

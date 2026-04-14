@@ -234,6 +234,7 @@ A spatial system spec must be written and agreed before this area is implemented
 
 *Shippable open-core product.*
 
+- [ ] In-depth human review of oracle tables
 - [ ] Docker Compose production configuration
 - [ ] Environment variable documentation
 - [ ] Self-hosted setup guide + DigitalOcean Droplet walkthrough
