@@ -3,6 +3,7 @@
 
   import { api } from './lib/api';
   import Button from './lib/components/Button.svelte';
+  import { builtInOracleCategories } from './lib/data/oracle';
   import { navigate, route } from './lib/router.svelte';
   import { loadSession, session, sessionLoading } from './lib/session.svelte';
   import CampaignDetail from './pages/CampaignDetail.svelte';
@@ -64,7 +65,7 @@
   {:else if $route.startsWith('/signin')}
     <SignIn />
   {:else if $route === '/oracle-filter'}
-    <OracleFilter />
+    <OracleFilter categories={builtInOracleCategories} />
   {:else if getCharacterCreateCampaignId($route)}
     <CharacterCreate campaignId={getCharacterCreateCampaignId($route)!} />
   {:else if getCampaignId($route)}
