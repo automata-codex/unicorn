@@ -15,7 +15,8 @@
 		"test": "npm run test:unit -- --run --passWithNoTests"
 	},
 	"dependencies": {
-		"@uv/game-systems": "*"
+		"@uv/game-systems": "*",
+		"modern-normalize": "^3.0.1"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.3",
