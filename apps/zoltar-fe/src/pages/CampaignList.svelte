@@ -7,6 +7,7 @@
   import Input from '../lib/components/Input.svelte';
   import PageLayout from '../lib/components/PageLayout.svelte';
   import { navigate } from '../lib/router.svelte';
+
   import type { Campaign } from '../lib/types';
 
   let campaigns = $state<Campaign[]>([]);

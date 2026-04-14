@@ -70,7 +70,12 @@
           "note": "Structural failure in isolation means there is no port to limp to — repair or die."
         }
       ],
-      "tags": ["environmental", "resource_scarcity", "no_rescue", "claustrophobia"]
+      "tags": [
+        "environmental",
+        "resource_scarcity",
+        "no_rescue",
+        "claustrophobia"
+      ]
     },
     {
       "id": "cosmic_awe",

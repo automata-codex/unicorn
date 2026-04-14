@@ -4,7 +4,9 @@ export type OracleFilterState = {
   active: Record<string, Set<string>>;
 };
 
-export function createOracleFilterState(categories: OracleCategory[]): OracleFilterState {
+export function createOracleFilterState(
+  categories: OracleCategory[],
+): OracleFilterState {
   const active: Record<string, Set<string>> = {};
   for (const cat of categories) {
     active[cat.id] = new Set(cat.entries.map((e) => e.id));
@@ -23,16 +25,26 @@ export function isAllActive(
   return set.size === cat.entries.length;
 }
 
-export function isNoneActive(state: OracleFilterState, categoryId: string): boolean {
+export function isNoneActive(
+  state: OracleFilterState,
+  categoryId: string,
+): boolean {
   const set = state.active[categoryId];
   return set == null || set.size === 0;
 }
 
-export function activeCount(state: OracleFilterState, categoryId: string): number {
+export function activeCount(
+  state: OracleFilterState,
+  categoryId: string,
+): number {
   return state.active[categoryId]?.size ?? 0;
 }
 
-export function toggleEntry(state: OracleFilterState, categoryId: string, entryId: string): void {
+export function toggleEntry(
+  state: OracleFilterState,
+  categoryId: string,
+  entryId: string,
+): void {
   const set = state.active[categoryId];
   if (set == null) return;
   if (set.has(entryId)) {
@@ -52,7 +64,10 @@ export function selectAll(
   state.active[categoryId] = new Set(cat.entries.map((e) => e.id));
 }
 
-export function deselectAll(state: OracleFilterState, categoryId: string): void {
+export function deselectAll(
+  state: OracleFilterState,
+  categoryId: string,
+): void {
   const set = state.active[categoryId];
   if (set != null) {
     set.clear();

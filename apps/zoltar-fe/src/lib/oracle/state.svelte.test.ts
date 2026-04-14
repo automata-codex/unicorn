@@ -1,32 +1,64 @@
-import { describe, it, expect } from 'vitest';
-import type { OracleCategory } from '../data/oracle/types';
+import { describe, expect, it } from 'vitest';
+
 import {
+  activeCount,
+  canBegin,
   createOracleFilterState,
+  deselectAll,
   isAllActive,
   isNoneActive,
-  activeCount,
-  toggleEntry,
   selectAll,
-  deselectAll,
-  canBegin,
+  toggleEntry,
 } from './state.svelte';
+
+import type { OracleCategory } from '../data/oracle/types';
 
 const testCategories: OracleCategory[] = [
   {
     id: 'survivors',
     label: 'SURVIVORS',
     entries: [
-      { id: 'a', player_text: 'Alpha', claude_text: '', interfaces: [], tags: [] },
-      { id: 'b', player_text: 'Beta', claude_text: '', interfaces: [], tags: [] },
-      { id: 'c', player_text: 'Gamma', claude_text: '', interfaces: [], tags: [] },
+      {
+        id: 'a',
+        player_text: 'Alpha',
+        claude_text: '',
+        interfaces: [],
+        tags: [],
+      },
+      {
+        id: 'b',
+        player_text: 'Beta',
+        claude_text: '',
+        interfaces: [],
+        tags: [],
+      },
+      {
+        id: 'c',
+        player_text: 'Gamma',
+        claude_text: '',
+        interfaces: [],
+        tags: [],
+      },
     ],
   },
   {
     id: 'threats',
     label: 'THREATS',
     entries: [
-      { id: 'x', player_text: 'X-ray', claude_text: '', interfaces: [], tags: [] },
-      { id: 'y', player_text: 'Yankee', claude_text: '', interfaces: [], tags: [] },
+      {
+        id: 'x',
+        player_text: 'X-ray',
+        claude_text: '',
+        interfaces: [],
+        tags: [],
+      },
+      {
+        id: 'y',
+        player_text: 'Yankee',
+        claude_text: '',
+        interfaces: [],
+        tags: [],
+      },
     ],
   },
 ];

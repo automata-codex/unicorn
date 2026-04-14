@@ -50,7 +50,12 @@
           "note": "Competing salvage claims are an occupational hazard with legal and physical dimensions."
         }
       ],
-      "tags": ["industrial", "boarding_capable", "experienced_crew", "scavenger"]
+      "tags": [
+        "industrial",
+        "boarding_capable",
+        "experienced_crew",
+        "scavenger"
+      ]
     },
     {
       "id": "military_surplus",
@@ -62,7 +67,12 @@
           "note": "Military vessels have histories that survive multiple crew rotations and ownership transfers."
         }
       ],
-      "tags": ["military", "armoured", "hidden_compartments", "classified_history"]
+      "tags": [
+        "military",
+        "armoured",
+        "hidden_compartments",
+        "classified_history"
+      ]
     },
     {
       "id": "luxury_liner",

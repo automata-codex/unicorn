@@ -4,9 +4,10 @@
   import { api } from '../lib/api';
   import Button from '../lib/components/Button.svelte';
   import Card from '../lib/components/Card.svelte';
-  import SectionLabel from '../lib/components/SectionLabel.svelte';
   import PageLayout from '../lib/components/PageLayout.svelte';
+  import SectionLabel from '../lib/components/SectionLabel.svelte';
   import { navigate } from '../lib/router.svelte';
+
   import type { Adventure, Campaign, Character } from '../lib/types';
 
   interface Props {

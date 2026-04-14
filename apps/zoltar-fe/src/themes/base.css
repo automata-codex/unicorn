@@ -20,175 +20,173 @@
  * ------------------------------------------------------------------------- */
 
 @font-face {
-    font-family: 'IBM Plex Mono';
-    src: url('/fonts/IBMPlexMono-Regular.woff2') format('woff2');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/IBMPlexMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
-    font-family: 'IBM Plex Mono';
-    src: url('/fonts/IBMPlexMono-Italic.woff2') format('woff2');
-    font-weight: 400;
-    font-style: italic;
-    font-display: swap;
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/IBMPlexMono-Italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
 }
 
 @font-face {
-    font-family: 'IBM Plex Mono';
-    src: url('/fonts/IBMPlexMono-Medium.woff2') format('woff2');
-    font-weight: 500;
-    font-style: normal;
-    font-display: swap;
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/IBMPlexMono-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
 }
 
 :root {
+  /* -----------------------------------------------------------------------
+   * Color — Slate (dark neutrals, used by Mothership theme)
+   * ----------------------------------------------------------------------- */
 
-    /* -----------------------------------------------------------------------
-     * Color — Slate (dark neutrals, used by Mothership theme)
-     * ----------------------------------------------------------------------- */
+  --primitive-slate-50: #f0f2f4;
+  --primitive-slate-100: #d1d5db;
+  --primitive-slate-200: #9aa0aa;
+  --primitive-slate-300: #7d8590;
+  --primitive-slate-400: #5a6270;
+  --primitive-slate-500: #3d4450;
+  --primitive-slate-600: #2e333b;
+  --primitive-slate-700: #252a31;
+  --primitive-slate-800: #1e2228;
+  --primitive-slate-850: #181d23;
+  --primitive-slate-900: #13171c;
+  --primitive-slate-920: #0f1218;
+  --primitive-slate-940: #0c0f13;
+  --primitive-slate-960: #080b0e;
+  --primitive-slate-980: #050709;
 
-    --primitive-slate-50:  #f0f2f4;
-    --primitive-slate-100: #d1d5db;
-    --primitive-slate-200: #9aa0aa;
-    --primitive-slate-300: #7d8590;
-    --primitive-slate-400: #5a6270;
-    --primitive-slate-500: #3d4450;
-    --primitive-slate-600: #2e333b;
-    --primitive-slate-700: #252a31;
-    --primitive-slate-800: #1e2228;
-    --primitive-slate-850: #181d23;
-    --primitive-slate-900: #13171c;
-    --primitive-slate-920: #0f1218;
-    --primitive-slate-940: #0c0f13;
-    --primitive-slate-960: #080b0e;
-    --primitive-slate-980: #050709;
+  /* -----------------------------------------------------------------------
+   * Color — Amber (Mothership accent — emergency lighting, hazard)
+   * ----------------------------------------------------------------------- */
 
-    /* -----------------------------------------------------------------------
-     * Color — Amber (Mothership accent — emergency lighting, hazard)
-     * ----------------------------------------------------------------------- */
+  --primitive-amber-100: #f5d9a0;
+  --primitive-amber-200: #e8b05a;
+  --primitive-amber-300: #d4920f;
+  --primitive-amber-400: #b8720a;
+  --primitive-amber-500: #8f5507;
+  --primitive-amber-600: #633a04;
+  --primitive-amber-700: #3d2c0a;
+  --primitive-amber-800: #1a1308;
+  --primitive-amber-900: #160f04;
 
-    --primitive-amber-100: #f5d9a0;
-    --primitive-amber-200: #e8b05a;
-    --primitive-amber-300: #d4920f;
-    --primitive-amber-400: #b8720a;
-    --primitive-amber-500: #8f5507;
-    --primitive-amber-600: #633a04;
-    --primitive-amber-700: #3d2c0a;
-    --primitive-amber-800: #1a1308;
-    --primitive-amber-900: #160f04;
+  /* -----------------------------------------------------------------------
+   * Color — Steel Blue (player channel)
+   * ----------------------------------------------------------------------- */
 
-    /* -----------------------------------------------------------------------
-     * Color — Steel Blue (player channel)
-     * ----------------------------------------------------------------------- */
+  --primitive-steel-100: #a8c4d4;
+  --primitive-steel-200: #6899b4;
+  --primitive-steel-300: #3d6a84;
+  --primitive-steel-400: #1e3a4a;
+  --primitive-steel-500: #0f1e28;
+  --primitive-steel-600: #0a1520;
+  --primitive-steel-700: #0f1520;
+  --primitive-steel-800: #0a1018;
 
-    --primitive-steel-100: #a8c4d4;
-    --primitive-steel-200: #6899b4;
-    --primitive-steel-300: #3d6a84;
-    --primitive-steel-400: #1e3a4a;
-    --primitive-steel-500: #0f1e28;
-    --primitive-steel-600: #0a1520;
-    --primitive-steel-700: #0f1520;
-    --primitive-steel-800: #0a1018;
+  /* -----------------------------------------------------------------------
+   * Color — Player message surface (distinct from steel channel border)
+   * ----------------------------------------------------------------------- */
 
-    /* -----------------------------------------------------------------------
-     * Color — Player message surface (distinct from steel channel border)
-     * ----------------------------------------------------------------------- */
+  --primitive-player-surface: #0f1520;
+  --primitive-player-border: #1a2535;
 
-    --primitive-player-surface: #0f1520;
-    --primitive-player-border:  #1a2535;
+  /* -----------------------------------------------------------------------
+   * Color — Green (success, valid, alive)
+   * ----------------------------------------------------------------------- */
 
-    /* -----------------------------------------------------------------------
-     * Color — Green (success, valid, alive)
-     * ----------------------------------------------------------------------- */
+  --primitive-green-300: #5a9e5a;
+  --primitive-green-400: #3a6e3a;
+  --primitive-green-500: #2a4e2a;
 
-    --primitive-green-300: #5a9e5a;
-    --primitive-green-400: #3a6e3a;
-    --primitive-green-500: #2a4e2a;
+  /* -----------------------------------------------------------------------
+   * Color — Red (danger, invalid, dead)
+   * ----------------------------------------------------------------------- */
 
-    /* -----------------------------------------------------------------------
-     * Color — Red (danger, invalid, dead)
-     * ----------------------------------------------------------------------- */
+  --primitive-red-200: #e07070;
+  --primitive-red-300: #c44040;
+  --primitive-red-400: #8a2a2a;
+  --primitive-red-500: #4a1515;
 
-    --primitive-red-200: #e07070;
-    --primitive-red-300: #c44040;
-    --primitive-red-400: #8a2a2a;
-    --primitive-red-500: #4a1515;
+  /* -----------------------------------------------------------------------
+   * Color — Purple (stress — psychological damage)
+   * ----------------------------------------------------------------------- */
 
-    /* -----------------------------------------------------------------------
-     * Color — Purple (stress — psychological damage)
-     * ----------------------------------------------------------------------- */
+  --primitive-purple-300: #a05ab0;
+  --primitive-purple-400: #7a3d8a;
+  --primitive-purple-500: #4a2050;
 
-    --primitive-purple-300: #a05ab0;
-    --primitive-purple-400: #7a3d8a;
-    --primitive-purple-500: #4a2050;
+  /* -----------------------------------------------------------------------
+   * Typography — Font families
+   * ----------------------------------------------------------------------- */
 
-    /* -----------------------------------------------------------------------
-     * Typography — Font families
-     * ----------------------------------------------------------------------- */
+  --primitive-font-mono:
+    "IBM Plex Mono", ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
 
-    --primitive-font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code',
-    Menlo, Consolas, monospace;
+  --primitive-font-sans:
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-    --primitive-font-sans: system-ui, -apple-system, BlinkMacSystemFont,
-    'Segoe UI', sans-serif;
+  /* -----------------------------------------------------------------------
+   * Typography — Scale (px)
+   * ----------------------------------------------------------------------- */
 
-    /* -----------------------------------------------------------------------
-     * Typography — Scale (px)
-     * ----------------------------------------------------------------------- */
+  --primitive-font-size-2xs: 8px;
+  --primitive-font-size-xs: 9px;
+  --primitive-font-size-sm: 10px;
+  --primitive-font-size-md: 11px;
+  --primitive-font-size-base: 12px;
+  --primitive-font-size-lg: 13px;
+  --primitive-font-size-xl: 14px;
+  --primitive-font-size-2xl: 16px;
+  --primitive-font-size-3xl: 20px;
 
-    --primitive-font-size-2xs: 8px;
-    --primitive-font-size-xs:  9px;
-    --primitive-font-size-sm:  10px;
-    --primitive-font-size-md:  11px;
-    --primitive-font-size-base:12px;
-    --primitive-font-size-lg:  13px;
-    --primitive-font-size-xl:  14px;
-    --primitive-font-size-2xl: 16px;
-    --primitive-font-size-3xl: 20px;
+  /* -----------------------------------------------------------------------
+   * Typography — Line height
+   * ----------------------------------------------------------------------- */
 
-    /* -----------------------------------------------------------------------
-     * Typography — Line height
-     * ----------------------------------------------------------------------- */
+  --primitive-line-height-tight: 1.3;
+  --primitive-line-height-base: 1.5;
+  --primitive-line-height-loose: 1.65;
 
-    --primitive-line-height-tight:  1.3;
-    --primitive-line-height-base:   1.5;
-    --primitive-line-height-loose:  1.65;
+  /* -----------------------------------------------------------------------
+   * Typography — Letter spacing
+   * ----------------------------------------------------------------------- */
 
-    /* -----------------------------------------------------------------------
-     * Typography — Letter spacing
-     * ----------------------------------------------------------------------- */
+  --primitive-tracking-tight: 0.02em;
+  --primitive-tracking-base: 0.06em;
+  --primitive-tracking-wide: 0.1em;
+  --primitive-tracking-wider: 0.12em;
+  --primitive-tracking-widest: 0.14em;
 
-    --primitive-tracking-tight:  0.02em;
-    --primitive-tracking-base:   0.06em;
-    --primitive-tracking-wide:   0.10em;
-    --primitive-tracking-wider:  0.12em;
-    --primitive-tracking-widest: 0.14em;
+  /* -----------------------------------------------------------------------
+   * Spacing
+   * ----------------------------------------------------------------------- */
 
-    /* -----------------------------------------------------------------------
-     * Spacing
-     * ----------------------------------------------------------------------- */
+  --primitive-space-1: 4px;
+  --primitive-space-2: 6px;
+  --primitive-space-3: 8px;
+  --primitive-space-4: 10px;
+  --primitive-space-5: 12px;
+  --primitive-space-6: 14px;
+  --primitive-space-7: 16px;
+  --primitive-space-8: 20px;
+  --primitive-space-9: 24px;
+  --primitive-space-10: 32px;
 
-    --primitive-space-1:  4px;
-    --primitive-space-2:  6px;
-    --primitive-space-3:  8px;
-    --primitive-space-4:  10px;
-    --primitive-space-5:  12px;
-    --primitive-space-6:  14px;
-    --primitive-space-7:  16px;
-    --primitive-space-8:  20px;
-    --primitive-space-9:  24px;
-    --primitive-space-10: 32px;
+  /* -----------------------------------------------------------------------
+   * Border radius
+   * ----------------------------------------------------------------------- */
 
-    /* -----------------------------------------------------------------------
-     * Border radius
-     * ----------------------------------------------------------------------- */
-
-    --primitive-radius-sm:   4px;
-    --primitive-radius-md:   6px;
-    --primitive-radius-lg:   8px;
-    --primitive-radius-xl:   12px;
-    --primitive-radius-full: 9999px;
-
+  --primitive-radius-sm: 4px;
+  --primitive-radius-md: 6px;
+  --primitive-radius-lg: 8px;
+  --primitive-radius-xl: 12px;
+  --primitive-radius-full: 9999px;
 }
