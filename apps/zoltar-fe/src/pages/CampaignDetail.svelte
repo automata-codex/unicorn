@@ -7,29 +7,7 @@
   import SectionLabel from '../lib/components/SectionLabel.svelte';
   import PageLayout from '../lib/components/PageLayout.svelte';
   import { navigate } from '../lib/router.svelte';
-
-  type Adventure = {
-    id: string;
-    campaignId: string;
-    status: string;
-    mode: string;
-    callerId: string;
-    createdAt: string;
-    completedAt: string | null;
-  };
-
-  type Character = {
-    id: string;
-    name: string;
-    class: string;
-    pronouns?: string;
-    stats?: Record<string, number>;
-  };
-
-  type Campaign = {
-    id: string;
-    name: string;
-  };
+  import type { Adventure, Campaign, Character } from '../lib/types';
 
   interface Props {
     campaignId: string;

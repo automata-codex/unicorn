@@ -7,14 +7,7 @@
   import Input from '../lib/components/Input.svelte';
   import PageLayout from '../lib/components/PageLayout.svelte';
   import { navigate } from '../lib/router.svelte';
-
-  type Campaign = {
-    id: string;
-    name: string;
-    visibility: string;
-    diceMode: string;
-    createdAt: string;
-  };
+  import type { Campaign } from '../lib/types';
 
   let campaigns = $state<Campaign[]>([]);
   let loading = $state(true);
