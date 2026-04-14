@@ -11,6 +11,7 @@ import {
 import { AdventureModule } from './adventure/adventure.module';
 import { AuthModule } from './auth/auth.module';
 import { CampaignModule } from './campaign/campaign.module';
+import { CharacterModule } from './character/character.module';
 import { ConfigModule } from './config/config.module';
 import { DbModule } from './db/db.module';
 import { GridModule } from './grid/grid.module';
@@ -39,6 +40,7 @@ const deferredServiceProviders = [
     HealthModule,
     CampaignModule,
     AdventureModule,
+    CharacterModule,
     AuthModule,
     GridModule,
   ],
