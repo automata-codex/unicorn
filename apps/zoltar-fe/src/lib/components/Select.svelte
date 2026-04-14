@@ -12,7 +12,7 @@
       {#if placeholder}
         <option value="" disabled selected={!value}>{placeholder}</option>
       {/if}
-      {#each options as opt}
+      {#each options as opt (opt.value)}
         <option value={opt.value} selected={value === opt.value}>{opt.label}</option>
       {/each}
     </select>

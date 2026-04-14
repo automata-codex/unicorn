@@ -30,5 +30,9 @@ export default defineConfig(
         svelteConfig,
       },
     },
+    rules: {
+      // False positive: ESLint doesn't understand Svelte 5 $props() destructuring
+      'no-useless-assignment': 'off',
+    },
   },
 );

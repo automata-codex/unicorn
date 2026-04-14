@@ -1,15 +1,17 @@
+import { SvelteSet } from 'svelte/reactivity';
+
 import type { OracleCategory } from '../data/oracle/types';
 
 export type OracleFilterState = {
-  active: Record<string, Set<string>>;
+  active: Record<string, SvelteSet<string>>;
 };
 
 export function createOracleFilterState(
   categories: OracleCategory[],
 ): OracleFilterState {
-  const active: Record<string, Set<string>> = {};
+  const active: Record<string, SvelteSet<string>> = {};
   for (const cat of categories) {
-    active[cat.id] = new Set(cat.entries.map((e) => e.id));
+    active[cat.id] = new SvelteSet(cat.entries.map((e) => e.id));
   }
   return { active };
 }
@@ -61,7 +63,7 @@ export function selectAll(
 ): void {
   const cat = categories.find((c) => c.id === categoryId);
   if (cat == null) return;
-  state.active[categoryId] = new Set(cat.entries.map((e) => e.id));
+  state.active[categoryId] = new SvelteSet(cat.entries.map((e) => e.id));
 }
 
 export function deselectAll(

@@ -108,7 +108,7 @@
           <span class="type-label character-meta">{character.class}</span>
           {#if character.stats}
             <div class="stat-row">
-              {#each Object.entries(character.stats) as [label, value]}
+              {#each Object.entries(character.stats) as [label, value] (label)}
                 <div class="stat-item">
                   <span class="type-stat-value">{value}</span>
                   <span class="type-label">{label.toUpperCase()}</span>
