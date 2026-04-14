@@ -2,6 +2,10 @@
   import { onMount } from 'svelte';
 
   import { api } from '../lib/api';
+  import Button from '../lib/components/Button.svelte';
+  import Card from '../lib/components/Card.svelte';
+  import Input from '../lib/components/Input.svelte';
+  import PageLayout from '../lib/components/PageLayout.svelte';
   import { navigate } from '../lib/router.svelte';
 
   type Campaign = {
@@ -44,49 +48,105 @@
   }
 </script>
 
-<main>
-  <h1>Campaigns</h1>
+<PageLayout>
+  <h1 class="type-screen-label page-title">CAMPAIGNS</h1>
 
   {#if loading}
-    <p>Loading...</p>
+    <p class="type-meta">LOADING...</p>
   {:else}
     {#if campaigns.length === 0}
-      <p>No campaigns yet.</p>
+      <p class="type-meta empty-state">NO CAMPAIGNS — CREATE ONE BELOW</p>
     {:else}
-      <ul>
+      <div class="campaign-grid">
         {#each campaigns as campaign (campaign.id)}
-          <li>
-            <a
-              href="/campaigns/{campaign.id}"
-              onclick={(e) => {
-                e.preventDefault();
-                navigate(`/campaigns/${campaign.id}`);
-              }}
-            >
-              {campaign.name}
-            </a>
-          </li>
+          <button
+            class="campaign-card-button"
+            onclick={() => navigate(`/campaigns/${campaign.id}`)}
+          >
+            <Card>
+              <span class="type-campaign-name">{campaign.name}</span>
+            </Card>
+          </button>
         {/each}
-      </ul>
+      </div>
     {/if}
 
-    {#if showForm}
-      <form onsubmit={handleCreate}>
-        <label>
-          Campaign name
-          <input type="text" bind:value={newName} required maxlength="120" />
-        </label>
-        <button type="submit" disabled={creating}>
-          {creating ? 'Creating...' : 'Create'}
-        </button>
-        <button type="button" onclick={() => { showForm = false; }}>
-          Cancel
-        </button>
-      </form>
-    {:else}
-      <button onclick={() => { showForm = true; }}>
-        New Campaign
-      </button>
-    {/if}
+    <div class="new-campaign">
+      {#if showForm}
+        <form onsubmit={handleCreate}>
+          <div class="form-field">
+            <Input
+              label="NAME"
+              value={newName}
+              oninput={(e) => { newName = (e.target as HTMLInputElement).value; }}
+            />
+          </div>
+          <div class="form-actions">
+            <Button type="submit" disabled={creating}>
+              {creating ? 'CREATING...' : 'CREATE'}
+            </Button>
+            <Button variant="ghost" onclick={() => { showForm = false; }}>CANCEL</Button>
+          </div>
+        </form>
+      {:else}
+        <Button variant="ghost" onclick={() => { showForm = true; }}>+ NEW CAMPAIGN</Button>
+      {/if}
+    </div>
   {/if}
-</main>
+</PageLayout>
+
+<style>
+  .page-title {
+    margin-bottom: var(--space-7);
+  }
+
+  .empty-state {
+    text-align: center;
+    margin-bottom: var(--space-7);
+  }
+
+  .campaign-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-bottom: var(--space-7);
+  }
+
+  @media (min-width: 768px) {
+    .campaign-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-5);
+    }
+  }
+
+  .campaign-card-button {
+    all: unset;
+    cursor: pointer;
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .campaign-card-button :global(.card) {
+    border-color: var(--color-border);
+    transition: border-color 0.15s ease;
+  }
+
+  .campaign-card-button:hover :global(.card) {
+    border-color: var(--color-accent-border);
+  }
+
+  .new-campaign {
+    margin-top: var(--space-5);
+  }
+
+  .form-field {
+    margin-bottom: var(--space-5);
+  }
+
+  .form-actions {
+    display: flex;
+    gap: var(--space-4);
+  }
+</style>

@@ -2,6 +2,10 @@
   import { onMount } from 'svelte';
 
   import { api } from '../lib/api';
+  import Button from '../lib/components/Button.svelte';
+  import Card from '../lib/components/Card.svelte';
+  import SectionLabel from '../lib/components/SectionLabel.svelte';
+  import PageLayout from '../lib/components/PageLayout.svelte';
   import { navigate } from '../lib/router.svelte';
 
   type Adventure = {
@@ -12,6 +16,14 @@
     callerId: string;
     createdAt: string;
     completedAt: string | null;
+  };
+
+  type Character = {
+    id: string;
+    name: string;
+    class: string;
+    pronouns?: string;
+    stats?: Record<string, number>;
   };
 
   type Campaign = {
@@ -27,8 +39,32 @@
 
   let campaign = $state<Campaign | null>(null);
   let adventures = $state<Adventure[]>([]);
+  let character = $state<Character | null>(null);
   let loading = $state(true);
   let error = $state('');
+  let showCompleted = $state(false);
+
+  const activeStatuses = ['synthesizing', 'ready', 'in_progress'];
+
+  let activeAdventures = $derived(
+    adventures.filter((a) => !['completed'].includes(a.status)),
+  );
+  let completedAdventures = $derived(
+    adventures.filter((a) => a.status === 'completed'),
+  );
+  let visibleAdventures = $derived(
+    showCompleted ? adventures : activeAdventures,
+  );
+
+  let hasActiveAdventure = $derived(
+    adventures.some((a) => activeStatuses.includes(a.status)),
+  );
+
+  let newAdventureDisabledReason = $derived.by(() => {
+    if (!character) return 'ASSIGN CREW FIRST';
+    if (hasActiveAdventure) return 'ADVENTURE IN PROGRESS';
+    return null;
+  });
 
   onMount(async () => {
     const [campRes, advRes] = await Promise.all([
@@ -48,57 +84,190 @@
       adventures = await advRes.json();
     }
 
+    // TODO: fetch character when endpoint exists
     loading = false;
   });
 
-  const statusColors: Record<string, string> = {
-    synthesizing: '#f59e0b',
-    ready: '#10b981',
-    completed: '#6b7280',
-    failed: '#ef4444',
-  };
+  function statusColor(status: string): string {
+    switch (status) {
+      case 'synthesizing':
+      case 'ready':
+        return 'var(--color-success)';
+      case 'in_progress':
+        return 'var(--color-success)';
+      case 'failed':
+        return 'var(--color-danger)';
+      case 'completed':
+      default:
+        return 'var(--color-text-ghost)';
+    }
+  }
+
+  function statusLabel(status: string): string {
+    return status.toUpperCase().replace('_', ' ');
+  }
 </script>
 
-<main>
-  <a
-    href="/campaigns"
-    onclick={(e) => {
-      e.preventDefault();
-      navigate('/campaigns');
-    }}
-  >
-    &larr; Campaigns
-  </a>
-
+<PageLayout>
   {#if loading}
-    <p>Loading...</p>
+    <p class="type-meta">LOADING...</p>
   {:else if error}
-    <p style="color: red">{error}</p>
+    <p class="error-text">{error}</p>
   {:else if campaign}
-    <h1>{campaign.name}</h1>
+    <div class="header">
+      <Button variant="ghost" onclick={() => navigate('/campaigns')}>← CAMPAIGNS</Button>
+      <h1 class="type-campaign-name">{campaign.name}</h1>
+    </div>
 
-    <h2>Adventures</h2>
+    <!-- Character section -->
+    <Card>
+      <SectionLabel>CHARACTER</SectionLabel>
 
-    {#if adventures.length === 0}
-      <p>No adventures yet.</p>
-    {:else}
-      <ul>
-        {#each adventures as adventure (adventure.id)}
-          <li>
-            <span
-              style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; color: white; background: {statusColors[adventure.status] ?? '#6b7280'}"
-            >
-              {adventure.status}
-            </span>
-            {adventure.id.slice(0, 8)}...
-            <small>{new Date(adventure.createdAt).toLocaleDateString()}</small>
-          </li>
-        {/each}
-      </ul>
-    {/if}
+      {#if character}
+        <div class="character-info">
+          <span class="type-screen-title">{character.name}</span>
+          <span class="type-label character-meta">{character.class}</span>
+          {#if character.stats}
+            <div class="stat-row">
+              {#each Object.entries(character.stats) as [label, value]}
+                <div class="stat-item">
+                  <span class="type-stat-value">{value}</span>
+                  <span class="type-label">{label.toUpperCase()}</span>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {:else}
+        <p class="type-meta empty-character">NO CREW ASSIGNED</p>
+        <Button onclick={() => navigate(`/campaigns/${campaignId}/characters/new`)}>
+          CREATE CHARACTER
+        </Button>
+      {/if}
+    </Card>
 
-    <button disabled title="Oracle table selection coming soon">
-      New Adventure
-    </button>
+    <!-- Adventures section -->
+    <Card>
+      <SectionLabel>ADVENTURES</SectionLabel>
+
+      <div class="new-adventure">
+        <Button
+          fullWidth
+          disabled={newAdventureDisabledReason != null}
+          onclick={() => navigate('/oracle-filter')}
+        >
+          NEW ADVENTURE
+        </Button>
+        {#if newAdventureDisabledReason}
+          <p class="type-meta disabled-caption">{newAdventureDisabledReason}</p>
+        {/if}
+      </div>
+
+      {#if visibleAdventures.length > 0}
+        <div class="adventure-list">
+          {#each visibleAdventures as adventure (adventure.id)}
+            <div class="adventure-row">
+              <span class="status-badge" style="color: {statusColor(adventure.status)}">
+                ● {statusLabel(adventure.status)}
+              </span>
+              <span class="type-meta">{new Date(adventure.createdAt).toLocaleDateString()}</span>
+            </div>
+          {/each}
+        </div>
+      {:else if adventures.length === 0}
+        <p class="type-meta empty-adventures">NO ADVENTURES YET</p>
+      {/if}
+
+      {#if completedAdventures.length > 0}
+        <Button
+          variant="ghost"
+          onclick={() => { showCompleted = !showCompleted; }}
+        >
+          {showCompleted ? 'HIDE COMPLETED' : `SHOW COMPLETED (${completedAdventures.length})`}
+        </Button>
+      {/if}
+    </Card>
   {/if}
-</main>
+</PageLayout>
+
+<style>
+  .header {
+    margin-bottom: var(--space-7);
+  }
+
+  .header :global(.btn) {
+    margin-bottom: var(--space-4);
+    padding-left: 0;
+  }
+
+  .error-text {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-xs);
+    color: var(--color-danger);
+  }
+
+  :global(.card) + :global(.card) {
+    margin-top: var(--space-5);
+  }
+
+  .character-info {
+    margin-top: var(--space-4);
+  }
+
+  .character-meta {
+    display: block;
+    margin-top: var(--space-2);
+    color: var(--color-text-ghost);
+  }
+
+  .stat-row {
+    display: flex;
+    gap: var(--space-5);
+    margin-top: var(--space-4);
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .empty-character {
+    margin: var(--space-4) 0;
+  }
+
+  .new-adventure {
+    margin: var(--space-5) 0;
+  }
+
+  .disabled-caption {
+    margin-top: var(--space-2);
+    text-align: center;
+  }
+
+  .adventure-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+  }
+
+  .adventure-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+
+  .status-badge {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-xs);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+  }
+
+  .empty-adventures {
+    margin: var(--space-4) 0;
+  }
+</style>
