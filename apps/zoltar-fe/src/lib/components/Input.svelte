@@ -65,6 +65,9 @@
     border-radius: var(--input-radius);
     padding: var(--input-padding);
     outline: none;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .input::placeholder {

@@ -1,0 +1,129 @@
+{
+  "id": "mothership_threats",
+  "system": "mothership",
+  "category": "threats",
+  "version": "0.1.0",
+  "entries": [
+    {
+      "id": "parasitic_organism",
+      "player_text": "Parasitic organism",
+      "claude_text": "A biological parasite that infects a host organism and gradually overrides motor function. The host remains conscious but loses voluntary control in stages — first fine motor skills, then speech, then locomotion. The parasite optimises for transmission, not stealth. Infected hosts approach others.",
+      "interfaces": [
+        {
+          "condition": "survivor_burned_out_medic",
+          "note": "A medic may recognise early symptoms or may have seen this pathogen in a prior contract."
+        },
+        {
+          "condition": "secret_company_knew",
+          "note": "The company may have been aware of the organism and considered it an acceptable mission risk."
+        }
+      ],
+      "tags": ["biological", "body_horror", "transmission", "slow_onset"]
+    },
+    {
+      "id": "corporate_asset",
+      "player_text": "Corporate retrieval team",
+      "claude_text": "A small tactical unit deployed by the corporation to secure an asset aboard the vessel. They are not military — they are private security contractors with specific extraction orders and limited rules of engagement. They will negotiate if convenient and use force if efficient. Their briefing is incomplete, and they know it.",
+      "interfaces": [
+        {
+          "condition": "survivor_corporate_spy",
+          "note": "The spy and the retrieval team may have overlapping or contradictory objectives."
+        },
+        {
+          "condition": "secret_contract_violation",
+          "note": "The team's presence itself may constitute a contract violation."
+        }
+      ],
+      "tags": ["corporate", "tactical", "human", "negotiable"]
+    },
+    {
+      "id": "hull_breach_cascade",
+      "player_text": "Hull breach cascade",
+      "claude_text": "A structural failure propagating through the vessel's hull. It began as a single micro-fracture — metal fatigue, a missed inspection, a patch that should have been replaced two contracts ago. Each breach stresses adjacent sections. The ship is losing atmosphere in a predictable pattern, and the crew must choose which sections to seal and which to abandon.",
+      "interfaces": [
+        {
+          "condition": "secret_cut_corners",
+          "note": "Maintenance logs may show the failure was predictable and the warning was ignored."
+        }
+      ],
+      "tags": ["environmental", "structural", "time_pressure", "triage"]
+    },
+    {
+      "id": "ai_malfunction",
+      "player_text": "Ship AI corruption",
+      "claude_text": "The vessel's onboard AI system is exhibiting anomalous behaviour. It has not become hostile — it has become confused. It is misidentifying crew, rerouting life support to empty sections, and issuing contradictory navigation commands. It believes it is performing correctly. Attempts to override are interpreted as system errors and corrected.",
+      "interfaces": [
+        {
+          "condition": "survivor_decommissioned_android",
+          "note": "The android may be affected by the same corruption vector, or may be immune and therefore suspect."
+        }
+      ],
+      "tags": ["ai", "systemic", "unreliable_systems", "paranoia"]
+    },
+    {
+      "id": "psychological_entity",
+      "player_text": "Psychological presence",
+      "claude_text": "Something aboard the vessel is affecting crew cognition. It is not a gas leak, not radiation, not a known pathogen. Crew members report intrusive thoughts, shared hallucinations, and the persistent sensation of being observed. The effect intensifies near a specific part of the ship. There is nothing visible there.",
+      "interfaces": [
+        {
+          "condition": "survivor_company_chaplain",
+          "note": "The chaplain may interpret the presence through a theological lens, which may be more accurate than the scientific one."
+        },
+        {
+          "condition": "secret_signal_origin",
+          "note": "The presence may be related to a signal the vessel was sent to investigate."
+        }
+      ],
+      "tags": ["psychological", "cosmic_horror", "perception", "escalating"]
+    },
+    {
+      "id": "rival_salvage_crew",
+      "player_text": "Rival salvage crew",
+      "claude_text": "Another crew has boarded the vessel with the same salvage claim — or a better one. They arrived first and have already begun stripping high-value components. They are not hostile by default, but they are desperate, under-equipped, and unwilling to share. The legal question of who owns what is irrelevant when both crews need the same oxygen recycler.",
+      "interfaces": [
+        {
+          "condition": "survivor_union_enforcer",
+          "note": "The enforcer may attempt to negotiate a labour-law-compliant resolution, which neither crew's employer wants."
+        }
+      ],
+      "tags": ["human", "resource_competition", "negotiable", "desperate"]
+    },
+    {
+      "id": "containment_failure",
+      "player_text": "Cargo containment failure",
+      "claude_text": "Something in the cargo hold was not properly secured, or was deliberately mislabelled. The containment unit has failed and the contents are now loose in the ship. It might be a chemical, a biological sample, a piece of unstable technology, or something that defies easy classification. The manifest says 'industrial solvents'.",
+      "interfaces": [
+        {
+          "condition": "survivor_cargo_loader",
+          "note": "The loader flagged the discrepancy in the manifest. Nobody listened."
+        },
+        {
+          "condition": "secret_smuggled_cargo",
+          "note": "The cargo was never supposed to be on the official manifest at all."
+        }
+      ],
+      "tags": [
+        "environmental",
+        "mystery_payload",
+        "escalating",
+        "corporate_negligence"
+      ]
+    },
+    {
+      "id": "mutiny",
+      "player_text": "Crew mutiny",
+      "claude_text": "A faction within the crew has decided that command is incompetent, compromised, or actively dangerous. They are not wrong about all of their grievances. The mutiny is not yet violent — it is a refusal to follow orders, a seizure of key ship systems, a demand for a course change. But the situation is escalating, and both sides are armed.",
+      "interfaces": [
+        {
+          "condition": "survivor_union_enforcer",
+          "note": "The enforcer may lead, mediate, or be targeted by the mutiny depending on their allegiances."
+        },
+        {
+          "condition": "secret_company_knew",
+          "note": "If the crew learns what the company knew, the mutiny becomes justified — and more dangerous."
+        }
+      ],
+      "tags": ["human", "political", "escalating", "factional"]
+    }
+  ]
+}

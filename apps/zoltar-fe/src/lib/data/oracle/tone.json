@@ -1,0 +1,97 @@
+{
+  "id": "mothership_tone",
+  "system": "mothership",
+  "category": "tone",
+  "version": "0.1.0",
+  "entries": [
+    {
+      "id": "creeping_dread",
+      "player_text": "Creeping dread",
+      "claude_text": "The dominant tone is slow-building unease. Nothing is overtly wrong at first — systems are nominal, the crew is functional — but small details accumulate. A sound that shouldn't be there. A reading that doesn't quite make sense. The horror is in the anticipation, the growing certainty that something is wrong before anyone can name what it is.",
+      "interfaces": [
+        {
+          "condition": "threat_psychological_entity",
+          "note": "A presence that affects perception amplifies dread — the crew cannot trust their own senses."
+        }
+      ],
+      "tags": ["slow_burn", "atmospheric", "subtle", "anticipation"]
+    },
+    {
+      "id": "paranoia",
+      "player_text": "Paranoia",
+      "claude_text": "Trust is the central casualty. Someone aboard is not what they seem, or everyone is hiding something, or the systems that the crew depends on are lying to them. The tone emphasises suspicion, conflicting accounts, and the impossibility of verifying anything with certainty. Alliances form and fracture. Every act of cooperation requires a leap of faith.",
+      "interfaces": [
+        {
+          "condition": "secret_company_knew",
+          "note": "Corporate secrecy provides a factual basis for paranoia — it's not irrational if someone really is lying."
+        }
+      ],
+      "tags": ["social", "trust_erosion", "information_warfare", "factional"]
+    },
+    {
+      "id": "body_horror",
+      "player_text": "Body horror",
+      "claude_text": "The threat is intimate — it affects the body, transforms it, makes it alien. The horror is in the loss of bodily autonomy, the betrayal of one's own flesh. Descriptions emphasise visceral, physical transformation. The crew must confront not just danger but disgust, and the question of whether a transformed person is still a person.",
+      "interfaces": [
+        {
+          "condition": "threat_parasitic_organism",
+          "note": "A parasite that overrides motor function is the archetypal body horror vector."
+        },
+        {
+          "condition": "secret_experiment_subject",
+          "note": "Experimental modification adds an involuntary dimension — the body was changed without consent."
+        }
+      ],
+      "tags": ["visceral", "transformation", "autonomy", "disgust"]
+    },
+    {
+      "id": "corporate_nihilism",
+      "player_text": "Corporate nihilism",
+      "claude_text": "The horror is systemic, not supernatural. The crew was sent here because they are expendable. The mission was designed to fail. The safety equipment is inadequate because adequate equipment costs more. Every revelation confirms that the system values profit over survival. The monster is the spreadsheet.",
+      "interfaces": [
+        {
+          "condition": "secret_insurance_scam",
+          "note": "The insurance scam is the purest expression of corporate nihilism — lives as line items."
+        },
+        {
+          "condition": "secret_cut_corners",
+          "note": "Deferred maintenance is corporate nihilism made physical."
+        }
+      ],
+      "tags": ["systemic", "political", "bleak", "institutional"]
+    },
+    {
+      "id": "isolation",
+      "player_text": "Isolation",
+      "claude_text": "The crew is alone. No rescue is coming, or rescue is so far away that it might as well not exist. Communications are down, or the nearest station is weeks away, or the crew is in a place that nobody else knows about. Every resource is finite. Every decision is final. The void outside is patient.",
+      "interfaces": [
+        {
+          "condition": "threat_hull_breach_cascade",
+          "note": "Structural failure in isolation means there is no port to limp to — repair or die."
+        }
+      ],
+      "tags": [
+        "environmental",
+        "resource_scarcity",
+        "no_rescue",
+        "claustrophobia"
+      ]
+    },
+    {
+      "id": "cosmic_awe",
+      "player_text": "Cosmic awe",
+      "claude_text": "The tone balances terror with wonder. The crew has encountered something vast, ancient, and incomprehensible — not hostile, not benign, simply operating on a scale that renders human concerns irrelevant. The horror is existential: the realisation that the universe contains things that do not notice humanity. Moments of terrible beauty punctuate the fear.",
+      "interfaces": [
+        {
+          "condition": "secret_signal_origin",
+          "note": "A signal from something vast and incomprehensible is the entry point for cosmic awe."
+        },
+        {
+          "condition": "threat_psychological_entity",
+          "note": "A presence that defies scientific explanation may inspire awe as much as fear."
+        }
+      ],
+      "tags": ["cosmic", "existential", "sublime", "scale"]
+    }
+  ]
+}

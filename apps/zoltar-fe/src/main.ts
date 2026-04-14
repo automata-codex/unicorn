@@ -1,5 +1,6 @@
 import { mount } from 'svelte';
 
+import 'modern-normalize';
 import './themes/base.css';
 import './themes/mothership.css';
 import './lib/styles/typography.css';
