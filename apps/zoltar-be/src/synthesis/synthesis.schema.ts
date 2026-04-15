@@ -38,3 +38,23 @@ export const submitGmContextSchema = z.object({
 });
 
 export type SubmitGmContext = z.infer<typeof submitGmContextSchema>;
+
+export const coherenceConflictSchema = z.object({
+  category: z.string(),
+  description: z.string(),
+  rerollable: z.boolean(),
+});
+
+export const coherenceReportSchema = z
+  .object({
+    conflicts: z.array(coherenceConflictSchema),
+    resolution: z.enum(['proceed', 'reroll', 'surface']),
+    rerollCategory: z.string().optional(),
+  })
+  .refine(
+    (report) => report.resolution !== 'reroll' || !!report.rerollCategory,
+    { message: 'rerollCategory is required when resolution is "reroll"' },
+  );
+
+export type CoherenceConflict = z.infer<typeof coherenceConflictSchema>;
+export type CoherenceReport = z.infer<typeof coherenceReportSchema>;
