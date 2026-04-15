@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
+
+import { oracleSchemas } from '../index';
 import {
   MothershipOracleSelectionsSchema,
   OracleEntrySchema,
-  oracleSchemas,
-} from '@uv/game-systems';
+} from './oracle.schema';
 
 const validEntry = {
   id: 'survivor_01',
