@@ -170,10 +170,10 @@ A spatial system spec must be written and agreed before this area is implemented
 
 *The raw material for GM context synthesis.*
 
-- [ ] Mothership oracle tables — versioned JSON files (survivors, threats, secrets, vessel type, tone)
-- [ ] Oracle table filtering data model (active/inactive entries, range dials)
-- [ ] Character creation flow (mechanical Mothership character creation, seeds oracle weighting)
-- [ ] Frontend: oracle filtering UI (activate/deactivate, range dials), character creation UI
+- [x] Mothership oracle tables — versioned JSON files (survivors, threats, secrets, vessel type, tone)
+- [x] Oracle table filtering data model (active/inactive entries, range dials)
+- [x] Character creation flow (mechanical Mothership character creation, seeds oracle weighting)
+- [x] Frontend: oracle filtering UI (activate/deactivate, range dials), character creation UI
 
 #### M4 — Solo Blind Campaign Creation Pipeline
 
