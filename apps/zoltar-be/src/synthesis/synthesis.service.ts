@@ -9,13 +9,13 @@ import type {
 import { AnthropicService } from '../anthropic/anthropic.service';
 
 import {
-  buildCoherenceCheckPrompt,
+  buildMothershipCoherenceCheckPrompt,
   buildMothershipSynthesisPrompt,
-  COHERENCE_SYSTEM_PROMPT,
-  COHERENCE_TOOLS,
-  SYNTHESIS_SYSTEM_PROMPT,
-  SYNTHESIS_TOOLS,
-} from './synthesis.prompts';
+  MOTHERSHIP_COHERENCE_SYSTEM_PROMPT,
+  MOTHERSHIP_ORACLE_CATEGORIES,
+  MOTHERSHIP_SYNTHESIS_SYSTEM_PROMPT,
+  type MothershipOracleCategory,
+} from './mothership/synthesis.prompts';
 import {
   CoherenceConflict,
   CoherenceReport,
@@ -23,6 +23,7 @@ import {
   coherenceReportSchema,
   submitGmContextSchema,
 } from './synthesis.schema';
+import { COHERENCE_TOOLS, SYNTHESIS_TOOLS } from './synthesis.tools';
 
 /**
  * Thrown when the coherence check surfaces a conflict the active pool cannot
@@ -46,19 +47,9 @@ export class SynthesisOutputError extends Error {
   }
 }
 
-type OracleCategory = keyof MothershipOracleSelections;
-
-const ORACLE_CATEGORIES: OracleCategory[] = [
-  'survivor',
-  'threat',
-  'secret',
-  'vessel_type',
-  'tone',
-];
-
 export interface CheckCoherenceArgs {
   selections: MothershipOracleSelections;
-  activePools: Record<OracleCategory, OracleEntry[]>;
+  activePools: Record<MothershipOracleCategory, OracleEntry[]>;
 }
 
 export interface CheckCoherenceResult {
@@ -83,9 +74,12 @@ export class SynthesisService {
     args: CheckCoherenceArgs,
   ): Promise<CheckCoherenceResult> {
     const message = await this.anthropic.callMessages({
-      system: COHERENCE_SYSTEM_PROMPT,
+      system: MOTHERSHIP_COHERENCE_SYSTEM_PROMPT,
       messages: [
-        { role: 'user', content: buildCoherenceCheckPrompt(args.selections) },
+        {
+          role: 'user',
+          content: buildMothershipCoherenceCheckPrompt(args.selections),
+        },
       ],
       tools: COHERENCE_TOOLS,
       toolChoice: { type: 'any' },
@@ -106,8 +100,13 @@ export class SynthesisService {
     }
 
     // resolution === 'reroll' — attempt silent substitution.
-    const category = report.rerollCategory as OracleCategory | undefined;
-    if (!category || !ORACLE_CATEGORIES.includes(category)) {
+    const category = report.rerollCategory as
+      | MothershipOracleCategory
+      | undefined;
+    if (
+      !category ||
+      !(MOTHERSHIP_ORACLE_CATEGORIES as readonly string[]).includes(category)
+    ) {
       this.logger.warn(
         `Coherence check requested reroll with invalid category: ${String(
           category,
@@ -147,7 +146,7 @@ export class SynthesisService {
     addendum?: string;
   }): Promise<SubmitGmContext> {
     const message = await this.anthropic.callMessages({
-      system: SYNTHESIS_SYSTEM_PROMPT,
+      system: MOTHERSHIP_SYNTHESIS_SYSTEM_PROMPT,
       messages: [
         {
           role: 'user',

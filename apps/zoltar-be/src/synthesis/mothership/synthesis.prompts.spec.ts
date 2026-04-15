@@ -1,21 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
-import { baseSelections, vasquezSheet } from './synthesis.fixtures';
+import { baseSelections, vasquezSheet } from '../synthesis.fixtures';
 import {
-  buildCoherenceCheckPrompt,
-  buildMothershipSynthesisPrompt,
   COHERENCE_TOOLS,
-  formatCharacterProse,
-  formatOracleEntry,
   REPORT_COHERENCE_TOOL,
   SUBMIT_GM_CONTEXT_TOOL,
-  SYNTHESIS_SYSTEM_PROMPT,
   SYNTHESIS_TOOLS,
+} from '../synthesis.tools';
+
+import {
+  buildMothershipCoherenceCheckPrompt,
+  buildMothershipSynthesisPrompt,
+  formatMothershipCharacterProse,
+  formatOracleEntry,
+  MOTHERSHIP_SYNTHESIS_SYSTEM_PROMPT,
 } from './synthesis.prompts';
 
-describe('formatCharacterProse', () => {
+describe('formatMothershipCharacterProse', () => {
   it('renders name, class, stats, saves, HP, stress, skills, equipment', () => {
-    const prose = formatCharacterProse(vasquezSheet);
+    const prose = formatMothershipCharacterProse(vasquezSheet);
     expect(prose).toContain('Vasquez (marine)');
     expect(prose).toContain('STR 55');
     expect(prose).toContain('SAN 50');
@@ -28,7 +31,7 @@ describe('formatCharacterProse', () => {
   });
 
   it('renders "(none)" when skills or equipment are empty', () => {
-    const prose = formatCharacterProse({
+    const prose = formatMothershipCharacterProse({
       ...vasquezSheet,
       skills: [],
       equipment: [],
@@ -93,9 +96,9 @@ describe('buildMothershipSynthesisPrompt', () => {
   });
 });
 
-describe('buildCoherenceCheckPrompt', () => {
+describe('buildMothershipCoherenceCheckPrompt', () => {
   it('lists all five categories and references the resolution values', () => {
-    const prompt = buildCoherenceCheckPrompt(baseSelections);
+    const prompt = buildMothershipCoherenceCheckPrompt(baseSelections);
     for (const label of ['Survivor', 'Threat', 'Secret', 'Vessel Type', 'Tone']) {
       expect(prompt).toContain(`${label}:`);
     }
@@ -124,9 +127,9 @@ describe('tool definitions', () => {
   });
 });
 
-describe('SYNTHESIS_SYSTEM_PROMPT', () => {
+describe('MOTHERSHIP_SYNTHESIS_SYSTEM_PROMPT', () => {
   it('is the spec-mandated string', () => {
-    expect(SYNTHESIS_SYSTEM_PROMPT).toBe(
+    expect(MOTHERSHIP_SYNTHESIS_SYSTEM_PROMPT).toBe(
       'You are a GM context synthesizer for a Mothership RPG adventure.',
     );
   });
