@@ -8,11 +8,13 @@ import {
   baseSelections,
   vasquezSheet,
 } from './synthesis.fixtures';
+import type { SynthesisRepository } from './synthesis.repository';
 import {
   CoherenceConflictError,
   SynthesisOutputError,
   SynthesisService,
 } from './synthesis.service';
+import { SynthesisWriteValidationError } from './synthesis.write';
 
 function toolUseMessage(name: string, input: unknown): Anthropic.Message {
   return {
@@ -34,9 +36,32 @@ function textMessage(text: string): Anthropic.Message {
   } as unknown as Anthropic.Message;
 }
 
-function makeService(callMessages: ReturnType<typeof vi.fn>) {
+interface MockRepoOverrides {
+  getCampaignStateData?: ReturnType<typeof vi.fn>;
+  writeGmContextAtomic?: ReturnType<typeof vi.fn>;
+  setAdventureFailed?: ReturnType<typeof vi.fn>;
+  autoPromoteCanon?: ReturnType<typeof vi.fn>;
+}
+
+function makeRepo(overrides: MockRepoOverrides = {}): SynthesisRepository {
+  return {
+    getCampaignStateData:
+      overrides.getCampaignStateData ?? vi.fn().mockResolvedValue(null),
+    writeGmContextAtomic:
+      overrides.writeGmContextAtomic ?? vi.fn().mockResolvedValue(undefined),
+    setAdventureFailed:
+      overrides.setAdventureFailed ?? vi.fn().mockResolvedValue(undefined),
+    autoPromoteCanon:
+      overrides.autoPromoteCanon ?? vi.fn().mockResolvedValue(undefined),
+  } as unknown as SynthesisRepository;
+}
+
+function makeService(
+  callMessages: ReturnType<typeof vi.fn>,
+  repo: SynthesisRepository = makeRepo(),
+) {
   const anthropic = { callMessages } as unknown as AnthropicService;
-  return new SynthesisService(anthropic);
+  return new SynthesisService(anthropic, repo);
 }
 
 const proceedReport = {
@@ -295,5 +320,216 @@ describe('SynthesisService.runSynthesis', () => {
         selections: baseSelections,
       }),
     ).rejects.toBeInstanceOf(SynthesisOutputError);
+  });
+});
+
+describe('SynthesisService.commitGmContext', () => {
+  const adventureId = '00000000-0000-0000-0000-000000000001';
+  const campaignId = '00000000-0000-0000-0000-000000000002';
+
+  const validInput = {
+    openingNarration: 'Amber lights pulse overhead.',
+    narrative: {
+      location: 'Derelict hauler',
+      atmosphere: 'Cold, humming, wrong',
+      npcAgendas: { dr_chen: 'Hide the manifest.' },
+      hiddenTruth: 'The cargo is alive.',
+      oracleConnections: 'Survivor sealed the bay.',
+    },
+    structured: {
+      entities: [
+        {
+          id: 'dr_chen',
+          type: 'npc' as const,
+          visible: true,
+          tags: ['corporate'],
+          startingPosition: { x: 1, y: 2, z: 0 },
+        },
+        {
+          id: 'invisible_threat',
+          type: 'threat' as const,
+          visible: false,
+          tags: [],
+          // No startingPosition — should be skipped by buildGridEntityRows.
+        },
+      ],
+      flags: {
+        adventure_complete: {
+          value: false,
+          trigger: 'Escape with the manifest.',
+        },
+      },
+      initialState: {
+        dr_chen_hp: { current: 10, max: 10 },
+      },
+    },
+  };
+
+  it('runs the atomic write with merged campaign state data', async () => {
+    const writeGmContextAtomic = vi.fn().mockResolvedValue(undefined);
+    const getCampaignStateData = vi.fn().mockResolvedValue({
+      schemaVersion: 1,
+      resourcePools: {
+        // Pre-seeded player pool — must not be clobbered.
+        vasquez_hp: { current: 15, max: 15 },
+      },
+      entities: {},
+      flags: {},
+      scenarioState: {},
+      worldFacts: {},
+    });
+    const repo = makeRepo({ writeGmContextAtomic, getCampaignStateData });
+    const service = makeService(vi.fn(), repo);
+
+    await service.commitGmContext({
+      adventureId,
+      campaignId,
+      input: validInput,
+    });
+
+    expect(writeGmContextAtomic).toHaveBeenCalledOnce();
+    const [args] = writeGmContextAtomic.mock.calls[0];
+    expect(args.adventureId).toBe(adventureId);
+    expect(args.campaignId).toBe(campaignId);
+    expect(args.campaignStateData.resourcePools).toEqual({
+      vasquez_hp: { current: 15, max: 15 },
+      dr_chen_hp: { current: 10, max: 10 },
+    });
+    expect(args.campaignStateData.flags.adventure_complete.trigger).toBe(
+      'Escape with the manifest.',
+    );
+    expect(args.campaignStateData.entities.dr_chen).toEqual({
+      visible: true,
+      status: 'unknown',
+    });
+    expect(args.gridEntities).toHaveLength(1);
+    expect(args.gridEntities[0].entityRef).toBe('dr_chen');
+    expect(args.gmContextBlob).toMatchObject({
+      openingNarration: 'Amber lights pulse overhead.',
+      narrative: validInput.narrative,
+    });
+  });
+
+  it('fills resource pools when campaign_state has no existing row', async () => {
+    const writeGmContextAtomic = vi.fn().mockResolvedValue(undefined);
+    const repo = makeRepo({
+      getCampaignStateData: vi.fn().mockResolvedValue(null),
+      writeGmContextAtomic,
+    });
+    const service = makeService(vi.fn(), repo);
+
+    await service.commitGmContext({
+      adventureId,
+      campaignId,
+      input: validInput,
+    });
+
+    const [args] = writeGmContextAtomic.mock.calls[0];
+    expect(args.campaignStateData.resourcePools).toEqual({
+      dr_chen_hp: { current: 10, max: 10 },
+    });
+  });
+
+  it('rejects missing adventure_complete and sets the adventure failed', async () => {
+    const setAdventureFailed = vi.fn().mockResolvedValue(undefined);
+    const writeGmContextAtomic = vi.fn();
+    const repo = makeRepo({ setAdventureFailed, writeGmContextAtomic });
+    const service = makeService(vi.fn(), repo);
+
+    const bad = structuredClone(validInput);
+    bad.structured.flags = {} as typeof validInput.structured.flags;
+
+    await expect(
+      service.commitGmContext({ adventureId, campaignId, input: bad }),
+    ).rejects.toBeInstanceOf(SynthesisWriteValidationError);
+
+    expect(writeGmContextAtomic).not.toHaveBeenCalled();
+    expect(setAdventureFailed).toHaveBeenCalledWith(
+      adventureId,
+      expect.stringContaining('adventure_complete'),
+    );
+  });
+
+  it('rejects adventure_complete starting as true', async () => {
+    const repo = makeRepo();
+    const service = makeService(vi.fn(), repo);
+
+    const bad = structuredClone(validInput);
+    bad.structured.flags.adventure_complete.value = true;
+
+    await expect(
+      service.commitGmContext({ adventureId, campaignId, input: bad }),
+    ).rejects.toBeInstanceOf(SynthesisWriteValidationError);
+  });
+
+  it('rejects duplicate entity ids', async () => {
+    const repo = makeRepo();
+    const service = makeService(vi.fn(), repo);
+
+    const bad = structuredClone(validInput);
+    (
+      bad.structured.entities as Array<(typeof validInput.structured.entities)[number] | { id: string; type: 'feature'; visible: boolean; tags: string[] }>
+    ).push({
+      id: 'dr_chen',
+      type: 'feature',
+      visible: true,
+      tags: [],
+    });
+
+    await expect(
+      service.commitGmContext({
+        adventureId,
+        campaignId,
+        input: bad,
+      }),
+    ).rejects.toBeInstanceOf(SynthesisWriteValidationError);
+  });
+
+  it('rejects malformed initialState entries', async () => {
+    const repo = makeRepo();
+    const service = makeService(vi.fn(), repo);
+
+    const bad = structuredClone(validInput);
+    bad.structured.initialState = {
+      dr_chen_hp: { current: 'ten', max: 10 },
+    } as unknown as typeof validInput.structured.initialState;
+
+    await expect(
+      service.commitGmContext({ adventureId, campaignId, input: bad }),
+    ).rejects.toBeInstanceOf(SynthesisWriteValidationError);
+  });
+
+  it('flips adventure to failed when the atomic write throws', async () => {
+    const setAdventureFailed = vi.fn().mockResolvedValue(undefined);
+    const writeGmContextAtomic = vi
+      .fn()
+      .mockRejectedValue(new Error('deadlock'));
+    const repo = makeRepo({ setAdventureFailed, writeGmContextAtomic });
+    const service = makeService(vi.fn(), repo);
+
+    await expect(
+      service.commitGmContext({
+        adventureId,
+        campaignId,
+        input: validInput,
+      }),
+    ).rejects.toThrow('deadlock');
+
+    expect(setAdventureFailed).toHaveBeenCalledWith(
+      adventureId,
+      expect.stringContaining('deadlock'),
+    );
+  });
+});
+
+describe('SynthesisService.autoPromoteCanon', () => {
+  it('delegates to the repository', async () => {
+    const autoPromoteCanon = vi.fn().mockResolvedValue(undefined);
+    const repo = makeRepo({ autoPromoteCanon });
+    const service = makeService(vi.fn(), repo);
+
+    await service.autoPromoteCanon('adv-1');
+
+    expect(autoPromoteCanon).toHaveBeenCalledWith('adv-1');
   });
 });

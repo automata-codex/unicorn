@@ -23,7 +23,17 @@ import {
   coherenceReportSchema,
   submitGmContextSchema,
 } from './synthesis.schema';
+import { SynthesisRepository } from './synthesis.repository';
 import { COHERENCE_TOOLS, SYNTHESIS_TOOLS } from './synthesis.tools';
+import {
+  buildCampaignStateData,
+  buildGmContextBlob,
+  buildGridEntityRows,
+  SynthesisWriteValidationError,
+  validateSubmitGmContextForWrite,
+} from './synthesis.write';
+
+export { SynthesisWriteValidationError } from './synthesis.write';
 
 /**
  * Thrown when the coherence check surfaces a conflict the active pool cannot
@@ -62,7 +72,10 @@ export interface CheckCoherenceResult {
 export class SynthesisService {
   private readonly logger = new Logger(SynthesisService.name);
 
-  constructor(private readonly anthropic: AnthropicService) {}
+  constructor(
+    private readonly anthropic: AnthropicService,
+    private readonly repo: SynthesisRepository,
+  ) {}
 
   /**
    * Runs the coherence check and resolves Tier 1 (silent reroll) internally.
@@ -166,6 +179,67 @@ export class SynthesisService {
       'submit_gm_context',
       submitGmContextSchema,
     );
+  }
+
+  /**
+   * Persists a validated `submit_gm_context` payload. On validation or write
+   * failure, flips `adventure.status` to `failed` and rethrows.
+   *
+   * Note: this is a no-op for the on-disk Anthropic call — that lives in
+   * `runSynthesis`. The controller (Phase 4) wires them together.
+   */
+  async commitGmContext(args: {
+    adventureId: string;
+    campaignId: string;
+    input: SubmitGmContext;
+  }): Promise<void> {
+    try {
+      validateSubmitGmContextForWrite(args.input);
+
+      const existingData = await this.repo.getCampaignStateData(args.campaignId);
+      const campaignStateData = buildCampaignStateData(
+        existingData,
+        args.input,
+      );
+      const gmContextBlob = buildGmContextBlob(args.input);
+      const gridEntities = buildGridEntityRows(args.input);
+
+      await this.repo.writeGmContextAtomic({
+        adventureId: args.adventureId,
+        campaignId: args.campaignId,
+        gmContextBlob,
+        campaignStateData,
+        gridEntities,
+      });
+    } catch (err) {
+      const detail =
+        err instanceof SynthesisWriteValidationError
+          ? err.message
+          : err instanceof Error
+            ? `synthesis write failed: ${err.message}`
+            : 'synthesis write failed';
+      this.logger.warn(
+        `commitGmContext failed for adventure=${args.adventureId}: ${detail}`,
+      );
+      try {
+        await this.repo.setAdventureFailed(args.adventureId, detail);
+      } catch (markErr) {
+        this.logger.error(
+          `Failed to mark adventure ${args.adventureId} as failed`,
+          markErr instanceof Error ? markErr.stack : String(markErr),
+        );
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Standalone auto-promote helper. `commitGmContext` performs the same
+   * promotion inside its transaction; M6's `submit_gm_response` handler will
+   * reuse this method after each turn in Solo Blind campaigns.
+   */
+  async autoPromoteCanon(adventureId: string): Promise<void> {
+    await this.repo.autoPromoteCanon(adventureId);
   }
 
   private parseToolResult<T>(
