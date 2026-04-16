@@ -156,6 +156,7 @@
       <Button variant="ghost" onclick={() => navigate('/campaigns')}>← CAMPAIGNS</Button>
       {#if editingName}
         <div class="name-edit-row">
+          <!-- svelte-ignore a11y_autofocus -->
           <input
             class="type-campaign-name name-input"
             bind:value={nameInput}
