@@ -87,7 +87,7 @@
   {#if $session}
     <nav class="nav-bar">
       <div class="nav-inner">
-        <span class="wordmark">ZOLTAR</span>
+        <button type="button" class="wordmark" onclick={() => navigate('/')}>ZOLTAR</button>
         <div class="nav-right">
           <span class="nav-email">{$session.email}</span>
           <Button variant="ghost" onclick={handleSignOut}>Sign out</Button>
@@ -156,6 +156,8 @@
   }
 
   .wordmark {
+    all: unset;
+    cursor: pointer;
     font-family: var(--font-primary);
     font-size: var(--font-size-xl);
     color: var(--color-accent);
