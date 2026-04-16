@@ -135,7 +135,7 @@
         <Button
           fullWidth
           disabled={newAdventureDisabledReason != null}
-          onclick={() => navigate('/oracle-filter')}
+          onclick={() => navigate(`/campaigns/${campaignId}/oracle`)}
         >
           NEW ADVENTURE
         </Button>
@@ -147,12 +147,20 @@
       {#if visibleAdventures.length > 0}
         <div class="adventure-list">
           {#each visibleAdventures as adventure (adventure.id)}
-            <div class="adventure-row">
+            <button
+              class="adventure-row"
+              class:adventure-row-clickable={['synthesizing', 'ready'].includes(adventure.status)}
+              onclick={() => {
+                if (['synthesizing', 'ready'].includes(adventure.status)) {
+                  navigate(`/campaigns/${campaignId}/adventures/${adventure.id}`);
+                }
+              }}
+            >
               <span class="status-badge" style="color: {statusColor(adventure.status)}">
                 ● {statusLabel(adventure.status)}
               </span>
               <span class="type-meta">{new Date(adventure.createdAt).toLocaleDateString()}</span>
-            </div>
+            </button>
           {/each}
         </div>
       {:else if adventures.length === 0}
@@ -234,11 +242,22 @@
   }
 
   .adventure-row {
+    all: unset;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
     padding: var(--space-3) 0;
     border-bottom: 1px solid var(--color-border-subtle);
+    box-sizing: border-box;
+  }
+
+  .adventure-row-clickable {
+    cursor: pointer;
+  }
+
+  .adventure-row-clickable:hover .status-badge {
+    text-decoration: underline;
   }
 
   .status-badge {

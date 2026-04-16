@@ -61,6 +61,19 @@ export const mothershipOracleCategories: OracleCategory[] = [
 ];
 
 /**
+ * Maps from the plural category id used in oracle JSON data files to the
+ * singular key used in `MothershipOracleSelectionsSchema`. Categories that
+ * are already singular (vessel_type, tone) map to themselves.
+ */
+export const mothershipCategoryToSelectionKey: Record<string, string> = {
+  survivors: 'survivor',
+  threats: 'threat',
+  secrets: 'secret',
+  vessel_type: 'vessel_type',
+  tone: 'tone',
+};
+
+/**
  * Returns all entries for the given Mothership oracle category. Used by the
  * backend coherence check to supply active pools for rerolling.
  */
