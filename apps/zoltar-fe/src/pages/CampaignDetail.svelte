@@ -107,18 +107,20 @@
       <SectionLabel>CHARACTER</SectionLabel>
 
       {#if character}
-        <div class="character-info">
-          <span class="type-screen-title">{character.data.name}</span>
-          <span class="type-label character-meta">{character.data.class}</span>
-          <div class="stat-row">
-            {#each Object.entries(character.data.stats) as [label, value] (label)}
-              <div class="stat-item">
-                <span class="type-stat-value">{value}</span>
-                <span class="type-label">{label.toUpperCase()}</span>
-              </div>
-            {/each}
+        <button class="character-link" onclick={() => navigate(`/campaigns/${campaignId}/characters`)}>
+          <div class="character-info">
+            <span class="type-screen-title">{character.data.name}</span>
+            <span class="type-label character-meta">{character.data.class}</span>
+            <div class="stat-row">
+              {#each Object.entries(character.data.stats) as [label, value] (label)}
+                <div class="stat-item">
+                  <span class="type-stat-value">{value}</span>
+                  <span class="type-label">{label.toUpperCase()}</span>
+                </div>
+              {/each}
+            </div>
           </div>
-        </div>
+        </button>
       {:else}
         <p class="type-meta empty-character">NO CREW ASSIGNED</p>
         <Button onclick={() => navigate(`/campaigns/${campaignId}/characters/new`)}>
@@ -197,6 +199,14 @@
 
   :global(.card) + :global(.card) {
     margin-top: var(--space-5);
+  }
+
+  .character-link {
+    all: unset;
+    display: block;
+    width: 100%;
+    cursor: pointer;
+    box-sizing: border-box;
   }
 
   .character-info {
