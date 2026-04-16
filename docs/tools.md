@@ -222,6 +222,12 @@ The entity identifiers in the `structured.entities` array are the canonical iden
 ```typescript
 const submitGmContextSchema = z.object({
 
+  // The first thing the player sees when the adventure begins —
+  // generated during synthesis and injected as the first assistant
+  // message on adventure start. Not part of the GM context blob
+  // re-sent to Claude; stored once and replayed from the message log.
+  openingNarration: z.string().optional(),
+
   narrative: z.object({
 
     // Spatial truth: deck layout, room connections, what is where,
@@ -262,13 +268,42 @@ const submitGmContextSchema = z.object({
       tags:    z.array(z.string()),   // e.g. ['corporate', 'armed', 'injured']
     })),
 
-    // Flags that are true at adventure start.
-    // Example: { "distress_beacon_active": true, "airlock_sealed": false }
-    initialFlags: z.record(z.string(), z.boolean()),
+    // Flags that exist at adventure start. Each flag pairs its boolean
+    // value with the in-fiction trigger that flips it — co-located so
+    // the state snapshot can surface the trigger to Claude every turn
+    // without re-reading the GM context blob.
+    //
+    // Every scenario must include an `adventure_complete` flag whose
+    // trigger names the specific end condition for the adventure.
+    //
+    // Example:
+    //   {
+    //     "distress_beacon_active": {
+    //       "value": false,
+    //       "trigger": "Flip to true when the player or an NPC activates the beacon at the bridge console."
+    //     },
+    //     "adventure_complete": {
+    //       "value": false,
+    //       "trigger": "Flip to true when the player escapes the vessel via the emergency pod with the manifest."
+    //     }
+    //   }
+    flags: z.record(z.string(), z.object({
+      value:   z.boolean(),
+      trigger: z.string(),
+    })),
 
-    // Initial system-specific campaign state. Validated against the
-    // system Zod schema (e.g. MothershipStateSchema) by the backend.
+    // Initial system-specific campaign state. Entries that match the
+    // resource pool shape ({ current: number, max: number | null })
+    // are written to campaign_state.data.resourcePools. Non-pool
+    // entries are silently ignored — use worldFacts for string state.
     initialState: z.record(z.string(), z.unknown()),
+
+    // Non-numeric initial state the Warden needs to remember across
+    // turns. Starting deck/location, environmental details that must
+    // stay consistent (specific console readout text, graffiti content),
+    // NPC cover identities, etc. Keys are descriptive snake_case,
+    // values are plain strings. Merged into campaign_state.data.worldFacts.
+    worldFacts: z.record(z.string(), z.string()).optional(),
 
   }),
 

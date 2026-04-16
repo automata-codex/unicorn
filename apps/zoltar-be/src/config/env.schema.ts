@@ -10,6 +10,7 @@ export const envSchema = z.object({
   COOKIE_DOMAIN: z.string().default('.zoltar.local'),
   PUBLIC_APP_URL: z.string().url().default('https://app.zoltar.local'),
   PUBLIC_API_URL: z.string().url().default('https://api.zoltar.local'),
+  ANTHROPIC_API_KEY: z.string().min(1),
 });
 
 export type Env = z.infer<typeof envSchema>;

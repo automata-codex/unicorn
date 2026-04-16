@@ -32,9 +32,7 @@
   let armorMax = $state(30);
 
   // HP & Stress
-  let currentHp = $state(20);
   let maxHp = $state(20);
-  let currentStress = $state(0);
   let maxStress = $state(3);
 
   // Dynamic lists
@@ -105,9 +103,8 @@
       class: charClass,
       stats: { strength, speed, intellect, combat, instinct, sanity },
       saves: { fear, body, armor, armorMax },
-      currentHp,
       maxHp,
-      stress: { current: currentStress, max: maxStress },
+      maxStress,
       skills: skills.filter((s) => s.trim() !== ''),
       equipment: equipment.filter((s) => s.trim() !== ''),
       notes: notes || undefined,
@@ -207,23 +204,12 @@
       </div>
     </Card>
 
-    <!-- HIT POINTS -->
+    <!-- HP & STRESS -->
     <Card>
-      <SectionLabel>HIT POINTS</SectionLabel>
+      <SectionLabel>HP &amp; STRESS</SectionLabel>
       <div class="section-content">
         <div class="stats-grid">
-          <Input label="CURRENT HP" type="number" value={currentHp} oninput={(e) => { currentHp = parseNum(e); }} />
           <Input label="MAX HP" type="number" value={maxHp} oninput={(e) => { maxHp = parseNum(e); }} />
-        </div>
-      </div>
-    </Card>
-
-    <!-- STRESS -->
-    <Card>
-      <SectionLabel>STRESS</SectionLabel>
-      <div class="section-content">
-        <div class="stats-grid">
-          <Input label="CURRENT STRESS" type="number" value={currentStress} oninput={(e) => { currentStress = parseNum(e); }} />
           <Input label="MAX STRESS" type="number" value={maxStress} oninput={(e) => { maxStress = parseNum(e); }} />
         </div>
       </div>

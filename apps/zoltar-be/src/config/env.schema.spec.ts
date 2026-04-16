@@ -7,6 +7,7 @@ describe('validateEnv', () => {
     DATABASE_URL: 'postgresql://zoltar:zoltar_dev@db:5432/zoltar',
     NODE_ENV: 'development',
     PORT: '3000',
+    ANTHROPIC_API_KEY: 'sk-ant-test',
   };
 
   it('parses a fully valid env', () => {
@@ -53,5 +54,10 @@ describe('validateEnv', () => {
 
   it('throws when PORT is negative', () => {
     expect(() => validateEnv({ ...validEnv, PORT: '-1' })).toThrow(/PORT/);
+  });
+
+  it('throws when ANTHROPIC_API_KEY is missing', () => {
+    const { ANTHROPIC_API_KEY: _omitted, ...withoutKey } = validEnv;
+    expect(() => validateEnv(withoutKey)).toThrow(/ANTHROPIC_API_KEY/);
   });
 });

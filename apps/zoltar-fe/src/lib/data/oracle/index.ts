@@ -1,8 +1,8 @@
-import secretsTable from './secrets.json';
-import survivorsTable from './survivors.json';
-import threatsTable from './threats.json';
-import toneTable from './tone.json';
-import vesselTypeTable from './vessel-type.json';
+import secretsTable from '@uv/game-systems/src/mothership/data/secrets.json';
+import survivorsTable from '@uv/game-systems/src/mothership/data/survivors.json';
+import threatsTable from '@uv/game-systems/src/mothership/data/threats.json';
+import toneTable from '@uv/game-systems/src/mothership/data/tone.json';
+import vesselTypeTable from '@uv/game-systems/src/mothership/data/vessel-type.json';
 
 import type { OracleCategory } from './types';
 

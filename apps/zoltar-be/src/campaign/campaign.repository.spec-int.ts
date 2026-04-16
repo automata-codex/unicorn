@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -239,6 +240,95 @@ describe('CampaignRepository (integration)', () => {
           worldFacts: {},
         },
       });
+    });
+  });
+
+  describe('mergePlayerResourcePools', () => {
+    async function seedCampaignWithState(
+      initialPools: Record<string, { current: number; max: number | null }>,
+    ): Promise<string> {
+      const systemId = await seedMothershipSystem();
+      const campaign = await repo.insertCampaign({
+        systemId,
+        name: 'Test',
+        visibility: 'private',
+        diceMode: 'soft_accountability',
+      });
+      await repo.insertState({
+        campaignId: campaign.id,
+        system: 'mothership',
+        data: {
+          schemaVersion: 1,
+          resourcePools: initialPools,
+          entities: {},
+          flags: {},
+          scenarioState: {},
+          worldFacts: {},
+        },
+      });
+      return campaign.id;
+    }
+
+    it('adds new pools into an empty resourcePools map', async () => {
+      const db = getTestDb();
+      const campaignId = await seedCampaignWithState({});
+
+      await repo.mergePlayerResourcePools(campaignId, {
+        vasquez_hp: { current: 15, max: 15 },
+        vasquez_stress: { current: 0, max: 20 },
+      });
+
+      const [row] = await db
+        .select()
+        .from(schema.campaignStates)
+        .where(eq(schema.campaignStates.campaignId, campaignId));
+      const pools = (row.data as { resourcePools: Record<string, unknown> })
+        .resourcePools;
+      expect(pools).toEqual({
+        vasquez_hp: { current: 15, max: 15 },
+        vasquez_stress: { current: 0, max: 20 },
+      });
+    });
+
+    it('preserves existing pools on key conflict', async () => {
+      const db = getTestDb();
+      const campaignId = await seedCampaignWithState({
+        vasquez_hp: { current: 3, max: 15 }, // live value, must be preserved
+        dr_chen_hp: { current: 10, max: 10 },
+      });
+
+      await repo.mergePlayerResourcePools(campaignId, {
+        vasquez_hp: { current: 15, max: 15 }, // should NOT overwrite
+        vasquez_stress: { current: 0, max: 20 }, // should be added
+      });
+
+      const [row] = await db
+        .select()
+        .from(schema.campaignStates)
+        .where(eq(schema.campaignStates.campaignId, campaignId));
+      const pools = (
+        row.data as {
+          resourcePools: Record<string, { current: number; max: number }>;
+        }
+      ).resourcePools;
+      expect(pools.vasquez_hp).toEqual({ current: 3, max: 15 });
+      expect(pools.dr_chen_hp).toEqual({ current: 10, max: 10 });
+      expect(pools.vasquez_stress).toEqual({ current: 0, max: 20 });
+    });
+
+    it('throws when no campaign_state row exists for the campaign', async () => {
+      const systemId = await seedMothershipSystem();
+      const campaign = await repo.insertCampaign({
+        systemId,
+        name: 'Orphan',
+        visibility: 'private',
+        diceMode: 'soft_accountability',
+      });
+      await expect(
+        repo.mergePlayerResourcePools(campaign.id, {
+          x_hp: { current: 1, max: 1 },
+        }),
+      ).rejects.toThrow(/campaign_state row missing/);
     });
   });
 });

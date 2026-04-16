@@ -27,12 +27,8 @@ export const MothershipCharacterSheetSchema = z.object({
     armor: z.number().int().min(0).max(100),
     armorMax: z.number().int().min(0).max(100),
   }),
-  currentHp: z.number().int().min(0),
   maxHp: z.number().int().min(1),
-  stress: z.object({
-    current: z.number().int().min(0),
-    max: z.number().int().min(1),
-  }),
+  maxStress: z.number().int().min(1),
   skills: z.array(z.string()).default([]),
   equipment: z.array(z.string()).default([]),
   notes: z.string().max(2000).optional(),

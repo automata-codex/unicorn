@@ -6,6 +6,7 @@
   import { builtInOracleCategories } from './lib/data/oracle';
   import { navigate, route } from './lib/router.svelte';
   import { loadSession, session, sessionLoading } from './lib/session.svelte';
+  import AdventureSynthesis from './pages/AdventureSynthesis.svelte';
   import CampaignDetail from './pages/CampaignDetail.svelte';
   import CampaignList from './pages/CampaignList.svelte';
   import CharacterCreate from './pages/CharacterCreate.svelte';
@@ -41,6 +42,20 @@
     const match = path.match(/^\/campaigns\/([^/]+)\/characters\/new$/);
     return match ? match[1] : null;
   }
+
+  // Extract campaignId from /campaigns/:id/oracle
+  function getOracleCampaignId(path: string): string | null {
+    const match = path.match(/^\/campaigns\/([^/]+)\/oracle$/);
+    return match ? match[1] : null;
+  }
+
+  // Extract campaignId + adventureId from /campaigns/:id/adventures/:id
+  function getAdventureIds(
+    path: string,
+  ): { campaignId: string; adventureId: string } | null {
+    const match = path.match(/^\/campaigns\/([^/]+)\/adventures\/([^/]+)$/);
+    return match ? { campaignId: match[1], adventureId: match[2] } : null;
+  }
 </script>
 
 {#if $sessionLoading}
@@ -64,8 +79,11 @@
     <DevComponents />
   {:else if $route.startsWith('/signin')}
     <SignIn />
-  {:else if $route === '/oracle-filter'}
-    <OracleFilter categories={builtInOracleCategories} />
+  {:else if getOracleCampaignId($route)}
+    <OracleFilter categories={builtInOracleCategories} campaignId={getOracleCampaignId($route)!} />
+  {:else if getAdventureIds($route)}
+    {@const ids = getAdventureIds($route)!}
+    <AdventureSynthesis campaignId={ids.campaignId} adventureId={ids.adventureId} />
   {:else if getCharacterCreateCampaignId($route)}
     <CharacterCreate campaignId={getCharacterCreateCampaignId($route)!} />
   {:else if getCampaignId($route)}

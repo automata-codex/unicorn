@@ -12,8 +12,14 @@ export type Adventure = {
   status: string;
   mode: string;
   callerId: string;
+  openingNarration: string | null;
   createdAt: string;
   completedAt: string | null;
+};
+
+export type CoherenceConflict = {
+  category: string;
+  description: string;
 };
 
 export type CharacterSheet = {
@@ -27,9 +33,8 @@ export type CharacterSheet = {
     entityId: string;
     stats: Record<string, number>;
     saves: Record<string, number>;
-    currentHp: number;
     maxHp: number;
-    stress: { current: number; max: number };
+    maxStress: number;
     skills: string[];
     equipment: string[];
     notes?: string;

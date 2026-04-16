@@ -6,6 +6,8 @@ import * as schema from '../db/schema';
 
 import type { Db } from '../db/db.provider';
 
+type GmContextBlob = { openingNarration?: string | null };
+
 @Injectable()
 export class AdventureRepository {
   constructor(@Inject(DB_TOKEN) private readonly db: Db) {}
@@ -40,8 +42,21 @@ export class AdventureRepository {
 
   async findById(adventureId: string, campaignId: string) {
     const rows = await this.db
-      .select()
+      .select({
+        id: schema.adventures.id,
+        campaignId: schema.adventures.campaignId,
+        status: schema.adventures.status,
+        mode: schema.adventures.mode,
+        callerId: schema.adventures.callerId,
+        createdAt: schema.adventures.createdAt,
+        completedAt: schema.adventures.completedAt,
+        gmContextBlob: schema.gmContexts.blob,
+      })
       .from(schema.adventures)
+      .leftJoin(
+        schema.gmContexts,
+        eq(schema.adventures.id, schema.gmContexts.adventureId),
+      )
       .where(
         and(
           eq(schema.adventures.id, adventureId),
@@ -49,6 +64,15 @@ export class AdventureRepository {
         ),
       )
       .limit(1);
-    return rows[0] ?? null;
+
+    if (!rows[0]) return null;
+
+    const { gmContextBlob, ...adventure } = rows[0];
+    const blob = gmContextBlob as GmContextBlob | null;
+    return {
+      ...adventure,
+      openingNarration:
+        adventure.status === 'ready' ? (blob?.openingNarration ?? null) : null,
+    };
   }
 }

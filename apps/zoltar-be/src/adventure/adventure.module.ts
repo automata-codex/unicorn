@@ -11,5 +11,6 @@ import { AdventureService } from './adventure.service';
   imports: [AuthModule, CampaignModule],
   controllers: [AdventureController],
   providers: [AdventureRepository, AdventureService],
+  exports: [AdventureService],
 })
 export class AdventureModule {}

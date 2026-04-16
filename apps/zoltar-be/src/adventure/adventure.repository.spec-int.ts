@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -70,7 +71,7 @@ describe('AdventureRepository (integration)', () => {
 
       const found = await repo.findById(adventure.id, campaignId);
       expect(found).not.toBeNull();
-      expect(found.id).toBe(adventure.id);
+      expect(found!.id).toBe(adventure.id);
     });
   });
 
@@ -96,6 +97,53 @@ describe('AdventureRepository (integration)', () => {
         '00000000-0000-0000-0000-000000000000',
       );
       expect(result).toBeNull();
+    });
+  });
+
+  describe('findById — openingNarration', () => {
+    it('returns null openingNarration when no gm_context row exists', async () => {
+      const { campaignId } = await seedSystemAndCampaign();
+      await seedUser('u1', 'alice@example.com');
+      const adventure = await repo.insert({ campaignId, callerId: 'u1' });
+
+      const found = await repo.findById(adventure.id, campaignId);
+      expect(found).not.toBeNull();
+      expect(found!.openingNarration).toBeNull();
+    });
+
+    it('returns openingNarration from gm_context when adventure is ready', async () => {
+      const db = getTestDb();
+      const { campaignId } = await seedSystemAndCampaign();
+      await seedUser('u1', 'alice@example.com');
+      const adventure = await repo.insert({ campaignId, callerId: 'u1' });
+
+      await db.insert(schema.gmContexts).values({
+        adventureId: adventure.id,
+        blob: { openingNarration: 'Amber lights pulse overhead.' },
+      });
+      await db
+        .update(schema.adventures)
+        .set({ status: 'ready' })
+        .where(eq(schema.adventures.id, adventure.id));
+
+      const found = await repo.findById(adventure.id, campaignId);
+      expect(found).not.toBeNull();
+      expect(found!.openingNarration).toBe('Amber lights pulse overhead.');
+    });
+
+    it('returns null openingNarration when status is not ready even if gm_context exists', async () => {
+      const db = getTestDb();
+      const { campaignId } = await seedSystemAndCampaign();
+      await seedUser('u1', 'alice@example.com');
+      const adventure = await repo.insert({ campaignId, callerId: 'u1' });
+
+      await db.insert(schema.gmContexts).values({
+        adventureId: adventure.id,
+        blob: { openingNarration: 'Should not appear.' },
+      });
+      // status is still 'synthesizing' — openingNarration should be null.
+      const found = await repo.findById(adventure.id, campaignId);
+      expect(found!.openingNarration).toBeNull();
     });
   });
 
