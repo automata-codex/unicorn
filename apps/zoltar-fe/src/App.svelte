@@ -6,11 +6,11 @@
   import { builtInOracleCategories } from './lib/data/oracle';
   import { navigate, route } from './lib/router.svelte';
   import { loadSession, session, sessionLoading } from './lib/session.svelte';
+  import AdventureSynthesis from './pages/AdventureSynthesis.svelte';
   import CampaignDetail from './pages/CampaignDetail.svelte';
   import CampaignList from './pages/CampaignList.svelte';
   import CharacterCreate from './pages/CharacterCreate.svelte';
   import DevComponents from './pages/DevComponents.svelte';
-  import AdventureSynthesis from './pages/AdventureSynthesis.svelte';
   import OracleFilter from './pages/OracleFilter.svelte';
   import SignIn from './pages/SignIn.svelte';
 
@@ -50,7 +50,9 @@
   }
 
   // Extract campaignId + adventureId from /campaigns/:id/adventures/:id
-  function getAdventureIds(path: string): { campaignId: string; adventureId: string } | null {
+  function getAdventureIds(
+    path: string,
+  ): { campaignId: string; adventureId: string } | null {
     const match = path.match(/^\/campaigns\/([^/]+)\/adventures\/([^/]+)$/);
     return match ? { campaignId: match[1], adventureId: match[2] } : null;
   }

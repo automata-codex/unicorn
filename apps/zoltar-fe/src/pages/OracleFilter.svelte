@@ -14,7 +14,7 @@
   } from '../lib/oracle/state.svelte';
   import { navigate } from '../lib/router.svelte';
 
-  import type { OracleEntry, OracleCategory } from '../lib/data/oracle/types';
+  import type { OracleCategory, OracleEntry } from '../lib/data/oracle/types';
   import type { CoherenceConflict } from '../lib/types';
 
   const categoryToSelectionKey: Record<string, string> = {
@@ -25,7 +25,10 @@
     tone: 'tone',
   };
 
-  const { categories, campaignId }: { categories: OracleCategory[]; campaignId: string } = $props();
+  const {
+    categories,
+    campaignId,
+  }: { categories: OracleCategory[]; campaignId: string } = $props();
 
   // svelte-ignore state_referenced_locally
   let filterState = $state(createOracleFilterState(categories));
@@ -121,7 +124,7 @@
       }
 
       error = `Unexpected response: ${synthRes.status}`;
-    } catch (e) {
+    } catch {
       error = 'Network error. Please try again.';
     }
     submitting = false;
