@@ -1,10 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
 
 import type { Db } from '../db/db.provider';
+
+type ResourcePool = { current: number; max: number | null };
 
 @Injectable()
 export class CampaignRepository {
@@ -46,6 +48,48 @@ export class CampaignRepository {
     data: Record<string, unknown>;
   }) {
     await this.db.insert(schema.campaignStates).values(values);
+  }
+
+  /**
+   * Merges new resource pools into `campaign_state.data.resourcePools` for a
+   * campaign, preserving any pools already present. Used at character
+   * creation time to seed player HP / stress. Existing keys always win so
+   * that an in-progress adventure can never have its live state clobbered by
+   * re-running character creation (today that path is blocked upstream, but
+   * the merge is cheap insurance).
+   *
+   * Runs inside a transaction so concurrent callers can't race the read and
+   * the write.
+   */
+  async mergePlayerResourcePools(
+    campaignId: string,
+    newPools: Record<string, ResourcePool>,
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const rows = await tx
+        .select({ data: schema.campaignStates.data })
+        .from(schema.campaignStates)
+        .where(eq(schema.campaignStates.campaignId, campaignId))
+        .limit(1);
+      if (rows.length === 0) {
+        throw new Error(
+          `campaign_state row missing for campaign ${campaignId}`,
+        );
+      }
+      const data =
+        (rows[0].data as Record<string, unknown> | null) ?? {};
+      const existingPools =
+        (data.resourcePools as Record<string, ResourcePool> | undefined) ?? {};
+      const mergedPools: Record<string, ResourcePool> = { ...newPools };
+      for (const [key, value] of Object.entries(existingPools)) {
+        mergedPools[key] = value;
+      }
+      const nextData = { ...data, resourcePools: mergedPools };
+      await tx
+        .update(schema.campaignStates)
+        .set({ data: nextData, updatedAt: sql`now()` })
+        .where(eq(schema.campaignStates.campaignId, campaignId));
+    });
   }
 
   async findAllForUser(userId: string) {

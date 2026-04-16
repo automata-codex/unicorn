@@ -1,16 +1,20 @@
 import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  deriveMothershipCharacterResourcePools,
+  type MothershipCharacterSheet,
+} from '@uv/game-systems';
 
+import { CampaignRepository } from '../campaign/campaign.repository';
 import { CampaignService } from '../campaign/campaign.service';
 
 import { CharacterRepository } from './character.repository';
-
-import type { MothershipCharacterSheet } from '@uv/game-systems';
 
 @Injectable()
 export class CharacterService {
   constructor(
     private readonly repo: CharacterRepository,
     private readonly campaignService: CampaignService,
+    private readonly campaignRepo: CampaignRepository,
   ) {}
 
   async findByCampaignId(campaignId: string, userId: string) {
@@ -32,6 +36,11 @@ export class CharacterService {
       );
     }
 
-    return this.repo.insert({ campaignId, userId, data });
+    const character = await this.repo.insert({ campaignId, userId, data });
+
+    const playerPools = deriveMothershipCharacterResourcePools(data);
+    await this.campaignRepo.mergePlayerResourcePools(campaignId, playerPools);
+
+    return character;
   }
 }

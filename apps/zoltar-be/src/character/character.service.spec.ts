@@ -19,6 +19,12 @@ function mockCampaignService() {
   };
 }
 
+function mockCampaignRepo() {
+  return {
+    mergePlayerResourcePools: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 const fakeData: MothershipCharacterSheet = {
   entityId: 'vasquez',
   name: 'Vasquez',
@@ -53,16 +59,22 @@ const fakeCharacter = {
 describe('CharacterService', () => {
   let repo: ReturnType<typeof mockRepo>;
   let campaignSvc: ReturnType<typeof mockCampaignService>;
+  let campaignRepo: ReturnType<typeof mockCampaignRepo>;
   let service: CharacterService;
 
   beforeEach(() => {
     repo = mockRepo();
     campaignSvc = mockCampaignService();
-    service = new CharacterService(repo as any, campaignSvc as any);
+    campaignRepo = mockCampaignRepo();
+    service = new CharacterService(
+      repo as any,
+      campaignSvc as any,
+      campaignRepo as any,
+    );
   });
 
   describe('create', () => {
-    it('checks membership and creates a character', async () => {
+    it('checks membership, creates a character, and seeds player resource pools', async () => {
       repo.existsForCampaign.mockResolvedValue(false);
       repo.insert.mockResolvedValue(fakeCharacter);
 
@@ -75,6 +87,10 @@ describe('CharacterService', () => {
         userId: 'u1',
         data: fakeData,
       });
+      expect(campaignRepo.mergePlayerResourcePools).toHaveBeenCalledWith('c1', {
+        vasquez_hp: { current: 20, max: 20 },
+        vasquez_stress: { current: 0, max: 3 },
+      });
       expect(result).toEqual(fakeCharacter);
     });
 
@@ -85,6 +101,7 @@ describe('CharacterService', () => {
         ForbiddenException,
       );
       expect(repo.insert).not.toHaveBeenCalled();
+      expect(campaignRepo.mergePlayerResourcePools).not.toHaveBeenCalled();
     });
 
     it('throws ConflictException when campaign already has a character', async () => {
@@ -94,6 +111,7 @@ describe('CharacterService', () => {
         ConflictException,
       );
       expect(repo.insert).not.toHaveBeenCalled();
+      expect(campaignRepo.mergePlayerResourcePools).not.toHaveBeenCalled();
     });
   });
 });

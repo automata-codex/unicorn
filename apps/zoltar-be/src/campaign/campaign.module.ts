@@ -10,6 +10,6 @@ import { CampaignService } from './campaign.service';
   imports: [AuthModule],
   controllers: [CampaignController],
   providers: [CampaignRepository, CampaignService],
-  exports: [CampaignService],
+  exports: [CampaignService, CampaignRepository],
 })
 export class CampaignModule {}
