@@ -49,16 +49,16 @@
    * ----------------------------------------------------------------------- */
 
   /* Primary content — GM narrative, entry names */
-  --color-text-primary: var(--primitive-slate-300);
+  --color-text-primary: var(--primitive-slate-200);
 
   /* Secondary content — player input text, stats */
-  --color-text-secondary: var(--primitive-slate-400);
+  --color-text-secondary: var(--primitive-slate-300);
 
   /* Tertiary — labels, category headers */
-  --color-text-tertiary: var(--primitive-slate-500);
+  --color-text-tertiary: var(--primitive-slate-400);
 
-  /* Ghost — near-invisible, structural labels, placeholders */
-  --color-text-ghost: var(--primitive-slate-600);
+  /* Ghost — dim structural labels, placeholders */
+  --color-text-ghost: var(--primitive-slate-500);
 
   /* -----------------------------------------------------------------------
    * Accent — Amber (emergency lighting, primary interactive)
@@ -240,7 +240,7 @@
   --card-padding: var(--space-5);
 
   /* Section label (SURVIVORS, STATS, etc.) */
-  --label-text: var(--color-text-ghost);
+  --label-text: var(--color-text-tertiary);
   --label-size: var(--font-size-xs);
   --label-tracking: var(--tracking-wider);
 }

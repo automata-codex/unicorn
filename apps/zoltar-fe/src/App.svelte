@@ -154,6 +154,6 @@
   .nav-email {
     font-family: var(--font-primary);
     font-size: var(--font-size-xs);
-    color: var(--color-text-ghost);
+    color: var(--color-text-tertiary);
   }
 </style>

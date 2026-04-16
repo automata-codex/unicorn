@@ -206,7 +206,7 @@
   .character-meta {
     display: block;
     margin-top: var(--space-2);
-    color: var(--color-text-ghost);
+    color: var(--color-text-tertiary);
   }
 
   .stat-row {
