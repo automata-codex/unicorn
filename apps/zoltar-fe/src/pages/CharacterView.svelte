@@ -37,7 +37,9 @@
 
     if (advRes.ok) {
       const adventures: Adventure[] = await advRes.json();
-      hasActiveAdventure = adventures.some((a) => activeStatuses.includes(a.status));
+      hasActiveAdventure = adventures.some((a) =>
+        activeStatuses.includes(a.status),
+      );
     }
 
     loading = false;
@@ -148,7 +150,7 @@
         <SectionLabel>SKILLS</SectionLabel>
         <div class="section-content">
           <ul class="item-list">
-            {#each character.data.skills as skill}
+            {#each character.data.skills as skill, i (i)}
               <li class="type-body">{skill}</li>
             {/each}
           </ul>
@@ -162,7 +164,7 @@
         <SectionLabel>LOADOUT</SectionLabel>
         <div class="section-content">
           <ul class="item-list">
-            {#each character.data.equipment as item}
+            {#each character.data.equipment as item, i (i)}
               <li class="type-body">{item}</li>
             {/each}
           </ul>

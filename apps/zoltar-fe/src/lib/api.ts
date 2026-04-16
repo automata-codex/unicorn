@@ -4,7 +4,9 @@ export async function api(
   path: string,
   options: RequestInit = {},
 ): Promise<Response> {
-  const headers: Record<string, string> = { ...options.headers as Record<string, string> };
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
+  };
   if (options.body) {
     headers['Content-Type'] = 'application/json';
   }
