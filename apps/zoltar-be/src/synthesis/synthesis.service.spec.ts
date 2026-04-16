@@ -485,18 +485,27 @@ describe('SynthesisService.commitGmContext', () => {
     ).rejects.toBeInstanceOf(SynthesisWriteValidationError);
   });
 
-  it('rejects malformed initialState entries', async () => {
-    const repo = makeRepo();
+  it('silently skips non-pool initialState entries and writes pools that are valid', async () => {
+    const writeGmContextAtomic = vi.fn().mockResolvedValue(undefined);
+    const repo = makeRepo({ writeGmContextAtomic });
     const service = makeService(vi.fn(), repo);
 
-    const bad = structuredClone(validInput);
-    bad.structured.initialState = {
-      dr_chen_hp: { current: 'ten', max: 10 },
-    } as unknown as typeof validInput.structured.initialState;
+    const input = structuredClone(validInput);
+    input.structured.initialState = {
+      dr_chen_hp: { current: 10, max: 10 },
+      current_deck: 'derelict_lower' as unknown,
+    };
 
-    await expect(
-      service.commitGmContext({ adventureId, campaignId, input: bad }),
-    ).rejects.toBeInstanceOf(SynthesisWriteValidationError);
+    await service.commitGmContext({ adventureId, campaignId, input });
+
+    const [args] = writeGmContextAtomic.mock.calls[0];
+    expect(args.campaignStateData.resourcePools.dr_chen_hp).toEqual({
+      current: 10,
+      max: 10,
+    });
+    expect(args.campaignStateData.resourcePools).not.toHaveProperty(
+      'current_deck',
+    );
   });
 
   it('flips adventure to failed when the atomic write throws', async () => {

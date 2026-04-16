@@ -40,14 +40,9 @@ export function validateSubmitGmContextForWrite(
     );
   }
 
-  for (const [key, value] of Object.entries(input.structured.initialState)) {
-    const parsed = ResourcePoolSchema.safeParse(value);
-    if (!parsed.success) {
-      throw new SynthesisWriteValidationError(
-        `structured.initialState.${key} is not a valid resource pool`,
-      );
-    }
-  }
+  // Non-pool entries in initialState are silently skipped — Claude sometimes
+  // places string or object values that don't match { current, max }. The
+  // buildResourcePools helper filters these out at merge time.
 
   const seen = new Set<string>();
   for (const entity of input.structured.entities) {

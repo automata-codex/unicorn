@@ -74,15 +74,10 @@ describe('validateSubmitGmContextForWrite', () => {
     );
   });
 
-  it('rejects a malformed initialState pool entry', () => {
+  it('accepts non-pool entries in initialState without throwing', () => {
     const input = makeInput();
-    input.structured.initialState.dr_chen_hp = {
-      current: 'nope',
-      max: 10,
-    };
-    expect(() => validateSubmitGmContextForWrite(input)).toThrow(
-      /dr_chen_hp/,
-    );
+    input.structured.initialState.current_deck = 'derelict_lower';
+    expect(() => validateSubmitGmContextForWrite(input)).not.toThrow();
   });
 
   it('rejects duplicate entity ids', () => {
