@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  getMothershipOraclePool,
   oracleSchemas,
   type MothershipOracleSelections,
 } from '@uv/game-systems';
@@ -99,17 +100,17 @@ export class SynthesisController {
     const selections =
       oracleParse.data as MothershipOracleSelections;
 
-    // Coherence check runs synchronously. Active pools are empty for now —
-    // reroll degrades to surface. Oracle data will move to @uv/game-systems
-    // in a follow-up so the backend can supply real pools.
-    const emptyPools = Object.fromEntries(
-      MOTHERSHIP_ORACLE_CATEGORIES.map((cat) => [cat, [] as OracleEntry[]]),
+    const activePools = Object.fromEntries(
+      MOTHERSHIP_ORACLE_CATEGORIES.map((cat) => [
+        cat,
+        getMothershipOraclePool(cat),
+      ]),
     ) as Record<MothershipOracleCategory, OracleEntry[]>;
 
     try {
       const coherenceResult = await this.synthesisService.checkCoherence({
         selections,
-        activePools: emptyPools,
+        activePools,
       });
       const finalSelections = coherenceResult.selections;
 
