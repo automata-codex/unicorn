@@ -48,16 +48,16 @@
    * Text
    * ----------------------------------------------------------------------- */
 
-  /* Primary content — GM narrative, entry names */
+  /* Primary content — GM narrative, entry names, campaign titles */
   --color-text-primary: var(--primitive-slate-200);
 
-  /* Secondary content — player input text, stats */
+  /* Secondary — stat values, player input text */
   --color-text-secondary: var(--primitive-slate-300);
 
-  /* Tertiary — labels, category headers */
+  /* Tertiary — section labels, category headers, metadata, status text */
   --color-text-tertiary: var(--primitive-slate-400);
 
-  /* Ghost — dim structural labels, placeholders */
+  /* Ghost — input placeholders, disabled text, entity IDs */
   --color-text-ghost: var(--primitive-slate-500);
 
   /* -----------------------------------------------------------------------
