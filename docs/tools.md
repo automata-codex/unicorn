@@ -292,9 +292,18 @@ const submitGmContextSchema = z.object({
       trigger: z.string(),
     })),
 
-    // Initial system-specific campaign state. Validated against the
-    // system Zod schema (e.g. MothershipStateSchema) by the backend.
+    // Initial system-specific campaign state. Entries that match the
+    // resource pool shape ({ current: number, max: number | null })
+    // are written to campaign_state.data.resourcePools. Non-pool
+    // entries are silently ignored — use worldFacts for string state.
     initialState: z.record(z.string(), z.unknown()),
+
+    // Non-numeric initial state the Warden needs to remember across
+    // turns. Starting deck/location, environmental details that must
+    // stay consistent (specific console readout text, graffiti content),
+    // NPC cover identities, etc. Keys are descriptive snake_case,
+    // values are plain strings. Merged into campaign_state.data.worldFacts.
+    worldFacts: z.record(z.string(), z.string()).optional(),
 
   }),
 

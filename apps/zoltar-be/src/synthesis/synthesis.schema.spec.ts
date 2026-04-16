@@ -96,6 +96,37 @@ describe('submitGmContextSchema', () => {
     expect(() => submitGmContextSchema.parse(bad)).toThrow();
   });
 
+  it('treats worldFacts as optional', () => {
+    expect(() => submitGmContextSchema.parse(validInput)).not.toThrow();
+    const result = submitGmContextSchema.parse(validInput);
+    expect(result.structured.worldFacts).toBeUndefined();
+  });
+
+  it('accepts worldFacts when provided', () => {
+    const input = {
+      ...validInput,
+      structured: {
+        ...validInput.structured,
+        worldFacts: { current_deck: 'engineering_lower' },
+      },
+    };
+    const result = submitGmContextSchema.parse(input);
+    expect(result.structured.worldFacts).toEqual({
+      current_deck: 'engineering_lower',
+    });
+  });
+
+  it('rejects worldFacts with non-string values', () => {
+    const input = {
+      ...validInput,
+      structured: {
+        ...validInput.structured,
+        worldFacts: { count: 42 },
+      },
+    };
+    expect(() => submitGmContextSchema.parse(input)).toThrow();
+  });
+
   it('rejects a non-integer grid coordinate', () => {
     const bad = structuredClone(validInput);
     (

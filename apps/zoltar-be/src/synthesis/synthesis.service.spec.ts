@@ -491,9 +491,9 @@ describe('SynthesisService.commitGmContext', () => {
     const service = makeService(vi.fn(), repo);
 
     const input = structuredClone(validInput);
-    input.structured.initialState = {
+    (input.structured.initialState as Record<string, unknown>) = {
       dr_chen_hp: { current: 10, max: 10 },
-      current_deck: 'derelict_lower' as unknown,
+      current_deck: 'derelict_lower',
     };
 
     await service.commitGmContext({ adventureId, campaignId, input });

@@ -126,7 +126,7 @@ export function buildCampaignStateData(
     entities: { ...existingEntities, ...buildEntityMap(input.structured.entities) },
     flags: input.structured.flags,
     scenarioState: existingScenarioState,
-    worldFacts: existingWorldFacts,
+    worldFacts: { ...existingWorldFacts, ...(input.structured.worldFacts ?? {}) },
   };
 
   MothershipCampaignStateSchema.parse(nextData);

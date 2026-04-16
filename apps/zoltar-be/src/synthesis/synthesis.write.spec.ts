@@ -156,9 +156,30 @@ describe('buildCampaignStateData', () => {
     // Flags come entirely from the new input — not merged with old.
     expect(result.flags).toHaveProperty('adventure_complete');
     expect(result.flags).not.toHaveProperty('old_flag');
-    // ScenarioState and worldFacts carry through.
+    // ScenarioState carries through.
     expect(result.scenarioState).toHaveProperty('oxygen');
+    // Existing worldFacts are preserved; new ones from input are merged.
     expect(result.worldFacts).toHaveProperty('bridge_display');
+  });
+
+  it('merges worldFacts from tool input onto existing worldFacts', () => {
+    const existing = {
+      schemaVersion: 1,
+      resourcePools: {},
+      entities: {},
+      flags: {},
+      scenarioState: {},
+      worldFacts: { bridge_display: 'ERROR' },
+    };
+    const input = makeInput();
+    input.structured.worldFacts = { current_deck: 'engineering_lower' };
+    const result = buildCampaignStateData(existing, input) as {
+      worldFacts: Record<string, string>;
+    };
+    expect(result.worldFacts).toEqual({
+      bridge_display: 'ERROR',
+      current_deck: 'engineering_lower',
+    });
   });
 
   it('initializes to emptyMothershipState when no existing row', () => {

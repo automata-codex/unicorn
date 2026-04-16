@@ -34,6 +34,7 @@ export const submitGmContextSchema = z.object({
     entities: z.array(entitySchema),
     flags: z.record(z.string(), flagSchema),
     initialState: z.record(z.string(), z.unknown()),
+    worldFacts: z.record(z.string(), z.string()).optional(),
   }),
 });
 
