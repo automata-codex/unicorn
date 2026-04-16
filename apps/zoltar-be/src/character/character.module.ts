@@ -11,5 +11,6 @@ import { CharacterService } from './character.service';
   imports: [AuthModule, CampaignModule],
   controllers: [CharacterController],
   providers: [CharacterRepository, CharacterService],
+  exports: [CharacterService],
 })
 export class CharacterModule {}

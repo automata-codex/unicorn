@@ -16,6 +16,7 @@ import { ConfigModule } from './config/config.module';
 import { DbModule } from './db/db.module';
 import { GridModule } from './grid/grid.module';
 import { HealthModule } from './health/health.module';
+import { SynthesisModule } from './synthesis/synthesis.module';
 import { NoopAssetStorageService } from './services/noop/noop-asset-storage.service';
 import { NoopEntitlementsService } from './services/noop/noop-entitlements.service';
 import { NoopFeatureFlagService } from './services/noop/noop-feature-flag.service';
@@ -43,6 +44,7 @@ const deferredServiceProviders = [
     CharacterModule,
     AuthModule,
     GridModule,
+    SynthesisModule,
   ],
   providers: deferredServiceProviders,
   exports: deferredServiceProviders,

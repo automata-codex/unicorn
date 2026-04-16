@@ -109,6 +109,19 @@ export class CampaignRepository {
       .where(eq(schema.campaignMembers.userId, userId));
   }
 
+  async getSystemSlug(campaignId: string): Promise<string | null> {
+    const rows = await this.db
+      .select({ slug: schema.gameSystems.slug })
+      .from(schema.campaigns)
+      .innerJoin(
+        schema.gameSystems,
+        eq(schema.campaigns.systemId, schema.gameSystems.id),
+      )
+      .where(eq(schema.campaigns.id, campaignId))
+      .limit(1);
+    return rows[0]?.slug ?? null;
+  }
+
   async findById(campaignId: string) {
     const rows = await this.db
       .select()
