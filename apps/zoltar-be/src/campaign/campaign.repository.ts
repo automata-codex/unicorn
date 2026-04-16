@@ -166,7 +166,11 @@ export class CampaignRepository {
       .where(
         and(
           eq(schema.adventures.campaignId, campaignId),
-          inArray(schema.adventures.status, ['synthesizing', 'ready', 'in_progress']),
+          inArray(schema.adventures.status, [
+            'synthesizing',
+            'ready',
+            'in_progress',
+          ]),
         ),
       )
       .limit(1);

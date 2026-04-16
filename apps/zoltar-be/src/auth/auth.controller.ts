@@ -29,7 +29,11 @@ function hashToken(raw: string): string {
 
 const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60; // 30 days
 
-function buildSessionCookie(token: string, maxAge: number, cookieDomain: string): string {
+function buildSessionCookie(
+  token: string,
+  maxAge: number,
+  cookieDomain: string,
+): string {
   const isLan = cookieDomain === 'lan';
   const secure = isLan ? '' : ' Secure;';
   const domain = isLan ? '' : ` Domain=${cookieDomain};`;
@@ -163,7 +167,10 @@ export class AuthController {
 
     // Set cookie and redirect
     const cookieDomain = this.config.get<string>('COOKIE_DOMAIN')!;
-    reply.header('Set-Cookie', buildSessionCookie(sessionToken, SESSION_MAX_AGE_S, cookieDomain));
+    reply.header(
+      'Set-Cookie',
+      buildSessionCookie(sessionToken, SESSION_MAX_AGE_S, cookieDomain),
+    );
     reply.status(302).header('Location', `${appUrl}/campaigns`).send();
   }
 

@@ -148,7 +148,11 @@ describe('CampaignService', () => {
 
   describe('rename', () => {
     it('checks ownership and renames the campaign', async () => {
-      repo.findOwner.mockResolvedValue({ campaignId: 'c1', userId: 'u1', role: 'owner' });
+      repo.findOwner.mockResolvedValue({
+        campaignId: 'c1',
+        userId: 'u1',
+        role: 'owner',
+      });
       repo.updateName.mockResolvedValue({ ...fakeCampaign, name: 'New Name' });
 
       const result = await service.rename('c1', 'u1', 'New Name');
@@ -168,7 +172,11 @@ describe('CampaignService', () => {
     });
 
     it('throws NotFoundException when campaign does not exist', async () => {
-      repo.findOwner.mockResolvedValue({ campaignId: 'c1', userId: 'u1', role: 'owner' });
+      repo.findOwner.mockResolvedValue({
+        campaignId: 'c1',
+        userId: 'u1',
+        role: 'owner',
+      });
       repo.updateName.mockResolvedValue(null);
 
       await expect(service.rename('c1', 'u1', 'New Name')).rejects.toThrow(
@@ -179,7 +187,11 @@ describe('CampaignService', () => {
 
   describe('delete', () => {
     it('checks ownership and deletes the campaign', async () => {
-      repo.findOwner.mockResolvedValue({ campaignId: 'c1', userId: 'u1', role: 'owner' });
+      repo.findOwner.mockResolvedValue({
+        campaignId: 'c1',
+        userId: 'u1',
+        role: 'owner',
+      });
       repo.deleteCampaign.mockResolvedValue(true);
 
       await service.delete('c1', 'u1');
@@ -199,7 +211,11 @@ describe('CampaignService', () => {
     });
 
     it('throws ConflictException when an adventure is active', async () => {
-      repo.findOwner.mockResolvedValue({ campaignId: 'c1', userId: 'u1', role: 'owner' });
+      repo.findOwner.mockResolvedValue({
+        campaignId: 'c1',
+        userId: 'u1',
+        role: 'owner',
+      });
       repo.hasActiveAdventure.mockResolvedValue(true);
 
       await expect(service.delete('c1', 'u1')).rejects.toThrow(
@@ -209,7 +225,11 @@ describe('CampaignService', () => {
     });
 
     it('throws NotFoundException when campaign does not exist', async () => {
-      repo.findOwner.mockResolvedValue({ campaignId: 'c1', userId: 'u1', role: 'owner' });
+      repo.findOwner.mockResolvedValue({
+        campaignId: 'c1',
+        userId: 'u1',
+        role: 'owner',
+      });
       repo.deleteCampaign.mockResolvedValue(false);
 
       await expect(service.delete('c1', 'u1')).rejects.toThrow(
