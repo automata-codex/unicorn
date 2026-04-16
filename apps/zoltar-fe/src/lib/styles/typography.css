@@ -40,7 +40,7 @@
 .type-meta {
   font-family: var(--font-primary);
   font-size: var(--font-size-xs);
-  color: var(--color-text-ghost);
+  color: var(--color-text-tertiary);
   letter-spacing: var(--tracking-wider);
   text-transform: uppercase;
 }

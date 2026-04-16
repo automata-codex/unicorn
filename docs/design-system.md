@@ -90,10 +90,10 @@ All tokens are defined on `[data-theme="mothership"]`. Use these in components.
 
 | Token | Purpose |
 |-------|---------|
-| `--color-text-primary` | Main content — GM narrative, entry names |
-| `--color-text-secondary` | Player input text, stat values |
-| `--color-text-tertiary` | Labels, category headers |
-| `--color-text-ghost` | Near-invisible structural labels, placeholders |
+| `--color-text-primary` | Main content — GM narrative, entry names, campaign titles |
+| `--color-text-secondary` | Stat values, player input text |
+| `--color-text-tertiary` | Section labels, category headers, metadata, status text |
+| `--color-text-ghost` | Input placeholders, disabled text, entity IDs |
 
 ### Accent (Amber)
 

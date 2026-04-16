@@ -15,8 +15,17 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1', { exclude: ['health'] });
 
+  const allowedOrigins = (
+    process.env.CORS_ORIGINS ||
+    process.env.PUBLIC_APP_URL ||
+    'https://app.zoltar.local'
+  )
+    .split(',')
+    .map((o) => o.trim());
+
   await app.register(cors, {
-    origin: process.env.PUBLIC_APP_URL || 'https://app.zoltar.local',
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
   });
 

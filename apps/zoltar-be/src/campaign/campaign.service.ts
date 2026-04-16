@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -61,5 +62,28 @@ export class CampaignService {
   async assertOwner(campaignId: string, userId: string): Promise<void> {
     const owner = await this.repo.findOwner(campaignId, userId);
     if (!owner) throw new ForbiddenException('Not the owner of this campaign');
+  }
+
+  async rename(campaignId: string, userId: string, name: string) {
+    await this.assertOwner(campaignId, userId);
+    const campaign = await this.repo.updateName(campaignId, name);
+    if (!campaign) throw new NotFoundException('Campaign not found');
+    return campaign;
+  }
+
+  async delete(campaignId: string, userId: string) {
+    await this.assertOwner(campaignId, userId);
+
+    const active = await this.repo.hasActiveAdventure(campaignId);
+    if (active) {
+      throw new ConflictException(
+        'Cannot delete campaign while an adventure is active',
+      );
+    }
+
+    const deleted = await this.repo.deleteCampaign(campaignId);
+    if (!deleted) {
+      throw new NotFoundException('Campaign not found');
+    }
   }
 }

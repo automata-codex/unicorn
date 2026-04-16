@@ -128,6 +128,9 @@
 </script>
 
 <PageLayout>
+  <div class="header">
+    <Button variant="ghost" onclick={() => navigate(`/campaigns/${campaignId}`)}>← CAMPAIGN</Button>
+  </div>
   <h1 class="type-screen-label page-title">CHARACTER CREATION</h1>
 
   {#if error}
@@ -284,6 +287,10 @@
 </PageLayout>
 
 <style>
+  .header :global(.btn) {
+    padding-left: 0;
+  }
+
   .page-title {
     margin-bottom: var(--space-7);
   }

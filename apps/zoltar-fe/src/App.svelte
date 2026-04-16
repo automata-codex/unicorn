@@ -10,6 +10,8 @@
   import CampaignDetail from './pages/CampaignDetail.svelte';
   import CampaignList from './pages/CampaignList.svelte';
   import CharacterCreate from './pages/CharacterCreate.svelte';
+  import CharacterEdit from './pages/CharacterEdit.svelte';
+  import CharacterView from './pages/CharacterView.svelte';
   import DevComponents from './pages/DevComponents.svelte';
   import OracleFilter from './pages/OracleFilter.svelte';
   import SignIn from './pages/SignIn.svelte';
@@ -22,6 +24,13 @@
   $effect(() => {
     if (!$sessionLoading && !$session && !$route.startsWith('/signin')) {
       navigate('/signin');
+    }
+  });
+
+  // Redirect authenticated users away from /signin
+  $effect(() => {
+    if (!$sessionLoading && $session && $route.startsWith('/signin')) {
+      navigate('/');
     }
   });
 
@@ -40,6 +49,18 @@
   // Extract campaignId from /campaigns/:id/characters/new
   function getCharacterCreateCampaignId(path: string): string | null {
     const match = path.match(/^\/campaigns\/([^/]+)\/characters\/new$/);
+    return match ? match[1] : null;
+  }
+
+  // Extract campaignId from /campaigns/:id/characters
+  function getCharacterViewCampaignId(path: string): string | null {
+    const match = path.match(/^\/campaigns\/([^/]+)\/characters$/);
+    return match ? match[1] : null;
+  }
+
+  // Extract campaignId from /campaigns/:id/characters/edit
+  function getCharacterEditCampaignId(path: string): string | null {
+    const match = path.match(/^\/campaigns\/([^/]+)\/characters\/edit$/);
     return match ? match[1] : null;
   }
 
@@ -66,7 +87,7 @@
   {#if $session}
     <nav class="nav-bar">
       <div class="nav-inner">
-        <span class="wordmark">ZOLTAR</span>
+        <button type="button" class="wordmark" onclick={() => navigate('/')}>ZOLTAR</button>
         <div class="nav-right">
           <span class="nav-email">{$session.email}</span>
           <Button variant="ghost" onclick={handleSignOut}>Sign out</Button>
@@ -86,6 +107,10 @@
     <AdventureSynthesis campaignId={ids.campaignId} adventureId={ids.adventureId} />
   {:else if getCharacterCreateCampaignId($route)}
     <CharacterCreate campaignId={getCharacterCreateCampaignId($route)!} />
+  {:else if getCharacterEditCampaignId($route)}
+    <CharacterEdit campaignId={getCharacterEditCampaignId($route)!} />
+  {:else if getCharacterViewCampaignId($route)}
+    <CharacterView campaignId={getCharacterViewCampaignId($route)!} />
   {:else if getCampaignId($route)}
     <CampaignDetail campaignId={getCampaignId($route)!} />
   {:else if $route === '/campaigns' || $route === '/'}
@@ -131,6 +156,8 @@
   }
 
   .wordmark {
+    all: unset;
+    cursor: pointer;
     font-family: var(--font-primary);
     font-size: var(--font-size-xl);
     color: var(--color-accent);
@@ -147,6 +174,6 @@
   .nav-email {
     font-family: var(--font-primary);
     font-size: var(--font-size-xs);
-    color: var(--color-text-ghost);
+    color: var(--color-text-tertiary);
   }
 </style>

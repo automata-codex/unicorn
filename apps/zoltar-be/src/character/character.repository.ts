@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
@@ -42,6 +42,41 @@ export class CharacterRepository {
       .select({ id: schema.characterSheets.id })
       .from(schema.characterSheets)
       .where(eq(schema.characterSheets.campaignId, campaignId))
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  async update(campaignId: string, data: MothershipCharacterSheet) {
+    const [character] = await this.db
+      .update(schema.characterSheets)
+      .set({ data, updatedAt: new Date() })
+      .where(eq(schema.characterSheets.campaignId, campaignId))
+      .returning();
+    return character ?? null;
+  }
+
+  async deleteByCampaignId(campaignId: string): Promise<boolean> {
+    const rows = await this.db
+      .delete(schema.characterSheets)
+      .where(eq(schema.characterSheets.campaignId, campaignId))
+      .returning({ id: schema.characterSheets.id });
+    return rows.length > 0;
+  }
+
+  async hasActiveAdventure(campaignId: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ id: schema.adventures.id })
+      .from(schema.adventures)
+      .where(
+        and(
+          eq(schema.adventures.campaignId, campaignId),
+          inArray(schema.adventures.status, [
+            'synthesizing',
+            'ready',
+            'in_progress',
+          ]),
+        ),
+      )
       .limit(1);
     return rows.length > 0;
   }

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
@@ -157,5 +157,40 @@ export class CampaignRepository {
       )
       .limit(1);
     return rows[0] ?? null;
+  }
+
+  async hasActiveAdventure(campaignId: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ id: schema.adventures.id })
+      .from(schema.adventures)
+      .where(
+        and(
+          eq(schema.adventures.campaignId, campaignId),
+          inArray(schema.adventures.status, [
+            'synthesizing',
+            'ready',
+            'in_progress',
+          ]),
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  async updateName(campaignId: string, name: string) {
+    const [campaign] = await this.db
+      .update(schema.campaigns)
+      .set({ name })
+      .where(eq(schema.campaigns.id, campaignId))
+      .returning();
+    return campaign ?? null;
+  }
+
+  async deleteCampaign(campaignId: string): Promise<boolean> {
+    const rows = await this.db
+      .delete(schema.campaigns)
+      .where(eq(schema.campaigns.id, campaignId))
+      .returning({ id: schema.campaigns.id });
+    return rows.length > 0;
   }
 }

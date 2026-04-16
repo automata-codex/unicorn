@@ -28,6 +28,17 @@ function hashToken(raw: string): string {
 }
 
 const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60; // 30 days
+
+function buildSessionCookie(
+  token: string,
+  maxAge: number,
+  cookieDomain: string,
+): string {
+  const isLan = cookieDomain === 'lan';
+  const secure = isLan ? '' : ' Secure;';
+  const domain = isLan ? '' : ` Domain=${cookieDomain};`;
+  return `authjs.session-token=${token}; HttpOnly;${secure} SameSite=Lax; Path=/;${domain} Max-Age=${maxAge}`;
+}
 const TOKEN_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 @Controller('auth')
@@ -155,10 +166,10 @@ export class AuthController {
     });
 
     // Set cookie and redirect
-    const cookieDomain = this.config.get<string>('COOKIE_DOMAIN');
+    const cookieDomain = this.config.get<string>('COOKIE_DOMAIN')!;
     reply.header(
       'Set-Cookie',
-      `authjs.session-token=${sessionToken}; HttpOnly; Secure; SameSite=Lax; Path=/; Domain=${cookieDomain}; Max-Age=${SESSION_MAX_AGE_S}`,
+      buildSessionCookie(sessionToken, SESSION_MAX_AGE_S, cookieDomain),
     );
     reply.status(302).header('Location', `${appUrl}/campaigns`).send();
   }
@@ -174,12 +185,9 @@ export class AuthController {
       .delete(schema.authSessions)
       .where(eq(schema.authSessions.userId, user.id));
 
-    const cookieDomain = this.config.get<string>('COOKIE_DOMAIN');
+    const cookieDomain = this.config.get<string>('COOKIE_DOMAIN')!;
     reply
-      .header(
-        'Set-Cookie',
-        `authjs.session-token=; HttpOnly; Secure; SameSite=Lax; Path=/; Domain=${cookieDomain}; Max-Age=0`,
-      )
+      .header('Set-Cookie', buildSessionCookie('', 0, cookieDomain))
       .status(204)
       .send();
   }

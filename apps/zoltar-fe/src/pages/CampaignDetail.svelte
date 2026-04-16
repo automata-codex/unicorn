@@ -22,6 +22,10 @@
   let loading = $state(true);
   let error = $state('');
   let showCompleted = $state(false);
+  let confirmingDelete = $state(false);
+  let deleting = $state(false);
+  let editingName = $state(false);
+  let nameInput = $state('');
 
   const activeStatuses = ['synthesizing', 'ready', 'in_progress'];
 
@@ -71,6 +75,57 @@
     loading = false;
   });
 
+  function startEditingName() {
+    nameInput = campaign?.name ?? '';
+    editingName = true;
+  }
+
+  async function saveName() {
+    const trimmed = nameInput.trim();
+    if (!trimmed || trimmed === campaign?.name) {
+      editingName = false;
+      return;
+    }
+
+    const res = await api(`/api/v1/campaigns/${campaignId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name: trimmed }),
+    });
+
+    if (res.ok && campaign) {
+      const updated = await res.json();
+      campaign = { ...campaign, name: updated.name };
+    }
+    editingName = false;
+  }
+
+  function handleNameKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveName();
+    } else if (e.key === 'Escape') {
+      editingName = false;
+    }
+  }
+
+  async function handleDeleteCampaign() {
+    deleting = true;
+    const res = await api(`/api/v1/campaigns/${campaignId}`, {
+      method: 'DELETE',
+    });
+
+    if (res.ok || res.status === 204) {
+      navigate('/campaigns');
+    } else if (res.status === 409) {
+      error = 'Cannot delete while an adventure is active.';
+      confirmingDelete = false;
+    } else {
+      error = 'Something went wrong.';
+      confirmingDelete = false;
+    }
+    deleting = false;
+  }
+
   function statusColor(status: string): string {
     switch (status) {
       case 'synthesizing':
@@ -99,7 +154,24 @@
   {:else if campaign}
     <div class="header">
       <Button variant="ghost" onclick={() => navigate('/campaigns')}>← CAMPAIGNS</Button>
-      <h1 class="type-campaign-name">{campaign.name}</h1>
+      {#if editingName}
+        <div class="name-edit-row">
+          <!-- svelte-ignore a11y_autofocus -->
+          <input
+            class="type-campaign-name name-input"
+            bind:value={nameInput}
+            onkeydown={handleNameKeydown}
+            autofocus
+          />
+          <Button variant="ghost" onclick={saveName}>SAVE</Button>
+          <Button variant="ghost" onclick={() => { editingName = false; }}>CANCEL</Button>
+        </div>
+      {:else}
+        <div class="name-display-row">
+          <h1 class="type-campaign-name">{campaign.name}</h1>
+          <Button variant="ghost" onclick={startEditingName}>RENAME</Button>
+        </div>
+      {/if}
     </div>
 
     <!-- Character section -->
@@ -107,18 +179,20 @@
       <SectionLabel>CHARACTER</SectionLabel>
 
       {#if character}
-        <div class="character-info">
-          <span class="type-screen-title">{character.data.name}</span>
-          <span class="type-label character-meta">{character.data.class}</span>
-          <div class="stat-row">
-            {#each Object.entries(character.data.stats) as [label, value] (label)}
-              <div class="stat-item">
-                <span class="type-stat-value">{value}</span>
-                <span class="type-label">{label.toUpperCase()}</span>
-              </div>
-            {/each}
+        <button class="character-link" onclick={() => navigate(`/campaigns/${campaignId}/characters`)}>
+          <div class="character-info">
+            <span class="type-screen-title">{character.data.name}</span>
+            <span class="type-label character-meta">{character.data.class}</span>
+            <div class="stat-row">
+              {#each Object.entries(character.data.stats) as [label, value] (label)}
+                <div class="stat-item">
+                  <span class="type-stat-value">{value}</span>
+                  <span class="type-label">{label.toUpperCase()}</span>
+                </div>
+              {/each}
+            </div>
           </div>
-        </div>
+        </button>
       {:else}
         <p class="type-meta empty-character">NO CREW ASSIGNED</p>
         <Button onclick={() => navigate(`/campaigns/${campaignId}/characters/new`)}>
@@ -149,9 +223,9 @@
           {#each visibleAdventures as adventure (adventure.id)}
             <button
               class="adventure-row"
-              class:adventure-row-clickable={['synthesizing', 'ready'].includes(adventure.status)}
+              class:adventure-row-clickable={activeStatuses.includes(adventure.status)}
               onclick={() => {
-                if (['synthesizing', 'ready'].includes(adventure.status)) {
+                if (activeStatuses.includes(adventure.status)) {
                   navigate(`/campaigns/${campaignId}/adventures/${adventure.id}`);
                 }
               }}
@@ -176,6 +250,33 @@
         </Button>
       {/if}
     </Card>
+
+    <!-- Danger zone -->
+    <div class="danger-zone">
+      {#if confirmingDelete}
+        <p class="type-meta delete-warning">THIS WILL DELETE THE CAMPAIGN AND ALL ITS DATA</p>
+        <div class="delete-confirm-buttons">
+          <Button fullWidth variant="ghost" onclick={() => { confirmingDelete = false; }}>
+            CANCEL
+          </Button>
+          <Button fullWidth disabled={deleting} onclick={handleDeleteCampaign}>
+            {deleting ? 'DELETING...' : 'CONFIRM DELETE'}
+          </Button>
+        </div>
+      {:else}
+        <Button
+          fullWidth
+          variant="ghost"
+          disabled={hasActiveAdventure}
+          onclick={() => { confirmingDelete = true; }}
+        >
+          DELETE CAMPAIGN
+        </Button>
+        {#if hasActiveAdventure}
+          <p class="type-meta disabled-caption">ADVENTURE IN PROGRESS</p>
+        {/if}
+      {/if}
+    </div>
   {/if}
 </PageLayout>
 
@@ -189,6 +290,29 @@
     padding-left: 0;
   }
 
+  .name-display-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-4);
+  }
+
+  .name-edit-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+  }
+
+  .name-input {
+    all: unset;
+    flex: 1;
+    font-family: var(--font-primary);
+    font-size: var(--font-size-2xl);
+    color: var(--color-text-primary);
+    letter-spacing: var(--tracking-tight);
+    border-bottom: 1px solid var(--color-accent);
+    box-sizing: border-box;
+  }
+
   .error-text {
     font-family: var(--font-primary);
     font-size: var(--font-size-xs);
@@ -199,6 +323,14 @@
     margin-top: var(--space-5);
   }
 
+  .character-link {
+    all: unset;
+    display: block;
+    width: 100%;
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+
   .character-info {
     margin-top: var(--space-4);
   }
@@ -206,7 +338,7 @@
   .character-meta {
     display: block;
     margin-top: var(--space-2);
-    color: var(--color-text-ghost);
+    color: var(--color-text-tertiary);
   }
 
   .stat-row {
@@ -269,5 +401,23 @@
 
   .empty-adventures {
     margin: var(--space-4) 0;
+  }
+
+  .danger-zone {
+    margin-top: var(--space-9);
+    margin-bottom: var(--space-10);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .delete-warning {
+    text-align: center;
+    color: var(--color-danger);
+  }
+
+  .delete-confirm-buttons {
+    display: flex;
+    gap: var(--space-3);
   }
 </style>
