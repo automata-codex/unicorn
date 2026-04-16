@@ -129,9 +129,7 @@ describe('submitGmContextSchema', () => {
 
   it('rejects a non-integer grid coordinate', () => {
     const bad = structuredClone(validInput);
-    (
-      bad.structured.entities[0].startingPosition as { x: number }
-    ).x = 1.5;
+    (bad.structured.entities[0].startingPosition as { x: number }).x = 1.5;
     expect(() => submitGmContextSchema.parse(bad)).toThrow();
   });
 });

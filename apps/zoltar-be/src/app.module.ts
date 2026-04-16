@@ -16,13 +16,13 @@ import { ConfigModule } from './config/config.module';
 import { DbModule } from './db/db.module';
 import { GridModule } from './grid/grid.module';
 import { HealthModule } from './health/health.module';
-import { SynthesisModule } from './synthesis/synthesis.module';
 import { NoopAssetStorageService } from './services/noop/noop-asset-storage.service';
 import { NoopEntitlementsService } from './services/noop/noop-entitlements.service';
 import { NoopFeatureFlagService } from './services/noop/noop-feature-flag.service';
 import { NoopMeteringService } from './services/noop/noop-metering.service';
 import { NoopRealtimeService } from './services/noop/noop-realtime.service';
 import { SmtpEmailService } from './services/smtp-email.service';
+import { SynthesisModule } from './synthesis/synthesis.module';
 
 const deferredServiceProviders = [
   { provide: EntitlementsService, useClass: NoopEntitlementsService },

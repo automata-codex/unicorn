@@ -1,20 +1,20 @@
-import type Anthropic from '@anthropic-ai/sdk';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import type { AnthropicService } from '../anthropic/anthropic.service';
 
 import {
   baseActivePools,
   baseSelections,
   vasquezSheet,
 } from './synthesis.fixtures';
-import type { SynthesisRepository } from './synthesis.repository';
 import {
   CoherenceConflictError,
   SynthesisOutputError,
   SynthesisService,
 } from './synthesis.service';
 import { SynthesisWriteValidationError } from './synthesis.write';
+
+import type Anthropic from '@anthropic-ai/sdk';
+import type { AnthropicService } from '../anthropic/anthropic.service';
+import type { SynthesisRepository } from './synthesis.repository';
 
 function toolUseMessage(name: string, input: unknown): Anthropic.Message {
   return {
@@ -156,9 +156,7 @@ describe('SynthesisService.checkCoherence', () => {
       toolUseMessage('report_coherence', {
         ...rerollReport,
         rerollCategory: 'secret',
-        conflicts: [
-          { ...rerollReport.conflicts[0], category: 'secret' },
-        ],
+        conflicts: [{ ...rerollReport.conflicts[0], category: 'secret' }],
       }),
     );
     const service = makeService(callMessages);
@@ -194,9 +192,7 @@ describe('SynthesisService.checkCoherence', () => {
   });
 
   it('throws SynthesisOutputError when Claude does not call the tool', async () => {
-    const callMessages = vi
-      .fn()
-      .mockResolvedValue(textMessage('no tool here'));
+    const callMessages = vi.fn().mockResolvedValue(textMessage('no tool here'));
     const service = makeService(callMessages);
 
     await expect(
@@ -223,7 +219,6 @@ describe('SynthesisService.checkCoherence', () => {
       }),
     ).rejects.toBeInstanceOf(SynthesisOutputError);
   });
-
 });
 
 describe('SynthesisService.runSynthesis', () => {
@@ -468,7 +463,10 @@ describe('SynthesisService.commitGmContext', () => {
 
     const bad = structuredClone(validInput);
     (
-      bad.structured.entities as Array<(typeof validInput.structured.entities)[number] | { id: string; type: 'feature'; visible: boolean; tags: string[] }>
+      bad.structured.entities as Array<
+        | (typeof validInput.structured.entities)[number]
+        | { id: string; type: 'feature'; visible: boolean; tags: string[] }
+      >
     ).push({
       id: 'dr_chen',
       type: 'feature',

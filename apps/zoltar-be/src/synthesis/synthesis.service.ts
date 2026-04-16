@@ -1,10 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk';
 import { Injectable, Logger } from '@nestjs/common';
-import type {
-  MothershipCharacterSheet,
-  MothershipOracleSelections,
-  OracleEntry,
-} from '@uv/game-systems';
 
 import { AnthropicService } from '../anthropic/anthropic.service';
 
@@ -16,14 +10,14 @@ import {
   MOTHERSHIP_SYNTHESIS_SYSTEM_PROMPT,
   type MothershipOracleCategory,
 } from './mothership/synthesis.prompts';
+import { SynthesisRepository } from './synthesis.repository';
 import {
   CoherenceConflict,
   CoherenceReport,
-  SubmitGmContext,
   coherenceReportSchema,
+  SubmitGmContext,
   submitGmContextSchema,
 } from './synthesis.schema';
-import { SynthesisRepository } from './synthesis.repository';
 import { COHERENCE_TOOLS, SYNTHESIS_TOOLS } from './synthesis.tools';
 import {
   buildCampaignStateData,
@@ -32,6 +26,13 @@ import {
   SynthesisWriteValidationError,
   validateSubmitGmContextForWrite,
 } from './synthesis.write';
+
+import type Anthropic from '@anthropic-ai/sdk';
+import type {
+  MothershipCharacterSheet,
+  MothershipOracleSelections,
+  OracleEntry,
+} from '@uv/game-systems';
 
 export { SynthesisWriteValidationError } from './synthesis.write';
 
@@ -196,7 +197,9 @@ export class SynthesisService {
     try {
       validateSubmitGmContextForWrite(args.input);
 
-      const existingData = await this.repo.getCampaignStateData(args.campaignId);
+      const existingData = await this.repo.getCampaignStateData(
+        args.campaignId,
+      );
       const campaignStateData = buildCampaignStateData(
         existingData,
         args.input,
@@ -252,9 +255,7 @@ export class SynthesisService {
         block.type === 'tool_use' && block.name === expectedToolName,
     );
     if (!toolUse) {
-      throw new SynthesisOutputError(
-        `Claude did not call ${expectedToolName}`,
-      );
+      throw new SynthesisOutputError(`Claude did not call ${expectedToolName}`);
     }
     try {
       return schema.parse(toolUse.input);

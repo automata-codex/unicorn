@@ -6,8 +6,8 @@ import {
 } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { makeOracleEntry } from './synthesis.fixtures';
 import { SynthesisController } from './synthesis.controller';
+import { makeOracleEntry } from './synthesis.fixtures';
 import { CoherenceConflictError } from './synthesis.service';
 
 import type { MothershipOracleSelections } from '@uv/game-systems';

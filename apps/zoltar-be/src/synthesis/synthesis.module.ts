@@ -11,7 +11,13 @@ import { SynthesisRepository } from './synthesis.repository';
 import { SynthesisService } from './synthesis.service';
 
 @Module({
-  imports: [AnthropicModule, AuthModule, AdventureModule, CampaignModule, CharacterModule],
+  imports: [
+    AnthropicModule,
+    AuthModule,
+    AdventureModule,
+    CampaignModule,
+    CharacterModule,
+  ],
   controllers: [SynthesisController],
   providers: [SynthesisRepository, SynthesisService],
   exports: [SynthesisService],

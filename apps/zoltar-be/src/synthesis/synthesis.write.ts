@@ -25,9 +25,7 @@ type ResourcePool = { current: number; max: number | null };
  *
  * Throws `SynthesisWriteValidationError` on any failure.
  */
-export function validateSubmitGmContextForWrite(
-  input: SubmitGmContext,
-): void {
+export function validateSubmitGmContextForWrite(input: SubmitGmContext): void {
   const completeFlag = input.structured.flags.adventure_complete;
   if (!completeFlag) {
     throw new SynthesisWriteValidationError(
@@ -107,15 +105,18 @@ export function buildCampaignStateData(
 ): Record<string, unknown> {
   const base = existing ?? emptyMothershipState();
   const existingPools =
-    ((base as { resourcePools?: Record<string, ResourcePool> }).resourcePools) ??
+    (base as { resourcePools?: Record<string, ResourcePool> }).resourcePools ??
     {};
   const existingEntities =
-    ((base as { entities?: Record<string, { visible: boolean; status: 'unknown' }> }).entities) ??
-    {};
+    (
+      base as {
+        entities?: Record<string, { visible: boolean; status: 'unknown' }>;
+      }
+    ).entities ?? {};
   const existingScenarioState =
-    ((base as { scenarioState?: Record<string, unknown> }).scenarioState) ?? {};
+    (base as { scenarioState?: Record<string, unknown> }).scenarioState ?? {};
   const existingWorldFacts =
-    ((base as { worldFacts?: Record<string, string> }).worldFacts) ?? {};
+    (base as { worldFacts?: Record<string, string> }).worldFacts ?? {};
 
   const nextData = {
     schemaVersion: 1 as const,
@@ -123,10 +124,16 @@ export function buildCampaignStateData(
       existingPools,
       input.structured.initialState,
     ),
-    entities: { ...existingEntities, ...buildEntityMap(input.structured.entities) },
+    entities: {
+      ...existingEntities,
+      ...buildEntityMap(input.structured.entities),
+    },
     flags: input.structured.flags,
     scenarioState: existingScenarioState,
-    worldFacts: { ...existingWorldFacts, ...(input.structured.worldFacts ?? {}) },
+    worldFacts: {
+      ...existingWorldFacts,
+      ...(input.structured.worldFacts ?? {}),
+    },
   };
 
   MothershipCampaignStateSchema.parse(nextData);
@@ -152,9 +159,7 @@ export function buildGmContextBlob(
  * Entities without a starting position are skipped — they exist in the
  * narrative but enter the grid later via session-play state changes.
  */
-export function buildGridEntityRows(
-  input: SubmitGmContext,
-): Array<{
+export function buildGridEntityRows(input: SubmitGmContext): Array<{
   entityRef: string;
   x: number;
   y: number;

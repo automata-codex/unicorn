@@ -11,8 +11,8 @@ import {
 } from '@nestjs/common';
 import {
   getMothershipOraclePool,
-  oracleSchemas,
   type MothershipOracleSelections,
+  oracleSchemas,
 } from '@uv/game-systems';
 
 import { AdventureService } from '../adventure/adventure.service';
@@ -97,8 +97,7 @@ export class SynthesisController {
       );
     }
 
-    const selections =
-      oracleParse.data as MothershipOracleSelections;
+    const selections = oracleParse.data as MothershipOracleSelections;
 
     const activePools = Object.fromEntries(
       MOTHERSHIP_ORACLE_CATEGORIES.map((cat) => [
@@ -148,10 +147,9 @@ export class SynthesisController {
   ): void {
     this.synthesisService
       .runSynthesis({
-        characterSheet:
-          characterSheet as Parameters<
-            typeof this.synthesisService.runSynthesis
-          >[0]['characterSheet'],
+        characterSheet: characterSheet as Parameters<
+          typeof this.synthesisService.runSynthesis
+        >[0]['characterSheet'],
         selections,
         addendum,
       })

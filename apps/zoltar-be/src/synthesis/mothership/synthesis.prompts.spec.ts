@@ -52,10 +52,7 @@ describe('formatOracleEntry', () => {
 
 describe('buildMothershipSynthesisPrompt', () => {
   it('includes every required section', () => {
-    const prompt = buildMothershipSynthesisPrompt(
-      vasquezSheet,
-      baseSelections,
-    );
+    const prompt = buildMothershipSynthesisPrompt(vasquezSheet, baseSelections);
     expect(prompt).toContain('CHARACTER:');
     expect(prompt).toContain('ORACLE RESULTS:');
     expect(prompt).toContain('Survivor:');
@@ -70,10 +67,7 @@ describe('buildMothershipSynthesisPrompt', () => {
   });
 
   it('omits the addendum section when not provided', () => {
-    const prompt = buildMothershipSynthesisPrompt(
-      vasquezSheet,
-      baseSelections,
-    );
+    const prompt = buildMothershipSynthesisPrompt(vasquezSheet, baseSelections);
     expect(prompt).not.toContain('ADDITIONAL DIRECTION:');
   });
 
@@ -99,7 +93,13 @@ describe('buildMothershipSynthesisPrompt', () => {
 describe('buildMothershipCoherenceCheckPrompt', () => {
   it('lists all five categories and references the resolution values', () => {
     const prompt = buildMothershipCoherenceCheckPrompt(baseSelections);
-    for (const label of ['Survivor', 'Threat', 'Secret', 'Vessel Type', 'Tone']) {
+    for (const label of [
+      'Survivor',
+      'Threat',
+      'Secret',
+      'Vessel Type',
+      'Tone',
+    ]) {
       expect(prompt).toContain(`${label}:`);
     }
     expect(prompt).toContain('proceed');

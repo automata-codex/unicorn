@@ -282,9 +282,8 @@ describe('CampaignRepository (integration)', () => {
         .select()
         .from(schema.campaignStates)
         .where(eq(schema.campaignStates.campaignId, campaignId));
-      const pools = (
-        row.data as { resourcePools: Record<string, unknown> }
-      ).resourcePools;
+      const pools = (row.data as { resourcePools: Record<string, unknown> })
+        .resourcePools;
       expect(pools).toEqual({
         vasquez_hp: { current: 15, max: 15 },
         vasquez_stress: { current: 0, max: 20 },

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import type { SubmitGmContext } from './synthesis.schema';
 import {
   buildCampaignStateData,
   buildEntityMap,
@@ -11,9 +10,9 @@ import {
   validateSubmitGmContextForWrite,
 } from './synthesis.write';
 
-function makeInput(
-  overrides: Partial<SubmitGmContext> = {},
-): SubmitGmContext {
+import type { SubmitGmContext } from './synthesis.schema';
+
+function makeInput(overrides: Partial<SubmitGmContext> = {}): SubmitGmContext {
   return {
     openingNarration: 'Amber lights pulse.',
     narrative: {

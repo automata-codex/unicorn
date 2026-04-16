@@ -76,8 +76,7 @@ export class CampaignRepository {
           `campaign_state row missing for campaign ${campaignId}`,
         );
       }
-      const data =
-        (rows[0].data as Record<string, unknown> | null) ?? {};
+      const data = (rows[0].data as Record<string, unknown> | null) ?? {};
       const existingPools =
         (data.resourcePools as Record<string, ResourcePool> | undefined) ?? {};
       const mergedPools: Record<string, ResourcePool> = { ...newPools };

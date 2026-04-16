@@ -1,7 +1,8 @@
-import type Anthropic from '@anthropic-ai/sdk';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { submitGmContextSchema } from './synthesis.schema';
+
+import type Anthropic from '@anthropic-ai/sdk';
 
 /**
  * Tool and schema definitions that are universal across game systems.
