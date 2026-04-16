@@ -25,6 +25,13 @@
     }
   });
 
+  // Redirect authenticated users away from /signin
+  $effect(() => {
+    if (!$sessionLoading && $session && $route.startsWith('/signin')) {
+      navigate('/');
+    }
+  });
+
   async function handleSignOut() {
     await api('/api/v1/auth/signout', { method: 'POST' });
     session.set(null);
