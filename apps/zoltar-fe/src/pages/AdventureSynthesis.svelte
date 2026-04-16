@@ -61,19 +61,20 @@
     }, POLL_TIMEOUT_MS);
   }
 
-  onMount(async () => {
-    const adv = await fetchAdventure();
-    if (!adv) {
-      error = 'Adventure not found.';
+  onMount(() => {
+    fetchAdventure().then((adv) => {
+      if (!adv) {
+        error = 'Adventure not found.';
+        loading = false;
+        return;
+      }
+      adventure = adv;
       loading = false;
-      return;
-    }
-    adventure = adv;
-    loading = false;
 
-    if (adv.status === 'synthesizing') {
-      startPolling();
-    }
+      if (adv.status === 'synthesizing') {
+        startPolling();
+      }
+    });
 
     return () => stopPolling();
   });
