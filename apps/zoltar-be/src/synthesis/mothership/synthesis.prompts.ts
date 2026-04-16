@@ -32,7 +32,7 @@ export function formatMothershipCharacterProse(
     `${sheet.name} (${sheet.class})`,
     `Stats: STR ${sheet.stats.strength}, SPD ${sheet.stats.speed}, INT ${sheet.stats.intellect}, CMB ${sheet.stats.combat}, INST ${sheet.stats.instinct}, SAN ${sheet.stats.sanity}`,
     `Saves: Fear ${sheet.saves.fear}, Body ${sheet.saves.body}, Armor ${sheet.saves.armor}/${sheet.saves.armorMax}`,
-    `HP: ${sheet.currentHp}/${sheet.maxHp}   Stress: ${sheet.stress.current}/${sheet.stress.max}`,
+    `HP: ${sheet.maxHp}   Stress Threshold: ${sheet.maxStress}`,
     `Skills: ${sheet.skills.join(', ') || '(none)'}`,
     `Equipment: ${sheet.equipment.join(', ') || '(none)'}`,
   ];

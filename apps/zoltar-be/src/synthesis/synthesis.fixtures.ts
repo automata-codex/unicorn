@@ -19,9 +19,8 @@ export const vasquezSheet: MothershipCharacterSheet = {
     sanity: 50,
   },
   saves: { fear: 30, body: 40, armor: 10, armorMax: 20 },
-  currentHp: 12,
   maxHp: 15,
-  stress: { current: 0, max: 20 },
+  maxStress: 20,
   skills: ['Military Training', 'Firearms'],
   equipment: ['Combat Armor', 'Pulse Rifle'],
 };

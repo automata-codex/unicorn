@@ -24,8 +24,8 @@ describe('formatMothershipCharacterProse', () => {
     expect(prose).toContain('SAN 50');
     expect(prose).toContain('Fear 30');
     expect(prose).toContain('Armor 10/20');
-    expect(prose).toContain('HP: 12/15');
-    expect(prose).toContain('Stress: 0/20');
+    expect(prose).toContain('HP: 15');
+    expect(prose).toContain('Stress Threshold: 20');
     expect(prose).toContain('Military Training, Firearms');
     expect(prose).toContain('Combat Armor, Pulse Rifle');
   });

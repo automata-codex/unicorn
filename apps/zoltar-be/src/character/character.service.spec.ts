@@ -39,9 +39,8 @@ const fakeData: MothershipCharacterSheet = {
     sanity: 30,
   },
   saves: { fear: 30, body: 30, armor: 30, armorMax: 30 },
-  currentHp: 20,
   maxHp: 20,
-  stress: { current: 0, max: 3 },
+  maxStress: 3,
   skills: ['Heavy weapons'],
   equipment: ['Pulse rifle'],
 };
@@ -90,7 +89,7 @@ describe('CharacterService', () => {
       expect(campaignRepo.mergePlayerResourcePools).toHaveBeenCalledWith('c1', {
         vasquez_hp: { current: 20, max: 20 },
         vasquez_stress: { current: 0, max: 3 },
-      });
+      } );
       expect(result).toEqual(fakeCharacter);
     });
 

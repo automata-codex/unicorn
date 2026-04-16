@@ -25,9 +25,8 @@ const validSheet = {
     armor: 10,
     armorMax: 20,
   },
-  currentHp: 12,
   maxHp: 15,
-  stress: { current: 2, max: 20 },
+  maxStress: 20,
   skills: ['Military Training', 'Firearms'],
   equipment: ['Combat Armor', 'Pulse Rifle'],
   notes: 'Former UASC marine, dishonorably discharged.',
@@ -87,9 +86,9 @@ describe('MothershipCharacterSheetSchema', () => {
     ).toThrow();
   });
 
-  it('rejects negative currentHp', () => {
+  it('rejects maxStress < 1', () => {
     expect(() =>
-      MothershipCharacterSheetSchema.parse({ ...validSheet, currentHp: -1 }),
+      MothershipCharacterSheetSchema.parse({ ...validSheet, maxStress: 0 }),
     ).toThrow();
   });
 

@@ -14,12 +14,12 @@ export function deriveMothershipCharacterResourcePools(
 ): Record<string, ResourcePool> {
   return {
     [`${sheet.entityId}_hp`]: {
-      current: sheet.currentHp,
+      current: sheet.maxHp,
       max: sheet.maxHp,
     },
     [`${sheet.entityId}_stress`]: {
-      current: sheet.stress.current,
-      max: sheet.stress.max,
+      current: 0,
+      max: sheet.maxStress,
     },
   };
 }

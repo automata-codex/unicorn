@@ -33,9 +33,8 @@ export type CharacterSheet = {
     entityId: string;
     stats: Record<string, number>;
     saves: Record<string, number>;
-    currentHp: number;
     maxHp: number;
-    stress: { current: number; max: number };
+    maxStress: number;
     skills: string[];
     equipment: string[];
     notes?: string;
