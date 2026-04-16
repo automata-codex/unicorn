@@ -8,25 +8,58 @@
   import SectionLabel from '../lib/components/SectionLabel.svelte';
   import { navigate } from '../lib/router.svelte';
 
-  import type { CharacterSheet } from '../lib/types';
+  import type { Adventure, CharacterSheet } from '../lib/types';
 
   const { campaignId }: { campaignId: string } = $props();
 
   let character = $state<CharacterSheet | null>(null);
   let loading = $state(true);
   let error = $state('');
+  let confirmingDelete = $state(false);
+  let deleting = $state(false);
+
+  const activeStatuses = ['synthesizing', 'ready'];
+  let hasActiveAdventure = $state(false);
 
   onMount(async () => {
-    const res = await api(`/api/v1/campaigns/${campaignId}/characters`);
-    if (res.ok) {
-      character = await res.json();
-    } else if (res.status === 404) {
+    const [charRes, advRes] = await Promise.all([
+      api(`/api/v1/campaigns/${campaignId}/characters`),
+      api(`/api/v1/campaigns/${campaignId}/adventures`),
+    ]);
+
+    if (charRes.ok) {
+      character = await charRes.json();
+    } else if (charRes.status === 404) {
       error = 'No character found.';
     } else {
       error = 'Something went wrong.';
     }
+
+    if (advRes.ok) {
+      const adventures: Adventure[] = await advRes.json();
+      hasActiveAdventure = adventures.some((a) => activeStatuses.includes(a.status));
+    }
+
     loading = false;
   });
+
+  async function handleDelete() {
+    deleting = true;
+    const res = await api(`/api/v1/campaigns/${campaignId}/characters`, {
+      method: 'DELETE',
+    });
+
+    if (res.ok || res.status === 204) {
+      navigate(`/campaigns/${campaignId}`);
+    } else if (res.status === 409) {
+      error = 'Cannot delete while an adventure is active.';
+      confirmingDelete = false;
+    } else {
+      error = 'Something went wrong.';
+      confirmingDelete = false;
+    }
+    deleting = false;
+  }
 </script>
 
 <PageLayout>
@@ -146,6 +179,44 @@
         </div>
       </Card>
     {/if}
+
+    <!-- Actions -->
+    <div class="actions">
+      <Button
+        fullWidth
+        disabled={hasActiveAdventure}
+        onclick={() => navigate(`/campaigns/${campaignId}/characters/edit`)}
+      >
+        EDIT CHARACTER
+      </Button>
+
+      {#if confirmingDelete}
+        <div class="delete-confirm">
+          <p class="type-meta delete-warning">THIS CANNOT BE UNDONE</p>
+          <div class="delete-confirm-buttons">
+            <Button fullWidth variant="ghost" onclick={() => { confirmingDelete = false; }}>
+              CANCEL
+            </Button>
+            <Button fullWidth disabled={deleting} onclick={handleDelete}>
+              {deleting ? 'DELETING...' : 'CONFIRM DELETE'}
+            </Button>
+          </div>
+        </div>
+      {:else}
+        <Button
+          fullWidth
+          variant="ghost"
+          disabled={hasActiveAdventure}
+          onclick={() => { confirmingDelete = true; }}
+        >
+          DELETE CHARACTER
+        </Button>
+      {/if}
+
+      {#if hasActiveAdventure}
+        <p class="type-meta disabled-caption">ADVENTURE IN PROGRESS</p>
+      {/if}
+    </div>
   {/if}
 </PageLayout>
 
@@ -213,5 +284,33 @@
   .item-list li::before {
     content: "— ";
     color: var(--color-text-tertiary);
+  }
+
+  .actions {
+    margin-top: var(--space-7);
+    margin-bottom: var(--space-10);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .delete-confirm {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .delete-warning {
+    text-align: center;
+    color: var(--color-danger);
+  }
+
+  .delete-confirm-buttons {
+    display: flex;
+    gap: var(--space-3);
+  }
+
+  .disabled-caption {
+    text-align: center;
   }
 </style>

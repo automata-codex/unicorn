@@ -1,4 +1,8 @@
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CharacterService } from './character.service';
@@ -10,6 +14,9 @@ function mockRepo() {
     insert: vi.fn(),
     findByCampaignId: vi.fn(),
     existsForCampaign: vi.fn(),
+    update: vi.fn(),
+    deleteByCampaignId: vi.fn(),
+    hasActiveAdventure: vi.fn().mockResolvedValue(false),
   };
 }
 
@@ -111,6 +118,84 @@ describe('CharacterService', () => {
       );
       expect(repo.insert).not.toHaveBeenCalled();
       expect(campaignRepo.mergePlayerResourcePools).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('update', () => {
+    it('checks membership, updates the character, and refreshes resource pools', async () => {
+      repo.update.mockResolvedValue(fakeCharacter);
+
+      const result = await service.update('c1', 'u1', fakeData);
+
+      expect(campaignSvc.assertMember).toHaveBeenCalledWith('c1', 'u1');
+      expect(repo.hasActiveAdventure).toHaveBeenCalledWith('c1');
+      expect(repo.update).toHaveBeenCalledWith('c1', fakeData);
+      expect(campaignRepo.mergePlayerResourcePools).toHaveBeenCalled();
+      expect(result).toEqual(fakeCharacter);
+    });
+
+    it('throws ForbiddenException when not a member', async () => {
+      campaignSvc.assertMember.mockRejectedValue(new ForbiddenException());
+
+      await expect(service.update('c1', 'u1', fakeData)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when an adventure is active', async () => {
+      repo.hasActiveAdventure.mockResolvedValue(true);
+
+      await expect(service.update('c1', 'u1', fakeData)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when no character exists', async () => {
+      repo.update.mockResolvedValue(null);
+
+      await expect(service.update('c1', 'u1', fakeData)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('delete', () => {
+    it('checks membership and deletes the character', async () => {
+      repo.deleteByCampaignId.mockResolvedValue(true);
+
+      await service.delete('c1', 'u1');
+
+      expect(campaignSvc.assertMember).toHaveBeenCalledWith('c1', 'u1');
+      expect(repo.hasActiveAdventure).toHaveBeenCalledWith('c1');
+      expect(repo.deleteByCampaignId).toHaveBeenCalledWith('c1');
+    });
+
+    it('throws ForbiddenException when not a member', async () => {
+      campaignSvc.assertMember.mockRejectedValue(new ForbiddenException());
+
+      await expect(service.delete('c1', 'u1')).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(repo.deleteByCampaignId).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when an adventure is active', async () => {
+      repo.hasActiveAdventure.mockResolvedValue(true);
+
+      await expect(service.delete('c1', 'u1')).rejects.toThrow(
+        ConflictException,
+      );
+      expect(repo.deleteByCampaignId).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when no character exists', async () => {
+      repo.deleteByCampaignId.mockResolvedValue(false);
+
+      await expect(service.delete('c1', 'u1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

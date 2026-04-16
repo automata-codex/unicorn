@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { MothershipCharacterSheetSchema } from '@uv/game-systems';
 
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -41,5 +51,34 @@ export class CharacterController {
       system: character.system,
       data: character.data,
     };
+  }
+
+  @Put()
+  async update(
+    @Param('campaignId') campaignId: string,
+    @Body(new ZodValidationPipe(MothershipCharacterSheetSchema))
+    data: MothershipCharacterSheet,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const character = await this.characterService.update(
+      campaignId,
+      user.id,
+      data,
+    );
+    return {
+      id: character.id,
+      campaignId: character.campaignId,
+      system: character.system,
+      data: character.data,
+    };
+  }
+
+  @Delete()
+  @HttpCode(204)
+  async delete(
+    @Param('campaignId') campaignId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.characterService.delete(campaignId, user.id);
   }
 }

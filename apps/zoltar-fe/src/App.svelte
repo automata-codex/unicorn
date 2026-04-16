@@ -10,6 +10,7 @@
   import CampaignDetail from './pages/CampaignDetail.svelte';
   import CampaignList from './pages/CampaignList.svelte';
   import CharacterCreate from './pages/CharacterCreate.svelte';
+  import CharacterEdit from './pages/CharacterEdit.svelte';
   import CharacterView from './pages/CharacterView.svelte';
   import DevComponents from './pages/DevComponents.svelte';
   import OracleFilter from './pages/OracleFilter.svelte';
@@ -57,6 +58,12 @@
     return match ? match[1] : null;
   }
 
+  // Extract campaignId from /campaigns/:id/characters/edit
+  function getCharacterEditCampaignId(path: string): string | null {
+    const match = path.match(/^\/campaigns\/([^/]+)\/characters\/edit$/);
+    return match ? match[1] : null;
+  }
+
   // Extract campaignId from /campaigns/:id/oracle
   function getOracleCampaignId(path: string): string | null {
     const match = path.match(/^\/campaigns\/([^/]+)\/oracle$/);
@@ -100,6 +107,8 @@
     <AdventureSynthesis campaignId={ids.campaignId} adventureId={ids.adventureId} />
   {:else if getCharacterCreateCampaignId($route)}
     <CharacterCreate campaignId={getCharacterCreateCampaignId($route)!} />
+  {:else if getCharacterEditCampaignId($route)}
+    <CharacterEdit campaignId={getCharacterEditCampaignId($route)!} />
   {:else if getCharacterViewCampaignId($route)}
     <CharacterView campaignId={getCharacterViewCampaignId($route)!} />
   {:else if getCampaignId($route)}
