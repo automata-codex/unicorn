@@ -64,6 +64,13 @@ export class CampaignService {
     if (!owner) throw new ForbiddenException('Not the owner of this campaign');
   }
 
+  async rename(campaignId: string, userId: string, name: string) {
+    await this.assertOwner(campaignId, userId);
+    const campaign = await this.repo.updateName(campaignId, name);
+    if (!campaign) throw new NotFoundException('Campaign not found');
+    return campaign;
+  }
+
   async delete(campaignId: string, userId: string) {
     await this.assertOwner(campaignId, userId);
 

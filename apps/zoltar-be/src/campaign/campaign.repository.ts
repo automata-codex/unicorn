@@ -173,6 +173,15 @@ export class CampaignRepository {
     return rows.length > 0;
   }
 
+  async updateName(campaignId: string, name: string) {
+    const [campaign] = await this.db
+      .update(schema.campaigns)
+      .set({ name })
+      .where(eq(schema.campaigns.id, campaignId))
+      .returning();
+    return campaign ?? null;
+  }
+
   async deleteCampaign(campaignId: string): Promise<boolean> {
     const rows = await this.db
       .delete(schema.campaigns)

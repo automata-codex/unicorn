@@ -17,6 +17,7 @@ function mockRepo() {
     findById: vi.fn(),
     findMember: vi.fn(),
     findOwner: vi.fn(),
+    updateName: vi.fn(),
     hasActiveAdventure: vi.fn().mockResolvedValue(false),
     deleteCampaign: vi.fn(),
   };
@@ -141,6 +142,37 @@ describe('CampaignService', () => {
       repo.findOwner.mockResolvedValue(null);
       await expect(service.assertOwner('c1', 'u1')).rejects.toThrow(
         ForbiddenException,
+      );
+    });
+  });
+
+  describe('rename', () => {
+    it('checks ownership and renames the campaign', async () => {
+      repo.findOwner.mockResolvedValue({ campaignId: 'c1', userId: 'u1', role: 'owner' });
+      repo.updateName.mockResolvedValue({ ...fakeCampaign, name: 'New Name' });
+
+      const result = await service.rename('c1', 'u1', 'New Name');
+
+      expect(repo.findOwner).toHaveBeenCalledWith('c1', 'u1');
+      expect(repo.updateName).toHaveBeenCalledWith('c1', 'New Name');
+      expect(result.name).toBe('New Name');
+    });
+
+    it('throws ForbiddenException when not the owner', async () => {
+      repo.findOwner.mockResolvedValue(null);
+
+      await expect(service.rename('c1', 'u1', 'New Name')).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(repo.updateName).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when campaign does not exist', async () => {
+      repo.findOwner.mockResolvedValue({ campaignId: 'c1', userId: 'u1', role: 'owner' });
+      repo.updateName.mockResolvedValue(null);
+
+      await expect(service.rename('c1', 'u1', 'New Name')).rejects.toThrow(
+        NotFoundException,
       );
     });
   });

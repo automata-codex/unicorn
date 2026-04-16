@@ -24,6 +24,8 @@
   let showCompleted = $state(false);
   let confirmingDelete = $state(false);
   let deleting = $state(false);
+  let editingName = $state(false);
+  let nameInput = $state('');
 
   const activeStatuses = ['synthesizing', 'ready', 'in_progress'];
 
@@ -73,6 +75,39 @@
     loading = false;
   });
 
+  function startEditingName() {
+    nameInput = campaign?.name ?? '';
+    editingName = true;
+  }
+
+  async function saveName() {
+    const trimmed = nameInput.trim();
+    if (!trimmed || trimmed === campaign?.name) {
+      editingName = false;
+      return;
+    }
+
+    const res = await api(`/api/v1/campaigns/${campaignId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name: trimmed }),
+    });
+
+    if (res.ok && campaign) {
+      const updated = await res.json();
+      campaign = { ...campaign, name: updated.name };
+    }
+    editingName = false;
+  }
+
+  function handleNameKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveName();
+    } else if (e.key === 'Escape') {
+      editingName = false;
+    }
+  }
+
   async function handleDeleteCampaign() {
     deleting = true;
     const res = await api(`/api/v1/campaigns/${campaignId}`, {
@@ -119,7 +154,23 @@
   {:else if campaign}
     <div class="header">
       <Button variant="ghost" onclick={() => navigate('/campaigns')}>← CAMPAIGNS</Button>
-      <h1 class="type-campaign-name">{campaign.name}</h1>
+      {#if editingName}
+        <div class="name-edit-row">
+          <input
+            class="type-campaign-name name-input"
+            bind:value={nameInput}
+            onkeydown={handleNameKeydown}
+            autofocus
+          />
+          <Button variant="ghost" onclick={saveName}>SAVE</Button>
+          <Button variant="ghost" onclick={() => { editingName = false; }}>CANCEL</Button>
+        </div>
+      {:else}
+        <div class="name-display-row">
+          <h1 class="type-campaign-name">{campaign.name}</h1>
+          <Button variant="ghost" onclick={startEditingName}>RENAME</Button>
+        </div>
+      {/if}
     </div>
 
     <!-- Character section -->
@@ -236,6 +287,29 @@
   .header :global(.btn) {
     margin-bottom: var(--space-4);
     padding-left: 0;
+  }
+
+  .name-display-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-4);
+  }
+
+  .name-edit-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+  }
+
+  .name-input {
+    all: unset;
+    flex: 1;
+    font-family: var(--font-primary);
+    font-size: var(--font-size-2xl);
+    color: var(--color-text-primary);
+    letter-spacing: var(--tracking-tight);
+    border-bottom: 1px solid var(--color-accent);
+    box-sizing: border-box;
   }
 
   .error-text {
