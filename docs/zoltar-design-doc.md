@@ -79,7 +79,7 @@ Mothership (Warden's Edition) is the recommended first iteration target:
 
 **Suggested first scenario:** A crew responds to a distress beacon on a mining vessel. The rules lookup tool has almost nothing to index. The dice rolling tool covers nearly every resolution case.
 
-**Phase 1 map support:** Mothership is designed for theater-of-the-mind play. Claude is the Warden — it knows the spatial truth from the grid state and GM context and narrates what the player's character perceives as they move through the space. The GM context at campaign setup contains a text description of the location: deck layout, room connections, key features, what's hidden where, where the threat is, where the survivor is hiding. There are no visual maps in phase 1. The fiction is the map, as it would be at a real table running theater-of-the-mind. The grid tracks entity positions mechanically. Visual maps arrive with the 2D renderer in phase 3.
+**Phase 1 map support:** Mothership is designed for theater-of-the-mind play. Claude is the Warden — it knows the spatial truth from the GM context and `worldFacts` entries authored at synthesis time. The GM context at campaign setup contains a text description of the location: deck layout, room connections, key features, what's hidden where, where the threat is, where the survivor is hiding. During synthesis, Claude records the overall layout in `worldFacts` and extends those entries during play when the party enters spaces not previously described in detail. There are no visual maps in Phase 1. The fiction is the map, as it would be at a real table running theater-of-the-mind. Visual maps arrive with the 2D renderer in Phase 3.
 
 ---
 
@@ -379,9 +379,23 @@ The `campaign_state.data` JSONB for a Mothership campaign is validated against `
 
 ---
 
-## The Grid and LOS System
+## Spatial Model
 
-### Data model
+### Phase 1: Prose-based layout via worldFacts
+
+Phase 1 handles spatial consistency through `worldFacts`, not through structured spatial data. At synthesis time, Claude produces one or more `worldFacts` entries describing the overall layout — deck structure, room list, room connections, notable spatial features. The exact keying convention (a single `location_layout` entry vs. per-deck entries like `deck_a_layout`) is left to Claude's judgment based on scenario complexity.
+
+During play, the Warden prompt directs Claude to consult these entries before describing spatial relationships and to extend them (via the `world_facts` field on `submit_gm_response`) when the party enters a space not previously described in detail.
+
+The grid tables (`grid_cell`, `grid_entity`) remain migrated but unused in Phase 1. The `grid_entity` write in the `submit_gm_context` write path still fires for entities with a `startingPosition`, but nothing queries those rows during session play.
+
+This matches Mothership's design intent — theater-of-the-mind, where the fiction is the map — and extends the mechanism already validated in Playtest 3 for spatial attributes like corridor lengths. The existing scratchpad generalizes cleanly to overall layout as one more first-mention detail that must stay consistent.
+
+This is a deferral under uncertainty: evidence of spatial-consistency failures in Phase 1 playtests (contradictory room connections, forgotten deck assignments, layout drift across long sessions) would motivate building the structured model described below.
+
+### Phase 2+: Grid and LOS System
+
+#### Data model
 
 ```typescript
 grid_cells {
@@ -403,15 +417,15 @@ grid_entities {
 
 Terrain types: full blockers (columns, walls, closed doors), partial blockers (low walls, crates — block LOS standing, not prone), transparent blockers (iron bars — block movement not LOS), difficult terrain (movement cost modifier), elevation.
 
-### LOS computation
+#### LOS computation
 
 Shadowcasting or Bresenham raycast computed server-side. Light sources are positioned entities with a radius value. The visibility-filtered snapshot sent to Claude excludes entities the party cannot see — structural secrecy, not behavioral.
 
-### ECS architecture note
+#### ECS architecture note
 
 The grid entity model is ECS-inspired — entities with component-like data stored in Postgres, systems implemented as NestJS services. This is the right level of abstraction for a request/response API server. Full ECS architecture system-wide is not used — the performance benefits of ECS apply to real-time game loops with thousands of entities, not to a request/response backend. The renderer layer will follow whatever pattern BabylonJS favors when that time comes.
 
-### Sub-cell geometry (future requirement)
+#### Sub-cell geometry (future requirement)
 
 The current cell-centric model handles most cases well — terrain features occupy cells. However, sub-cell features like a 1-foot diameter column at the intersection of four squares don't map cleanly to any single cell. This is a known future requirement as the VTT layer matures toward Foundry-level spatial fidelity.
 
@@ -430,13 +444,13 @@ map_geometry {
 
 Not implemented in phase 1-2. The cell model handles those phases cleanly.
 
-### Grid rendering (future)
+#### Grid rendering (future)
 
 The grid API returns raw cell/entity data that any renderer can consume. Phase 1 uses text descriptions. Phase 3+ adds a canvas renderer. The rendering layer is intentionally decoupled from the data layer.
 
 **Future VTT consideration:** BabylonJS for 3D rendering and STL model support is a long-term ambition. The Z-value on grid entities is included in the schema from day one to avoid a painful retrofit. The renderer decision (2D canvas vs BabylonJS 3D) is intentionally deferred to phase 3 when the VTT layer is actually being built. The 3D renderer will live in a separate private repository — see Monorepo and Repository Structure section.
 
-### AI map generation (phase 3+ feature)
+#### AI map generation (phase 3+ feature)
 
 When the 2D renderer exists, AI-generated maps become a meaningful feature. The design intent is a two-step pipeline: Claude generates a structured map description and a separate map compiler translates that into grid data.
 
@@ -573,7 +587,7 @@ Key fields and conventions:
 - **`flagTriggers`** — an object adjacent to the flag values listing what each flag's state change means narratively. Mutable: updated when new flags are introduced during play via `stateChanges.flags`. Gives Claude the context to narrate flag changes correctly without re-reading the GM context blob.
 - **`characterAttributes`** — persistent qualitative character state that doesn't fit a numeric pool: armor mode, weapon loadout, active conditions, worn equipment. Stable across turns; updated when the character's loadout changes.
 - **Entity visibility** — grid entities filtered to those visible to the player party per LOS computation. Claude never sees hidden entity positions.
-- **Entity positions are omitted.** Position tracking is part of the spatial system (specced separately). Claude receives visibility state but not coordinates — it narrates from the GM context's spatial description, not from a coordinate grid.
+- **Entity positions are omitted.** Position tracking is part of the spatial system. Claude receives visibility state but not coordinates — it narrates from the GM context's spatial description, not from a coordinate grid.
 
 ### Prompt caching
 
