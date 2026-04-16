@@ -151,9 +151,9 @@
           {#each visibleAdventures as adventure (adventure.id)}
             <button
               class="adventure-row"
-              class:adventure-row-clickable={['synthesizing', 'ready'].includes(adventure.status)}
+              class:adventure-row-clickable={activeStatuses.includes(adventure.status)}
               onclick={() => {
-                if (['synthesizing', 'ready'].includes(adventure.status)) {
+                if (activeStatuses.includes(adventure.status)) {
                   navigate(`/campaigns/${campaignId}/adventures/${adventure.id}`);
                 }
               }}

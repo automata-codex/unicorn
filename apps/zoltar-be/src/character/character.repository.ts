@@ -70,7 +70,7 @@ export class CharacterRepository {
       .where(
         and(
           eq(schema.adventures.campaignId, campaignId),
-          inArray(schema.adventures.status, ['synthesizing', 'ready']),
+          inArray(schema.adventures.status, ['synthesizing', 'ready', 'in_progress']),
         ),
       )
       .limit(1);

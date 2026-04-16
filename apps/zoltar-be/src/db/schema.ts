@@ -41,6 +41,7 @@ export const adventureModeEnum = pgEnum('adventure_mode', [
 export const adventureStatusEnum = pgEnum('adventure_status', [
   'synthesizing',
   'ready',
+  'in_progress',
   'completed',
   'failed',
 ]);

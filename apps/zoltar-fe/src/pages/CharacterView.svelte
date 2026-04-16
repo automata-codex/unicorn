@@ -18,7 +18,7 @@
   let confirmingDelete = $state(false);
   let deleting = $state(false);
 
-  const activeStatuses = ['synthesizing', 'ready'];
+  const activeStatuses = ['synthesizing', 'ready', 'in_progress'];
   let hasActiveAdventure = $state(false);
 
   onMount(async () => {
