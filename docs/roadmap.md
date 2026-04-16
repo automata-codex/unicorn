@@ -52,7 +52,8 @@ The NestJS application structure, database connectivity, and core data model. No
 
 #### Auth & CRUD
 
-- Auth.js integration (`AuthService` interface + `AuthJsService` implementation)
+- Magic-link auth (`AuthService` interface + backend-owned session management)
+- Signup mode config (`SIGNUP_MODE`: `open` | `invite_only` | `disabled`; `INVITE_TOKEN` for invite_only mode) — enforced at registration time via `AuthService`; admin UI and per-user invite tokens deferred to Phase 3 SaaS account management
 - Service interface stubs: `EntitlementsService`, `MeteringService`, `EmailService`, `AssetStorageService`, `RealtimeService`, `FeatureFlagService`
 - Noop implementations for all deferred service interfaces
 - Mothership Zod schemas — campaign state shape and character sheet shape
@@ -127,6 +128,7 @@ A spatial system spec must be written and agreed before this area is implemented
 
 - Docker Compose production configuration
 - Environment variable documentation
+- Signup mode documentation — `SIGNUP_MODE` options, `INVITE_TOKEN` usage, and recommended configuration per deployment persona (personal, friend group, semi-public)
 - Self-hosted setup guide
 - DigitalOcean Droplet deployment walkthrough
 - Responsive polish pass on frontend (thumb reach, viewport refinement)
@@ -150,7 +152,7 @@ A spatial system spec must be written and agreed before this area is implemented
 
 *First shippable frontend + backend slice.*
 
-- [x] Auth.js integration (`AuthService` interface + `AuthJsService` implementation)
+- [x] Magic-link auth (`AuthService` interface + backend-owned session management)
 - [x] Add Traefik to local dev stack
 - [x] Mothership Zod schemas (campaign state, character sheet)
 - [x] Basic CRUD endpoints for campaigns and adventures
@@ -179,13 +181,13 @@ A spatial system spec must be written and agreed before this area is implemented
 
 *End-to-end adventure creation: from oracle picks to GM context in DB.*
 
-- [ ] `submit_gm_context` tool definition + write path
-- [ ] State snapshot fields rationalized; read/write contract between snapshot and tool schema finalized
-- [ ] Coherence check (three-tier resolution: silent reroll, silent synthesis resolution, player surfacing)
-- [ ] GM context synthesis (Claude constructs blob from resolved oracle results, calls `submit_gm_context`)
-- [ ] Entity ID alignment
-- [ ] Pending canon queue + auto-promote for Solo Blind
-- [ ] Frontend: full Solo Blind adventure creation flow wired end-to-end
+- [x] `submit_gm_context` tool definition + write path
+- [x] State snapshot fields rationalized; read/write contract between snapshot and tool schema finalized
+- [x] Coherence check (three-tier resolution: silent reroll, silent synthesis resolution, player surfacing)
+- [x] GM context synthesis (Claude constructs blob from resolved oracle results, calls `submit_gm_context`)
+- [x] Entity ID alignment
+- [x] Pending canon queue + auto-promote for Solo Blind
+- [x] Frontend: full Solo Blind adventure creation flow wired end-to-end
 
 #### M5 — Claude API Client & Prompt Assembly
 
@@ -238,7 +240,9 @@ A spatial system spec must be written and agreed before this area is implemented
 - [ ] In-depth human review of oracle tables
 - [ ] Docker Compose production configuration
 - [ ] Environment variable documentation
+- [ ] Signup mode implementation (`SIGNUP_MODE` / `INVITE_TOKEN` enforcement in `AuthService`)
 - [ ] Self-hosted setup guide + DigitalOcean Droplet walkthrough
+- [ ] Signup mode documented in self-hosted setup guide
 - [ ] Responsive polish pass (thumb reach, viewport refinement)
 - [ ] First tagged release (`v0.1.0`)
 
