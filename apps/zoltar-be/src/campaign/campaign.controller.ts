@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 
 import { CurrentUser } from '../auth/current-user.decorator';
 import { SessionGuard } from '../auth/session.guard';
@@ -43,5 +52,14 @@ export class CampaignController {
   ) {
     await this.campaignService.assertMember(campaignId, user.id);
     return this.campaignService.findById(campaignId);
+  }
+
+  @Delete(':campaignId')
+  @HttpCode(204)
+  async delete(
+    @Param('campaignId') campaignId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.campaignService.delete(campaignId, user.id);
   }
 }

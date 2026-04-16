@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CampaignService } from './campaign.service';
@@ -13,6 +17,8 @@ function mockRepo() {
     findById: vi.fn(),
     findMember: vi.fn(),
     findOwner: vi.fn(),
+    hasActiveAdventure: vi.fn().mockResolvedValue(false),
+    deleteCampaign: vi.fn(),
   };
 }
 
@@ -135,6 +141,47 @@ describe('CampaignService', () => {
       repo.findOwner.mockResolvedValue(null);
       await expect(service.assertOwner('c1', 'u1')).rejects.toThrow(
         ForbiddenException,
+      );
+    });
+  });
+
+  describe('delete', () => {
+    it('checks ownership and deletes the campaign', async () => {
+      repo.findOwner.mockResolvedValue({ campaignId: 'c1', userId: 'u1', role: 'owner' });
+      repo.deleteCampaign.mockResolvedValue(true);
+
+      await service.delete('c1', 'u1');
+
+      expect(repo.findOwner).toHaveBeenCalledWith('c1', 'u1');
+      expect(repo.hasActiveAdventure).toHaveBeenCalledWith('c1');
+      expect(repo.deleteCampaign).toHaveBeenCalledWith('c1');
+    });
+
+    it('throws ForbiddenException when not the owner', async () => {
+      repo.findOwner.mockResolvedValue(null);
+
+      await expect(service.delete('c1', 'u1')).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(repo.deleteCampaign).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when an adventure is active', async () => {
+      repo.findOwner.mockResolvedValue({ campaignId: 'c1', userId: 'u1', role: 'owner' });
+      repo.hasActiveAdventure.mockResolvedValue(true);
+
+      await expect(service.delete('c1', 'u1')).rejects.toThrow(
+        ConflictException,
+      );
+      expect(repo.deleteCampaign).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when campaign does not exist', async () => {
+      repo.findOwner.mockResolvedValue({ campaignId: 'c1', userId: 'u1', role: 'owner' });
+      repo.deleteCampaign.mockResolvedValue(false);
+
+      await expect(service.delete('c1', 'u1')).rejects.toThrow(
+        NotFoundException,
       );
     });
   });
