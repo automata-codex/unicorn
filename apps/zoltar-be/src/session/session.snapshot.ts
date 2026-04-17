@@ -1,10 +1,9 @@
 import type { MothershipCampaignState } from '@uv/game-systems';
 
 /**
- * Minimal `gm_context.blob` shape the snapshot builder depends on. Other
- * fields in the blob (narrative, entities array, opening narration) are
- * irrelevant to snapshot assembly — they live in the cached GM context block
- * that the session prompt ships separately.
+ * Shape of the `gm_context.blob` payload as the session module reads it. The
+ * fields match what `buildGmContextBlob` writes at synthesis time plus
+ * `playerEntityIds`, which Phase 5 supplies from a character-sheet lookup.
  *
  * `structured.flags` is the set of flags present at synthesis time. The
  * snapshot re-emits each flag's current value every turn, but only re-emits
@@ -20,6 +19,20 @@ import type { MothershipCampaignState } from '@uv/game-systems';
  * applying state changes that can touch player entities.
  */
 export interface GmContextBlob {
+  openingNarration?: string | null;
+  narrative?: {
+    location: string;
+    atmosphere: string;
+    npcAgendas: Record<string, string>;
+    hiddenTruth: string;
+    oracleConnections: string;
+  };
+  entities?: Array<{
+    id: string;
+    type: 'npc' | 'threat' | 'feature';
+    visible: boolean;
+    tags: string[];
+  }>;
   structured?: {
     flags?: Record<string, { value: boolean; trigger: string }>;
   };
