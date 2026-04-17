@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { push } from 'svelte-spa-router';
 
   import { api } from '../lib/api';
   import Button from '../lib/components/Button.svelte';
   import Card from '../lib/components/Card.svelte';
   import Input from '../lib/components/Input.svelte';
   import PageLayout from '../lib/components/PageLayout.svelte';
-  import { navigate } from '../lib/router.svelte';
 
   import type { Campaign } from '../lib/types';
 
@@ -35,7 +35,7 @@
 
     if (res.ok) {
       const campaign = await res.json();
-      navigate(`/campaigns/${campaign.id}`);
+      push(`/campaigns/${campaign.id}`);
     }
 
     creating = false;
@@ -55,7 +55,7 @@
         {#each campaigns as campaign (campaign.id)}
           <button
             class="campaign-card-button"
-            onclick={() => navigate(`/campaigns/${campaign.id}`)}
+            onclick={() => push(`/campaigns/${campaign.id}`)}
           >
             <Card>
               <span class="type-campaign-name">{campaign.name}</span>

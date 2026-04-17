@@ -17,7 +17,8 @@
 	},
 	"dependencies": {
 		"@uv/game-systems": "*",
-		"modern-normalize": "^3.0.1"
+		"modern-normalize": "^3.0.1",
+		"svelte-spa-router": "^5.0.1"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.3",

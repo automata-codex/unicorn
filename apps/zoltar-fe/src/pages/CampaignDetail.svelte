@@ -1,20 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { push } from 'svelte-spa-router';
 
   import { api } from '../lib/api';
   import Button from '../lib/components/Button.svelte';
   import Card from '../lib/components/Card.svelte';
   import PageLayout from '../lib/components/PageLayout.svelte';
   import SectionLabel from '../lib/components/SectionLabel.svelte';
-  import { navigate } from '../lib/router.svelte';
 
   import type { Adventure, Campaign, CharacterSheet } from '../lib/types';
 
-  interface Props {
-    campaignId: string;
-  }
-
-  let { campaignId }: Props = $props();
+  let { params }: { params: { campaignId: string } } = $props();
+  const campaignId = $derived(params.campaignId);
 
   let campaign = $state<Campaign | null>(null);
   let adventures = $state<Adventure[]>([]);
@@ -115,7 +112,7 @@
     });
 
     if (res.ok || res.status === 204) {
-      navigate('/campaigns');
+      push('/campaigns');
     } else if (res.status === 409) {
       error = 'Cannot delete while an adventure is active.';
       confirmingDelete = false;
@@ -153,7 +150,7 @@
     <p class="error-text">{error}</p>
   {:else if campaign}
     <div class="header">
-      <Button variant="ghost" onclick={() => navigate('/campaigns')}>← CAMPAIGNS</Button>
+      <Button variant="ghost" onclick={() => push('/campaigns')}>← CAMPAIGNS</Button>
       {#if editingName}
         <div class="name-edit-row">
           <!-- svelte-ignore a11y_autofocus -->
@@ -179,7 +176,7 @@
       <SectionLabel>CHARACTER</SectionLabel>
 
       {#if character}
-        <button class="character-link" onclick={() => navigate(`/campaigns/${campaignId}/characters`)}>
+        <button class="character-link" onclick={() => push(`/campaigns/${campaignId}/characters`)}>
           <div class="character-info">
             <span class="type-screen-title">{character.data.name}</span>
             <span class="type-label character-meta">{character.data.class}</span>
@@ -195,7 +192,7 @@
         </button>
       {:else}
         <p class="type-meta empty-character">NO CREW ASSIGNED</p>
-        <Button onclick={() => navigate(`/campaigns/${campaignId}/characters/new`)}>
+        <Button onclick={() => push(`/campaigns/${campaignId}/characters/new`)}>
           CREATE CHARACTER
         </Button>
       {/if}
@@ -209,7 +206,7 @@
         <Button
           fullWidth
           disabled={newAdventureDisabledReason != null}
-          onclick={() => navigate(`/campaigns/${campaignId}/oracle`)}
+          onclick={() => push(`/campaigns/${campaignId}/oracle`)}
         >
           NEW ADVENTURE
         </Button>
@@ -226,7 +223,7 @@
               class:adventure-row-clickable={activeStatuses.includes(adventure.status)}
               onclick={() => {
                 if (activeStatuses.includes(adventure.status)) {
-                  navigate(`/campaigns/${campaignId}/adventures/${adventure.id}`);
+                  push(`/campaigns/${campaignId}/adventures/${adventure.id}`);
                 }
               }}
             >

@@ -1,16 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { push } from 'svelte-spa-router';
 
   import { api } from '../lib/api';
   import Button from '../lib/components/Button.svelte';
   import Card from '../lib/components/Card.svelte';
   import PageLayout from '../lib/components/PageLayout.svelte';
   import SectionLabel from '../lib/components/SectionLabel.svelte';
-  import { navigate } from '../lib/router.svelte';
 
   import type { Adventure, CharacterSheet } from '../lib/types';
 
-  const { campaignId }: { campaignId: string } = $props();
+  let { params }: { params: { campaignId: string } } = $props();
+  const campaignId = $derived(params.campaignId);
 
   let character = $state<CharacterSheet | null>(null);
   let loading = $state(true);
@@ -52,7 +53,7 @@
     });
 
     if (res.ok || res.status === 204) {
-      navigate(`/campaigns/${campaignId}`);
+      push(`/campaigns/${campaignId}`);
     } else if (res.status === 409) {
       error = 'Cannot delete while an adventure is active.';
       confirmingDelete = false;
@@ -66,7 +67,7 @@
 
 <PageLayout>
   <div class="header">
-    <Button variant="ghost" onclick={() => navigate(`/campaigns/${campaignId}`)}>← CAMPAIGN</Button>
+    <Button variant="ghost" onclick={() => push(`/campaigns/${campaignId}`)}>← CAMPAIGN</Button>
   </div>
 
   {#if loading}
@@ -187,7 +188,7 @@
       <Button
         fullWidth
         disabled={hasActiveAdventure}
-        onclick={() => navigate(`/campaigns/${campaignId}/characters/edit`)}
+        onclick={() => push(`/campaigns/${campaignId}/characters/edit`)}
       >
         EDIT CHARACTER
       </Button>

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { push } from 'svelte-spa-router';
+
   import { api } from '../lib/api';
   import Button from '../lib/components/Button.svelte';
   import Card from '../lib/components/Card.svelte';
@@ -6,9 +8,9 @@
   import PageLayout from '../lib/components/PageLayout.svelte';
   import SectionLabel from '../lib/components/SectionLabel.svelte';
   import Select from '../lib/components/Select.svelte';
-  import { navigate } from '../lib/router.svelte';
 
-  const { campaignId }: { campaignId: string } = $props();
+  let { params }: { params: { campaignId: string } } = $props();
+  const campaignId = $derived(params.campaignId);
 
   // Identity
   let name = $state('');
@@ -116,7 +118,7 @@
     });
 
     if (res.ok) {
-      navigate(`/campaigns/${campaignId}`);
+      push(`/campaigns/${campaignId}`);
     } else if (res.status === 409) {
       error = 'This campaign already has a character.';
     } else {
@@ -129,7 +131,7 @@
 
 <PageLayout>
   <div class="header">
-    <Button variant="ghost" onclick={() => navigate(`/campaigns/${campaignId}`)}>← CAMPAIGN</Button>
+    <Button variant="ghost" onclick={() => push(`/campaigns/${campaignId}`)}>← CAMPAIGN</Button>
   </div>
   <h1 class="type-screen-label page-title">CHARACTER CREATION</h1>
 

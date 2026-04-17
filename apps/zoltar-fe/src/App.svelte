@@ -1,20 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Router, { push, router } from 'svelte-spa-router';
 
   import { api } from './lib/api';
   import Button from './lib/components/Button.svelte';
-  import { builtInOracleCategories } from './lib/data/oracle';
-  import { navigate, route } from './lib/router.svelte';
   import { loadSession, session, sessionLoading } from './lib/session.svelte';
-  import AdventureSynthesis from './pages/AdventureSynthesis.svelte';
-  import CampaignDetail from './pages/CampaignDetail.svelte';
-  import CampaignList from './pages/CampaignList.svelte';
-  import CharacterCreate from './pages/CharacterCreate.svelte';
-  import CharacterEdit from './pages/CharacterEdit.svelte';
-  import CharacterView from './pages/CharacterView.svelte';
-  import DevComponents from './pages/DevComponents.svelte';
-  import OracleFilter from './pages/OracleFilter.svelte';
-  import SignIn from './pages/SignIn.svelte';
+  import routes from './routes';
 
   onMount(() => {
     loadSession();
@@ -22,60 +13,26 @@
 
   // Redirect unauthenticated users to /signin after session load completes
   $effect(() => {
-    if (!$sessionLoading && !$session && !$route.startsWith('/signin')) {
-      navigate('/signin');
+    if (
+      !$sessionLoading &&
+      !$session &&
+      !router.location.startsWith('/signin')
+    ) {
+      push('/signin');
     }
   });
 
   // Redirect authenticated users away from /signin
   $effect(() => {
-    if (!$sessionLoading && $session && $route.startsWith('/signin')) {
-      navigate('/');
+    if (!$sessionLoading && $session && router.location.startsWith('/signin')) {
+      push('/');
     }
   });
 
   async function handleSignOut() {
     await api('/api/v1/auth/signout', { method: 'POST' });
     session.set(null);
-    navigate('/signin');
-  }
-
-  // Extract campaignId from /campaigns/:id paths
-  function getCampaignId(path: string): string | null {
-    const match = path.match(/^\/campaigns\/([^/]+)$/);
-    return match ? match[1] : null;
-  }
-
-  // Extract campaignId from /campaigns/:id/characters/new
-  function getCharacterCreateCampaignId(path: string): string | null {
-    const match = path.match(/^\/campaigns\/([^/]+)\/characters\/new$/);
-    return match ? match[1] : null;
-  }
-
-  // Extract campaignId from /campaigns/:id/characters
-  function getCharacterViewCampaignId(path: string): string | null {
-    const match = path.match(/^\/campaigns\/([^/]+)\/characters$/);
-    return match ? match[1] : null;
-  }
-
-  // Extract campaignId from /campaigns/:id/characters/edit
-  function getCharacterEditCampaignId(path: string): string | null {
-    const match = path.match(/^\/campaigns\/([^/]+)\/characters\/edit$/);
-    return match ? match[1] : null;
-  }
-
-  // Extract campaignId from /campaigns/:id/oracle
-  function getOracleCampaignId(path: string): string | null {
-    const match = path.match(/^\/campaigns\/([^/]+)\/oracle$/);
-    return match ? match[1] : null;
-  }
-
-  // Extract campaignId + adventureId from /campaigns/:id/adventures/:id
-  function getAdventureIds(
-    path: string,
-  ): { campaignId: string; adventureId: string } | null {
-    const match = path.match(/^\/campaigns\/([^/]+)\/adventures\/([^/]+)$/);
-    return match ? { campaignId: match[1], adventureId: match[2] } : null;
+    push('/signin');
   }
 </script>
 
@@ -87,7 +44,7 @@
   {#if $session}
     <nav class="nav-bar">
       <div class="nav-inner">
-        <button type="button" class="wordmark" onclick={() => navigate('/')}>ZOLTAR</button>
+        <button type="button" class="wordmark" onclick={() => push('/')}>ZOLTAR</button>
         <div class="nav-right">
           <span class="nav-email">{$session.email}</span>
           <Button variant="ghost" onclick={handleSignOut}>Sign out</Button>
@@ -96,28 +53,7 @@
     </nav>
   {/if}
 
-  {#if $route.startsWith('/dev/components')}
-    <DevComponents />
-  {:else if $route.startsWith('/signin')}
-    <SignIn />
-  {:else if getOracleCampaignId($route)}
-    <OracleFilter categories={builtInOracleCategories} campaignId={getOracleCampaignId($route)!} />
-  {:else if getAdventureIds($route)}
-    {@const ids = getAdventureIds($route)!}
-    <AdventureSynthesis campaignId={ids.campaignId} adventureId={ids.adventureId} />
-  {:else if getCharacterCreateCampaignId($route)}
-    <CharacterCreate campaignId={getCharacterCreateCampaignId($route)!} />
-  {:else if getCharacterEditCampaignId($route)}
-    <CharacterEdit campaignId={getCharacterEditCampaignId($route)!} />
-  {:else if getCharacterViewCampaignId($route)}
-    <CharacterView campaignId={getCharacterViewCampaignId($route)!} />
-  {:else if getCampaignId($route)}
-    <CampaignDetail campaignId={getCampaignId($route)!} />
-  {:else if $route === '/campaigns' || $route === '/'}
-    <CampaignList />
-  {:else}
-    <p>Not found</p>
-  {/if}
+  <Router {routes} />
 {/if}
 
 <style>

@@ -1,9 +1,12 @@
 <script lang="ts">
+  import { push } from 'svelte-spa-router';
+
   import { api } from '../lib/api';
   import Button from '../lib/components/Button.svelte';
   import Card from '../lib/components/Card.svelte';
   import PageLayout from '../lib/components/PageLayout.svelte';
   import SectionLabel from '../lib/components/SectionLabel.svelte';
+  import { builtInOracleCategories } from '../lib/data/oracle';
   import {
     activeCount,
     canBegin,
@@ -12,9 +15,8 @@
     selectAll,
     toggleEntry,
   } from '../lib/oracle/state.svelte';
-  import { navigate } from '../lib/router.svelte';
 
-  import type { OracleCategory, OracleEntry } from '../lib/data/oracle/types';
+  import type { OracleEntry } from '../lib/data/oracle/types';
   import type { CoherenceConflict } from '../lib/types';
 
   const categoryToSelectionKey: Record<string, string> = {
@@ -25,10 +27,9 @@
     tone: 'tone',
   };
 
-  const {
-    categories,
-    campaignId,
-  }: { categories: OracleCategory[]; campaignId: string } = $props();
+  let { params }: { params: { campaignId: string } } = $props();
+  const campaignId = $derived(params.campaignId);
+  const categories = builtInOracleCategories;
 
   // svelte-ignore state_referenced_locally
   let filterState = $state(createOracleFilterState(categories));
@@ -100,7 +101,7 @@
       );
 
       if (synthRes.status === 202) {
-        navigate(`/campaigns/${campaignId}/adventures/${adventureId}`);
+        push(`/campaigns/${campaignId}/adventures/${adventureId}`);
         return;
       }
 
@@ -133,7 +134,7 @@
 
 <PageLayout>
   <div class="back-nav">
-    <Button variant="ghost" onclick={() => navigate(`/campaigns/${campaignId}`)}>← CAMPAIGN</Button>
+    <Button variant="ghost" onclick={() => push(`/campaigns/${campaignId}`)}>← CAMPAIGN</Button>
   </div>
   <h1 class="type-screen-label page-title">ORACLE FILTER</h1>
   <p class="type-meta instruction">

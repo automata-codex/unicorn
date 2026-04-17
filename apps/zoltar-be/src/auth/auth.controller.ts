@@ -109,7 +109,7 @@ export class AuthController {
     const appUrl = this.config.get<string>('PUBLIC_APP_URL');
 
     if (!rawToken || !email) {
-      reply.redirect(`${appUrl}/signin?error=invalid_token`);
+      reply.redirect(`${appUrl}/signin?error=invalid_token`, 302);
       return;
     }
 
@@ -130,7 +130,7 @@ export class AuthController {
 
     const row = rows[0];
     if (!row || row.expires < new Date()) {
-      reply.redirect(`${appUrl}/signin?error=invalid_token`);
+      reply.redirect(`${appUrl}/signin?error=invalid_token`, 302);
       return;
     }
 
@@ -152,7 +152,7 @@ export class AuthController {
       .limit(1);
 
     if (!userRows[0]) {
-      reply.redirect(`${appUrl}/signin?error=invalid_token`);
+      reply.redirect(`${appUrl}/signin?error=invalid_token`, 302);
       return;
     }
 
