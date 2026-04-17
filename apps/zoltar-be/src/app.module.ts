@@ -21,6 +21,7 @@ import { NoopEntitlementsService } from './services/noop/noop-entitlements.servi
 import { NoopFeatureFlagService } from './services/noop/noop-feature-flag.service';
 import { NoopMeteringService } from './services/noop/noop-metering.service';
 import { NoopRealtimeService } from './services/noop/noop-realtime.service';
+import { SessionModule } from './session/session.module';
 import { SmtpEmailService } from './services/smtp-email.service';
 import { SynthesisModule } from './synthesis/synthesis.module';
 
@@ -45,6 +46,7 @@ const deferredServiceProviders = [
     AuthModule,
     GridModule,
     SynthesisModule,
+    SessionModule,
   ],
   providers: deferredServiceProviders,
   exports: deferredServiceProviders,
