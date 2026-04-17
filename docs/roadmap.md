@@ -85,10 +85,8 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - `submit_gm_response` tool definition (Zod schema) including `proposed_canon` field
 - State snapshot builder — visibility-filtered, GM context injected; must include `flagTriggers` object adjacent to flag values (mutable, updated when new flags are added during play via `stateChanges.flagTriggers`), `characterAttributes` block for persistent qualitative character state (armor mode, weapon loadout, active conditions); must omit entity position fields.
 - Claude API client with prompt caching for GM context blob
-- Prompt structure: `[GM context blob] → [state snapshot] → [rolling summary] → [last N kb of messages]`
+- Prompt structure: `[GM context blob] → [state snapshot] → [last N kb of messages]`
 - Rolling N-kb message window — measure in kb not message count; threshold TBD in spec (32–48 kb likely)
-- Rolling summary — stored in `adventures.rolling_summary`; lazy generation at adventure resume time
-- Summarization prompt guidance — prioritize uncanonized improvised fiction over mechanical events; exclude facts already in GM context
 
 #### GmService & State Management
 
@@ -188,15 +186,14 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 
 #### M5 — Claude API Client & Prompt Assembly
 
-*Get a coherent GM response back from Claude. No state changes applied yet. Spatial system deferred; see DECISIONS.md.*
+*Get a coherent GM response back from Claude. No state changes applied yet. Spatial system and rolling summary deferred; see decisions.md.*
 
 - [ ] - Migrate client-side router to `svelte-spa-router` v5 (prerequisite for M6 play view layout; see hash URL tradeoff note in M3 spec)
 - [ ] `submit_gm_response` tool definition (including `proposed_canon` field)
 - [ ] State snapshot builder (visibility-filtered, GM context injected, `flagTriggers`, `characterAttributes`, no entity positions)
 - [ ] Claude API client with prompt caching for GM context blob
-- [ ] Prompt structure: `[GM context blob] → [state snapshot] → [rolling summary] → [last N kb of messages]`
+- [ ] Prompt structure: `[GM context blob] → [state snapshot] → [last N kb of messages]`
 - [ ] Rolling N-kb message window (measure in kb; threshold per spec)
-- [ ] Rolling summary — stored in `adventures.rolling_summary`; lazy generation at resume; summarization guidance applied
 
 #### M6 — GmService & State Management
 

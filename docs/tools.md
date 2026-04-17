@@ -73,17 +73,18 @@ const submitGmResponseSchema = z.object({
       z.object({ delta: z.number().int() })
     ).optional(),
 
-    // Non-numeric entity state: position and visibility.
+    // Non-numeric entity state: narrative visibility and status label.
     // HP and other numeric resources belong in resourcePools, not here.
+    // `visible` is a narrative flag (hidden threat spotted, NPC slips away) —
+    // no LOS computation is performed. `status` is a short label matching
+    // what `submit_gm_context` writes at synthesis time (e.g. 'wounded',
+    // 'fled', 'revealed'). Entity position is not modeled in Phase 1 per
+    // the spatial-system deferral in decisions.md.
     entities: z.record(
       z.string(),
       z.object({
-        position: z.object({
-          x: z.number().int(),
-          y: z.number().int(),
-          z: z.number().int().default(0),
-        }).optional(),
-        visible: z.boolean().optional(),  // update LOS-derived visibility
+        visible: z.boolean().optional(),
+        status:  z.string().optional(),
       })
     ).optional(),
 
@@ -147,7 +148,7 @@ const submitGmResponseSchema = z.object({
 **Validation behavior:**
 - `resourcePools` deltas are applied in full. The validator checks threshold crossings after application, not before. Claude is notified of the final value and any thresholds crossed.
 - Pools with `min: 0` reject deltas that would go negative. Pools with `min: null` allow negative values. Behavior is defined in the system Zod schema pool definition.
-- `entities` position and visibility changes are always accepted.
+- `entities` visibility and status changes are always accepted.
 - `flags` changes are always accepted.
 - `adventureMode: 'initiative'` requires `initiativeOrder` to be present and non-empty.
 - `callerTransfer` must reference a user who is a member of the campaign.

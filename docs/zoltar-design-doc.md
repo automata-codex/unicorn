@@ -562,20 +562,13 @@ There is no session boundary scoping the message history sent to Claude. Instead
 
 The practical window size depends on overall context budget allocation across GM context, state snapshot, message history, and response headroom, but something in the 32–48 kb range is likely sufficient that players never notice the cutoff.
 
-Messages that age out of the window are not lost — they are compressed into a rolling summary stored in `adventures.rolling_summary`. The prompt structure on every request is:
+Messages that age out of the window are not re-surfaced to Claude on subsequent turns, though they remain in the DB for forensics. The prompt structure on every request is:
 
 ```
 [GM context blob]           ← prompt cached, static across adventure
 [State snapshot]            ← current DB state, visibility-filtered
-[Rolling summary]           ← compressed history of everything before the window
 [Last N kb of messages]     ← live context window
 ```
-
-The rolling summary is never redundant with the message window — it always summarizes what Claude cannot see. As the adventure progresses the summary grows slowly, folding in batches of aged-out messages each time the window advances.
-
-**Summarization trigger:** Lazy — at adventure resume time rather than after every exchange. When the player returns to play and a new prompt is being constructed, the backend checks whether the window has advanced since last time and summarizes the gap. One summarization call per return-to-play rather than potentially one per exchange.
-
-**Summarization prompt guidance:** Prioritize uncanonized improvised fiction over mechanical events. "Vasquez lied to the corporate liaison about the cargo manifest, and the liaison appeared to believe it" is more valuable to preserve than "the party spent two turns fighting the guard." Facts that were already promoted to GM context via the canon queue do not need to be in the summary.
 
 ### State snapshot
 
@@ -584,7 +577,7 @@ The state snapshot is the visibility-filtered current DB state injected into eve
 Key fields and conventions:
 
 - **Resource pools** — all named resource pools for all entities, current values and min/max bounds. Names follow the `{entity_id}_{pool_name}` convention (`dr_chen_hp`, `vasquez_stress`).
-- **`flagTriggers`** — an object adjacent to the flag values listing what each flag's state change means narratively. Mutable: updated when new flags are introduced during play via `stateChanges.flags`. Gives Claude the context to narrate flag changes correctly without re-reading the GM context blob.
+- **Flag state and triggers.** The original flag set — values and triggers — is emitted once inside the cached GM context blob. The per-turn state snapshot carries the current **value** for every flag. For flags introduced during play via `stateChanges.flags` (flags not present in the cached GM context), the snapshot additionally carries the **trigger** so Claude can narrate future state changes correctly. Original triggers never appear in the snapshot — they're already cached.
 - **`characterAttributes`** — persistent qualitative character state that doesn't fit a numeric pool: armor mode, weapon loadout, active conditions, worn equipment. Stable across turns; updated when the character's loadout changes.
 - **Entity visibility** — grid entities filtered to those visible to the player party per LOS computation. Claude never sees hidden entity positions.
 - **Entity positions are omitted.** Position tracking is part of the spatial system. Claude receives visibility state but not coordinates — it narrates from the GM context's spatial description, not from a coordinate grid.
