@@ -216,6 +216,20 @@ describe('buildGmContextBlob', () => {
     const blob = buildGmContextBlob(input) as { openingNarration: null };
     expect(blob.openingNarration).toBeNull();
   });
+
+  it('persists structured.flags so the session snapshot can identify originals', () => {
+    const blob = buildGmContextBlob(makeInput()) as {
+      structured: {
+        flags: Record<string, { value: boolean; trigger: string }>;
+      };
+    };
+    expect(blob.structured.flags).toEqual({
+      adventure_complete: {
+        value: false,
+        trigger: 'Escape the vessel.',
+      },
+    });
+  });
 });
 
 describe('buildGridEntityRows', () => {

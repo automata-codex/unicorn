@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { router } from 'svelte-spa-router';
+
   import { api } from '../lib/api';
   import Button from '../lib/components/Button.svelte';
   import Card from '../lib/components/Card.svelte';
@@ -8,8 +10,9 @@
   let submitted = $state(false);
   let error = $state('');
 
-  // Check for error from failed verify redirect
-  const params = new URLSearchParams(window.location.search);
+  // Check for error from failed verify redirect. The querystring lives inside
+  // the hash (e.g. `/#/signin?error=invalid_token`), so read it from the router.
+  const params = new URLSearchParams(router.querystring ?? '');
   if (params.get('error') === 'invalid_token') {
     error = 'That link is invalid or expired. Please request a new one.';
   }

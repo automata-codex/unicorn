@@ -1,21 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { push } from 'svelte-spa-router';
 
   import { api } from '../lib/api';
   import Button from '../lib/components/Button.svelte';
   import Card from '../lib/components/Card.svelte';
   import PageLayout from '../lib/components/PageLayout.svelte';
   import SectionLabel from '../lib/components/SectionLabel.svelte';
-  import { navigate } from '../lib/router.svelte';
 
   import type { Adventure } from '../lib/types';
 
-  interface Props {
-    campaignId: string;
-    adventureId: string;
-  }
-
-  let { campaignId, adventureId }: Props = $props();
+  let { params }: { params: { campaignId: string; adventureId: string } } =
+    $props();
+  const campaignId = $derived(params.campaignId);
+  const adventureId = $derived(params.adventureId);
 
   let adventure = $state<Adventure | null>(null);
   let loading = $state(true);
@@ -101,7 +99,7 @@
 
 <PageLayout>
   <div class="back-nav">
-    <Button variant="ghost" onclick={() => navigate(`/campaigns/${campaignId}`)}>← CAMPAIGN</Button>
+    <Button variant="ghost" onclick={() => push(`/campaigns/${campaignId}`)}>← CAMPAIGN</Button>
   </div>
 
   {#if loading}
@@ -111,7 +109,7 @@
   {:else if error}
     <div class="status-screen">
       <p class="error-text">{error}</p>
-      <Button variant="ghost" onclick={() => navigate(`/campaigns/${campaignId}`)}>BACK TO CAMPAIGN</Button>
+      <Button variant="ghost" onclick={() => push(`/campaigns/${campaignId}`)}>BACK TO CAMPAIGN</Button>
     </div>
   {:else if adventure?.status === 'synthesizing'}
     <div class="status-screen">
@@ -134,7 +132,7 @@
       </p>
       <div class="action-row">
         <Button onclick={handleRetry}>RETRY</Button>
-        <Button variant="ghost" onclick={() => navigate(`/campaigns/${campaignId}/oracle`)}>NEW SELECTIONS</Button>
+        <Button variant="ghost" onclick={() => push(`/campaigns/${campaignId}/oracle`)}>NEW SELECTIONS</Button>
       </div>
     </div>
   {:else if adventure?.status === 'ready'}
@@ -149,7 +147,7 @@
       {/if}
 
       <div class="begin-area">
-        <Button fullWidth onclick={() => navigate(`/campaigns/${campaignId}`)}>
+        <Button fullWidth onclick={() => push(`/campaigns/${campaignId}`)}>
           BEGIN ADVENTURE
         </Button>
       </div>

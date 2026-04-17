@@ -97,6 +97,7 @@ describe('AuthController', () => {
       await controller.verify('', 'user@example.com', reply);
       expect(reply.redirect).toHaveBeenCalledWith(
         'https://app.zoltar.local/signin?error=invalid_token',
+        302,
       );
     });
 
@@ -106,6 +107,7 @@ describe('AuthController', () => {
       await controller.verify('some-raw-token', 'user@example.com', reply);
       expect(reply.redirect).toHaveBeenCalledWith(
         'https://app.zoltar.local/signin?error=invalid_token',
+        302,
       );
     });
 
@@ -122,6 +124,7 @@ describe('AuthController', () => {
       await controller.verify('tok', 'user@example.com', reply);
       expect(reply.redirect).toHaveBeenCalledWith(
         'https://app.zoltar.local/signin?error=invalid_token',
+        302,
       );
     });
 

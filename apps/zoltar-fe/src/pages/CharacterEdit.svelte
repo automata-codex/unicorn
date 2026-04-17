@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { push } from 'svelte-spa-router';
 
   import { api } from '../lib/api';
   import Button from '../lib/components/Button.svelte';
@@ -8,11 +9,11 @@
   import PageLayout from '../lib/components/PageLayout.svelte';
   import SectionLabel from '../lib/components/SectionLabel.svelte';
   import Select from '../lib/components/Select.svelte';
-  import { navigate } from '../lib/router.svelte';
 
   import type { CharacterSheet } from '../lib/types';
 
-  const { campaignId }: { campaignId: string } = $props();
+  let { params }: { params: { campaignId: string } } = $props();
+  const campaignId = $derived(params.campaignId);
 
   let loading = $state(true);
   let submitting = $state(false);
@@ -139,7 +140,7 @@
     });
 
     if (res.ok) {
-      navigate(`/campaigns/${campaignId}/characters`);
+      push(`/campaigns/${campaignId}/characters`);
     } else if (res.status === 409) {
       error = 'Cannot edit while an adventure is active.';
     } else {
@@ -302,7 +303,7 @@
         <Button fullWidth type="submit" disabled={submitting}>
           {submitting ? 'SAVING...' : 'SAVE CHANGES'}
         </Button>
-        <Button variant="ghost" fullWidth type="button" onclick={() => navigate(`/campaigns/${campaignId}/characters`)}>
+        <Button variant="ghost" fullWidth type="button" onclick={() => push(`/campaigns/${campaignId}/characters`)}>
           CANCEL
         </Button>
       </div>
