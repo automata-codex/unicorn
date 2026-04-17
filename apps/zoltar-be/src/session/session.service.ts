@@ -9,8 +9,8 @@ import { SESSION_TOOLS } from './session.tools';
 import { buildMessageWindow } from './session.window';
 
 import type Anthropic from '@anthropic-ai/sdk';
-import type { CampaignStateData, GmContextBlob } from './session.snapshot';
 import type { SubmitGmResponse } from './session.schema';
+import type { CampaignStateData, GmContextBlob } from './session.snapshot';
 import type { DbMessage } from './session.window';
 
 /**

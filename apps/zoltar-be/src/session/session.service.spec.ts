@@ -47,6 +47,21 @@ const baseBlob = {
   },
 };
 
+// Default insert-message stub: resolves with a plausible DbMessage shape.
+// Callers that care about the mock's call history keep a local reference.
+function makeInsertMessage(): ReturnType<typeof vi.fn> {
+  return vi.fn(
+    (args: { adventureId: string; role: DbMessage['role']; content: string }) =>
+      Promise.resolve({
+        id: `m-${args.role}`,
+        adventureId: args.adventureId,
+        role: args.role,
+        content: args.content,
+        createdAt: new Date('2026-04-17T12:00:00Z'),
+      }),
+  );
+}
+
 interface MockRepoOverrides {
   getGmContextBlob?: ReturnType<typeof vi.fn>;
   getCampaignStateData?: ReturnType<typeof vi.fn>;
@@ -64,21 +79,8 @@ function makeRepo(overrides: MockRepoOverrides = {}): SessionRepository {
       vi.fn().mockResolvedValue(emptyMothershipState()),
     getPlayerEntityIds:
       overrides.getPlayerEntityIds ?? vi.fn().mockResolvedValue([]),
-    getMessagesAsc:
-      overrides.getMessagesAsc ?? vi.fn().mockResolvedValue([]),
-    insertMessage:
-      overrides.insertMessage ??
-      vi.fn().mockImplementation(async (args: {
-        adventureId: string;
-        role: DbMessage['role'];
-        content: string;
-      }) => ({
-        id: `m-${args.role}`,
-        adventureId: args.adventureId,
-        role: args.role,
-        content: args.content,
-        createdAt: new Date('2026-04-17T12:00:00Z'),
-      })),
+    getMessagesAsc: overrides.getMessagesAsc ?? vi.fn().mockResolvedValue([]),
+    insertMessage: overrides.insertMessage ?? makeInsertMessage(),
   } as unknown as SessionRepository;
 }
 
@@ -87,7 +89,7 @@ function makeService(
   repo: SessionRepository = makeRepo(),
 ) {
   const anthropic = { callSession } as unknown as AnthropicService;
-  return { service: new SessionService(repo, anthropic), repo, callSession };
+  return new SessionService(repo, anthropic);
 }
 
 const args = {
@@ -108,15 +110,17 @@ describe('SessionService.sendMessage', () => {
   });
 
   it('persists player and GM messages and returns proposals on happy path', async () => {
-    const { service, repo } = makeService(callSession);
+    const insertMessage = makeInsertMessage();
+    const repo = makeRepo({ insertMessage });
+    const service = makeService(callSession, repo);
     const result = await service.sendMessage(args);
 
-    expect(repo.insertMessage).toHaveBeenNthCalledWith(1, {
+    expect(insertMessage).toHaveBeenNthCalledWith(1, {
       adventureId: 'adv-1',
       role: 'player',
       content: 'I check the airlock.',
     });
-    expect(repo.insertMessage).toHaveBeenNthCalledWith(2, {
+    expect(insertMessage).toHaveBeenNthCalledWith(2, {
       adventureId: 'adv-1',
       role: 'gm',
       content: 'The airlock is sealed.',
@@ -127,62 +131,72 @@ describe('SessionService.sendMessage', () => {
 
   it('persists the player message even when Claude call fails', async () => {
     callSession.mockRejectedValue(new Error('network'));
-    const { service, repo } = makeService(callSession);
+    const insertMessage = makeInsertMessage();
+    const repo = makeRepo({ insertMessage });
+    const service = makeService(callSession, repo);
     await expect(service.sendMessage(args)).rejects.toThrow('network');
-    expect(repo.insertMessage).toHaveBeenCalledTimes(1);
-    expect(repo.insertMessage).toHaveBeenCalledWith(
+    expect(insertMessage).toHaveBeenCalledTimes(1);
+    expect(insertMessage).toHaveBeenCalledWith(
       expect.objectContaining({ role: 'player' }),
     );
   });
 
   it('throws SessionOutputError when Claude returns text instead of a tool call', async () => {
     callSession.mockResolvedValue(textOnlyMessage('no tool use here'));
-    const { service, repo } = makeService(callSession);
+    const insertMessage = makeInsertMessage();
+    const repo = makeRepo({ insertMessage });
+    const service = makeService(callSession, repo);
     await expect(service.sendMessage(args)).rejects.toBeInstanceOf(
       SessionOutputError,
     );
     // Player message persisted, GM message never is.
-    expect(repo.insertMessage).toHaveBeenCalledTimes(1);
+    expect(insertMessage).toHaveBeenCalledTimes(1);
   });
 
   it('throws SessionOutputError when tool input fails schema validation', async () => {
     callSession.mockResolvedValue(
       toolUseMessage('submit_gm_response', { playerText: 123 }),
     );
-    const { service, repo } = makeService(callSession);
+    const insertMessage = makeInsertMessage();
+    const repo = makeRepo({ insertMessage });
+    const service = makeService(callSession, repo);
     await expect(service.sendMessage(args)).rejects.toBeInstanceOf(
       SessionOutputError,
     );
-    expect(repo.insertMessage).toHaveBeenCalledTimes(1);
+    expect(insertMessage).toHaveBeenCalledTimes(1);
   });
 
   it('throws SessionPreconditionError when gm_context is missing', async () => {
+    const insertMessage = makeInsertMessage();
     const repo = makeRepo({
       getGmContextBlob: vi.fn().mockResolvedValue(null),
+      insertMessage,
     });
-    const { service } = makeService(callSession, repo);
+    const service = makeService(callSession, repo);
     await expect(service.sendMessage(args)).rejects.toBeInstanceOf(
       SessionPreconditionError,
     );
     // No message persisted — we bail before any write.
-    expect(repo.insertMessage).not.toHaveBeenCalled();
+    expect(insertMessage).not.toHaveBeenCalled();
   });
 
   it('throws SessionPreconditionError when campaign_state is missing', async () => {
+    const insertMessage = makeInsertMessage();
     const repo = makeRepo({
       getCampaignStateData: vi.fn().mockResolvedValue(null),
+      insertMessage,
     });
-    const { service } = makeService(callSession, repo);
+    const service = makeService(callSession, repo);
     await expect(service.sendMessage(args)).rejects.toBeInstanceOf(
       SessionPreconditionError,
     );
-    expect(repo.insertMessage).not.toHaveBeenCalled();
+    expect(insertMessage).not.toHaveBeenCalled();
   });
 
   it('passes player entity ids from character sheets into the snapshot input', async () => {
     const getPlayerEntityIds = vi.fn().mockResolvedValue(['dr_chen']);
     const repo = makeRepo({ getPlayerEntityIds });
-    const { service } = makeService(callSession, repo);
+    const service = makeService(callSession, repo);
     await service.sendMessage(args);
     expect(getPlayerEntityIds).toHaveBeenCalledWith('camp-1');
     // First system block is the GM context; the snapshot's player override

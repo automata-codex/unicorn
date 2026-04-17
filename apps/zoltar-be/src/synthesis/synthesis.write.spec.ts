@@ -219,7 +219,9 @@ describe('buildGmContextBlob', () => {
 
   it('persists structured.flags so the session snapshot can identify originals', () => {
     const blob = buildGmContextBlob(makeInput()) as {
-      structured: { flags: Record<string, { value: boolean; trigger: string }> };
+      structured: {
+        flags: Record<string, { value: boolean; trigger: string }>;
+      };
     };
     expect(blob.structured.flags).toEqual({
       adventure_complete: {

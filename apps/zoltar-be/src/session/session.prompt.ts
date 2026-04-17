@@ -1,10 +1,9 @@
-import type Anthropic from '@anthropic-ai/sdk';
+import { buildStateSnapshot } from './session.snapshot';
 
+import type Anthropic from '@anthropic-ai/sdk';
 import type { CallSessionParams } from '../anthropic/anthropic.service';
 import type { CampaignStateData, GmContextBlob } from './session.snapshot';
 import type { DbMessage } from './session.window';
-
-import { buildStateSnapshot } from './session.snapshot';
 
 /**
  * The Warden-role system prompt for Mothership. Kept short and focused on
@@ -24,7 +23,7 @@ export const WARDEN_SYSTEM_PROMPT_MOTHERSHIP = [
   'GM-side rolls and prompt the player via playerRolls for their rolls.',
   '',
   'Every turn you must call the submit_gm_response tool exactly once. The',
-  "player sees only what you put in playerText. Propose state changes through",
+  'player sees only what you put in playerText. Propose state changes through',
   'stateChanges; the backend validates and applies them.',
 ].join('\n');
 

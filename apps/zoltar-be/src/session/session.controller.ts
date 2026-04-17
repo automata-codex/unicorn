@@ -1,3 +1,4 @@
+import { AnthropicError } from '@anthropic-ai/sdk';
 import {
   BadGatewayException,
   Body,
@@ -8,7 +9,6 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { AnthropicError } from '@anthropic-ai/sdk';
 import { z } from 'zod';
 
 import { AdventureService } from '../adventure/adventure.service';

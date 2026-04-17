@@ -16,7 +16,9 @@ import {
 
 const fakeUser = { id: 'u1', email: 'a@x.test', name: 'Alice' };
 
-function mockAdventureService(status: 'ready' | 'synthesizing' | 'failed' | 'completed' = 'ready') {
+function mockAdventureService(
+  status: 'ready' | 'synthesizing' | 'failed' | 'completed' = 'ready',
+) {
   return {
     findById: vi.fn().mockResolvedValue({
       id: 'a1',

@@ -165,7 +165,9 @@ describe('buildStateSnapshot', () => {
     });
     expect(stateA).toBe(stateB);
     expect(stateA.indexOf('alpha: A')).toBeLessThan(stateA.indexOf('bravo: B'));
-    expect(stateA.indexOf('bravo: B')).toBeLessThan(stateA.indexOf('charlie: C'));
+    expect(stateA.indexOf('bravo: B')).toBeLessThan(
+      stateA.indexOf('charlie: C'),
+    );
   });
 
   it('appends the scenario state note when present and omits it when empty', () => {

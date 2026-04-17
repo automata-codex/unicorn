@@ -258,9 +258,9 @@ describe('SessionService (integration)', () => {
       },
     ]);
 
-    const callSession = vi.fn().mockResolvedValue(
-      toolUseMessage({ playerText: 'Second response.' }),
-    );
+    const callSession = vi
+      .fn()
+      .mockResolvedValue(toolUseMessage({ playerText: 'Second response.' }));
     const service = new SessionService(repo, mockAnthropic(callSession));
 
     await service.sendMessage({
@@ -269,8 +269,10 @@ describe('SessionService (integration)', () => {
       playerMessage: 'Second input.',
     });
 
-    const sentMessages = callSession.mock.calls[0][0]
-      .messages as Array<{ role: string; content: string }>;
+    const sentMessages = callSession.mock.calls[0][0].messages as Array<{
+      role: string;
+      content: string;
+    }>;
     // [0] snapshot, [1] first player → user, [2] first GM → assistant, [3] new player
     expect(sentMessages).toHaveLength(4);
     expect(sentMessages[1]).toEqual({

@@ -112,7 +112,9 @@ function renderEntities(
 
 function renderFlags(
   flags: CampaignStateData['flags'],
-  originalFlags: Record<string, { value: boolean; trigger: string }> | undefined,
+  originalFlags:
+    | Record<string, { value: boolean; trigger: string }>
+    | undefined,
 ): string | null {
   const keys = Object.keys(flags).sort();
   if (keys.length === 0) return null;
@@ -141,7 +143,8 @@ function renderScenarioState(
 
   const lines = keys.map((key) => {
     const { current, max, note } = scenarioState[key];
-    const head = max === null ? `${key}: ${current}` : `${key}: ${current}/${max}`;
+    const head =
+      max === null ? `${key}: ${current}` : `${key}: ${current}/${max}`;
     return note ? `${head} — ${note}` : head;
   });
 
