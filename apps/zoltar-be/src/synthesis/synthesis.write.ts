@@ -143,6 +143,9 @@ export function buildCampaignStateData(
 /**
  * Builds the `gm_context.blob` payload. `entities` is duplicated here for
  * prompt-assembly convenience; `grid_entity` remains the authoritative store.
+ * `structured.flags` is persisted so the session-time snapshot builder can
+ * distinguish original flags (their triggers are cached inside this blob)
+ * from flags introduced during play (whose triggers must be re-emitted).
  */
 export function buildGmContextBlob(
   input: SubmitGmContext,
@@ -151,6 +154,9 @@ export function buildGmContextBlob(
     openingNarration: input.openingNarration ?? null,
     narrative: input.narrative,
     entities: input.structured.entities,
+    structured: {
+      flags: input.structured.flags,
+    },
   };
 }
 
