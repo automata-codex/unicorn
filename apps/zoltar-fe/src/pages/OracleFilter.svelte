@@ -31,9 +31,7 @@
   const campaignId = $derived(params.campaignId);
   const categories = builtInOracleCategories;
 
-  // svelte-ignore state_referenced_locally
   let filterState = $state(createOracleFilterState(categories));
-  // svelte-ignore state_referenced_locally
   let expanded = $state<Record<string, boolean>>(
     Object.fromEntries(categories.map((c) => [c.id, true])),
   );
