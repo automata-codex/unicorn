@@ -1,10 +1,11 @@
+import { type MothershipCampaignState } from '@uv/game-systems';
 import { Inject, Injectable } from '@nestjs/common';
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 
 import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
 
-import type { Db } from '../db/db.provider';
+import type { Db, DbOrTx } from '../db/db.provider';
 import type { DbMessage } from './session.window';
 
 @Injectable()
@@ -70,5 +71,17 @@ export class SessionRepository {
       })
       .returning();
     return rows[0];
+  }
+
+  async writeCampaignState(args: {
+    campaignId: string;
+    data: MothershipCampaignState;
+    tx?: DbOrTx;
+  }): Promise<void> {
+    const runner = args.tx ?? this.db;
+    await runner
+      .update(schema.campaignStates)
+      .set({ data: args.data, updatedAt: sql`now()` })
+      .where(eq(schema.campaignStates.campaignId, args.campaignId));
   }
 }
