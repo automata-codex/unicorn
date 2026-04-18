@@ -7,6 +7,7 @@ export * from './mothership/character-pools';
 export * from './mothership/character-sheet.schema';
 export * from './mothership/oracle.schema';
 export * from './mothership/oracle-data';
+export * from './mothership/pool-definitions';
 export * from './shared';
 
 export const oracleSchemas: Record<string, z.ZodTypeAny> = {
