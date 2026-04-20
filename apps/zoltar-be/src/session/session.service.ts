@@ -11,6 +11,7 @@ import { buildMessageWindow } from './session.window';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { SubmitGmResponse } from './session.schema';
 import type { CampaignStateData, GmContextBlob } from './session.snapshot';
+import type { ValidationRejection } from './session.validator';
 import type { DbMessage } from './session.window';
 
 /**
@@ -35,6 +36,23 @@ export class SessionPreconditionError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'SessionPreconditionError';
+  }
+}
+
+/**
+ * Thrown when Claude's corrected response (after a validator-rejection
+ * re-prompt) also fails validation. Carries both rejection rounds so the
+ * controller / telemetry can surface what went wrong. Translated to 502 with
+ * body error code `gm_correction_failed`.
+ */
+export class SessionCorrectionError extends Error {
+  constructor(
+    message: string,
+    public readonly firstRoundRejections: ValidationRejection[],
+    public readonly secondRoundRejections: ValidationRejection[],
+  ) {
+    super(message);
+    this.name = 'SessionCorrectionError';
   }
 }
 
