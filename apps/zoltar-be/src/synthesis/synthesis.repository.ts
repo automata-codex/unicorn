@@ -4,7 +4,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
 
-import type { Db } from '../db/db.provider';
+import type { Db, DbOrTx } from '../db/db.provider';
 
 export interface GridEntityRow {
   entityRef: string;
@@ -137,9 +137,14 @@ export class SynthesisRepository {
    * in Solo Blind campaigns. The write inside `writeGmContextAtomic` performs
    * the same operation as part of the synthesis transaction; this method is
    * the standalone entrypoint for callers outside that transaction.
+   *
+   * Accepts an optional `tx` so M6's per-turn orchestrator can run the
+   * promotion inside its own transaction alongside state, event, and
+   * telemetry writes. Defaults to `this.db` for the existing M4 call site.
    */
-  async autoPromoteCanon(adventureId: string): Promise<void> {
-    await this.db
+  async autoPromoteCanon(adventureId: string, tx?: DbOrTx): Promise<void> {
+    const runner = tx ?? this.db;
+    await runner
       .update(schema.pendingCanon)
       .set({ status: 'promoted', reviewedAt: sql`now()` })
       .where(

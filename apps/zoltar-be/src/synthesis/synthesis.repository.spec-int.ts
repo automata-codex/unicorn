@@ -359,5 +359,31 @@ describe('SynthesisRepository (integration)', () => {
       expect(untouched).toHaveLength(1);
       expect(untouched[0].status).toBe('pending');
     });
+
+    it('runs inside the supplied transaction so a rollback reverts the promotion', async () => {
+      const db = getTestDb();
+      const { adventureId } = await seedFixture();
+      await db.insert(schema.pendingCanon).values({
+        adventureId,
+        summary: 'inside-tx',
+        context: 'ctx',
+        status: 'pending',
+      });
+
+      await expect(
+        db.transaction(async (tx) => {
+          await repo.autoPromoteCanon(adventureId, tx);
+          throw new Error('force rollback');
+        }),
+      ).rejects.toThrow('force rollback');
+
+      const rows = await db
+        .select()
+        .from(schema.pendingCanon)
+        .where(eq(schema.pendingCanon.adventureId, adventureId));
+      expect(rows).toHaveLength(1);
+      expect(rows[0].status).toBe('pending');
+      expect(rows[0].reviewedAt).toBeNull();
+    });
   });
 });

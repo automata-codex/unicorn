@@ -84,4 +84,65 @@ export class SessionRepository {
       .set({ data: args.data, updatedAt: sql`now()` })
       .where(eq(schema.campaignStates.campaignId, args.campaignId));
   }
+
+  async insertPendingCanon(args: {
+    tx: DbOrTx;
+    adventureId: string;
+    entries: Array<{ summary: string; context: string }>;
+  }): Promise<void> {
+    if (args.entries.length === 0) return;
+    await args.tx.insert(schema.pendingCanon).values(
+      args.entries.map((entry) => ({
+        adventureId: args.adventureId,
+        summary: entry.summary,
+        context: entry.context,
+        status: 'pending' as const,
+      })),
+    );
+  }
+
+  /**
+   * Merges Claude's `gmUpdates.npcStates` into `gm_context.blob.narrative.npcAgendas`.
+   * Reads the current blob, shallow-merges the new agendas over existing
+   * ones (Claude wins on key collision), and writes the updated blob back.
+   * No-op when `npcStates` is empty — avoids a pointless read/write that
+   * would invalidate the blob's cache byte range for no semantic change.
+   *
+   * `gmUpdates.notes` is intentionally NOT persisted here; it lives in
+   * `adventure_telemetry.payload.notes` instead (see spec §"Part 6 → GM
+   * context blob merges").
+   */
+  async mergeNpcAgendas(args: {
+    tx: DbOrTx;
+    adventureId: string;
+    npcStates: Record<string, string>;
+  }): Promise<void> {
+    if (Object.keys(args.npcStates).length === 0) return;
+
+    const rows = await args.tx
+      .select({ blob: schema.gmContexts.blob })
+      .from(schema.gmContexts)
+      .where(eq(schema.gmContexts.adventureId, args.adventureId))
+      .limit(1);
+
+    const currentBlob =
+      (rows[0]?.blob as Record<string, unknown> | undefined) ?? {};
+    const currentNarrative =
+      (currentBlob.narrative as Record<string, unknown> | undefined) ?? {};
+    const existingAgendas =
+      (currentNarrative.npcAgendas as Record<string, string> | undefined) ?? {};
+
+    const updatedBlob = {
+      ...currentBlob,
+      narrative: {
+        ...currentNarrative,
+        npcAgendas: { ...existingAgendas, ...args.npcStates },
+      },
+    };
+
+    await args.tx
+      .update(schema.gmContexts)
+      .set({ blob: updatedBlob, updatedAt: sql`now()` })
+      .where(eq(schema.gmContexts.adventureId, args.adventureId));
+  }
 }
