@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -7,6 +7,7 @@ import {
   teardownTestDb,
   truncateAll,
 } from '../../test/db-test-helper';
+import { CanonRepository } from '../canon/canon.repository';
 import * as schema from '../db/schema';
 
 import { SynthesisRepository } from './synthesis.repository';
@@ -15,7 +16,8 @@ let repo: SynthesisRepository;
 
 beforeAll(async () => {
   await setupTestDb();
-  repo = new SynthesisRepository(getTestDb() as never);
+  const canonRepo = new CanonRepository(getTestDb() as never);
+  repo = new SynthesisRepository(getTestDb() as never, canonRepo);
 });
 
 afterAll(async () => {
@@ -78,23 +80,6 @@ async function seedFixture(): Promise<{
 }
 
 describe('SynthesisRepository (integration)', () => {
-  it('getCampaignStateData returns the seeded state data', async () => {
-    const { campaignId } = await seedFixture();
-    const data = await repo.getCampaignStateData(campaignId);
-    expect(data).not.toBeNull();
-    expect(
-      (data as { resourcePools: Record<string, unknown> }).resourcePools,
-    ).toHaveProperty('vasquez_hp');
-  });
-
-  it('getCampaignStateData returns null for an unknown campaign', async () => {
-    await seedFixture();
-    const data = await repo.getCampaignStateData(
-      '00000000-0000-0000-0000-000000000000',
-    );
-    expect(data).toBeNull();
-  });
-
   describe('writeGmContextAtomic', () => {
     it('writes gm_context, upserts campaign_state, inserts grid_entity, flips status, and auto-promotes canon', async () => {
       const db = getTestDb();
@@ -303,61 +288,6 @@ describe('SynthesisRepository (integration)', () => {
         .from(schema.gmContexts)
         .where(eq(schema.gmContexts.adventureId, adventureId));
       expect(rows).toHaveLength(0);
-    });
-  });
-
-  describe('autoPromoteCanon', () => {
-    it('promotes all pending rows for the given adventure and leaves others alone', async () => {
-      const db = getTestDb();
-      const { campaignId, adventureId } = await seedFixture();
-      const [otherAdventure] = await db
-        .insert(schema.adventures)
-        .values({ campaignId, callerId: 'u1', status: 'synthesizing' })
-        .returning();
-
-      await db.insert(schema.pendingCanon).values([
-        {
-          adventureId,
-          summary: 'one',
-          context: 'ctx',
-          status: 'pending',
-        },
-        {
-          adventureId,
-          summary: 'two',
-          context: 'ctx',
-          status: 'pending',
-        },
-        {
-          adventureId: otherAdventure.id,
-          summary: 'other',
-          context: 'ctx',
-          status: 'pending',
-        },
-      ]);
-
-      await repo.autoPromoteCanon(adventureId);
-
-      const promoted = await db
-        .select()
-        .from(schema.pendingCanon)
-        .where(
-          and(
-            eq(schema.pendingCanon.adventureId, adventureId),
-            eq(schema.pendingCanon.status, 'promoted'),
-          ),
-        );
-      expect(promoted).toHaveLength(2);
-      for (const row of promoted) {
-        expect(row.reviewedAt).not.toBeNull();
-      }
-
-      const untouched = await db
-        .select()
-        .from(schema.pendingCanon)
-        .where(eq(schema.pendingCanon.adventureId, otherAdventure.id));
-      expect(untouched).toHaveLength(1);
-      expect(untouched[0].status).toBe('pending');
     });
   });
 });

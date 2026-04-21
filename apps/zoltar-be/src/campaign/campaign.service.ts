@@ -59,6 +59,18 @@ export class CampaignService {
     if (!member) throw new ForbiddenException('Not a member of this campaign');
   }
 
+  async getStateData(
+    campaignId: string,
+    userId: string,
+  ): Promise<Record<string, unknown>> {
+    await this.assertMember(campaignId, userId);
+    const data = await this.repo.getStateData(campaignId);
+    if (!data) {
+      throw new NotFoundException('Campaign state not found');
+    }
+    return data;
+  }
+
   async assertOwner(campaignId: string, userId: string): Promise<void> {
     const owner = await this.repo.findOwner(campaignId, userId);
     if (!owner) throw new ForbiddenException('Not the owner of this campaign');

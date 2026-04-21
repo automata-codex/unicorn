@@ -197,15 +197,15 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 
 #### M6 — GmService & State Management
 
-*Apply GM responses to game state and close the play loop.*
+*Apply GM responses to game state and close the play loop. Spec: [`docs/specs/zoltar/m6-state-management.md`](specs/zoltar/m6-state-management.md).*
 
-- [ ] `GmService` orchestrating request/response cycle
-- [ ] Backend state change validation (resource deductions, HP thresholds, flag changes) + application to DB
-- [ ] `proposed_canon` routing + auto-promote in Solo Blind
-- [ ] `game_events` write path (all state changes, sequence numbers)
-- [ ] Correction mechanic (`superseded_by` write path)
-- [ ] `adventure_telemetry` write path (per-turn: player input, full `submit_gm_response` payload, all `roll_dice` calls with purpose annotations and results, token counts)
-- [ ] Frontend: play view (message log, input field)
+- [x] `GmService` orchestrating request/response cycle (lives on `SessionService`; the `GmService` name is retired — one session service, not two)
+- [x] Backend state change validation (resource deductions, HP thresholds, flag changes) + application to DB
+- [x] `proposed_canon` routing + auto-promote in Solo Blind
+- [x] `game_events` write path (all state changes, sequence numbers)
+- [x] Correction mechanic (`superseded_by` write path)
+- [x] `adventure_telemetry` write path (per-turn: player input, full `submit_gm_response` payload, token counts; `roll_dice` records remain an empty-array stub until M7)
+- [x] Frontend: play view (message log, input field, character status strip, threshold banner)
 
 #### M7 — Tools
 
@@ -215,6 +215,14 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [ ] Rules lookup tool (vector embedding pipeline, pgvector, query endpoint)
 - [ ] Tool call routing in `GmService`
 - [ ] Frontend: dice entry UI — "roll for me" button and manual raw roll entry paths
+
+#### M7.1 — Playtest Review Tooling
+
+*Turn-by-turn readback of `game_events` and `adventure_telemetry` for playtest analysis. Scoped here rather than M6 because M7 is the first milestone that produces playtest-worthy adventures — review tooling earns its keep against runs with dice and rules lookups in place, not M6's smoke-test turns. No web UI; a CLI script is the deliverable.*
+
+- [ ] SQL views joining `game_events` and `adventure_telemetry` (per-turn, per-state-history, per-correction)
+- [ ] CLI script that produces a turn-by-turn markdown report for a given adventure id
+- [ ] Sanity-check the `adventure_telemetry` payload shape against a real Mothership run and adjust if fields are missing or redundant
 
 #### M8 — Multiplayer Foundation
 

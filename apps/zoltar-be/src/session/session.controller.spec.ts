@@ -10,6 +10,7 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 import { SessionController } from './session.controller';
 import {
+  SessionCorrectionError,
   SessionOutputError,
   SessionPreconditionError,
 } from './session.service';
@@ -17,7 +18,12 @@ import {
 const fakeUser = { id: 'u1', email: 'a@x.test', name: 'Alice' };
 
 function mockAdventureService(
-  status: 'ready' | 'synthesizing' | 'failed' | 'completed' = 'ready',
+  status:
+    | 'ready'
+    | 'in_progress'
+    | 'synthesizing'
+    | 'failed'
+    | 'completed' = 'ready',
 ) {
   return {
     findById: vi.fn().mockResolvedValue({
@@ -38,8 +44,16 @@ function mockSessionService() {
         content: 'The airlock is sealed.',
         createdAt: new Date('2026-04-17T12:00:00Z'),
       },
-      proposals: { playerText: 'The airlock is sealed.' },
+      applied: {
+        resourcePools: {},
+        entities: {},
+        flags: {},
+        scenarioState: {},
+        worldFacts: {},
+      },
+      thresholds: [],
     }),
+    listMessages: vi.fn(),
   };
 }
 
@@ -60,20 +74,20 @@ describe('SessionController', () => {
   const dto = { content: 'I check the airlock.' };
 
   describe('happy path', () => {
-    it('returns the persisted GM message and the full proposals payload', async () => {
+    it('returns the persisted GM message, applied deltas, and thresholds', async () => {
       const result = await controller.sendMessage('c1', 'a1', dto, fakeUser);
       expect(adventureService.findById).toHaveBeenCalledWith('c1', 'a1', 'u1');
       expect(sessionService.sendMessage).toHaveBeenCalledWith({
         adventureId: 'a1',
         campaignId: 'c1',
+        playerUserId: 'u1',
         playerMessage: 'I check the airlock.',
       });
       expect(result.message.role).toBe('assistant');
       expect(result.message.content).toBe('The airlock is sealed.');
       expect(result.message.createdAt).toBe('2026-04-17T12:00:00.000Z');
-      expect(result.proposals).toEqual({
-        playerText: 'The airlock is sealed.',
-      });
+      expect(result.applied).toBeDefined();
+      expect(result.thresholds).toEqual([]);
     });
   });
 
@@ -92,6 +106,18 @@ describe('SessionController', () => {
         controller.sendMessage('c1', 'a1', dto, fakeUser),
       ).rejects.toBeInstanceOf(ConflictException);
       expect(sessionService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('accepts in_progress status (mid-adventure turns)', async () => {
+      adventureService = mockAdventureService('in_progress');
+      controller = new SessionController(
+        sessionService as never,
+        adventureService as never,
+      );
+      await expect(
+        controller.sendMessage('c1', 'a1', dto, fakeUser),
+      ).resolves.toBeDefined();
+      expect(sessionService.sendMessage).toHaveBeenCalled();
     });
 
     it('returns 409 when the service raises SessionPreconditionError', async () => {
@@ -114,11 +140,58 @@ describe('SessionController', () => {
       ).rejects.toBeInstanceOf(BadGatewayException);
     });
 
+    it('returns 502 with gm_correction_failed code when SessionCorrectionError fires', async () => {
+      sessionService.sendMessage.mockRejectedValue(
+        new SessionCorrectionError('both rounds rejected', [], []),
+      );
+      await expect(
+        controller.sendMessage('c1', 'a1', dto, fakeUser),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({ error: 'gm_correction_failed' }),
+        status: 502,
+      });
+    });
+
     it('propagates unknown errors unchanged', async () => {
       sessionService.sendMessage.mockRejectedValue(new Error('boom'));
       await expect(
         controller.sendMessage('c1', 'a1', dto, fakeUser),
       ).rejects.toThrow('boom');
+    });
+  });
+
+  describe('GET messages', () => {
+    it('returns the message log wrapped in { messages } after member auth', async () => {
+      const messages = [
+        {
+          id: 'm1',
+          role: 'user' as const,
+          content: 'I check the airlock.',
+          createdAt: '2026-04-17T11:00:00.000Z',
+        },
+        {
+          id: 'm2',
+          role: 'assistant' as const,
+          content: 'The airlock is sealed.',
+          createdAt: '2026-04-17T11:00:01.000Z',
+        },
+      ];
+      sessionService.listMessages.mockResolvedValue(messages);
+
+      const result = await controller.listMessages('c1', 'a1', fakeUser);
+      expect(adventureService.findById).toHaveBeenCalledWith('c1', 'a1', 'u1');
+      expect(sessionService.listMessages).toHaveBeenCalledWith('a1');
+      expect(result).toEqual({ messages });
+    });
+
+    it('propagates adventure findById failures (member check)', async () => {
+      adventureService.findById.mockRejectedValue(
+        new ConflictException('nope'),
+      );
+      await expect(
+        controller.listMessages('c1', 'a1', fakeUser),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(sessionService.listMessages).not.toHaveBeenCalled();
     });
   });
 

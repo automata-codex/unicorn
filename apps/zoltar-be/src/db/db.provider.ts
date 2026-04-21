@@ -8,6 +8,8 @@ export const DB_TOKEN = 'DB';
 
 export type Db = NodePgDatabase<typeof schema>;
 
+export type DbOrTx = Db | Parameters<Parameters<Db['transaction']>[0]>[0];
+
 export const dbProvider = {
   provide: DB_TOKEN,
   useFactory: (configService: ConfigService): Db => {

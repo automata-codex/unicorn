@@ -243,6 +243,43 @@ describe('CampaignRepository (integration)', () => {
     });
   });
 
+  describe('getStateData', () => {
+    it('returns the seeded state data', async () => {
+      const systemId = await seedMothershipSystem();
+      const campaign = await repo.insertCampaign({
+        systemId,
+        name: 'Test',
+        visibility: 'private',
+        diceMode: 'soft_accountability',
+      });
+      await repo.insertState({
+        campaignId: campaign.id,
+        system: 'mothership',
+        data: {
+          schemaVersion: 1,
+          resourcePools: { vasquez_hp: { current: 15, max: 15 } },
+          entities: {},
+          flags: {},
+          scenarioState: {},
+          worldFacts: {},
+        },
+      });
+
+      const data = await repo.getStateData(campaign.id);
+      expect(data).not.toBeNull();
+      expect(
+        (data as { resourcePools: Record<string, unknown> }).resourcePools,
+      ).toHaveProperty('vasquez_hp');
+    });
+
+    it('returns null for an unknown campaign', async () => {
+      const data = await repo.getStateData(
+        '00000000-0000-0000-0000-000000000000',
+      );
+      expect(data).toBeNull();
+    });
+  });
+
   describe('mergePlayerResourcePools', () => {
     async function seedCampaignWithState(
       initialPools: Record<string, { current: number; max: number | null }>,

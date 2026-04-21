@@ -726,7 +726,7 @@ game_events {
 
 **Correction mechanic instead:**
 - *Player input error:* Cancel within a short window before GM processing — not undo, just cancel
-- *Rules error:* GM ruling review — flag the response, Claude re-examines, issues a logged correction with `superseded_by` pointing to the original
+- *Rules error or validation rejection:* Claude's response is flagged — either by the validator detecting an invalid state change or by a future GM ruling review. Claude re-narrates. The rejected event is logged with `superseded_by` pointing to the correction.
 - *Technical failure:* Admin-level state rollback from snapshots, not a player-facing feature
 
 ### Adventure Telemetry

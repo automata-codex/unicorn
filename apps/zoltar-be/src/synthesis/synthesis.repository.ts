@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
+import { CanonRepository } from '../canon/canon.repository';
 import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
 
@@ -30,18 +31,10 @@ export interface WriteGmContextArgs {
 
 @Injectable()
 export class SynthesisRepository {
-  constructor(@Inject(DB_TOKEN) private readonly db: Db) {}
-
-  async getCampaignStateData(
-    campaignId: string,
-  ): Promise<Record<string, unknown> | null> {
-    const rows = await this.db
-      .select({ data: schema.campaignStates.data })
-      .from(schema.campaignStates)
-      .where(eq(schema.campaignStates.campaignId, campaignId))
-      .limit(1);
-    return (rows[0]?.data as Record<string, unknown> | undefined) ?? null;
-  }
+  constructor(
+    @Inject(DB_TOKEN) private readonly db: Db,
+    private readonly canonRepo: CanonRepository,
+  ) {}
 
   /**
    * Atomic write path for `submit_gm_context`. Runs the four table writes plus
@@ -94,15 +87,7 @@ export class SynthesisRepository {
         .set({ status: 'ready' })
         .where(eq(schema.adventures.id, args.adventureId));
 
-      await tx
-        .update(schema.pendingCanon)
-        .set({ status: 'promoted', reviewedAt: sql`now()` })
-        .where(
-          and(
-            eq(schema.pendingCanon.adventureId, args.adventureId),
-            eq(schema.pendingCanon.status, 'pending'),
-          ),
-        );
+      await this.canonRepo.autoPromoteCanon(args.adventureId, tx);
     });
   }
 
@@ -129,24 +114,5 @@ export class SynthesisRepository {
           });
       }
     });
-  }
-
-  /**
-   * Bulk-promote pending canon for an adventure. Extracted as a standalone
-   * method so M6's `submit_gm_response` handler can reuse it after each turn
-   * in Solo Blind campaigns. The write inside `writeGmContextAtomic` performs
-   * the same operation as part of the synthesis transaction; this method is
-   * the standalone entrypoint for callers outside that transaction.
-   */
-  async autoPromoteCanon(adventureId: string): Promise<void> {
-    await this.db
-      .update(schema.pendingCanon)
-      .set({ status: 'promoted', reviewedAt: sql`now()` })
-      .where(
-        and(
-          eq(schema.pendingCanon.adventureId, adventureId),
-          eq(schema.pendingCanon.status, 'pending'),
-        ),
-      );
   }
 }

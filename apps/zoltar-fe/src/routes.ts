@@ -7,6 +7,7 @@ import CharacterView from './pages/CharacterView.svelte';
 import DevComponents from './pages/DevComponents.svelte';
 import NotFound from './pages/NotFound.svelte';
 import OracleFilter from './pages/OracleFilter.svelte';
+import Play from './pages/Play.svelte';
 import SignIn from './pages/SignIn.svelte';
 
 import type { RouteDefinition } from 'svelte-spa-router';
@@ -22,6 +23,7 @@ const routes: RouteDefinition = {
   '/campaigns/:campaignId/characters/edit': CharacterEdit,
   '/campaigns/:campaignId/oracle': OracleFilter,
   '/campaigns/:campaignId/adventures/:adventureId': AdventureSynthesis,
+  '/campaigns/:campaignId/adventures/:adventureId/play': Play,
   '*': NotFound,
 };
 

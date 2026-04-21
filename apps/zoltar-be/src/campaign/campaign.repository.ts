@@ -50,6 +50,17 @@ export class CampaignRepository {
     await this.db.insert(schema.campaignStates).values(values);
   }
 
+  async getStateData(
+    campaignId: string,
+  ): Promise<Record<string, unknown> | null> {
+    const rows = await this.db
+      .select({ data: schema.campaignStates.data })
+      .from(schema.campaignStates)
+      .where(eq(schema.campaignStates.campaignId, campaignId))
+      .limit(1);
+    return (rows[0]?.data as Record<string, unknown> | undefined) ?? null;
+  }
+
   /**
    * Merges new resource pools into `campaign_state.data.resourcePools` for a
    * campaign, preserving any pools already present. Used at character

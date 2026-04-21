@@ -422,37 +422,35 @@ When `POST /adventures/:id/actions` is received:
 3.  Write player message to messages table
 4.  Fetch GM context blob from gm_context (cached prompt candidate)
 5.  Fetch current campaign state snapshot from campaign_state
-6.  Run LOS computation — filter grid_entities to visible only
-7.  Fetch rolling summary from adventures.rolling_summary
-8.  Fetch last N kb of messages from messages table
-9.  Construct Claude prompt:
+6.  Fetch last N kb of messages from messages table
+7.  Construct Claude prompt:
       [GM context blob]
-      [Visibility-filtered state snapshot]
-      [Rolling summary]
+      [State snapshot]
       [Last N kb of messages]
       [Current player action]
-10. Call Claude API with tools: submit_gm_response, roll_dice, rules_lookup
-11. Claude may call roll_dice or rules_lookup zero or more times before submitting response
-12. Claude calls submit_gm_response — backend receives structured output
-13. Validate proposed state changes:
-      - Resource deductions: entity must have sufficient pool
-      - HP changes: check death/unconscious thresholds
-      - Flag changes: always valid
-14. Apply validated state changes to campaign_state
-15. Write state_update event to game_events
-16. Write proposed_canon entries to pending_canon (auto-promote if Solo Blind)
-17. Write gm_updates.npc_states and notes to gm_context blob
-18. Write GM response to messages table
-19. Write gm_response event to game_events
-20. Check for adventure mode changes (initiative flip, advance_initiative)
-21. Check for caller_transfer
-22. Update rolling summary if context window has advanced since last resume
-23. Return player_text and diceRequests to frontend
+8.  Call Claude API with tool: submit_gm_response
+9.  Claude calls submit_gm_response — backend receives structured output
+10. Validate proposed state changes against pool definitions and campaign_state
+11. If rejections: re-prompt Claude once with a tool_result describing them
+12. Apply validated state changes to campaign_state (single transaction)
+13. Write player_action, gm_response (+ correction if applicable), state_update events
+14. Write proposed_canon entries to pending_canon (auto-promote in Solo Blind)
+15. Write gm_updates.npc_states and notes to gm_context blob
+16. Write final corrected GM response to messages table
+17. Write adventure_telemetry row keyed to the gm_response sequence_number
+18. Return { message, applied, rejections, thresholds } to frontend
 ```
 
-**On validation failure (step 13):** The invalid change is rejected. Claude is notified with a follow-up prompt describing what was rejected and why, and re-narrates accordingly. The rejected change is logged as a correction event; the original event is updated with `superseded_by` pointing to the correction.
+**On validation failure (step 10):** Claude is re-prompted once with a `tool_result` describing the rejections (step 11). If the correction also fails validation, the turn aborts with 502, `campaign_state` is unchanged, and only the `player_action` event persists. On a successful correction, the rejected `gm_response` event is logged with `superseded_by` pointing to the correction event; only the corrected `playerText` reaches the `messages` table.
 
 **On Claude API failure:** Return `GM_PIPELINE_ERROR`. The player action remains in the event log. The frontend should surface a retry affordance.
+
+**Phase 2+ pipeline additions** (not numbered in the M6 flow, return in later milestones):
+- LOS computation — per-turn visibility filter over `grid_entities` when the spatial system ships.
+- Rolling summary — fetch into prompt construction and update after the turn; deferred per `docs/decisions.md`.
+- Tool-use inner loop — Claude may call `roll_dice` / `rules_lookup` zero or more times before `submit_gm_response` (M7).
+- Initiative mode flips and `advance_initiative` handling (M8).
+- Caller transfer handling on `submit_gm_response` (M8).
 
 ---
 

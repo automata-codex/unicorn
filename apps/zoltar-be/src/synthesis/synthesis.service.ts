@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { AnthropicService } from '../anthropic/anthropic.service';
+import { CampaignRepository } from '../campaign/campaign.repository';
 
 import {
   buildMothershipCoherenceCheckPrompt,
@@ -76,6 +77,7 @@ export class SynthesisService {
   constructor(
     private readonly anthropic: AnthropicService,
     private readonly repo: SynthesisRepository,
+    private readonly campaignRepo: CampaignRepository,
   ) {}
 
   /**
@@ -197,7 +199,7 @@ export class SynthesisService {
     try {
       validateSubmitGmContextForWrite(args.input);
 
-      const existingData = await this.repo.getCampaignStateData(
+      const existingData = await this.campaignRepo.getStateData(
         args.campaignId,
       );
       const campaignStateData = buildCampaignStateData(
@@ -234,15 +236,6 @@ export class SynthesisService {
       }
       throw err;
     }
-  }
-
-  /**
-   * Standalone auto-promote helper. `commitGmContext` performs the same
-   * promotion inside its transaction; M6's `submit_gm_response` handler will
-   * reuse this method after each turn in Solo Blind campaigns.
-   */
-  async autoPromoteCanon(adventureId: string): Promise<void> {
-    await this.repo.autoPromoteCanon(adventureId);
   }
 
   private parseToolResult<T>(
