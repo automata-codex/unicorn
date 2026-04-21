@@ -147,7 +147,11 @@
       {/if}
 
       <div class="begin-area">
-        <Button fullWidth onclick={() => push(`/campaigns/${campaignId}`)}>
+        <Button
+          fullWidth
+          onclick={() =>
+            push(`/campaigns/${campaignId}/adventures/${adventureId}/play`)}
+        >
           BEGIN ADVENTURE
         </Button>
       </div>
