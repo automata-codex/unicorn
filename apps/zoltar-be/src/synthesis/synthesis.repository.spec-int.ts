@@ -80,23 +80,6 @@ async function seedFixture(): Promise<{
 }
 
 describe('SynthesisRepository (integration)', () => {
-  it('getCampaignStateData returns the seeded state data', async () => {
-    const { campaignId } = await seedFixture();
-    const data = await repo.getCampaignStateData(campaignId);
-    expect(data).not.toBeNull();
-    expect(
-      (data as { resourcePools: Record<string, unknown> }).resourcePools,
-    ).toHaveProperty('vasquez_hp');
-  });
-
-  it('getCampaignStateData returns null for an unknown campaign', async () => {
-    await seedFixture();
-    const data = await repo.getCampaignStateData(
-      '00000000-0000-0000-0000-000000000000',
-    );
-    expect(data).toBeNull();
-  });
-
   describe('writeGmContextAtomic', () => {
     it('writes gm_context, upserts campaign_state, inserts grid_entity, flips status, and auto-promotes canon', async () => {
       const db = getTestDb();

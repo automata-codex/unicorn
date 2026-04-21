@@ -15,6 +15,7 @@ import {
   teardownTestDb,
   truncateAll,
 } from '../../test/db-test-helper';
+import { CampaignRepository } from '../campaign/campaign.repository';
 import { CanonRepository } from '../canon/canon.repository';
 import * as schema from '../db/schema';
 
@@ -28,11 +29,13 @@ import type Anthropic from '@anthropic-ai/sdk';
 import type { AnthropicService } from '../anthropic/anthropic.service';
 
 let repo: SessionRepository;
+let campaignRepo: CampaignRepository;
 
 beforeAll(async () => {
   await setupTestDb();
   const canonRepo = new CanonRepository(getTestDb() as never);
   repo = new SessionRepository(getTestDb() as never, canonRepo);
+  campaignRepo = new CampaignRepository(getTestDb() as never);
 });
 
 afterAll(async () => {
@@ -184,7 +187,7 @@ describe('SessionService (integration) — happy path', () => {
         },
       }),
     );
-    const service = new SessionService(repo, mockAnthropic(callSession));
+    const service = new SessionService(repo, mockAnthropic(callSession), campaignRepo);
 
     const result = await service.sendMessage(baseArgs(campaignId, adventureId));
 
@@ -287,7 +290,7 @@ describe('SessionService (integration) — correction succeeds', () => {
       .fn()
       .mockResolvedValueOnce(rejectedResponse)
       .mockResolvedValueOnce(correctedResponse);
-    const service = new SessionService(repo, mockAnthropic(callSession));
+    const service = new SessionService(repo, mockAnthropic(callSession), campaignRepo);
 
     const result = await service.sendMessage(baseArgs(campaignId, adventureId));
 
@@ -360,7 +363,7 @@ describe('SessionService (integration) — correction fails', () => {
       .fn()
       .mockResolvedValueOnce(alwaysRejecting)
       .mockResolvedValueOnce(alwaysRejecting);
-    const service = new SessionService(repo, mockAnthropic(callSession));
+    const service = new SessionService(repo, mockAnthropic(callSession), campaignRepo);
 
     await expect(
       service.sendMessage(baseArgs(campaignId, adventureId)),

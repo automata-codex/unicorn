@@ -55,17 +55,6 @@ export class SessionRepository {
     return (rows[0]?.blob as Record<string, unknown> | undefined) ?? null;
   }
 
-  async getCampaignStateData(
-    campaignId: string,
-  ): Promise<Record<string, unknown> | null> {
-    const rows = await this.db
-      .select({ data: schema.campaignStates.data })
-      .from(schema.campaignStates)
-      .where(eq(schema.campaignStates.campaignId, campaignId))
-      .limit(1);
-    return (rows[0]?.data as Record<string, unknown> | undefined) ?? null;
-  }
-
   async getPlayerEntityIds(campaignId: string): Promise<string[]> {
     const rows = await this.db
       .select({ data: schema.characterSheets.data })

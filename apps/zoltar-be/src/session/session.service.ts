@@ -2,6 +2,7 @@ import { getMothershipPoolDefinition } from '@uv/game-systems';
 import { Injectable, Logger } from '@nestjs/common';
 
 import { AnthropicService } from '../anthropic/anthropic.service';
+import { CampaignRepository } from '../campaign/campaign.repository';
 
 import { applyToCampaignState } from './session.applier';
 import { buildCorrectionRequest } from './session.correction';
@@ -87,6 +88,7 @@ export class SessionService {
   constructor(
     private readonly repo: SessionRepository,
     private readonly anthropic: AnthropicService,
+    private readonly campaignRepo: CampaignRepository,
   ) {}
 
   async sendMessage(args: SendMessageArgs): Promise<SendMessageResult> {
@@ -94,7 +96,7 @@ export class SessionService {
     const [rawBlob, rawState, playerEntityIds, priorMessages] =
       await Promise.all([
         this.repo.getGmContextBlob(args.adventureId),
-        this.repo.getCampaignStateData(args.campaignId),
+        this.campaignRepo.getStateData(args.campaignId),
         this.repo.getPlayerEntityIds(args.campaignId),
         this.repo.getMessagesAsc(args.adventureId),
       ]);

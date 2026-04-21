@@ -87,7 +87,6 @@ function makeApplyTurnAtomic(): ReturnType<typeof vi.fn> {
 
 interface MockRepoOverrides {
   getGmContextBlob?: ReturnType<typeof vi.fn>;
-  getCampaignStateData?: ReturnType<typeof vi.fn>;
   getPlayerEntityIds?: ReturnType<typeof vi.fn>;
   getMessagesAsc?: ReturnType<typeof vi.fn>;
   insertMessage?: ReturnType<typeof vi.fn>;
@@ -98,9 +97,6 @@ function makeRepo(overrides: MockRepoOverrides = {}): SessionRepository {
   return {
     getGmContextBlob:
       overrides.getGmContextBlob ?? vi.fn().mockResolvedValue(baseBlob),
-    getCampaignStateData:
-      overrides.getCampaignStateData ??
-      vi.fn().mockResolvedValue(emptyMothershipState()),
     getPlayerEntityIds:
       overrides.getPlayerEntityIds ?? vi.fn().mockResolvedValue([]),
     getMessagesAsc: overrides.getMessagesAsc ?? vi.fn().mockResolvedValue([]),
@@ -109,12 +105,23 @@ function makeRepo(overrides: MockRepoOverrides = {}): SessionRepository {
   } as unknown as SessionRepository;
 }
 
+function makeCampaignRepo(
+  getStateData: ReturnType<typeof vi.fn> = vi
+    .fn()
+    .mockResolvedValue(emptyMothershipState()),
+) {
+  return { getStateData } as unknown as import(
+    '../campaign/campaign.repository'
+  ).CampaignRepository;
+}
+
 function makeService(
   callSession: ReturnType<typeof vi.fn>,
   repo: SessionRepository = makeRepo(),
+  campaignRepo = makeCampaignRepo(),
 ) {
   const anthropic = { callSession } as unknown as AnthropicService;
-  return new SessionService(repo, anthropic);
+  return new SessionService(repo, anthropic, campaignRepo);
 }
 
 const args = {
@@ -220,11 +227,9 @@ describe('SessionService.sendMessage', () => {
 
   it('throws SessionPreconditionError when campaign_state is missing', async () => {
     const insertMessage = makeInsertMessage();
-    const repo = makeRepo({
-      getCampaignStateData: vi.fn().mockResolvedValue(null),
-      insertMessage,
-    });
-    const service = makeService(callSession, repo);
+    const repo = makeRepo({ insertMessage });
+    const campaignRepo = makeCampaignRepo(vi.fn().mockResolvedValue(null));
+    const service = makeService(callSession, repo, campaignRepo);
     await expect(service.sendMessage(args)).rejects.toBeInstanceOf(
       SessionPreconditionError,
     );

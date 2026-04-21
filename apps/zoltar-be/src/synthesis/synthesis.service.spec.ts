@@ -37,15 +37,12 @@ function textMessage(text: string): Anthropic.Message {
 }
 
 interface MockRepoOverrides {
-  getCampaignStateData?: ReturnType<typeof vi.fn>;
   writeGmContextAtomic?: ReturnType<typeof vi.fn>;
   setAdventureFailed?: ReturnType<typeof vi.fn>;
 }
 
 function makeRepo(overrides: MockRepoOverrides = {}): SynthesisRepository {
   return {
-    getCampaignStateData:
-      overrides.getCampaignStateData ?? vi.fn().mockResolvedValue(null),
     writeGmContextAtomic:
       overrides.writeGmContextAtomic ?? vi.fn().mockResolvedValue(undefined),
     setAdventureFailed:
@@ -53,12 +50,21 @@ function makeRepo(overrides: MockRepoOverrides = {}): SynthesisRepository {
   } as unknown as SynthesisRepository;
 }
 
+function makeCampaignRepo(
+  getStateData: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(null),
+) {
+  return { getStateData } as unknown as import(
+    '../campaign/campaign.repository'
+  ).CampaignRepository;
+}
+
 function makeService(
   callMessages: ReturnType<typeof vi.fn>,
   repo: SynthesisRepository = makeRepo(),
+  campaignRepo = makeCampaignRepo(),
 ) {
   const anthropic = { callMessages } as unknown as AnthropicService;
-  return new SynthesisService(anthropic, repo);
+  return new SynthesisService(anthropic, repo, campaignRepo);
 }
 
 const proceedReport = {
@@ -359,7 +365,7 @@ describe('SynthesisService.commitGmContext', () => {
 
   it('runs the atomic write with merged campaign state data', async () => {
     const writeGmContextAtomic = vi.fn().mockResolvedValue(undefined);
-    const getCampaignStateData = vi.fn().mockResolvedValue({
+    const getStateData = vi.fn().mockResolvedValue({
       schemaVersion: 1,
       resourcePools: {
         // Pre-seeded player pool — must not be clobbered.
@@ -370,8 +376,9 @@ describe('SynthesisService.commitGmContext', () => {
       scenarioState: {},
       worldFacts: {},
     });
-    const repo = makeRepo({ writeGmContextAtomic, getCampaignStateData });
-    const service = makeService(vi.fn(), repo);
+    const repo = makeRepo({ writeGmContextAtomic });
+    const campaignRepo = makeCampaignRepo(getStateData);
+    const service = makeService(vi.fn(), repo, campaignRepo);
 
     await service.commitGmContext({
       adventureId,
@@ -404,11 +411,9 @@ describe('SynthesisService.commitGmContext', () => {
 
   it('fills resource pools when campaign_state has no existing row', async () => {
     const writeGmContextAtomic = vi.fn().mockResolvedValue(undefined);
-    const repo = makeRepo({
-      getCampaignStateData: vi.fn().mockResolvedValue(null),
-      writeGmContextAtomic,
-    });
-    const service = makeService(vi.fn(), repo);
+    const repo = makeRepo({ writeGmContextAtomic });
+    const campaignRepo = makeCampaignRepo(vi.fn().mockResolvedValue(null));
+    const service = makeService(vi.fn(), repo, campaignRepo);
 
     await service.commitGmContext({
       adventureId,

@@ -36,17 +36,6 @@ export class SynthesisRepository {
     private readonly canonRepo: CanonRepository,
   ) {}
 
-  async getCampaignStateData(
-    campaignId: string,
-  ): Promise<Record<string, unknown> | null> {
-    const rows = await this.db
-      .select({ data: schema.campaignStates.data })
-      .from(schema.campaignStates)
-      .where(eq(schema.campaignStates.campaignId, campaignId))
-      .limit(1);
-    return (rows[0]?.data as Record<string, unknown> | undefined) ?? null;
-  }
-
   /**
    * Atomic write path for `submit_gm_context`. Runs the four table writes plus
    * auto-promote in a single transaction. On any failure the entire

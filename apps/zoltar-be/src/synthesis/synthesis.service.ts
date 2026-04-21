@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { AnthropicService } from '../anthropic/anthropic.service';
+import { CampaignRepository } from '../campaign/campaign.repository';
 
 import {
   buildMothershipCoherenceCheckPrompt,
@@ -76,6 +77,7 @@ export class SynthesisService {
   constructor(
     private readonly anthropic: AnthropicService,
     private readonly repo: SynthesisRepository,
+    private readonly campaignRepo: CampaignRepository,
   ) {}
 
   /**
@@ -197,7 +199,7 @@ export class SynthesisService {
     try {
       validateSubmitGmContextForWrite(args.input);
 
-      const existingData = await this.repo.getCampaignStateData(
+      const existingData = await this.campaignRepo.getStateData(
         args.campaignId,
       );
       const campaignStateData = buildCampaignStateData(
