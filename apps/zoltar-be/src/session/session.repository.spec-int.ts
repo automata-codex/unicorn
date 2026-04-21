@@ -7,8 +7,8 @@ import {
   teardownTestDb,
   truncateAll,
 } from '../../test/db-test-helper';
+import { CanonRepository } from '../canon/canon.repository';
 import * as schema from '../db/schema';
-import { SynthesisRepository } from '../synthesis/synthesis.repository';
 
 import { SessionRepository } from './session.repository';
 
@@ -16,8 +16,8 @@ let repo: SessionRepository;
 
 beforeAll(async () => {
   await setupTestDb();
-  const synthesisRepo = new SynthesisRepository(getTestDb() as never);
-  repo = new SessionRepository(getTestDb() as never, synthesisRepo);
+  const canonRepo = new CanonRepository(getTestDb() as never);
+  repo = new SessionRepository(getTestDb() as never, canonRepo);
 });
 
 afterAll(async () => {
@@ -68,46 +68,6 @@ async function seedFixture(): Promise<{
 }
 
 describe('SessionRepository (integration)', () => {
-  describe('insertPendingCanon', () => {
-    it('bulk-inserts entries with status pending', async () => {
-      const { adventureId } = await seedFixture();
-
-      await getTestDb().transaction(async (tx) =>
-        repo.insertPendingCanon({
-          tx,
-          adventureId,
-          entries: [
-            { summary: 'Dr. Chen hides a key card', context: 'turn 3' },
-            { summary: 'Reactor is overheating', context: 'turn 3' },
-          ],
-        }),
-      );
-
-      const rows = await getTestDb()
-        .select()
-        .from(schema.pendingCanon)
-        .where(eq(schema.pendingCanon.adventureId, adventureId));
-      expect(rows).toHaveLength(2);
-      for (const row of rows) {
-        expect(row.status).toBe('pending');
-      }
-    });
-
-    it('is a no-op when entries is empty', async () => {
-      const { adventureId } = await seedFixture();
-
-      await getTestDb().transaction(async (tx) =>
-        repo.insertPendingCanon({ tx, adventureId, entries: [] }),
-      );
-
-      const rows = await getTestDb()
-        .select()
-        .from(schema.pendingCanon)
-        .where(eq(schema.pendingCanon.adventureId, adventureId));
-      expect(rows).toHaveLength(0);
-    });
-  });
-
   describe('mergeNpcAgendas', () => {
     async function seedGmContext(
       adventureId: string,

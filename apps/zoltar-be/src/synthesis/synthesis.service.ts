@@ -236,15 +236,6 @@ export class SynthesisService {
     }
   }
 
-  /**
-   * Standalone auto-promote helper. `commitGmContext` performs the same
-   * promotion inside its transaction; M6's `submit_gm_response` handler will
-   * reuse this method after each turn in Solo Blind campaigns.
-   */
-  async autoPromoteCanon(adventureId: string): Promise<void> {
-    await this.repo.autoPromoteCanon(adventureId);
-  }
-
   private parseToolResult<T>(
     message: Anthropic.Message,
     expectedToolName: string,

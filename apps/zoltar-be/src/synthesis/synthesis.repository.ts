@@ -1,10 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
+import { CanonRepository } from '../canon/canon.repository';
 import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
 
-import type { Db, DbOrTx } from '../db/db.provider';
+import type { Db } from '../db/db.provider';
 
 export interface GridEntityRow {
   entityRef: string;
@@ -30,7 +31,10 @@ export interface WriteGmContextArgs {
 
 @Injectable()
 export class SynthesisRepository {
-  constructor(@Inject(DB_TOKEN) private readonly db: Db) {}
+  constructor(
+    @Inject(DB_TOKEN) private readonly db: Db,
+    private readonly canonRepo: CanonRepository,
+  ) {}
 
   async getCampaignStateData(
     campaignId: string,
@@ -94,15 +98,7 @@ export class SynthesisRepository {
         .set({ status: 'ready' })
         .where(eq(schema.adventures.id, args.adventureId));
 
-      await tx
-        .update(schema.pendingCanon)
-        .set({ status: 'promoted', reviewedAt: sql`now()` })
-        .where(
-          and(
-            eq(schema.pendingCanon.adventureId, args.adventureId),
-            eq(schema.pendingCanon.status, 'pending'),
-          ),
-        );
+      await this.canonRepo.autoPromoteCanon(args.adventureId, tx);
     });
   }
 
@@ -129,29 +125,5 @@ export class SynthesisRepository {
           });
       }
     });
-  }
-
-  /**
-   * Bulk-promote pending canon for an adventure. Extracted as a standalone
-   * method so M6's `submit_gm_response` handler can reuse it after each turn
-   * in Solo Blind campaigns. The write inside `writeGmContextAtomic` performs
-   * the same operation as part of the synthesis transaction; this method is
-   * the standalone entrypoint for callers outside that transaction.
-   *
-   * Accepts an optional `tx` so M6's per-turn orchestrator can run the
-   * promotion inside its own transaction alongside state, event, and
-   * telemetry writes. Defaults to `this.db` for the existing M4 call site.
-   */
-  async autoPromoteCanon(adventureId: string, tx?: DbOrTx): Promise<void> {
-    const runner = tx ?? this.db;
-    await runner
-      .update(schema.pendingCanon)
-      .set({ status: 'promoted', reviewedAt: sql`now()` })
-      .where(
-        and(
-          eq(schema.pendingCanon.adventureId, adventureId),
-          eq(schema.pendingCanon.status, 'pending'),
-        ),
-      );
   }
 }

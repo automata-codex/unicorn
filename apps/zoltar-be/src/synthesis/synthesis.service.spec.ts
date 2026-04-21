@@ -40,7 +40,6 @@ interface MockRepoOverrides {
   getCampaignStateData?: ReturnType<typeof vi.fn>;
   writeGmContextAtomic?: ReturnType<typeof vi.fn>;
   setAdventureFailed?: ReturnType<typeof vi.fn>;
-  autoPromoteCanon?: ReturnType<typeof vi.fn>;
 }
 
 function makeRepo(overrides: MockRepoOverrides = {}): SynthesisRepository {
@@ -51,8 +50,6 @@ function makeRepo(overrides: MockRepoOverrides = {}): SynthesisRepository {
       overrides.writeGmContextAtomic ?? vi.fn().mockResolvedValue(undefined),
     setAdventureFailed:
       overrides.setAdventureFailed ?? vi.fn().mockResolvedValue(undefined),
-    autoPromoteCanon:
-      overrides.autoPromoteCanon ?? vi.fn().mockResolvedValue(undefined),
   } as unknown as SynthesisRepository;
 }
 
@@ -526,17 +523,5 @@ describe('SynthesisService.commitGmContext', () => {
       adventureId,
       expect.stringContaining('deadlock'),
     );
-  });
-});
-
-describe('SynthesisService.autoPromoteCanon', () => {
-  it('delegates to the repository', async () => {
-    const autoPromoteCanon = vi.fn().mockResolvedValue(undefined);
-    const repo = makeRepo({ autoPromoteCanon });
-    const service = makeService(vi.fn(), repo);
-
-    await service.autoPromoteCanon('adv-1');
-
-    expect(autoPromoteCanon).toHaveBeenCalledWith('adv-1');
   });
 });

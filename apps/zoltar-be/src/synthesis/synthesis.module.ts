@@ -4,6 +4,7 @@ import { AdventureModule } from '../adventure/adventure.module';
 import { AnthropicModule } from '../anthropic/anthropic.module';
 import { AuthModule } from '../auth/auth.module';
 import { CampaignModule } from '../campaign/campaign.module';
+import { CanonModule } from '../canon/canon.module';
 import { CharacterModule } from '../character/character.module';
 
 import { SynthesisController } from './synthesis.controller';
@@ -16,10 +17,11 @@ import { SynthesisService } from './synthesis.service';
     AuthModule,
     AdventureModule,
     CampaignModule,
+    CanonModule,
     CharacterModule,
   ],
   controllers: [SynthesisController],
   providers: [SynthesisRepository, SynthesisService],
-  exports: [SynthesisService, SynthesisRepository],
+  exports: [SynthesisService],
 })
 export class SynthesisModule {}

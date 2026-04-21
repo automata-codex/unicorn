@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -7,6 +7,7 @@ import {
   teardownTestDb,
   truncateAll,
 } from '../../test/db-test-helper';
+import { CanonRepository } from '../canon/canon.repository';
 import * as schema from '../db/schema';
 
 import { SynthesisRepository } from './synthesis.repository';
@@ -15,7 +16,8 @@ let repo: SynthesisRepository;
 
 beforeAll(async () => {
   await setupTestDb();
-  repo = new SynthesisRepository(getTestDb() as never);
+  const canonRepo = new CanonRepository(getTestDb() as never);
+  repo = new SynthesisRepository(getTestDb() as never, canonRepo);
 });
 
 afterAll(async () => {
@@ -303,87 +305,6 @@ describe('SynthesisRepository (integration)', () => {
         .from(schema.gmContexts)
         .where(eq(schema.gmContexts.adventureId, adventureId));
       expect(rows).toHaveLength(0);
-    });
-  });
-
-  describe('autoPromoteCanon', () => {
-    it('promotes all pending rows for the given adventure and leaves others alone', async () => {
-      const db = getTestDb();
-      const { campaignId, adventureId } = await seedFixture();
-      const [otherAdventure] = await db
-        .insert(schema.adventures)
-        .values({ campaignId, callerId: 'u1', status: 'synthesizing' })
-        .returning();
-
-      await db.insert(schema.pendingCanon).values([
-        {
-          adventureId,
-          summary: 'one',
-          context: 'ctx',
-          status: 'pending',
-        },
-        {
-          adventureId,
-          summary: 'two',
-          context: 'ctx',
-          status: 'pending',
-        },
-        {
-          adventureId: otherAdventure.id,
-          summary: 'other',
-          context: 'ctx',
-          status: 'pending',
-        },
-      ]);
-
-      await repo.autoPromoteCanon(adventureId);
-
-      const promoted = await db
-        .select()
-        .from(schema.pendingCanon)
-        .where(
-          and(
-            eq(schema.pendingCanon.adventureId, adventureId),
-            eq(schema.pendingCanon.status, 'promoted'),
-          ),
-        );
-      expect(promoted).toHaveLength(2);
-      for (const row of promoted) {
-        expect(row.reviewedAt).not.toBeNull();
-      }
-
-      const untouched = await db
-        .select()
-        .from(schema.pendingCanon)
-        .where(eq(schema.pendingCanon.adventureId, otherAdventure.id));
-      expect(untouched).toHaveLength(1);
-      expect(untouched[0].status).toBe('pending');
-    });
-
-    it('runs inside the supplied transaction so a rollback reverts the promotion', async () => {
-      const db = getTestDb();
-      const { adventureId } = await seedFixture();
-      await db.insert(schema.pendingCanon).values({
-        adventureId,
-        summary: 'inside-tx',
-        context: 'ctx',
-        status: 'pending',
-      });
-
-      await expect(
-        db.transaction(async (tx) => {
-          await repo.autoPromoteCanon(adventureId, tx);
-          throw new Error('force rollback');
-        }),
-      ).rejects.toThrow('force rollback');
-
-      const rows = await db
-        .select()
-        .from(schema.pendingCanon)
-        .where(eq(schema.pendingCanon.adventureId, adventureId));
-      expect(rows).toHaveLength(1);
-      expect(rows[0].status).toBe('pending');
-      expect(rows[0].reviewedAt).toBeNull();
     });
   });
 });

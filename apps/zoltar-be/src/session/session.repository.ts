@@ -2,9 +2,9 @@ import { type MothershipCampaignState } from '@uv/game-systems';
 import { Inject, Injectable } from '@nestjs/common';
 import { asc, eq, sql } from 'drizzle-orm';
 
+import { CanonRepository } from '../canon/canon.repository';
 import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
-import { SynthesisRepository } from '../synthesis/synthesis.repository';
 
 import { writeTurnEvents } from './session.events';
 import { writeAdventureTelemetry } from './session.telemetry';
@@ -41,7 +41,7 @@ export interface ApplyTurnAtomicResult {
 export class SessionRepository {
   constructor(
     @Inject(DB_TOKEN) private readonly db: Db,
-    private readonly synthesisRepo: SynthesisRepository,
+    private readonly canonRepo: CanonRepository,
   ) {}
 
   async getGmContextBlob(
@@ -119,22 +119,6 @@ export class SessionRepository {
       .where(eq(schema.campaignStates.campaignId, args.campaignId));
   }
 
-  async insertPendingCanon(args: {
-    tx: DbOrTx;
-    adventureId: string;
-    entries: Array<{ summary: string; context: string }>;
-  }): Promise<void> {
-    if (args.entries.length === 0) return;
-    await args.tx.insert(schema.pendingCanon).values(
-      args.entries.map((entry) => ({
-        adventureId: args.adventureId,
-        summary: entry.summary,
-        context: entry.context,
-        status: 'pending' as const,
-      })),
-    );
-  }
-
   /**
    * Merges Claude's `gmUpdates.npcStates` into `gm_context.blob.narrative.npcAgendas`.
    * Reads the current blob, shallow-merges the new agendas over existing
@@ -210,14 +194,14 @@ export class SessionRepository {
         thresholds: args.thresholds,
       });
 
-      await this.insertPendingCanon({
+      await this.canonRepo.insertPendingCanon({
         tx,
         adventureId: args.adventureId,
         entries: args.proposedCanon,
       });
 
       if (args.autoPromoteCanon) {
-        await this.synthesisRepo.autoPromoteCanon(args.adventureId, tx);
+        await this.canonRepo.autoPromoteCanon(args.adventureId, tx);
       }
 
       await this.mergeNpcAgendas({

@@ -4,7 +4,7 @@ import { AdventureModule } from '../adventure/adventure.module';
 import { AnthropicModule } from '../anthropic/anthropic.module';
 import { AuthModule } from '../auth/auth.module';
 import { CampaignModule } from '../campaign/campaign.module';
-import { SynthesisModule } from '../synthesis/synthesis.module';
+import { CanonModule } from '../canon/canon.module';
 
 import { SessionController } from './session.controller';
 import { SessionRepository } from './session.repository';
@@ -21,7 +21,7 @@ import { SessionService } from './session.service';
     AuthModule,
     AdventureModule,
     CampaignModule,
-    SynthesisModule,
+    CanonModule,
   ],
   controllers: [SessionController],
   providers: [SessionRepository, SessionService],

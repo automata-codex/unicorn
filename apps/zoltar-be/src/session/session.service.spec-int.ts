@@ -15,8 +15,8 @@ import {
   teardownTestDb,
   truncateAll,
 } from '../../test/db-test-helper';
+import { CanonRepository } from '../canon/canon.repository';
 import * as schema from '../db/schema';
-import { SynthesisRepository } from '../synthesis/synthesis.repository';
 
 import { SessionRepository } from './session.repository';
 import {
@@ -31,8 +31,8 @@ let repo: SessionRepository;
 
 beforeAll(async () => {
   await setupTestDb();
-  const synthesisRepo = new SynthesisRepository(getTestDb() as never);
-  repo = new SessionRepository(getTestDb() as never, synthesisRepo);
+  const canonRepo = new CanonRepository(getTestDb() as never);
+  repo = new SessionRepository(getTestDb() as never, canonRepo);
 });
 
 afterAll(async () => {
