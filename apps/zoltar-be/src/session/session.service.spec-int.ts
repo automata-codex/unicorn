@@ -264,6 +264,36 @@ describe('SessionService (integration) — happy path', () => {
     expect(messages[0].role).toBe('player');
     expect(messages[1].role).toBe('gm');
     expect(messages[1].content).toBe('The airlock hisses open.');
+
+    // First turn flips the adventure from `ready` to `in_progress`.
+    const [advRow] = await db
+      .select()
+      .from(schema.adventures)
+      .where(eq(schema.adventures.id, adventureId));
+    expect(advRow.status).toBe('in_progress');
+  });
+
+  it('is a no-op on status flip for the second turn (stays in_progress)', async () => {
+    const db = getTestDb();
+    const { campaignId, adventureId } = await seedReadyAdventure();
+
+    const callSession = vi.fn().mockResolvedValue(
+      toolUseMessage({
+        playerText: 'Nothing happens.',
+        stateChanges: {},
+        gmUpdates: {},
+      }),
+    );
+    const service = new SessionService(repo, mockAnthropic(callSession), campaignRepo);
+
+    await service.sendMessage(baseArgs(campaignId, adventureId));
+    await service.sendMessage(baseArgs(campaignId, adventureId));
+
+    const [advRow] = await db
+      .select()
+      .from(schema.adventures)
+      .where(eq(schema.adventures.id, adventureId));
+    expect(advRow.status).toBe('in_progress');
   });
 });
 
@@ -376,6 +406,13 @@ describe('SessionService (integration) — correction fails', () => {
       .from(schema.campaignStates)
       .where(eq(schema.campaignStates.campaignId, campaignId));
     expect(stateAfter.data).toEqual(stateBefore.data);
+
+    // Failed correction must not flip the status — the turn rolled back.
+    const [advRow] = await db
+      .select()
+      .from(schema.adventures)
+      .where(eq(schema.adventures.id, adventureId));
+    expect(advRow.status).toBe('ready');
 
     // Only the player message persists; no events, no canon, no telemetry.
     const events = await db

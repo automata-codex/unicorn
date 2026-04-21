@@ -1,6 +1,6 @@
 import { type MothershipCampaignState } from '@uv/game-systems';
 import { Inject, Injectable } from '@nestjs/common';
-import { asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 
 import { CanonRepository } from '../canon/canon.repository';
 import { DB_TOKEN } from '../db/db.provider';
@@ -212,6 +212,19 @@ export class SessionRepository {
         sequenceNumber: events.gmResponseSeq,
         payload: args.telemetryPayload,
       });
+
+      // Flip status on the first turn. Conditional on `status = 'ready'` so
+      // subsequent turns no-op; also avoids clobbering a terminal status
+      // (completed / failed) if one was reached out-of-band.
+      await tx
+        .update(schema.adventures)
+        .set({ status: 'in_progress' })
+        .where(
+          and(
+            eq(schema.adventures.id, args.adventureId),
+            eq(schema.adventures.status, 'ready'),
+          ),
+        );
 
       return {
         persistedMessage,

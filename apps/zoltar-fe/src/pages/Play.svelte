@@ -60,7 +60,7 @@
       const messagesBody: { messages: LogMessage[] } = await msgRes.json();
       const stateBody: { data: CampaignStateData } = await stateRes.json();
 
-      if (adventure.status !== 'ready') {
+      if (adventure.status !== 'ready' && adventure.status !== 'in_progress') {
         error = `Adventure is ${adventure.status}, not ready for play.`;
         loading = false;
         setTimeout(() => push(`/campaigns/${campaignId}`), 1500);

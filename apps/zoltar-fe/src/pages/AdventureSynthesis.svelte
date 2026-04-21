@@ -71,6 +71,10 @@
 
       if (adv.status === 'synthesizing') {
         startPolling();
+      } else if (adv.status === 'in_progress' || adv.status === 'completed') {
+        // The synthesis/review screen is only meaningful up to `ready`.
+        // An adventure that has already been played goes straight to play.
+        push(`/campaigns/${campaignId}/adventures/${adventureId}/play`);
       }
     });
 

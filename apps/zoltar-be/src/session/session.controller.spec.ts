@@ -18,7 +18,12 @@ import {
 const fakeUser = { id: 'u1', email: 'a@x.test', name: 'Alice' };
 
 function mockAdventureService(
-  status: 'ready' | 'synthesizing' | 'failed' | 'completed' = 'ready',
+  status:
+    | 'ready'
+    | 'in_progress'
+    | 'synthesizing'
+    | 'failed'
+    | 'completed' = 'ready',
 ) {
   return {
     findById: vi.fn().mockResolvedValue({
@@ -101,6 +106,18 @@ describe('SessionController', () => {
         controller.sendMessage('c1', 'a1', dto, fakeUser),
       ).rejects.toBeInstanceOf(ConflictException);
       expect(sessionService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('accepts in_progress status (mid-adventure turns)', async () => {
+      adventureService = mockAdventureService('in_progress');
+      controller = new SessionController(
+        sessionService as never,
+        adventureService as never,
+      );
+      await expect(
+        controller.sendMessage('c1', 'a1', dto, fakeUser),
+      ).resolves.toBeDefined();
+      expect(sessionService.sendMessage).toHaveBeenCalled();
     });
 
     it('returns 409 when the service raises SessionPreconditionError', async () => {

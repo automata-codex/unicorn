@@ -78,9 +78,9 @@ export class SessionController {
       adventureId,
       user.id,
     );
-    if (adventure.status !== 'ready') {
+    if (adventure.status !== 'ready' && adventure.status !== 'in_progress') {
       throw new ConflictException(
-        `Adventure status must be "ready", got "${adventure.status}"`,
+        `Adventure status must be "ready" or "in_progress", got "${adventure.status}"`,
       );
     }
 
