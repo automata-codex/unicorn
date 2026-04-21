@@ -17,6 +17,7 @@ import { SessionGuard } from '../auth/session.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 import {
+  SessionCorrectionError,
   SessionOutputError,
   SessionPreconditionError,
   SessionService,
@@ -37,7 +38,8 @@ interface MessagesResponse {
     content: string;
     createdAt: string;
   };
-  proposals: SendMessageResult['proposals'];
+  applied: SendMessageResult['applied'];
+  thresholds: SendMessageResult['thresholds'];
 }
 
 @Controller('campaigns/:campaignId/adventures/:adventureId')
@@ -58,7 +60,6 @@ export class SessionController {
     dto: MessagesRequestDto,
     @CurrentUser() user: AuthUser,
   ): Promise<MessagesResponse> {
-    // assertMember is baked into adventureService.findById.
     const adventure = await this.adventureService.findById(
       campaignId,
       adventureId,
@@ -74,19 +75,19 @@ export class SessionController {
       const result = await this.sessionService.sendMessage({
         adventureId,
         campaignId,
+        playerUserId: user.id,
         playerMessage: dto.content,
       });
 
       return {
         message: {
           id: result.message.id,
-          // DB role is `gm`; the API response labels it with the transport
-          // role Claude-side clients expect.
           role: 'assistant',
           content: result.message.content,
           createdAt: result.message.createdAt.toISOString(),
         },
-        proposals: result.proposals,
+        applied: result.applied,
+        thresholds: result.thresholds,
       };
     } catch (err) {
       if (err instanceof SessionPreconditionError) {
@@ -94,6 +95,16 @@ export class SessionController {
           `Session precondition failed for adventure=${adventureId}: ${err.message}`,
         );
         throw new ConflictException(err.message);
+      }
+      if (err instanceof SessionCorrectionError) {
+        this.logger.error(
+          `GM correction failed for adventure=${adventureId}: ${err.message}`,
+        );
+        throw new BadGatewayException({
+          error: 'gm_correction_failed',
+          message:
+            "GM re-narration was rejected by the validator. Try sending your action again.",
+        });
       }
       if (err instanceof SessionOutputError) {
         this.logger.error(

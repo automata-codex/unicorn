@@ -20,6 +20,7 @@ export interface WriteTurnEventsArgs {
 
 export interface WriteTurnEventsResult {
   gmResponseEventId: string;
+  gmResponseSeq: number;
   correctionEventId?: string;
   stateUpdateSeq: number;
 }
@@ -68,12 +69,13 @@ export async function writeTurnEvents(
     payload: { content: args.playerAction.content },
   });
 
+  const gmResponseSeq = seq++;
   const [gmResponseRow] = await args.tx
     .insert(schema.gameEvents)
     .values({
       adventureId: args.adventureId,
       campaignId: args.campaignId,
-      sequenceNumber: seq++,
+      sequenceNumber: gmResponseSeq,
       eventType: 'gm_response',
       actorType: 'gm',
       actorId: null,
@@ -117,6 +119,7 @@ export async function writeTurnEvents(
 
   return {
     gmResponseEventId: gmResponseRow.id,
+    gmResponseSeq,
     correctionEventId,
     stateUpdateSeq,
   };

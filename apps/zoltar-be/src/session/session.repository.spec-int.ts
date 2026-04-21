@@ -8,6 +8,7 @@ import {
   truncateAll,
 } from '../../test/db-test-helper';
 import * as schema from '../db/schema';
+import { SynthesisRepository } from '../synthesis/synthesis.repository';
 
 import { SessionRepository } from './session.repository';
 
@@ -15,7 +16,8 @@ let repo: SessionRepository;
 
 beforeAll(async () => {
   await setupTestDb();
-  repo = new SessionRepository(getTestDb() as never);
+  const synthesisRepo = new SynthesisRepository(getTestDb() as never);
+  repo = new SessionRepository(getTestDb() as never, synthesisRepo);
 });
 
 afterAll(async () => {

@@ -4,13 +4,45 @@ import { asc, eq, sql } from 'drizzle-orm';
 
 import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
+import { SynthesisRepository } from '../synthesis/synthesis.repository';
+
+import { writeTurnEvents } from './session.events';
+import { writeAdventureTelemetry } from './session.telemetry';
 
 import type { Db, DbOrTx } from '../db/db.provider';
+import type { SubmitGmResponse } from './session.schema';
 import type { DbMessage } from './session.window';
+import type { AdventureTelemetryPayload } from './session.telemetry';
+import type { ThresholdCrossing, ValidationResult } from './session.validator';
+
+export interface ApplyTurnAtomicArgs {
+  adventureId: string;
+  campaignId: string;
+  playerUserId: string;
+  campaignStateData: MothershipCampaignState;
+  playerAction: { content: string };
+  gmResponse: SubmitGmResponse;
+  correction?: SubmitGmResponse;
+  applied: ValidationResult['applied'];
+  thresholds: ThresholdCrossing[];
+  proposedCanon: Array<{ summary: string; context: string }>;
+  npcStates: Record<string, string>;
+  gmText: string;
+  telemetryPayload: AdventureTelemetryPayload;
+  autoPromoteCanon: boolean;
+}
+
+export interface ApplyTurnAtomicResult {
+  persistedMessage: DbMessage;
+  gmResponseSequence: number;
+}
 
 @Injectable()
 export class SessionRepository {
-  constructor(@Inject(DB_TOKEN) private readonly db: Db) {}
+  constructor(
+    @Inject(DB_TOKEN) private readonly db: Db,
+    private readonly synthesisRepo: SynthesisRepository,
+  ) {}
 
   async getGmContextBlob(
     adventureId: string,
@@ -61,8 +93,10 @@ export class SessionRepository {
     adventureId: string;
     role: DbMessage['role'];
     content: string;
+    tx?: DbOrTx;
   }): Promise<DbMessage> {
-    const rows = await this.db
+    const runner = args.tx ?? this.db;
+    const rows = await runner
       .insert(schema.messages)
       .values({
         adventureId: args.adventureId,
@@ -144,5 +178,72 @@ export class SessionRepository {
       .update(schema.gmContexts)
       .set({ blob: updatedBlob, updatedAt: sql`now()` })
       .where(eq(schema.gmContexts.adventureId, args.adventureId));
+  }
+
+  /**
+   * Atomic write path for a completed turn. Bundles state update, game_event
+   * writes, pending_canon insertion (+ auto-promote in Solo Blind), blob
+   * merge, final GM message insert, and telemetry insert into a single
+   * transaction. On any failure the whole turn rolls back — the player
+   * message (persisted by the service before this call) is preserved so
+   * a retry can reproduce the action.
+   */
+  async applyTurnAtomic(
+    args: ApplyTurnAtomicArgs,
+  ): Promise<ApplyTurnAtomicResult> {
+    return this.db.transaction(async (tx) => {
+      await this.writeCampaignState({
+        campaignId: args.campaignId,
+        data: args.campaignStateData,
+        tx,
+      });
+
+      const events = await writeTurnEvents({
+        tx,
+        adventureId: args.adventureId,
+        campaignId: args.campaignId,
+        playerUserId: args.playerUserId,
+        playerAction: args.playerAction,
+        gmResponse: args.gmResponse,
+        correction: args.correction,
+        applied: args.applied,
+        thresholds: args.thresholds,
+      });
+
+      await this.insertPendingCanon({
+        tx,
+        adventureId: args.adventureId,
+        entries: args.proposedCanon,
+      });
+
+      if (args.autoPromoteCanon) {
+        await this.synthesisRepo.autoPromoteCanon(args.adventureId, tx);
+      }
+
+      await this.mergeNpcAgendas({
+        tx,
+        adventureId: args.adventureId,
+        npcStates: args.npcStates,
+      });
+
+      const persistedMessage = await this.insertMessage({
+        adventureId: args.adventureId,
+        role: 'gm',
+        content: args.gmText,
+        tx,
+      });
+
+      await writeAdventureTelemetry({
+        tx,
+        adventureId: args.adventureId,
+        sequenceNumber: events.gmResponseSeq,
+        payload: args.telemetryPayload,
+      });
+
+      return {
+        persistedMessage,
+        gmResponseSequence: events.gmResponseSeq,
+      };
+    });
   }
 }

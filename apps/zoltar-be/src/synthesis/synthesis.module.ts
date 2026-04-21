@@ -20,6 +20,6 @@ import { SynthesisService } from './synthesis.service';
   ],
   controllers: [SynthesisController],
   providers: [SynthesisRepository, SynthesisService],
-  exports: [SynthesisService],
+  exports: [SynthesisService, SynthesisRepository],
 })
 export class SynthesisModule {}

@@ -2,6 +2,7 @@ import { emptyMothershipState } from '@uv/game-systems';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  SessionCorrectionError,
   SessionOutputError,
   SessionPreconditionError,
   SessionService,
@@ -9,7 +10,11 @@ import {
 
 import type Anthropic from '@anthropic-ai/sdk';
 import type { AnthropicService } from '../anthropic/anthropic.service';
-import type { SessionRepository } from './session.repository';
+import type {
+  ApplyTurnAtomicArgs,
+  ApplyTurnAtomicResult,
+  SessionRepository,
+} from './session.repository';
 import type { DbMessage } from './session.window';
 
 function toolUseMessage(name: string, input: unknown): Anthropic.Message {
@@ -22,12 +27,16 @@ function toolUseMessage(name: string, input: unknown): Anthropic.Message {
         input,
       } as unknown as Anthropic.ToolUseBlock,
     ],
+    model: 'claude-sonnet-4-6',
+    usage: { input_tokens: 0, output_tokens: 0 },
   } as unknown as Anthropic.Message;
 }
 
 function textOnlyMessage(text: string): Anthropic.Message {
   return {
     content: [{ type: 'text', text } as unknown as Anthropic.ContentBlock],
+    model: 'claude-sonnet-4-6',
+    usage: { input_tokens: 0, output_tokens: 0 },
   } as unknown as Anthropic.Message;
 }
 
@@ -47,8 +56,6 @@ const baseBlob = {
   },
 };
 
-// Default insert-message stub: resolves with a plausible DbMessage shape.
-// Callers that care about the mock's call history keep a local reference.
 function makeInsertMessage(): ReturnType<typeof vi.fn> {
   return vi.fn(
     (args: { adventureId: string; role: DbMessage['role']; content: string }) =>
@@ -62,12 +69,29 @@ function makeInsertMessage(): ReturnType<typeof vi.fn> {
   );
 }
 
+function makeApplyTurnAtomic(): ReturnType<typeof vi.fn> {
+  return vi.fn(
+    (args: ApplyTurnAtomicArgs): Promise<ApplyTurnAtomicResult> =>
+      Promise.resolve({
+        persistedMessage: {
+          id: 'm-gm',
+          adventureId: args.adventureId,
+          role: 'gm',
+          content: args.gmText,
+          createdAt: new Date('2026-04-17T12:00:01Z'),
+        },
+        gmResponseSequence: 2,
+      }),
+  );
+}
+
 interface MockRepoOverrides {
   getGmContextBlob?: ReturnType<typeof vi.fn>;
   getCampaignStateData?: ReturnType<typeof vi.fn>;
   getPlayerEntityIds?: ReturnType<typeof vi.fn>;
   getMessagesAsc?: ReturnType<typeof vi.fn>;
   insertMessage?: ReturnType<typeof vi.fn>;
+  applyTurnAtomic?: ReturnType<typeof vi.fn>;
 }
 
 function makeRepo(overrides: MockRepoOverrides = {}): SessionRepository {
@@ -81,6 +105,7 @@ function makeRepo(overrides: MockRepoOverrides = {}): SessionRepository {
       overrides.getPlayerEntityIds ?? vi.fn().mockResolvedValue([]),
     getMessagesAsc: overrides.getMessagesAsc ?? vi.fn().mockResolvedValue([]),
     insertMessage: overrides.insertMessage ?? makeInsertMessage(),
+    applyTurnAtomic: overrides.applyTurnAtomic ?? makeApplyTurnAtomic(),
   } as unknown as SessionRepository;
 }
 
@@ -95,6 +120,7 @@ function makeService(
 const args = {
   adventureId: 'adv-1',
   campaignId: 'camp-1',
+  playerUserId: 'u1',
   playerMessage: 'I check the airlock.',
 };
 
@@ -109,48 +135,57 @@ describe('SessionService.sendMessage', () => {
     );
   });
 
-  it('persists player and GM messages and returns proposals on happy path', async () => {
+  it('persists player message before calling Claude, then bundles the turn atomically', async () => {
     const insertMessage = makeInsertMessage();
-    const repo = makeRepo({ insertMessage });
+    const applyTurnAtomic = makeApplyTurnAtomic();
+    const repo = makeRepo({ insertMessage, applyTurnAtomic });
     const service = makeService(callSession, repo);
+
     const result = await service.sendMessage(args);
 
-    expect(insertMessage).toHaveBeenNthCalledWith(1, {
+    // Player message persisted once, outside the atomic call.
+    expect(insertMessage).toHaveBeenCalledTimes(1);
+    expect(insertMessage).toHaveBeenCalledWith({
       adventureId: 'adv-1',
       role: 'player',
       content: 'I check the airlock.',
     });
-    expect(insertMessage).toHaveBeenNthCalledWith(2, {
-      adventureId: 'adv-1',
-      role: 'gm',
-      content: 'The airlock is sealed.',
-    });
+
+    // Atomic call receives the final payload.
+    expect(applyTurnAtomic).toHaveBeenCalledTimes(1);
+    const atomicArgs = applyTurnAtomic.mock.calls[0][0] as ApplyTurnAtomicArgs;
+    expect(atomicArgs.gmText).toBe('The airlock is sealed.');
+    expect(atomicArgs.correction).toBeUndefined();
+    expect(atomicArgs.playerUserId).toBe('u1');
+    expect(atomicArgs.autoPromoteCanon).toBe(true);
+
     expect(result.message.content).toBe('The airlock is sealed.');
-    expect(result.proposals.playerText).toBe('The airlock is sealed.');
+    expect(result.applied).toBeDefined();
+    expect(result.thresholds).toEqual([]);
   });
 
   it('persists the player message even when Claude call fails', async () => {
     callSession.mockRejectedValue(new Error('network'));
     const insertMessage = makeInsertMessage();
-    const repo = makeRepo({ insertMessage });
+    const applyTurnAtomic = makeApplyTurnAtomic();
+    const repo = makeRepo({ insertMessage, applyTurnAtomic });
     const service = makeService(callSession, repo);
     await expect(service.sendMessage(args)).rejects.toThrow('network');
     expect(insertMessage).toHaveBeenCalledTimes(1);
-    expect(insertMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ role: 'player' }),
-    );
+    expect(applyTurnAtomic).not.toHaveBeenCalled();
   });
 
   it('throws SessionOutputError when Claude returns text instead of a tool call', async () => {
     callSession.mockResolvedValue(textOnlyMessage('no tool use here'));
     const insertMessage = makeInsertMessage();
-    const repo = makeRepo({ insertMessage });
+    const applyTurnAtomic = makeApplyTurnAtomic();
+    const repo = makeRepo({ insertMessage, applyTurnAtomic });
     const service = makeService(callSession, repo);
     await expect(service.sendMessage(args)).rejects.toBeInstanceOf(
       SessionOutputError,
     );
-    // Player message persisted, GM message never is.
     expect(insertMessage).toHaveBeenCalledTimes(1);
+    expect(applyTurnAtomic).not.toHaveBeenCalled();
   });
 
   it('throws SessionOutputError when tool input fails schema validation', async () => {
@@ -158,26 +193,29 @@ describe('SessionService.sendMessage', () => {
       toolUseMessage('submit_gm_response', { playerText: 123 }),
     );
     const insertMessage = makeInsertMessage();
-    const repo = makeRepo({ insertMessage });
+    const applyTurnAtomic = makeApplyTurnAtomic();
+    const repo = makeRepo({ insertMessage, applyTurnAtomic });
     const service = makeService(callSession, repo);
     await expect(service.sendMessage(args)).rejects.toBeInstanceOf(
       SessionOutputError,
     );
-    expect(insertMessage).toHaveBeenCalledTimes(1);
+    expect(applyTurnAtomic).not.toHaveBeenCalled();
   });
 
   it('throws SessionPreconditionError when gm_context is missing', async () => {
     const insertMessage = makeInsertMessage();
+    const applyTurnAtomic = makeApplyTurnAtomic();
     const repo = makeRepo({
       getGmContextBlob: vi.fn().mockResolvedValue(null),
       insertMessage,
+      applyTurnAtomic,
     });
     const service = makeService(callSession, repo);
     await expect(service.sendMessage(args)).rejects.toBeInstanceOf(
       SessionPreconditionError,
     );
-    // No message persisted — we bail before any write.
     expect(insertMessage).not.toHaveBeenCalled();
+    expect(applyTurnAtomic).not.toHaveBeenCalled();
   });
 
   it('throws SessionPreconditionError when campaign_state is missing', async () => {
@@ -193,15 +231,24 @@ describe('SessionService.sendMessage', () => {
     expect(insertMessage).not.toHaveBeenCalled();
   });
 
-  it('passes player entity ids from character sheets into the snapshot input', async () => {
-    const getPlayerEntityIds = vi.fn().mockResolvedValue(['dr_chen']);
-    const repo = makeRepo({ getPlayerEntityIds });
+  it('throws SessionCorrectionError when both validation rounds reject', async () => {
+    // Claude proposes an impossible pool delta twice.
+    const rejectingResponse = toolUseMessage('submit_gm_response', {
+      playerText: 'Damage applied.',
+      stateChanges: {
+        resourcePools: { xenomorph_hp: { delta: -3 } }, // unknown pool, negative delta → reject
+      },
+    });
+    callSession.mockResolvedValue(rejectingResponse);
+
+    const applyTurnAtomic = makeApplyTurnAtomic();
+    const repo = makeRepo({ applyTurnAtomic });
     const service = makeService(callSession, repo);
-    await service.sendMessage(args);
-    expect(getPlayerEntityIds).toHaveBeenCalledWith('camp-1');
-    // First system block is the GM context; the snapshot's player override
-    // would be the only mechanism to surface dr_chen when hidden, so assert
-    // the call shape reached the Anthropic client.
-    expect(callSession).toHaveBeenCalledTimes(1);
+
+    await expect(service.sendMessage(args)).rejects.toBeInstanceOf(
+      SessionCorrectionError,
+    );
+    expect(callSession).toHaveBeenCalledTimes(2);
+    expect(applyTurnAtomic).not.toHaveBeenCalled();
   });
 });

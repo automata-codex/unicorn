@@ -16,9 +16,13 @@ import {
   truncateAll,
 } from '../../test/db-test-helper';
 import * as schema from '../db/schema';
+import { SynthesisRepository } from '../synthesis/synthesis.repository';
 
 import { SessionRepository } from './session.repository';
-import { SessionService } from './session.service';
+import {
+  SessionCorrectionError,
+  SessionService,
+} from './session.service';
 
 import type Anthropic from '@anthropic-ai/sdk';
 import type { AnthropicService } from '../anthropic/anthropic.service';
@@ -27,7 +31,8 @@ let repo: SessionRepository;
 
 beforeAll(async () => {
   await setupTestDb();
-  repo = new SessionRepository(getTestDb() as never);
+  const synthesisRepo = new SynthesisRepository(getTestDb() as never);
+  repo = new SessionRepository(getTestDb() as never, synthesisRepo);
 });
 
 afterAll(async () => {
@@ -48,6 +53,8 @@ function toolUseMessage(input: unknown): Anthropic.Message {
         input,
       } as unknown as Anthropic.ToolUseBlock,
     ],
+    model: 'claude-sonnet-4-6',
+    usage: { input_tokens: 1500, output_tokens: 420 },
   } as unknown as Anthropic.Message;
 }
 
@@ -134,7 +141,7 @@ async function seedReadyAdventure(): Promise<{
       narrative: {
         location: 'Derelict freighter',
         atmosphere: 'dim',
-        npcAgendas: {},
+        npcAgendas: { corporate_spy_1: 'Watch the player' },
         hiddenTruth: 'truth',
         oracleConnections: 'conn',
       },
@@ -149,8 +156,15 @@ async function seedReadyAdventure(): Promise<{
   return { campaignId: campaign.id, adventureId: adventure.id };
 }
 
-describe('SessionService (integration)', () => {
-  it('persists player + GM messages and returns parsed proposals on happy path', async () => {
+const baseArgs = (campaignId: string, adventureId: string) => ({
+  campaignId,
+  adventureId,
+  playerUserId: 'u1',
+  playerMessage: 'I open the airlock.',
+});
+
+describe('SessionService (integration) — happy path', () => {
+  it('applies state, writes three events, inserts telemetry, routes canon, merges blob', async () => {
     const db = getTestDb();
     const { campaignId, adventureId } = await seedReadyAdventure();
 
@@ -159,37 +173,174 @@ describe('SessionService (integration)', () => {
         playerText: 'The airlock hisses open.',
         stateChanges: {
           resourcePools: { dr_chen_hp: { delta: -2 } },
-          flags: { airlock_sealed: { value: false } },
+          worldFacts: { corridor_length: 'eight meters' },
+        },
+        gmUpdates: {
+          npcStates: { corporate_spy_1: 'Now following the player' },
+          proposedCanon: [
+            { summary: 'Ship has a brig', context: 'Cell door.' },
+          ],
+          notes: 'Escalating tension',
         },
       }),
     );
     const service = new SessionService(repo, mockAnthropic(callSession));
 
-    const result = await service.sendMessage({
-      adventureId,
-      campaignId,
-      playerMessage: 'I open the airlock.',
-    });
+    const result = await service.sendMessage(baseArgs(campaignId, adventureId));
 
     expect(result.message.role).toBe('gm');
     expect(result.message.content).toBe('The airlock hisses open.');
-    expect(result.proposals.stateChanges?.resourcePools?.dr_chen_hp.delta).toBe(
-      -2,
-    );
+    expect(result.applied.resourcePools.dr_chen_hp).toEqual({
+      current: 8,
+      max: 10,
+    });
 
-    const rows = await db
+    // Campaign state mutated.
+    const [stateRow] = await db
+      .select()
+      .from(schema.campaignStates)
+      .where(eq(schema.campaignStates.campaignId, campaignId));
+    const data = stateRow.data as {
+      resourcePools: Record<string, { current: number }>;
+      worldFacts: Record<string, string>;
+    };
+    expect(data.resourcePools.dr_chen_hp.current).toBe(8);
+    expect(data.worldFacts.corridor_length).toBe('eight meters');
+
+    // Three events: player_action, gm_response, state_update.
+    const events = await db
+      .select()
+      .from(schema.gameEvents)
+      .where(eq(schema.gameEvents.adventureId, adventureId))
+      .orderBy(asc(schema.gameEvents.sequenceNumber));
+    expect(events.map((e) => e.eventType)).toEqual([
+      'player_action',
+      'gm_response',
+      'state_update',
+    ]);
+    expect(events.map((e) => e.sequenceNumber)).toEqual([1, 2, 3]);
+
+    // Canon routed + auto-promoted (Solo Blind).
+    const canon = await db
+      .select()
+      .from(schema.pendingCanon)
+      .where(eq(schema.pendingCanon.adventureId, adventureId));
+    expect(canon).toHaveLength(1);
+    expect(canon[0].status).toBe('promoted');
+
+    // NPC agenda merged into gm_context.blob.narrative.npcAgendas.
+    const [ctxRow] = await db
+      .select({ blob: schema.gmContexts.blob })
+      .from(schema.gmContexts)
+      .where(eq(schema.gmContexts.adventureId, adventureId));
+    const agendas = (
+      (ctxRow.blob as { narrative: { npcAgendas: Record<string, string> } })
+        .narrative.npcAgendas
+    );
+    expect(agendas.corporate_spy_1).toBe('Now following the player');
+
+    // One telemetry row keyed to the gm_response sequence.
+    const telemetry = await db
+      .select()
+      .from(schema.adventureTelemetry)
+      .where(eq(schema.adventureTelemetry.adventureId, adventureId));
+    expect(telemetry).toHaveLength(1);
+    expect(telemetry[0].sequenceNumber).toBe(2);
+    const payload = telemetry[0].payload as {
+      notes: { original: string | null };
+    };
+    expect(payload.notes.original).toBe('Escalating tension');
+
+    // Two message rows: player input, corrected GM narration.
+    const messages = await db
       .select()
       .from(schema.messages)
       .where(eq(schema.messages.adventureId, adventureId))
       .orderBy(asc(schema.messages.createdAt));
-    expect(rows).toHaveLength(2);
-    expect(rows[0].role).toBe('player');
-    expect(rows[0].content).toBe('I open the airlock.');
-    expect(rows[1].role).toBe('gm');
-    expect(rows[1].content).toBe('The airlock hisses open.');
+    expect(messages).toHaveLength(2);
+    expect(messages[0].role).toBe('player');
+    expect(messages[1].role).toBe('gm');
+    expect(messages[1].content).toBe('The airlock hisses open.');
   });
+});
 
-  it('does not mutate campaign_state.data or create pending_canon rows', async () => {
+describe('SessionService (integration) — correction succeeds', () => {
+  it('writes four events with superseded_by linking; messages carries only corrected text', async () => {
+    const db = getTestDb();
+    const { campaignId, adventureId } = await seedReadyAdventure();
+
+    const rejectedResponse = toolUseMessage({
+      playerText: 'You punch through the alien.',
+      stateChanges: {
+        resourcePools: { xenomorph_hp: { delta: -4 } }, // unknown pool, negative delta
+      },
+      gmUpdates: {},
+    });
+    const correctedResponse = toolUseMessage({
+      playerText: 'You miss; the alien screeches.',
+      stateChanges: {
+        resourcePools: { dr_chen_hp: { delta: -1 } },
+      },
+      gmUpdates: { npcStates: {} },
+    });
+    const callSession = vi
+      .fn()
+      .mockResolvedValueOnce(rejectedResponse)
+      .mockResolvedValueOnce(correctedResponse);
+    const service = new SessionService(repo, mockAnthropic(callSession));
+
+    const result = await service.sendMessage(baseArgs(campaignId, adventureId));
+
+    expect(callSession).toHaveBeenCalledTimes(2);
+    expect(result.message.content).toBe('You miss; the alien screeches.');
+    expect(result.applied.resourcePools.dr_chen_hp).toEqual({
+      current: 9,
+      max: 10,
+    });
+
+    const events = await db
+      .select()
+      .from(schema.gameEvents)
+      .where(eq(schema.gameEvents.adventureId, adventureId))
+      .orderBy(asc(schema.gameEvents.sequenceNumber));
+    expect(events.map((e) => e.eventType)).toEqual([
+      'player_action',
+      'gm_response',
+      'correction',
+      'state_update',
+    ]);
+    const gmResponseRow = events[1];
+    const correctionRow = events[2];
+    expect(gmResponseRow.supersededBy).toBe(correctionRow.id);
+    expect(correctionRow.supersededBy).toBeNull();
+
+    // Messages table carries only the corrected text.
+    const messages = await db
+      .select()
+      .from(schema.messages)
+      .where(eq(schema.messages.adventureId, adventureId));
+    const gmMessages = messages.filter((m) => m.role === 'gm');
+    expect(gmMessages).toHaveLength(1);
+    expect(gmMessages[0].content).toBe('You miss; the alien screeches.');
+
+    // Telemetry keyed to gm_response sequence, correction block populated.
+    const [tele] = await db
+      .select()
+      .from(schema.adventureTelemetry)
+      .where(eq(schema.adventureTelemetry.adventureId, adventureId));
+    expect(tele.sequenceNumber).toBe(gmResponseRow.sequenceNumber);
+    const telePayload = tele.payload as {
+      correction?: { rejections: Array<{ path: string }> };
+    };
+    expect(telePayload.correction).toBeDefined();
+    expect(telePayload.correction!.rejections[0].path).toBe(
+      'resourcePools.xenomorph_hp',
+    );
+  });
+});
+
+describe('SessionService (integration) — correction fails', () => {
+  it('throws SessionCorrectionError and rolls back the turn transaction', async () => {
     const db = getTestDb();
     const { campaignId, adventureId } = await seedReadyAdventure();
 
@@ -198,94 +349,55 @@ describe('SessionService (integration)', () => {
       .from(schema.campaignStates)
       .where(eq(schema.campaignStates.campaignId, campaignId));
 
-    const callSession = vi.fn().mockResolvedValue(
-      toolUseMessage({
-        playerText: 'Nothing happens.',
-        stateChanges: {
-          resourcePools: { dr_chen_hp: { delta: -5 } },
-          worldFacts: { corridor_length: 'eight meters' },
-        },
-        gmUpdates: {
-          proposedCanon: [
-            { summary: 'Ship has a brig.', context: 'Cell door.' },
-          ],
-        },
-      }),
-    );
+    const alwaysRejecting = toolUseMessage({
+      playerText: 'Impossible action.',
+      stateChanges: {
+        resourcePools: { xenomorph_hp: { delta: -4 } },
+      },
+      gmUpdates: {},
+    });
+    const callSession = vi
+      .fn()
+      .mockResolvedValueOnce(alwaysRejecting)
+      .mockResolvedValueOnce(alwaysRejecting);
     const service = new SessionService(repo, mockAnthropic(callSession));
 
-    await service.sendMessage({
-      adventureId,
-      campaignId,
-      playerMessage: 'I wait.',
-    });
+    await expect(
+      service.sendMessage(baseArgs(campaignId, adventureId)),
+    ).rejects.toBeInstanceOf(SessionCorrectionError);
+    expect(callSession).toHaveBeenCalledTimes(2);
 
+    // Campaign state unchanged.
     const [stateAfter] = await db
       .select()
       .from(schema.campaignStates)
       .where(eq(schema.campaignStates.campaignId, campaignId));
     expect(stateAfter.data).toEqual(stateBefore.data);
 
-    const pending = await db
-      .select()
-      .from(schema.pendingCanon)
-      .where(eq(schema.pendingCanon.adventureId, adventureId));
-    expect(pending).toHaveLength(0);
-
+    // Only the player message persists; no events, no canon, no telemetry.
     const events = await db
       .select()
       .from(schema.gameEvents)
       .where(eq(schema.gameEvents.adventureId, adventureId));
     expect(events).toHaveLength(0);
-  });
 
-  it('passes prior messages in chronological order with DB roles mapped', async () => {
-    const db = getTestDb();
-    const { campaignId, adventureId } = await seedReadyAdventure();
+    const canon = await db
+      .select()
+      .from(schema.pendingCanon)
+      .where(eq(schema.pendingCanon.adventureId, adventureId));
+    expect(canon).toHaveLength(0);
 
-    await db.insert(schema.messages).values([
-      {
-        adventureId,
-        role: 'player',
-        content: 'First input.',
-        createdAt: new Date('2026-04-17T11:00:00Z'),
-      },
-      {
-        adventureId,
-        role: 'gm',
-        content: 'First response.',
-        createdAt: new Date('2026-04-17T11:00:01Z'),
-      },
-    ]);
+    const telemetry = await db
+      .select()
+      .from(schema.adventureTelemetry)
+      .where(eq(schema.adventureTelemetry.adventureId, adventureId));
+    expect(telemetry).toHaveLength(0);
 
-    const callSession = vi
-      .fn()
-      .mockResolvedValue(toolUseMessage({ playerText: 'Second response.' }));
-    const service = new SessionService(repo, mockAnthropic(callSession));
-
-    await service.sendMessage({
-      adventureId,
-      campaignId,
-      playerMessage: 'Second input.',
-    });
-
-    const sentMessages = callSession.mock.calls[0][0].messages as Array<{
-      role: string;
-      content: string;
-    }>;
-    // [0] snapshot, [1] first player → user, [2] first GM → assistant, [3] new player
-    expect(sentMessages).toHaveLength(4);
-    expect(sentMessages[1]).toEqual({
-      role: 'user',
-      content: 'First input.',
-    });
-    expect(sentMessages[2]).toEqual({
-      role: 'assistant',
-      content: 'First response.',
-    });
-    expect(sentMessages[3]).toEqual({
-      role: 'user',
-      content: 'Second input.',
-    });
+    const messages = await db
+      .select()
+      .from(schema.messages)
+      .where(eq(schema.messages.adventureId, adventureId));
+    expect(messages).toHaveLength(1);
+    expect(messages[0].role).toBe('player');
   });
 });

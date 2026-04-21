@@ -10,6 +10,7 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 import { SessionController } from './session.controller';
 import {
+  SessionCorrectionError,
   SessionOutputError,
   SessionPreconditionError,
 } from './session.service';
@@ -38,7 +39,14 @@ function mockSessionService() {
         content: 'The airlock is sealed.',
         createdAt: new Date('2026-04-17T12:00:00Z'),
       },
-      proposals: { playerText: 'The airlock is sealed.' },
+      applied: {
+        resourcePools: {},
+        entities: {},
+        flags: {},
+        scenarioState: {},
+        worldFacts: {},
+      },
+      thresholds: [],
     }),
   };
 }
@@ -60,20 +68,20 @@ describe('SessionController', () => {
   const dto = { content: 'I check the airlock.' };
 
   describe('happy path', () => {
-    it('returns the persisted GM message and the full proposals payload', async () => {
+    it('returns the persisted GM message, applied deltas, and thresholds', async () => {
       const result = await controller.sendMessage('c1', 'a1', dto, fakeUser);
       expect(adventureService.findById).toHaveBeenCalledWith('c1', 'a1', 'u1');
       expect(sessionService.sendMessage).toHaveBeenCalledWith({
         adventureId: 'a1',
         campaignId: 'c1',
+        playerUserId: 'u1',
         playerMessage: 'I check the airlock.',
       });
       expect(result.message.role).toBe('assistant');
       expect(result.message.content).toBe('The airlock is sealed.');
       expect(result.message.createdAt).toBe('2026-04-17T12:00:00.000Z');
-      expect(result.proposals).toEqual({
-        playerText: 'The airlock is sealed.',
-      });
+      expect(result.applied).toBeDefined();
+      expect(result.thresholds).toEqual([]);
     });
   });
 
@@ -112,6 +120,18 @@ describe('SessionController', () => {
       await expect(
         controller.sendMessage('c1', 'a1', dto, fakeUser),
       ).rejects.toBeInstanceOf(BadGatewayException);
+    });
+
+    it('returns 502 with gm_correction_failed code when SessionCorrectionError fires', async () => {
+      sessionService.sendMessage.mockRejectedValue(
+        new SessionCorrectionError('both rounds rejected', [], []),
+      );
+      await expect(
+        controller.sendMessage('c1', 'a1', dto, fakeUser),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({ error: 'gm_correction_failed' }),
+        status: 502,
+      });
     });
 
     it('propagates unknown errors unchanged', async () => {
