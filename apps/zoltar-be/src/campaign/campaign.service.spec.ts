@@ -20,6 +20,7 @@ function mockRepo() {
     updateName: vi.fn(),
     hasActiveAdventure: vi.fn().mockResolvedValue(false),
     deleteCampaign: vi.fn(),
+    getStateData: vi.fn(),
   };
 }
 
@@ -124,6 +125,48 @@ describe('CampaignService', () => {
       repo.findMember.mockResolvedValue(null);
       await expect(service.assertMember('c1', 'u1')).rejects.toThrow(
         ForbiddenException,
+      );
+    });
+  });
+
+  describe('getStateData', () => {
+    it('returns the state data when the user is a member', async () => {
+      repo.findMember.mockResolvedValue({
+        campaignId: 'c1',
+        userId: 'u1',
+        role: 'player',
+      });
+      const stateData = {
+        schemaVersion: 1,
+        resourcePools: { dr_chen_hp: { current: 8, max: 10 } },
+        entities: {},
+        flags: {},
+        scenarioState: {},
+        worldFacts: {},
+      };
+      repo.getStateData.mockResolvedValue(stateData);
+
+      const result = await service.getStateData('c1', 'u1');
+      expect(result).toEqual(stateData);
+    });
+
+    it('throws ForbiddenException when the user is not a member', async () => {
+      repo.findMember.mockResolvedValue(null);
+      await expect(service.getStateData('c1', 'u1')).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(repo.getStateData).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when no state row exists', async () => {
+      repo.findMember.mockResolvedValue({
+        campaignId: 'c1',
+        userId: 'u1',
+        role: 'player',
+      });
+      repo.getStateData.mockResolvedValue(null);
+      await expect(service.getStateData('c1', 'u1')).rejects.toThrow(
+        NotFoundException,
       );
     });
   });

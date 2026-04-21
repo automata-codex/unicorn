@@ -12,6 +12,7 @@ function mockCampaignService() {
     findById: vi.fn(),
     assertMember: vi.fn().mockResolvedValue(undefined),
     assertOwner: vi.fn().mockResolvedValue(undefined),
+    getStateData: vi.fn(),
   };
 }
 
@@ -90,6 +91,38 @@ describe('CampaignController', () => {
       svc.findById.mockRejectedValue(new NotFoundException());
 
       await expect(controller.findOne('missing', fakeUser)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('GET /campaigns/:campaignId/state', () => {
+    it('returns the campaign state data wrapped in { data }', async () => {
+      const stateData = {
+        schemaVersion: 1,
+        resourcePools: { dr_chen_hp: { current: 8, max: 10 } },
+        entities: {},
+        flags: {},
+        scenarioState: {},
+        worldFacts: {},
+      };
+      svc.getStateData.mockResolvedValue(stateData);
+
+      const result = await controller.getState('c1', fakeUser);
+      expect(svc.getStateData).toHaveBeenCalledWith('c1', 'u1');
+      expect(result).toEqual({ data: stateData });
+    });
+
+    it('propagates ForbiddenException when the user is not a member', async () => {
+      svc.getStateData.mockRejectedValue(new ForbiddenException());
+      await expect(controller.getState('c1', fakeUser)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('propagates NotFoundException when state is missing', async () => {
+      svc.getStateData.mockRejectedValue(new NotFoundException());
+      await expect(controller.getState('c1', fakeUser)).rejects.toThrow(
         NotFoundException,
       );
     });

@@ -48,6 +48,7 @@ function mockSessionService() {
       },
       thresholds: [],
     }),
+    listMessages: vi.fn(),
   };
 }
 
@@ -139,6 +140,41 @@ describe('SessionController', () => {
       await expect(
         controller.sendMessage('c1', 'a1', dto, fakeUser),
       ).rejects.toThrow('boom');
+    });
+  });
+
+  describe('GET messages', () => {
+    it('returns the message log wrapped in { messages } after member auth', async () => {
+      const messages = [
+        {
+          id: 'm1',
+          role: 'user' as const,
+          content: 'I check the airlock.',
+          createdAt: '2026-04-17T11:00:00.000Z',
+        },
+        {
+          id: 'm2',
+          role: 'assistant' as const,
+          content: 'The airlock is sealed.',
+          createdAt: '2026-04-17T11:00:01.000Z',
+        },
+      ];
+      sessionService.listMessages.mockResolvedValue(messages);
+
+      const result = await controller.listMessages('c1', 'a1', fakeUser);
+      expect(adventureService.findById).toHaveBeenCalledWith('c1', 'a1', 'u1');
+      expect(sessionService.listMessages).toHaveBeenCalledWith('a1');
+      expect(result).toEqual({ messages });
+    });
+
+    it('propagates adventure findById failures (member check)', async () => {
+      adventureService.findById.mockRejectedValue(
+        new ConflictException('nope'),
+      );
+      await expect(
+        controller.listMessages('c1', 'a1', fakeUser),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(sessionService.listMessages).not.toHaveBeenCalled();
     });
   });
 

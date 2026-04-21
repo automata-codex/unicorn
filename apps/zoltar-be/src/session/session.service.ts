@@ -238,6 +238,36 @@ export class SessionService {
     };
   }
 
+  /**
+   * Returns the full chronological message log for an adventure, for the
+   * frontend play view to render on mount. Roles are mapped to the same
+   * wire-format the POST response uses: `player → user`, `gm → assistant`,
+   * `system → system`.
+   */
+  async listMessages(
+    adventureId: string,
+  ): Promise<
+    Array<{
+      id: string;
+      role: 'user' | 'assistant' | 'system';
+      content: string;
+      createdAt: string;
+    }>
+  > {
+    const rows = await this.repo.getMessagesAsc(adventureId);
+    return rows.map((m) => ({
+      id: m.id,
+      role:
+        m.role === 'player'
+          ? 'user'
+          : m.role === 'gm'
+            ? 'assistant'
+            : 'system',
+      content: m.content,
+      createdAt: m.createdAt.toISOString(),
+    }));
+  }
+
   private async callClaudeOnce(
     request: CallSessionParams,
     adventureId: string,

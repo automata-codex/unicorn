@@ -4,6 +4,7 @@ import {
   Body,
   ConflictException,
   Controller,
+  Get,
   Logger,
   Param,
   Post,
@@ -51,6 +52,18 @@ export class SessionController {
     private readonly sessionService: SessionService,
     private readonly adventureService: AdventureService,
   ) {}
+
+  @Get('messages')
+  async listMessages(
+    @Param('campaignId') campaignId: string,
+    @Param('adventureId') adventureId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    // assertMember is baked into adventureService.findById.
+    await this.adventureService.findById(campaignId, adventureId, user.id);
+    const messages = await this.sessionService.listMessages(adventureId);
+    return { messages };
+  }
 
   @Post('messages')
   async sendMessage(

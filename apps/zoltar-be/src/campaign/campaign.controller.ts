@@ -57,6 +57,15 @@ export class CampaignController {
     return this.campaignService.findById(campaignId);
   }
 
+  @Get(':campaignId/state')
+  async getState(
+    @Param('campaignId') campaignId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const data = await this.campaignService.getStateData(campaignId, user.id);
+    return { data };
+  }
+
   @Patch(':campaignId')
   async rename(
     @Param('campaignId') campaignId: string,
