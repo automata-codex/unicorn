@@ -2,16 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import {
   applyStatusDelta,
+  type CampaignStateData,
+  type CharacterStatus,
   classifySendError,
   deriveCharacterStatus,
   formatThresholdLine,
-  type CampaignStateData,
-  type CharacterStatus,
 } from './play-helpers';
 
-function stateWith(
-  overrides: Partial<CampaignStateData>,
-): CampaignStateData {
+function stateWith(overrides: Partial<CampaignStateData>): CampaignStateData {
   return {
     resourcePools: {},
     entities: {},

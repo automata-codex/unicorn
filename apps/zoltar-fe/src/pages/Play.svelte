@@ -7,15 +7,15 @@
   import CharacterStatusStrip from '../lib/components/play/CharacterStatusStrip.svelte';
   import MessageInput from '../lib/components/play/MessageInput.svelte';
   import MessageLog from '../lib/components/play/MessageLog.svelte';
-  import ThresholdBanner from '../lib/components/play/ThresholdBanner.svelte';
   import {
     applyStatusDelta,
-    classifySendError,
-    deriveCharacterStatus,
     type CampaignStateData,
     type CharacterStatus,
+    classifySendError,
+    deriveCharacterStatus,
     type ThresholdCrossing,
   } from '../lib/components/play/play-helpers';
+  import ThresholdBanner from '../lib/components/play/ThresholdBanner.svelte';
 
   import type { Adventure, CharacterSheet } from '../lib/types';
 
@@ -45,7 +45,9 @@
       const [advRes, charRes, msgRes, stateRes] = await Promise.all([
         api(`/api/v1/campaigns/${campaignId}/adventures/${adventureId}`),
         api(`/api/v1/campaigns/${campaignId}/characters`),
-        api(`/api/v1/campaigns/${campaignId}/adventures/${adventureId}/messages`),
+        api(
+          `/api/v1/campaigns/${campaignId}/adventures/${adventureId}/messages`,
+        ),
         api(`/api/v1/campaigns/${campaignId}/state`),
       ]);
 
@@ -87,7 +89,7 @@
       } else {
         messages = messagesBody.messages;
       }
-    } catch (_err) {
+    } catch {
       error = 'Failed to load adventure.';
     } finally {
       loading = false;
@@ -100,10 +102,7 @@
     retryAvailable = false;
 
     const optimisticId = `local-${Date.now()}`;
-    messages = [
-      ...messages,
-      { id: optimisticId, role: 'user', content },
-    ];
+    messages = [...messages, { id: optimisticId, role: 'user', content }];
 
     try {
       const res = await api(
@@ -166,7 +165,7 @@
             : 'GM service is unavailable. Try again in a moment.';
         retryAvailable = true;
       }
-    } catch (_err) {
+    } catch {
       error = 'Network error. Try again.';
       retryAvailable = true;
     } finally {

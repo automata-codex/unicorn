@@ -1,5 +1,5 @@
-import { getMothershipPoolDefinition } from '@uv/game-systems';
 import { Injectable, Logger } from '@nestjs/common';
+import { getMothershipPoolDefinition } from '@uv/game-systems';
 
 import { AnthropicService } from '../anthropic/anthropic.service';
 import { CampaignRepository } from '../campaign/campaign.repository';
@@ -246,9 +246,7 @@ export class SessionService {
    * wire-format the POST response uses: `player → user`, `gm → assistant`,
    * `system → system`.
    */
-  async listMessages(
-    adventureId: string,
-  ): Promise<
+  async listMessages(adventureId: string): Promise<
     Array<{
       id: string;
       role: 'user' | 'assistant' | 'system';
@@ -260,11 +258,7 @@ export class SessionService {
     return rows.map((m) => ({
       id: m.id,
       role:
-        m.role === 'player'
-          ? 'user'
-          : m.role === 'gm'
-            ? 'assistant'
-            : 'system',
+        m.role === 'player' ? 'user' : m.role === 'gm' ? 'assistant' : 'system',
       content: m.content,
       createdAt: m.createdAt.toISOString(),
     }));

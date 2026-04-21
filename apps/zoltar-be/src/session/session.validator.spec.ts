@@ -36,8 +36,8 @@ describe('validateStateChanges — resourcePools', () => {
     });
     expect(result.applied.resourcePools).toEqual({});
     expect(result.rejections).toHaveLength(1);
-    expect(result.rejections[0]!.path).toBe('resourcePools.xenomorph_hp');
-    expect(result.rejections[0]!.reason).toMatch(/bootstrap/i);
+    expect(result.rejections[0].path).toBe('resourcePools.xenomorph_hp');
+    expect(result.rejections[0].reason).toMatch(/bootstrap/i);
   });
 
   it('rejects spending a min:0 pool below zero without applying a partial delta', () => {
@@ -50,7 +50,7 @@ describe('validateStateChanges — resourcePools', () => {
     });
     expect(result.applied.resourcePools).toEqual({});
     expect(result.rejections).toHaveLength(1);
-    expect(result.rejections[0]!.reason).toMatch(/spend more than available/i);
+    expect(result.rejections[0].reason).toMatch(/spend more than available/i);
   });
 
   it('reports the death_save_required threshold when HP crosses zero downward', () => {
@@ -82,7 +82,7 @@ describe('validateStateChanges — resourcePools', () => {
     });
     expect(result.applied.resourcePools).toEqual({});
     expect(result.rejections).toHaveLength(1);
-    expect(result.rejections[0]!.reason).toMatch(/below minimum \(5\)/);
+    expect(result.rejections[0].reason).toMatch(/below minimum \(5\)/);
   });
 
   it('rejects a delta that would push a pool above its maximum', () => {
@@ -96,7 +96,7 @@ describe('validateStateChanges — resourcePools', () => {
     });
     expect(result.applied.resourcePools).toEqual({});
     expect(result.rejections).toHaveLength(1);
-    expect(result.rejections[0]!.reason).toMatch(/exceed maximum \(100\)/);
+    expect(result.rejections[0].reason).toMatch(/exceed maximum \(100\)/);
   });
 
   it('does not fire the HP threshold when healing from -1 to +2 (already past it)', () => {
@@ -158,7 +158,7 @@ describe('validateStateChanges — entities', () => {
     });
     expect(result.applied.entities).toEqual({});
     expect(result.rejections).toHaveLength(1);
-    expect(result.rejections[0]!.path).toBe('entities.dr_chen');
+    expect(result.rejections[0].path).toBe('entities.dr_chen');
   });
 });
 
@@ -171,7 +171,7 @@ describe('validateStateChanges — flags', () => {
     });
     expect(result.applied.flags).toEqual({});
     expect(result.rejections).toHaveLength(1);
-    expect(result.rejections[0]!.reason).toMatch(/trigger/i);
+    expect(result.rejections[0].reason).toMatch(/trigger/i);
   });
 
   it('applies a new flag that carries a trigger', () => {
@@ -228,7 +228,7 @@ describe('validateStateChanges — scenarioState', () => {
     });
     expect(result.applied.scenarioState).toEqual({});
     expect(result.rejections).toHaveLength(1);
-    expect(result.rejections[0]!.reason).toMatch(/synthesis time/i);
+    expect(result.rejections[0].reason).toMatch(/synthesis time/i);
   });
 
   it('overwrites current while preserving max and note on an existing key', () => {

@@ -116,7 +116,7 @@ export class SessionController {
         throw new BadGatewayException({
           error: 'gm_correction_failed',
           message:
-            "GM re-narration was rejected by the validator. Try sending your action again.",
+            'GM re-narration was rejected by the validator. Try sending your action again.',
         });
       }
       if (err instanceof SessionOutputError) {

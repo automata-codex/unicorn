@@ -90,8 +90,8 @@ describe('buildCorrectionRequest', () => {
       rejections,
     });
     const blocks = (
-      corrected.messages[corrected.messages.length - 1].content as
-        | Anthropic.ContentBlockParam[]
+      corrected.messages[corrected.messages.length - 1]
+        .content as Anthropic.ContentBlockParam[]
     )[0] as Anthropic.ToolResultBlockParam;
     expect(blocks.tool_use_id).toBe('toolu_abc');
     expect(blocks.is_error).toBe(true);
@@ -104,11 +104,12 @@ describe('buildCorrectionRequest', () => {
       rejections,
     });
     const toolResult = (
-      corrected.messages[corrected.messages.length - 1].content as
-        | Anthropic.ContentBlockParam[]
+      corrected.messages[corrected.messages.length - 1]
+        .content as Anthropic.ContentBlockParam[]
     )[0] as Anthropic.ToolResultBlockParam;
-    const text = (toolResult.content as Array<{ type: 'text'; text: string }>)[0]
-      .text;
+    const text = (
+      toolResult.content as Array<{ type: 'text'; text: string }>
+    )[0].text;
 
     expect(text).toContain('- resourcePools.xenomorph_hp:');
     expect(text).toContain('- flags.secret_door_found:');

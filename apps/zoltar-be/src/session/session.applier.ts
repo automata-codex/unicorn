@@ -1,5 +1,4 @@
 import type { MothershipCampaignState } from '@uv/game-systems';
-
 import type { ValidationResult } from './session.validator';
 
 export function applyToCampaignState(input: {

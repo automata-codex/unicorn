@@ -20,10 +20,7 @@ import { CanonRepository } from '../canon/canon.repository';
 import * as schema from '../db/schema';
 
 import { SessionRepository } from './session.repository';
-import {
-  SessionCorrectionError,
-  SessionService,
-} from './session.service';
+import { SessionCorrectionError, SessionService } from './session.service';
 
 import type Anthropic from '@anthropic-ai/sdk';
 import type { AnthropicService } from '../anthropic/anthropic.service';
@@ -187,7 +184,11 @@ describe('SessionService (integration) — happy path', () => {
         },
       }),
     );
-    const service = new SessionService(repo, mockAnthropic(callSession), campaignRepo);
+    const service = new SessionService(
+      repo,
+      mockAnthropic(callSession),
+      campaignRepo,
+    );
 
     const result = await service.sendMessage(baseArgs(campaignId, adventureId));
 
@@ -237,9 +238,8 @@ describe('SessionService (integration) — happy path', () => {
       .from(schema.gmContexts)
       .where(eq(schema.gmContexts.adventureId, adventureId));
     const agendas = (
-      (ctxRow.blob as { narrative: { npcAgendas: Record<string, string> } })
-        .narrative.npcAgendas
-    );
+      ctxRow.blob as { narrative: { npcAgendas: Record<string, string> } }
+    ).narrative.npcAgendas;
     expect(agendas.corporate_spy_1).toBe('Now following the player');
 
     // One telemetry row keyed to the gm_response sequence.
@@ -284,7 +284,11 @@ describe('SessionService (integration) — happy path', () => {
         gmUpdates: {},
       }),
     );
-    const service = new SessionService(repo, mockAnthropic(callSession), campaignRepo);
+    const service = new SessionService(
+      repo,
+      mockAnthropic(callSession),
+      campaignRepo,
+    );
 
     await service.sendMessage(baseArgs(campaignId, adventureId));
     await service.sendMessage(baseArgs(campaignId, adventureId));
@@ -320,7 +324,11 @@ describe('SessionService (integration) — correction succeeds', () => {
       .fn()
       .mockResolvedValueOnce(rejectedResponse)
       .mockResolvedValueOnce(correctedResponse);
-    const service = new SessionService(repo, mockAnthropic(callSession), campaignRepo);
+    const service = new SessionService(
+      repo,
+      mockAnthropic(callSession),
+      campaignRepo,
+    );
 
     const result = await service.sendMessage(baseArgs(campaignId, adventureId));
 
@@ -393,7 +401,11 @@ describe('SessionService (integration) — correction fails', () => {
       .fn()
       .mockResolvedValueOnce(alwaysRejecting)
       .mockResolvedValueOnce(alwaysRejecting);
-    const service = new SessionService(repo, mockAnthropic(callSession), campaignRepo);
+    const service = new SessionService(
+      repo,
+      mockAnthropic(callSession),
+      campaignRepo,
+    );
 
     await expect(
       service.sendMessage(baseArgs(campaignId, adventureId)),

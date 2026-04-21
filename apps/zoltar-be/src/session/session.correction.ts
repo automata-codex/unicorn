@@ -1,5 +1,4 @@
 import type Anthropic from '@anthropic-ai/sdk';
-
 import type { CallSessionParams } from '../anthropic/anthropic.service';
 import type { ValidationRejection } from './session.validator';
 

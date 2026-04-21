@@ -22,7 +22,9 @@ function stubRequest(): CallSessionParams {
   };
 }
 
-function stubResponse(overrides?: Partial<Anthropic.Message>): Anthropic.Message {
+function stubResponse(
+  overrides?: Partial<Anthropic.Message>,
+): Anthropic.Message {
   return {
     id: 'msg_1',
     type: 'message',

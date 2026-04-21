@@ -156,8 +156,8 @@ describe('writeTurnEvents (integration)', () => {
   it('links gm_response.superseded_by to the correction row id', async () => {
     const { campaignId, adventureId, userId } = await seedFixture();
 
-    const { gmResponseEventId, correctionEventId } = await getTestDb().transaction(
-      async (tx) =>
+    const { gmResponseEventId, correctionEventId } =
+      await getTestDb().transaction(async (tx) =>
         writeTurnEvents({
           tx,
           adventureId,
@@ -172,7 +172,7 @@ describe('writeTurnEvents (integration)', () => {
           applied: emptyApplied,
           thresholds: [],
         }),
-    );
+      );
 
     expect(correctionEventId).toBeDefined();
 

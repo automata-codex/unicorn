@@ -1,5 +1,5 @@
-import { type MothershipCampaignState } from '@uv/game-systems';
 import { Inject, Injectable } from '@nestjs/common';
+import { type MothershipCampaignState } from '@uv/game-systems';
 import { and, asc, eq, sql } from 'drizzle-orm';
 
 import { CanonRepository } from '../canon/canon.repository';
@@ -11,9 +11,9 @@ import { writeAdventureTelemetry } from './session.telemetry';
 
 import type { Db, DbOrTx } from '../db/db.provider';
 import type { SubmitGmResponse } from './session.schema';
-import type { DbMessage } from './session.window';
 import type { AdventureTelemetryPayload } from './session.telemetry';
 import type { ThresholdCrossing, ValidationResult } from './session.validator';
+import type { DbMessage } from './session.window';
 
 export interface ApplyTurnAtomicArgs {
   adventureId: string;

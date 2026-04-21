@@ -110,9 +110,9 @@ function makeCampaignRepo(
     .fn()
     .mockResolvedValue(emptyMothershipState()),
 ) {
-  return { getStateData } as unknown as import(
-    '../campaign/campaign.repository'
-  ).CampaignRepository;
+  return {
+    getStateData,
+  } as unknown as import('../campaign/campaign.repository').CampaignRepository;
 }
 
 function makeService(

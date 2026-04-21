@@ -53,9 +53,9 @@ function makeRepo(overrides: MockRepoOverrides = {}): SynthesisRepository {
 function makeCampaignRepo(
   getStateData: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(null),
 ) {
-  return { getStateData } as unknown as import(
-    '../campaign/campaign.repository'
-  ).CampaignRepository;
+  return {
+    getStateData,
+  } as unknown as import('../campaign/campaign.repository').CampaignRepository;
 }
 
 function makeService(
