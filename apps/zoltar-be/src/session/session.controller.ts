@@ -42,7 +42,7 @@ const messagesRequestSchema = z.object({
 });
 type MessagesRequestDto = z.infer<typeof messagesRequestSchema>;
 
-interface MessagesResponse {
+interface TurnPayload {
   message: {
     id: string;
     role: 'assistant';
@@ -58,6 +58,27 @@ interface MessagesResponse {
     purpose: string;
     target: number | null;
   }>;
+}
+
+type MessagesResponse = TurnPayload;
+
+function serializeTurn(result: SendMessageResult): TurnPayload {
+  return {
+    message: {
+      id: result.message.id,
+      role: 'assistant',
+      content: result.message.content,
+      createdAt: result.message.createdAt.toISOString(),
+    },
+    applied: result.applied,
+    thresholds: result.thresholds,
+    diceRequests: result.diceRequests.map((r) => ({
+      id: r.id,
+      notation: r.notation,
+      purpose: r.purpose,
+      target: r.target,
+    })),
+  };
 }
 
 @Controller('campaigns/:campaignId/adventures/:adventureId')
@@ -112,81 +133,87 @@ export class SessionController {
         playerMessage: dto.content,
       });
 
-      return {
-        message: {
-          id: result.message.id,
-          role: 'assistant',
-          content: result.message.content,
-          createdAt: result.message.createdAt.toISOString(),
-        },
-        applied: result.applied,
-        thresholds: result.thresholds,
-        diceRequests: result.diceRequests.map((r) => ({
-          id: r.id,
-          notation: r.notation,
-          purpose: r.purpose,
-          target: r.target,
-        })),
-      };
+      return serializeTurn(result);
     } catch (err) {
-      if (err instanceof DicePendingError) {
-        this.logger.warn(
-          `Narrative submission blocked (dice pending) for adventure=${adventureId}`,
-        );
-        throw new ConflictException({
-          error: 'dice_pending',
-          message:
-            'Resolve the pending dice prompts before submitting a narrative action.',
-          pendingRequestIds: err.pendingRequestIds,
-        });
-      }
-      if (err instanceof SessionPreconditionError) {
-        this.logger.warn(
-          `Session precondition failed for adventure=${adventureId}: ${err.message}`,
-        );
-        throw new ConflictException(err.message);
-      }
-      if (err instanceof SessionCorrectionError) {
-        this.logger.error(
-          `GM correction failed for adventure=${adventureId}: ${err.message}`,
-        );
-        throw new BadGatewayException({
-          error: 'gm_correction_failed',
-          message:
-            'GM re-narration was rejected by the validator. Try sending your action again.',
-        });
-      }
-      if (err instanceof SessionToolLoopError) {
-        this.logger.error(
-          `GM tool loop exhausted for adventure=${adventureId}: ${err.message}`,
-        );
-        throw new BadGatewayException({
-          error: 'gm_tool_loop_exhausted',
-          message:
-            'The GM is stuck in a tool-use loop. Try sending your action again.',
-        });
-      }
-      if (err instanceof SessionOutputError) {
-        this.logger.error(
-          `Session output error for adventure=${adventureId}: ${err.message}`,
-        );
-        throw new BadGatewayException('GM response could not be parsed.');
-      }
-      if (err instanceof AnthropicError) {
-        this.logger.error(
-          `Anthropic SDK error for adventure=${adventureId}: ${err.message}`,
-        );
-        throw new BadGatewayException('GM service is unavailable.');
-      }
-      throw err;
+      this.translateTurnError(err, adventureId);
     }
+  }
+
+  /**
+   * Maps a `sendMessage`-surfaced error to an HTTP exception. Reused by
+   * both `POST /messages` and the auto-advance branch of
+   * `POST /dice-results`. Always throws; the `never` return is a hint to
+   * callers that execution does not continue past this call.
+   */
+  private translateTurnError(err: unknown, adventureId: string): never {
+    if (err instanceof DicePendingError) {
+      this.logger.warn(
+        `Narrative submission blocked (dice pending) for adventure=${adventureId}`,
+      );
+      throw new ConflictException({
+        error: 'dice_pending',
+        message:
+          'Resolve the pending dice prompts before submitting a narrative action.',
+        pendingRequestIds: err.pendingRequestIds,
+      });
+    }
+    if (err instanceof SessionPreconditionError) {
+      this.logger.warn(
+        `Session precondition failed for adventure=${adventureId}: ${err.message}`,
+      );
+      throw new ConflictException(err.message);
+    }
+    if (err instanceof SessionCorrectionError) {
+      this.logger.error(
+        `GM correction failed for adventure=${adventureId}: ${err.message}`,
+      );
+      throw new BadGatewayException({
+        error: 'gm_correction_failed',
+        message:
+          'GM re-narration was rejected by the validator. Try sending your action again.',
+      });
+    }
+    if (err instanceof SessionToolLoopError) {
+      this.logger.error(
+        `GM tool loop exhausted for adventure=${adventureId}: ${err.message}`,
+      );
+      throw new BadGatewayException({
+        error: 'gm_tool_loop_exhausted',
+        message:
+          'The GM is stuck in a tool-use loop. Try sending your action again.',
+      });
+    }
+    if (err instanceof SessionOutputError) {
+      this.logger.error(
+        `Session output error for adventure=${adventureId}: ${err.message}`,
+      );
+      throw new BadGatewayException('GM response could not be parsed.');
+    }
+    if (err instanceof AnthropicError) {
+      this.logger.error(
+        `Anthropic SDK error for adventure=${adventureId}: ${err.message}`,
+      );
+      throw new BadGatewayException('GM service is unavailable.');
+    }
+    throw err;
   }
 
   /**
    * Player submits the result of a dice roll issued on a prior turn via
    * `submit_gm_response.diceRequests`. Writes a `dice_roll` event, flips the
-   * `dice_request` to `resolved`, returns remaining pending ids. Does NOT
-   * call Claude — the result folds into the next narrative turn's prompt.
+   * `dice_request` to `resolved`, returns remaining pending ids.
+   *
+   * By default does NOT call Claude — the result folds into the next
+   * narrative turn's prompt. When `autoAdvance: true` and this submission
+   * resolves the last pending request, runs a fresh turn immediately and
+   * includes the resulting narration under `turn` in the response; callers
+   * can render the GM's reply without requiring the player to type first.
+   *
+   * Turn-level errors surfaced from the auto-advance branch (validator,
+   * tool-loop cap, Anthropic failures, etc.) use the same mappings as
+   * `POST /messages`. The dice_request is always resolved before the turn
+   * fires, so failures here do not leave the request hanging — the caller
+   * can retry via `POST /messages` if desired.
    */
   @Post('dice-results')
   async submitDiceResult(
@@ -199,12 +226,14 @@ export class SessionController {
     requestId: string;
     accepted: true;
     pendingRequestIds: string[];
+    turn?: TurnPayload;
   }> {
     // assertMember via findById; also confirms the adventure exists and
     // belongs to this campaign.
     await this.adventureService.findById(campaignId, adventureId, user.id);
+    let result;
     try {
-      return await this.sessionService.submitDiceResult({
+      result = await this.sessionService.submitDiceResult({
         adventureId,
         campaignId,
         actorUserId: user.id,
@@ -229,7 +258,15 @@ export class SessionController {
           message: err.message,
         });
       }
-      throw err;
+      // Errors surfaced during the auto-advance turn share the /messages
+      // mapping — gm_correction_failed, gm_tool_loop_exhausted, etc.
+      this.translateTurnError(err, adventureId);
     }
+    return {
+      requestId: result.requestId,
+      accepted: result.accepted,
+      pendingRequestIds: result.pendingRequestIds,
+      ...(result.turn ? { turn: serializeTurn(result.turn) } : {}),
+    };
   }
 }

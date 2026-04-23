@@ -137,7 +137,7 @@ Create a new adventure within a campaign. In Phase 1 this is always Solo Blind �
 
 Submit a narrative player action. Triggers the full GM pipeline — state snapshot construction, Claude call (with inner tool loop for `roll_dice` / `rules_lookup`), validator, correction pass if rejected, atomic turn write.
 
-> **Note:** Phase 1 ships separate endpoints for the two action types — `POST /messages` for narrative and `POST /dice-results` for dice submissions (below). The unified `POST /actions` endpoint shown in earlier drafts of this doc is deferred; the shape on the wire is otherwise identical to what's specified here.
+> **Note:** Narrative and dice-result submissions intentionally use separate endpoints (`POST /messages` and `POST /dice-results`) rather than a single `POST /actions` with a discriminated-union body. See `docs/decisions.md § Player-Action Endpoint Shape` for the rationale and the revisit condition.
 
 **Request:**
 ```json
@@ -185,7 +185,7 @@ Other error codes from this endpoint: `gm_correction_failed` (502), `gm_tool_loo
 
 #### `POST /api/v1/campaigns/:campaignId/adventures/:adventureId/dice-results`
 
-Player submits the result of a dice roll issued by a previous GM response. Resolves the referenced `dice_request`, writes a `dice_roll` event, and folds the outcome into the next narrative turn's prompt. Does **not** call Claude.
+Player submits the result of a dice roll issued by a previous GM response. Resolves the referenced `dice_request`, writes a `dice_roll` event, and folds the outcome into the next narrative turn's prompt.
 
 **Request:**
 ```json
@@ -193,13 +193,16 @@ Player submits the result of a dice roll issued by a previous GM response. Resol
   "requestId": "uuid",
   "notation": "1d100",
   "results": [47],
-  "source": "player_entered"
+  "source": "player_entered",
+  "autoAdvance": true
 }
 ```
 
 `source` is `"system_generated"` when the client used the "Roll for me" button (executed via the shared `@uv/game-systems` parser, same code path as the backend's `roll_dice` tool) and `"player_entered"` when the player typed raw die faces.
 
-**Response `200`:**
+`autoAdvance` (optional, default `false`) asks the backend to run a Claude turn immediately after this submission resolves the last pending `dice_request`. This mirrors the tabletop beat where reporting a roll prompts the GM to narrate the outcome — no player narrative is required. Ignored when other `dice_request` rows remain pending. The typical FE pattern is to set `autoAdvance: true` when the player submits with an empty narrative field and `false` otherwise (falling back to `POST /messages`, which folds the resolved rolls into its own prompt via the `[Dice results]` block).
+
+**Response `200` (no auto-advance / pending remain):**
 ```json
 {
   "requestId": "uuid",
@@ -208,11 +211,32 @@ Player submits the result of a dice roll issued by a previous GM response. Resol
 }
 ```
 
-`pendingRequestIds` lists remaining unresolved dice_requests for this adventure. The narrative input re-enables client-side when this array is empty.
+**Response `200` (auto-advance fired):**
+```json
+{
+  "requestId": "uuid",
+  "accepted": true,
+  "pendingRequestIds": [],
+  "turn": {
+    "message": {
+      "id": "uuid",
+      "role": "assistant",
+      "content": "You brace for the pressure loss...",
+      "createdAt": "2026-04-23T14:00:00Z"
+    },
+    "applied": { "resourcePools": {} },
+    "thresholds": [],
+    "diceRequests": []
+  }
+}
+```
+
+`pendingRequestIds` lists remaining unresolved dice_requests for this adventure. The narrative input re-enables client-side when this array is empty. When `turn` is present, the FE should render the GM reply directly instead of calling `POST /messages`.
 
 **Error codes:**
 - `409 dice_request_conflict` — unknown id, already resolved, or scoped to a different adventure.
 - `422 dice_result_invalid` — notation mismatch vs. the persisted request, wrong number of results, or a result outside the per-die range.
+- When `autoAdvance` fires and the subsequent Claude turn fails, the standard `POST /messages` error codes apply: `502 gm_correction_failed`, `502 gm_tool_loop_exhausted`, `502` plain on parse / SDK errors. The dice_request is resolved before the turn runs, so retrying via `POST /messages` is always safe.
 
 ---
 

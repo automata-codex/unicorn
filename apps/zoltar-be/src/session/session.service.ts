@@ -228,11 +228,18 @@ export class SessionService {
     // 2. Persist the incoming player message OUTSIDE the atomic turn
     //    transaction. A retry after any downstream failure can still
     //    reproduce the action without re-typing.
-    await this.repo.insertMessage({
-      adventureId: args.adventureId,
-      role: 'player',
-      content: args.playerMessage,
-    });
+    //
+    //    Empty `playerMessage` means the turn was auto-advanced from a
+    //    dice-result submission (see submitDiceResult with autoAdvance):
+    //    the [Dice results] block is the implicit turn input, so there's
+    //    no player message to persist or render.
+    if (args.playerMessage.length > 0) {
+      await this.repo.insertMessage({
+        adventureId: args.adventureId,
+        role: 'player',
+        content: args.playerMessage,
+      });
+    }
 
     // 3. Resolve the active system for rules_lookup filtering. Pre-loop so a
     //    missing game_system row fails before we spend on Claude.
@@ -387,15 +394,24 @@ export class SessionService {
    * Apply a player-submitted dice result to the adventure. Validates the
    * submission against the persisted dice_request, then writes a `dice_roll`
    * event (`roll_source` mirrors the client path) and flips the request to
-   * `resolved` atomically. Does not call Claude — the result is folded into
-   * the next narrative turn's prompt via `playerDiceRollsSinceLastGmResponse`
-   * in `buildSessionRequest`.
+   * `resolved` atomically. By default does not call Claude — the result is
+   * folded into the next narrative turn's prompt via
+   * `playerDiceRollsSinceLastGmResponse` in `buildSessionRequest`.
+   *
+   * When `submission.autoAdvance` is true and this submission resolves the
+   * last pending dice_request for the adventure, immediately runs a fresh
+   * Claude turn with no narrative input — the `[Dice results]` block is the
+   * only new user message. Mirrors the TTRPG beat where a player reporting
+   * a roll prompts the GM to narrate the outcome.
    *
    * Errors:
    *   - `DiceResultConflictError` (→ 409): unknown request, already resolved,
    *     or scoped to a different adventure.
    *   - `DiceResultValidationError` (→ 422): notation mismatch, wrong number
    *     of results, or a result outside the per-die range.
+   *   - Any error surfaced by `sendMessage` when the auto-advance branch
+   *     runs — the dice_request is already resolved at that point, so
+   *     callers can retry via the narrative endpoint.
    */
   async submitDiceResult(args: {
     adventureId: string;
@@ -406,6 +422,7 @@ export class SessionService {
     requestId: string;
     accepted: true;
     pendingRequestIds: string[];
+    turn?: SendMessageResult;
   }> {
     const request = await this.repo.loadDiceRequest(args.submission.requestId);
     if (
@@ -476,10 +493,31 @@ export class SessionService {
     const stillPending = await this.repo.pendingDiceRequestsForAdventure(
       args.adventureId,
     );
+    const pendingRequestIds = stillPending.map((r) => r.id);
+
+    // Auto-advance: if the client asked us to continue the turn and there are
+    // no other outstanding prompts, run a fresh Claude turn immediately with
+    // no narrative input. The [Dice results] block is the implicit turn
+    // input, fetched by `sendMessage` via playerDiceRollsSinceLastGmResponse.
+    if (args.submission.autoAdvance && pendingRequestIds.length === 0) {
+      const turn = await this.sendMessage({
+        adventureId: args.adventureId,
+        campaignId: args.campaignId,
+        playerUserId: args.actorUserId,
+        playerMessage: '',
+      });
+      return {
+        requestId: request.id,
+        accepted: true,
+        pendingRequestIds,
+        turn,
+      };
+    }
+
     return {
       requestId: request.id,
       accepted: true,
-      pendingRequestIds: stillPending.map((r) => r.id),
+      pendingRequestIds,
     };
   }
 

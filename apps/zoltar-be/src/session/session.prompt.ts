@@ -181,7 +181,13 @@ export function buildSessionRequest(input: {
     });
   }
 
-  messages.push({ role: 'user', content: input.playerMessage });
+  // Empty `playerMessage` means an auto-advanced turn from a dice-result
+  // submission — the [Dice results] block above is the turn's user input,
+  // no narrative text to add. Skipping keeps Claude from receiving an empty
+  // user turn (which the API rejects).
+  if (input.playerMessage.length > 0) {
+    messages.push({ role: 'user', content: input.playerMessage });
+  }
 
   const toolChoice: Anthropic.ToolChoiceAny = { type: 'any' };
 

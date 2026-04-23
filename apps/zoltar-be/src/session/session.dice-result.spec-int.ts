@@ -426,6 +426,172 @@ describe('SessionService.submitDiceResult (integration)', () => {
   });
 });
 
+describe('SessionService.submitDiceResult autoAdvance (integration)', () => {
+  function submitGmToolUse(
+    input: Record<string, unknown>,
+  ): Anthropic.Message {
+    return {
+      content: [
+        {
+          type: 'tool_use',
+          id: 'toolu_auto_advance',
+          name: 'submit_gm_response',
+          input,
+        } as unknown as Anthropic.ToolUseBlock,
+      ],
+      model: 'claude-sonnet-4-6',
+      usage: { input_tokens: 1, output_tokens: 1 },
+    } as unknown as Anthropic.Message;
+  }
+
+  it('runs a Claude turn with no narrative when the last pending request resolves', async () => {
+    const { campaignId, adventureId, userId } = await seedFixture();
+    const requestId = await seedRequest({
+      adventureId,
+      notation: '1d100',
+      target: 65,
+    });
+    const callSession = vi.fn().mockResolvedValueOnce(
+      submitGmToolUse({
+        playerText: 'You resist the pressure loss and push onward.',
+      }),
+    );
+    const service = makeService(callSession);
+
+    const result = await service.submitDiceResult({
+      adventureId,
+      campaignId,
+      actorUserId: userId,
+      submission: {
+        requestId,
+        notation: '1d100',
+        results: [34],
+        source: 'player_entered',
+        autoAdvance: true,
+      },
+    });
+
+    expect(result.turn).toBeDefined();
+    expect(result.turn?.message.role).toBe('gm');
+    expect(result.turn?.message.content).toBe(
+      'You resist the pressure loss and push onward.',
+    );
+    expect(result.pendingRequestIds).toEqual([]);
+
+    // Claude was called exactly once: the auto-advanced turn.
+    expect(callSession).toHaveBeenCalledTimes(1);
+
+    // The request the service sent Claude contains the [Dice results] block
+    // as a user message and — critically — no empty narrative follow-up.
+    const sent = callSession.mock.calls[0][0];
+    const userMessages = sent.messages.filter(
+      (m: Anthropic.MessageParam) => m.role === 'user',
+    );
+    const diceBlock = userMessages.find(
+      (m: Anthropic.MessageParam) =>
+        typeof m.content === 'string' && m.content.startsWith('[Dice results]'),
+    );
+    expect(diceBlock).toBeDefined();
+    expect(
+      userMessages.some(
+        (m: Anthropic.MessageParam) => m.content === '',
+      ),
+    ).toBe(false);
+  });
+
+  it('does not persist a blank player message when auto-advancing', async () => {
+    const { campaignId, adventureId, userId } = await seedFixture();
+    const requestId = await seedRequest({
+      adventureId,
+      notation: '1d100',
+      target: null,
+    });
+    const callSession = vi
+      .fn()
+      .mockResolvedValueOnce(submitGmToolUse({ playerText: 'ok' }));
+    const service = makeService(callSession);
+
+    await service.submitDiceResult({
+      adventureId,
+      campaignId,
+      actorUserId: userId,
+      submission: {
+        requestId,
+        notation: '1d100',
+        results: [10],
+        source: 'player_entered',
+        autoAdvance: true,
+      },
+    });
+
+    const messages = await getTestDb()
+      .select()
+      .from(schema.messages)
+      .where(eq(schema.messages.adventureId, adventureId));
+    // Only the GM message persisted — no empty player bubble.
+    expect(messages.map((m) => m.role)).toEqual(['gm']);
+  });
+
+  it('does not call Claude when autoAdvance is true but other requests remain pending', async () => {
+    const { campaignId, adventureId, userId } = await seedFixture();
+    const r1 = await seedRequest({
+      adventureId,
+      notation: '1d100',
+      target: null,
+    });
+    const r2 = await seedRequest({
+      adventureId,
+      notation: '1d100',
+      target: null,
+    });
+    const callSession = vi.fn();
+    const service = makeService(callSession);
+
+    const result = await service.submitDiceResult({
+      adventureId,
+      campaignId,
+      actorUserId: userId,
+      submission: {
+        requestId: r1,
+        notation: '1d100',
+        results: [50],
+        source: 'player_entered',
+        autoAdvance: true,
+      },
+    });
+
+    expect(result.turn).toBeUndefined();
+    expect(result.pendingRequestIds).toEqual([r2]);
+    expect(callSession).not.toHaveBeenCalled();
+  });
+
+  it('does not call Claude when autoAdvance is unset (default behaviour)', async () => {
+    const { campaignId, adventureId, userId } = await seedFixture();
+    const requestId = await seedRequest({
+      adventureId,
+      notation: '1d100',
+      target: null,
+    });
+    const callSession = vi.fn();
+    const service = makeService(callSession);
+
+    const result = await service.submitDiceResult({
+      adventureId,
+      campaignId,
+      actorUserId: userId,
+      submission: {
+        requestId,
+        notation: '1d100',
+        results: [10],
+        source: 'player_entered',
+      },
+    });
+
+    expect(result.turn).toBeUndefined();
+    expect(callSession).not.toHaveBeenCalled();
+  });
+});
+
 describe('SessionService narrative guard (integration)', () => {
   it('throws DicePendingError when any dice_request is still pending', async () => {
     const { campaignId, adventureId } = await seedFixture();

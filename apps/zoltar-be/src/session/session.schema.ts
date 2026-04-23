@@ -132,12 +132,20 @@ export type RulesLookupOutput = z.infer<typeof rulesLookupOutputSchema>;
  * typed raw die faces; `system_generated` means the client used the "Roll
  * for me" button (executed via the shared `@uv/game-systems` parser, same
  * code path as the backend's `roll_dice` tool).
+ *
+ * `autoAdvance` asks the backend to immediately run a Claude turn with no
+ * narrative input once this submission resolves the last pending dice_request
+ * for the adventure. The `[Dice results]` block carries the turn — the
+ * tabletop equivalent of "rolled 73" triggering the GM to narrate the
+ * outcome, with no player text required. Ignored if other requests are still
+ * pending after this one.
  */
 export const diceResultActionSchema = z.object({
   requestId: z.string().uuid(),
   notation: z.string(),
   results: z.array(z.number().int()).min(1),
   source: z.enum(['player_entered', 'system_generated']),
+  autoAdvance: z.boolean().optional(),
 });
 
 export type DiceResultAction = z.infer<typeof diceResultActionSchema>;
