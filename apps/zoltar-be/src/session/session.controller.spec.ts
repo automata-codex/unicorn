@@ -55,6 +55,8 @@ function mockSessionService() {
       diceRequests: [],
     }),
     listMessages: vi.fn(),
+    getPendingDiceRequests: vi.fn().mockResolvedValue([]),
+    submitDiceResult: vi.fn(),
   };
 }
 
@@ -182,7 +184,8 @@ describe('SessionController', () => {
       const result = await controller.listMessages('c1', 'a1', fakeUser);
       expect(adventureService.findById).toHaveBeenCalledWith('c1', 'a1', 'u1');
       expect(sessionService.listMessages).toHaveBeenCalledWith('a1');
-      expect(result).toEqual({ messages });
+      expect(sessionService.getPendingDiceRequests).toHaveBeenCalledWith('a1');
+      expect(result).toEqual({ messages, pendingDiceRequests: [] });
     });
 
     it('propagates adventure findById failures (member check)', async () => {

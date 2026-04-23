@@ -122,3 +122,22 @@ export const rulesLookupOutputSchema = z.object({
 
 export type RulesLookupInput = z.infer<typeof rulesLookupInputSchema>;
 export type RulesLookupOutput = z.infer<typeof rulesLookupOutputSchema>;
+
+/**
+ * Player-submitted dice result in response to a backend-issued `dice_request`.
+ * The client echoes `notation` for audit-side defense-in-depth; the backend
+ * re-validates it against the persisted request and rejects mismatches.
+ *
+ * `source` distinguishes the client path: `player_entered` means the player
+ * typed raw die faces; `system_generated` means the client used the "Roll
+ * for me" button (executed via the shared `@uv/game-systems` parser, same
+ * code path as the backend's `roll_dice` tool).
+ */
+export const diceResultActionSchema = z.object({
+  requestId: z.string().uuid(),
+  notation: z.string(),
+  results: z.array(z.number().int()).min(1),
+  source: z.enum(['player_entered', 'system_generated']),
+});
+
+export type DiceResultAction = z.infer<typeof diceResultActionSchema>;

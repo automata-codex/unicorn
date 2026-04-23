@@ -7,6 +7,8 @@ import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
 
 import {
+  insertDiceRollEvent,
+  nextSequenceNumber,
   writeTurnEvents,
   type PendingSystemRoll,
   type WrittenDiceRollRecord,
@@ -248,6 +250,64 @@ export class SessionRepository {
   }
 
   /**
+   * Player-entered dice_roll events that landed after the most recent
+   * `gm_response` for this adventure. These are rolls the player submitted
+   * between turns; the prompt builder renders them as a synthetic
+   * `[Dice results]` block immediately before the next narrative input so
+   * Claude knows what the dice said before narrating the outcome.
+   *
+   * Joins `game_event` (for results/total) back to `dice_request` (for the
+   * purpose/target metadata Claude needs to interpret success/failure).
+   * Ordered by sequence_number so the render is chronological.
+   */
+  async playerDiceRollsSinceLastGmResponse(
+    adventureId: string,
+  ): Promise<
+    Array<{
+      notation: string;
+      purpose: string;
+      target: number | null;
+      results: number[];
+      total: number;
+    }>
+  > {
+    const result = await this.db.execute<{
+      notation: string;
+      purpose: string;
+      target: number | null;
+      results: number[];
+      total: number;
+    }>(sql`
+      WITH last_gm AS (
+        SELECT COALESCE(MAX(sequence_number), 0) AS seq
+        FROM game_event
+        WHERE adventure_id = ${adventureId}
+          AND event_type = 'gm_response'
+      )
+      SELECT dq.notation,
+             dq.purpose,
+             dq.target,
+             (ev.payload->'results')::jsonb AS results,
+             (ev.payload->>'total')::int    AS total
+      FROM game_event ev
+      JOIN dice_request dq
+        ON dq.id = (ev.payload->>'requestId')::uuid
+      WHERE ev.adventure_id = ${adventureId}
+        AND ev.event_type   = 'dice_roll'
+        AND ev.roll_source  = 'player_entered'
+        AND ev.sequence_number > (SELECT seq FROM last_gm)
+      ORDER BY ev.sequence_number ASC
+    `);
+    return result.rows.map((r) => ({
+      notation: r.notation,
+      purpose: r.purpose,
+      target: r.target,
+      results: Array.isArray(r.results) ? r.results : [],
+      total: Number(r.total),
+    }));
+  }
+
+  /**
    * All `pending` dice_requests for an adventure, ordered by issue sequence.
    * Used by the adventure-bootstrap endpoint (so a returning user lands in
    * the DicePrompt if they left mid-roll) and by the narrative-action guard
@@ -267,6 +327,55 @@ export class SessionRepository {
       )
       .orderBy(asc(schema.diceRequests.issuedAtSequence));
     return rows as DiceRequestRow[];
+  }
+
+  /**
+   * Atomic write path for a player-submitted `diceResult`. Inside a single
+   * transaction: allocate the next sequence number, write a `dice_roll`
+   * event (`roll_source = 'player_entered'`, actor the submitting user),
+   * and flip the `dice_request` to `resolved` stamping the resolving
+   * sequence. Service-layer validation runs before this is called.
+   */
+  async applyDiceResultAtomic(args: {
+    adventureId: string;
+    campaignId: string;
+    requestId: string;
+    actorUserId: string;
+    source: 'player_entered' | 'system_generated';
+    payload: {
+      notation: string;
+      purpose: string;
+      results: number[];
+      modifier: number;
+      total: number;
+    };
+  }): Promise<{ diceRollEventId: string; sequenceNumber: number }> {
+    return this.db.transaction(async (tx) => {
+      const sequenceNumber = await nextSequenceNumber(tx, args.adventureId);
+      const { id } = await insertDiceRollEvent({
+        tx,
+        adventureId: args.adventureId,
+        campaignId: args.campaignId,
+        sequenceNumber,
+        actorType: 'player',
+        actorId: args.actorUserId,
+        rollSource: args.source,
+        payload: {
+          notation: args.payload.notation,
+          purpose: args.payload.purpose,
+          results: args.payload.results,
+          modifier: args.payload.modifier,
+          total: args.payload.total,
+          requestId: args.requestId,
+        },
+      });
+      await this.resolveDiceRequest({
+        tx,
+        id: args.requestId,
+        resolvedAtSequence: sequenceNumber,
+      });
+      return { diceRollEventId: id, sequenceNumber };
+    });
   }
 
   /**

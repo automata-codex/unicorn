@@ -8,9 +8,9 @@ import {
   Logger,
   Param,
   Post,
+  UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
-import { z } from 'zod';
 
 import { AdventureService } from '../adventure/adventure.service';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -18,12 +18,21 @@ import { SessionGuard } from '../auth/session.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 import {
+  diceResultActionSchema,
+  type DiceResultAction,
+} from './session.schema';
+import {
+  DicePendingError,
+  DiceResultConflictError,
+  DiceResultValidationError,
   SessionCorrectionError,
   SessionOutputError,
   SessionPreconditionError,
   SessionService,
   SessionToolLoopError,
 } from './session.service';
+
+import { z } from 'zod';
 
 import type { AuthUser } from '@uv/auth-core';
 import type { SendMessageResult } from './session.service';
@@ -69,8 +78,11 @@ export class SessionController {
   ) {
     // assertMember is baked into adventureService.findById.
     await this.adventureService.findById(campaignId, adventureId, user.id);
-    const messages = await this.sessionService.listMessages(adventureId);
-    return { messages };
+    const [messages, pendingDiceRequests] = await Promise.all([
+      this.sessionService.listMessages(adventureId),
+      this.sessionService.getPendingDiceRequests(adventureId),
+    ]);
+    return { messages, pendingDiceRequests };
   }
 
   @Post('messages')
@@ -117,6 +129,17 @@ export class SessionController {
         })),
       };
     } catch (err) {
+      if (err instanceof DicePendingError) {
+        this.logger.warn(
+          `Narrative submission blocked (dice pending) for adventure=${adventureId}`,
+        );
+        throw new ConflictException({
+          error: 'dice_pending',
+          message:
+            'Resolve the pending dice prompts before submitting a narrative action.',
+          pendingRequestIds: err.pendingRequestIds,
+        });
+      }
       if (err instanceof SessionPreconditionError) {
         this.logger.warn(
           `Session precondition failed for adventure=${adventureId}: ${err.message}`,
@@ -154,6 +177,57 @@ export class SessionController {
           `Anthropic SDK error for adventure=${adventureId}: ${err.message}`,
         );
         throw new BadGatewayException('GM service is unavailable.');
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Player submits the result of a dice roll issued on a prior turn via
+   * `submit_gm_response.diceRequests`. Writes a `dice_roll` event, flips the
+   * `dice_request` to `resolved`, returns remaining pending ids. Does NOT
+   * call Claude — the result folds into the next narrative turn's prompt.
+   */
+  @Post('dice-results')
+  async submitDiceResult(
+    @Param('campaignId') campaignId: string,
+    @Param('adventureId') adventureId: string,
+    @Body(new ZodValidationPipe(diceResultActionSchema))
+    submission: DiceResultAction,
+    @CurrentUser() user: AuthUser,
+  ): Promise<{
+    requestId: string;
+    accepted: true;
+    pendingRequestIds: string[];
+  }> {
+    // assertMember via findById; also confirms the adventure exists and
+    // belongs to this campaign.
+    await this.adventureService.findById(campaignId, adventureId, user.id);
+    try {
+      return await this.sessionService.submitDiceResult({
+        adventureId,
+        campaignId,
+        actorUserId: user.id,
+        submission,
+      });
+    } catch (err) {
+      if (err instanceof DiceResultConflictError) {
+        this.logger.warn(
+          `Dice result rejected (conflict) for adventure=${adventureId}: ${err.message}`,
+        );
+        throw new ConflictException({
+          error: 'dice_request_conflict',
+          message: err.message,
+        });
+      }
+      if (err instanceof DiceResultValidationError) {
+        this.logger.warn(
+          `Dice result rejected (validation) for adventure=${adventureId}: ${err.message}`,
+        );
+        throw new UnprocessableEntityException({
+          error: 'dice_result_invalid',
+          message: err.message,
+        });
       }
       throw err;
     }

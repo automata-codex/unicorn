@@ -90,6 +90,27 @@ function mapRole(role: DbMessage['role']): 'user' | 'assistant' {
   return role === 'player' ? 'user' : 'assistant';
 }
 
+export interface ResolvedPlayerRoll {
+  notation: string;
+  purpose: string;
+  target: number | null;
+  results: number[];
+  total: number;
+}
+
+/**
+ * Renders a single resolved player roll as one line of the `[Dice results]`
+ * block. Format mirrors the playtest-app convention in
+ * docs/specs/zoltar-playtest/pre-playtest-1.md: purpose (notation): total
+ * followed by a success/failure annotation when target is known.
+ */
+function formatDiceResultLine(roll: ResolvedPlayerRoll): string {
+  const base = `${roll.purpose} (${roll.notation}): ${roll.total}`;
+  if (roll.target === null) return base;
+  const outcome = roll.total <= roll.target ? 'success' : 'failure';
+  return `${base} → target ${roll.target}, ${outcome}`;
+}
+
 /**
  * Assembles the full per-turn Claude request. Structure per spec §"Part 4":
  *
@@ -112,6 +133,13 @@ export function buildSessionRequest(input: {
   campaignStateData: CampaignStateData;
   windowMessages: DbMessage[];
   playerMessage: string;
+  /**
+   * Player-entered dice rolls that resolved between the last gm_response and
+   * this turn's narrative input. Rendered as a synthetic `[Dice results]`
+   * block immediately before the player's message so Claude can narrate the
+   * outcome. Empty or omitted when no dice were in flight.
+   */
+  resolvedPlayerRolls?: ResolvedPlayerRoll[];
   tools: Anthropic.Tool[];
 }): CallSessionParams {
   const systemBlocks: Anthropic.TextBlockParam[] = [
@@ -139,6 +167,18 @@ export function buildSessionRequest(input: {
 
   for (const m of input.windowMessages) {
     messages.push({ role: mapRole(m.role), content: m.content });
+  }
+
+  // Synthetic [Dice results] block — placed as its own user message right
+  // before the narrative input so Claude treats it as incoming information
+  // for this turn, not part of prior history.
+  const resolved = input.resolvedPlayerRolls ?? [];
+  if (resolved.length > 0) {
+    const lines = resolved.map((r) => formatDiceResultLine(r)).join('\n');
+    messages.push({
+      role: 'user',
+      content: `[Dice results]\n${lines}`,
+    });
   }
 
   messages.push({ role: 'user', content: input.playerMessage });

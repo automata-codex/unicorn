@@ -163,4 +163,118 @@ describe('buildSessionRequest', () => {
     expect(req.toolChoice).toEqual({ type: 'any' });
     expect(req.tools).toContain(SUBMIT_GM_RESPONSE_TOOL);
   });
+
+  it('omits the [Dice results] block when resolvedPlayerRolls is empty', () => {
+    const req = buildSessionRequest({
+      gmContextBlob: baseBlob,
+      campaignStateData,
+      windowMessages: [],
+      playerMessage: 'I check the airlock.',
+      resolvedPlayerRolls: [],
+      tools: SESSION_TOOLS,
+    });
+    const texts = req.messages
+      .filter((m) => typeof m.content === 'string')
+      .map((m) => m.content as string);
+    expect(texts.some((t) => t.includes('[Dice results]'))).toBe(false);
+  });
+
+  it('renders a [Dice results] block immediately before the player message', () => {
+    const req = buildSessionRequest({
+      gmContextBlob: baseBlob,
+      campaignStateData,
+      windowMessages: [],
+      playerMessage: 'I brace myself.',
+      resolvedPlayerRolls: [
+        {
+          notation: '1d100',
+          purpose: 'Intellect save to interpret corrupted data',
+          target: 65,
+          results: [34],
+          total: 34,
+        },
+      ],
+      tools: SESSION_TOOLS,
+    });
+    // [0] snapshot, [1] dice block, [2] narrative input
+    const dice = req.messages[1];
+    const narrative = req.messages[2];
+    expect(dice.role).toBe('user');
+    expect(dice.content).toBe(
+      '[Dice results]\nIntellect save to interpret corrupted data (1d100): 34 → target 65, success',
+    );
+    expect(narrative).toEqual({ role: 'user', content: 'I brace myself.' });
+  });
+
+  it('annotates failure when the roll exceeds its target', () => {
+    const req = buildSessionRequest({
+      gmContextBlob: baseBlob,
+      campaignStateData,
+      windowMessages: [],
+      playerMessage: 'x',
+      resolvedPlayerRolls: [
+        {
+          notation: '1d100',
+          purpose: 'Body save against pressure loss',
+          target: 50,
+          results: [71],
+          total: 71,
+        },
+      ],
+      tools: SESSION_TOOLS,
+    });
+    expect(req.messages[1].content).toContain('target 50, failure');
+  });
+
+  it('omits the target/outcome annotation when target is null (commitment mode)', () => {
+    const req = buildSessionRequest({
+      gmContextBlob: baseBlob,
+      campaignStateData,
+      windowMessages: [],
+      playerMessage: 'x',
+      resolvedPlayerRolls: [
+        {
+          notation: '1d100',
+          purpose: 'Hidden save',
+          target: null,
+          results: [42],
+          total: 42,
+        },
+      ],
+      tools: SESSION_TOOLS,
+    });
+    const line = req.messages[1].content as string;
+    expect(line).toBe('[Dice results]\nHidden save (1d100): 42');
+    expect(line).not.toContain('target');
+    expect(line).not.toContain('success');
+  });
+
+  it('renders multiple resolved rolls as separate lines in sequence order', () => {
+    const req = buildSessionRequest({
+      gmContextBlob: baseBlob,
+      campaignStateData,
+      windowMessages: [],
+      playerMessage: 'x',
+      resolvedPlayerRolls: [
+        {
+          notation: '1d100',
+          purpose: 'A',
+          target: null,
+          results: [10],
+          total: 10,
+        },
+        {
+          notation: '2d6',
+          purpose: 'B',
+          target: null,
+          results: [3, 4],
+          total: 7,
+        },
+      ],
+      tools: SESSION_TOOLS,
+    });
+    expect(req.messages[1].content).toBe(
+      '[Dice results]\nA (1d100): 10\nB (2d6): 7',
+    );
+  });
 });

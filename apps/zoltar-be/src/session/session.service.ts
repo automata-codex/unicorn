@@ -6,8 +6,11 @@ import { CampaignRepository } from '../campaign/campaign.repository';
 import { DiceService } from '../dice/dice.service';
 import { RulesLookupService } from '../rules/rules-lookup.service';
 
+import { parseDiceNotation } from '@uv/game-systems';
+
 import { applyToCampaignState } from './session.applier';
 import { buildCorrectionRequest } from './session.correction';
+import { insertDiceRollEvent, nextSequenceNumber } from './session.events';
 import { buildSessionRequest } from './session.prompt';
 import { SessionRepository } from './session.repository';
 import {
@@ -15,6 +18,8 @@ import {
   rulesLookupInputSchema,
   submitGmResponseSchema,
 } from './session.schema';
+
+import type { DiceResultAction } from './session.schema';
 import { buildStateSnapshot } from './session.snapshot';
 import { buildAdventureTelemetryPayload } from './session.telemetry';
 import { SESSION_TOOLS } from './session.tools';
@@ -93,6 +98,46 @@ export class SessionToolLoopError extends Error {
   }
 }
 
+/**
+ * Thrown when a submitted `diceResult` cannot be applied to a known pending
+ * dice_request — unknown id, already-resolved, cancelled, or scoped to a
+ * different adventure. Translated to 409 by the controller.
+ */
+export class DiceResultConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DiceResultConflictError';
+  }
+}
+
+/**
+ * Thrown when a submitted `diceResult` fails shape validation against the
+ * persisted dice_request — notation mismatch or results that don't match
+ * the parsed count / per-die range. Translated to 422 by the controller.
+ */
+export class DiceResultValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DiceResultValidationError';
+  }
+}
+
+/**
+ * Thrown when narrative submission is attempted while any dice_request for
+ * the adventure is still `pending`. Carries the pending request ids so the
+ * client can show them in the response. Translated to 409 with body error
+ * code `dice_pending` by the controller.
+ */
+export class DicePendingError extends Error {
+  constructor(
+    message: string,
+    public readonly pendingRequestIds: string[],
+  ) {
+    super(message);
+    this.name = 'DicePendingError';
+  }
+}
+
 export interface SendMessageArgs {
   adventureId: string;
   campaignId: string;
@@ -138,13 +183,28 @@ export class SessionService {
   ) {}
 
   async sendMessage(args: SendMessageArgs): Promise<SendMessageResult> {
+    // 0. Hard block: if any dice_request is still pending, refuse narrative
+    //    submission. The controller translates this to 409 with body
+    //    `{ error: 'dice_pending', pendingRequestIds }`. Frontend blocks this
+    //    UI-side too (Part 13); this is the server-side invariant.
+    const stillPending = await this.repo.pendingDiceRequestsForAdventure(
+      args.adventureId,
+    );
+    if (stillPending.length > 0) {
+      throw new DicePendingError(
+        `dice_requests pending for adventure=${args.adventureId}`,
+        stillPending.map((r) => r.id),
+      );
+    }
+
     // 1. Preconditions.
-    const [rawBlob, rawState, playerEntityIds, priorMessages] =
+    const [rawBlob, rawState, playerEntityIds, priorMessages, resolvedPlayerRolls] =
       await Promise.all([
         this.repo.getGmContextBlob(args.adventureId),
         this.campaignRepo.getStateData(args.campaignId),
         this.repo.getPlayerEntityIds(args.campaignId),
         this.repo.getMessagesAsc(args.adventureId),
+        this.repo.playerDiceRollsSinceLastGmResponse(args.adventureId),
       ]);
 
     if (!rawBlob) {
@@ -184,11 +244,16 @@ export class SessionService {
     }
 
     // 4. Build prompt; run the inner tool loop until submit_gm_response.
+    //    `resolvedPlayerRolls` carries any player-entered dice outcomes that
+    //    landed between the last gm_response and this turn; the prompt
+    //    builder renders them as a synthetic `[Dice results]` block before
+    //    the narrative input.
     const request = buildSessionRequest({
       gmContextBlob,
       campaignStateData,
       windowMessages,
       playerMessage: args.playerMessage,
+      resolvedPlayerRolls,
       tools: SESSION_TOOLS,
     });
     const innerLoop = await this.runInnerToolLoop({
@@ -316,6 +381,125 @@ export class SessionService {
       thresholds: validation.thresholds,
       diceRequests: result.persistedDiceRequests,
     };
+  }
+
+  /**
+   * Apply a player-submitted dice result to the adventure. Validates the
+   * submission against the persisted dice_request, then writes a `dice_roll`
+   * event (`roll_source` mirrors the client path) and flips the request to
+   * `resolved` atomically. Does not call Claude — the result is folded into
+   * the next narrative turn's prompt via `playerDiceRollsSinceLastGmResponse`
+   * in `buildSessionRequest`.
+   *
+   * Errors:
+   *   - `DiceResultConflictError` (→ 409): unknown request, already resolved,
+   *     or scoped to a different adventure.
+   *   - `DiceResultValidationError` (→ 422): notation mismatch, wrong number
+   *     of results, or a result outside the per-die range.
+   */
+  async submitDiceResult(args: {
+    adventureId: string;
+    campaignId: string;
+    actorUserId: string;
+    submission: DiceResultAction;
+  }): Promise<{
+    requestId: string;
+    accepted: true;
+    pendingRequestIds: string[];
+  }> {
+    const request = await this.repo.loadDiceRequest(args.submission.requestId);
+    if (
+      !request ||
+      request.status !== 'pending' ||
+      request.adventureId !== args.adventureId
+    ) {
+      throw new DiceResultConflictError(
+        `No pending dice_request ${args.submission.requestId} for adventure=${args.adventureId}`,
+      );
+    }
+
+    // Defensive: the client echoes the notation for audit. A mismatch means
+    // the client has drifted from the request — refuse rather than silently
+    // applying a different roll.
+    if (request.notation !== args.submission.notation) {
+      throw new DiceResultValidationError(
+        `notation mismatch: request=${request.notation}, submitted=${args.submission.notation}`,
+      );
+    }
+
+    let parsed;
+    try {
+      parsed = parseDiceNotation(request.notation);
+    } catch (err) {
+      // A persisted request with un-parseable notation would be a data bug
+      // in the writer, not a client error. Surface as validation so the
+      // request can't deadlock the adventure.
+      const message = err instanceof Error ? err.message : String(err);
+      throw new DiceResultValidationError(
+        `persisted notation is unparseable: ${message}`,
+      );
+    }
+
+    if (args.submission.results.length !== parsed.count) {
+      throw new DiceResultValidationError(
+        `expected ${parsed.count} result(s) for ${request.notation}, got ${args.submission.results.length}`,
+      );
+    }
+    for (const value of args.submission.results) {
+      if (value < 1 || value > parsed.sides) {
+        throw new DiceResultValidationError(
+          `result ${value} out of range [1, ${parsed.sides}] for ${request.notation}`,
+        );
+      }
+    }
+
+    // Player-entered rolls are raw face values; modifiers are applied elsewhere
+    // (character sheet integration) per docs/zoltar-design-doc.md § Raw rolls
+    // only. Total = sum of faces.
+    const total = args.submission.results.reduce((a, b) => a + b, 0);
+
+    await this.repo.applyDiceResultAtomic({
+      adventureId: args.adventureId,
+      campaignId: args.campaignId,
+      requestId: request.id,
+      actorUserId: args.actorUserId,
+      source: args.submission.source,
+      payload: {
+        notation: request.notation,
+        purpose: request.purpose,
+        results: args.submission.results,
+        modifier: 0,
+        total,
+      },
+    });
+
+    const stillPending = await this.repo.pendingDiceRequestsForAdventure(
+      args.adventureId,
+    );
+    return {
+      requestId: request.id,
+      accepted: true,
+      pendingRequestIds: stillPending.map((r) => r.id),
+    };
+  }
+
+  /**
+   * Pending dice_requests for the adventure, surfaced to the client on
+   * bootstrap and used to guard narrative submissions. Delegates to the repo
+   * so callers don't need to know about dice_request internals.
+   */
+  async getPendingDiceRequests(
+    adventureId: string,
+  ): Promise<
+    Array<{ id: string; notation: string; purpose: string; target: number | null }>
+  > {
+    const rows = await this.repo.pendingDiceRequestsForAdventure(adventureId);
+    return rows.map((r) => ({
+      id: r.id,
+      notation: r.notation,
+      purpose: r.purpose,
+      target: r.target,
+    }));
   }
 
   /**

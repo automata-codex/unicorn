@@ -93,6 +93,8 @@ interface MockRepoOverrides {
   getMessagesAsc?: ReturnType<typeof vi.fn>;
   insertMessage?: ReturnType<typeof vi.fn>;
   applyTurnAtomic?: ReturnType<typeof vi.fn>;
+  pendingDiceRequestsForAdventure?: ReturnType<typeof vi.fn>;
+  playerDiceRollsSinceLastGmResponse?: ReturnType<typeof vi.fn>;
 }
 
 function makeRepo(overrides: MockRepoOverrides = {}): SessionRepository {
@@ -104,6 +106,12 @@ function makeRepo(overrides: MockRepoOverrides = {}): SessionRepository {
     getMessagesAsc: overrides.getMessagesAsc ?? vi.fn().mockResolvedValue([]),
     insertMessage: overrides.insertMessage ?? makeInsertMessage(),
     applyTurnAtomic: overrides.applyTurnAtomic ?? makeApplyTurnAtomic(),
+    pendingDiceRequestsForAdventure:
+      overrides.pendingDiceRequestsForAdventure ??
+      vi.fn().mockResolvedValue([]),
+    playerDiceRollsSinceLastGmResponse:
+      overrides.playerDiceRollsSinceLastGmResponse ??
+      vi.fn().mockResolvedValue([]),
   } as unknown as SessionRepository;
 }
 
