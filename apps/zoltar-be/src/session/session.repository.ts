@@ -6,7 +6,11 @@ import { CanonRepository } from '../canon/canon.repository';
 import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
 
-import { writeTurnEvents } from './session.events';
+import {
+  writeTurnEvents,
+  type PendingSystemRoll,
+  type WrittenDiceRollRecord,
+} from './session.events';
 import { writeAdventureTelemetry } from './session.telemetry';
 
 import type { Db, DbOrTx } from '../db/db.provider';
@@ -28,18 +32,28 @@ export interface DiceRequestRow {
   createdAt: Date;
 }
 
+export interface DiceRequestInput {
+  notation: string;
+  purpose: string;
+  target: number | null;
+}
+
 export interface ApplyTurnAtomicArgs {
   adventureId: string;
   campaignId: string;
   playerUserId: string;
   campaignStateData: MothershipCampaignState;
   playerAction: { content: string };
+  /** System-generated rolls from the inner tool loop, in issue order. */
+  executedRolls?: PendingSystemRoll[];
   gmResponse: SubmitGmResponse;
   correction?: SubmitGmResponse;
   applied: ValidationResult['applied'];
   thresholds: ThresholdCrossing[];
   proposedCanon: Array<{ summary: string; context: string }>;
   npcStates: Record<string, string>;
+  /** Player-facing dice prompts to persist after gm_response. */
+  diceRequests?: DiceRequestInput[];
   gmText: string;
   telemetryPayload: AdventureTelemetryPayload;
   autoPromoteCanon: boolean;
@@ -48,6 +62,8 @@ export interface ApplyTurnAtomicArgs {
 export interface ApplyTurnAtomicResult {
   persistedMessage: DbMessage;
   gmResponseSequence: number;
+  diceRollSequences: WrittenDiceRollRecord[];
+  persistedDiceRequests: DiceRequestRow[];
 }
 
 @Injectable()
@@ -277,11 +293,30 @@ export class SessionRepository {
         campaignId: args.campaignId,
         playerUserId: args.playerUserId,
         playerAction: args.playerAction,
+        executedRolls: args.executedRolls,
         gmResponse: args.gmResponse,
         correction: args.correction,
         applied: args.applied,
         thresholds: args.thresholds,
       });
+
+      // Dice requests issued by submit_gm_response.diceRequests land here,
+      // with issuedAtSequence tied to the gm_response row. The service
+      // returns the full persisted rows so the HTTP response can echo
+      // backend-assigned ids to the client.
+      const persistedDiceRequests: DiceRequestRow[] = [];
+      for (const req of args.diceRequests ?? []) {
+        persistedDiceRequests.push(
+          await this.insertDiceRequest({
+            tx,
+            adventureId: args.adventureId,
+            issuedAtSequence: events.gmResponseSeq,
+            notation: req.notation,
+            purpose: req.purpose,
+            target: req.target,
+          }),
+        );
+      }
 
       await this.canonRepo.insertPendingCanon({
         tx,
@@ -329,6 +364,8 @@ export class SessionRepository {
       return {
         persistedMessage,
         gmResponseSequence: events.gmResponseSeq,
+        diceRollSequences: events.diceRollSequences,
+        persistedDiceRequests,
       };
     });
   }

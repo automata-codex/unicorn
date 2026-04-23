@@ -81,6 +81,8 @@ function makeApplyTurnAtomic(): ReturnType<typeof vi.fn> {
           createdAt: new Date('2026-04-17T12:00:01Z'),
         },
         gmResponseSequence: 2,
+        diceRollSequences: [],
+        persistedDiceRequests: [],
       }),
   );
 }
@@ -109,19 +111,42 @@ function makeCampaignRepo(
   getStateData: ReturnType<typeof vi.fn> = vi
     .fn()
     .mockResolvedValue(emptyMothershipState()),
+  getSystemId: ReturnType<typeof vi.fn> = vi
+    .fn()
+    .mockResolvedValue('system-uuid-mothership'),
 ) {
   return {
     getStateData,
+    getSystemId,
   } as unknown as import('../campaign/campaign.repository').CampaignRepository;
+}
+
+function makeDice(): import('../dice/dice.service').DiceService {
+  return {
+    rollForGm: vi.fn((input: { notation: string }) => ({
+      notation: input.notation,
+      results: [42],
+      modifier: 0,
+      total: 42,
+    })),
+  } as unknown as import('../dice/dice.service').DiceService;
+}
+
+function makeRules(): import('../rules/rules-lookup.service').RulesLookupService {
+  return {
+    lookup: vi.fn().mockResolvedValue({ results: [] }),
+  } as unknown as import('../rules/rules-lookup.service').RulesLookupService;
 }
 
 function makeService(
   callSession: ReturnType<typeof vi.fn>,
   repo: SessionRepository = makeRepo(),
   campaignRepo = makeCampaignRepo(),
+  dice = makeDice(),
+  rules = makeRules(),
 ) {
   const anthropic = { callSession } as unknown as AnthropicService;
-  return new SessionService(repo, anthropic, campaignRepo);
+  return new SessionService(repo, anthropic, campaignRepo, dice, rules);
 }
 
 const args = {

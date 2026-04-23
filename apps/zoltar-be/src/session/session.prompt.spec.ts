@@ -152,7 +152,7 @@ describe('buildSessionRequest', () => {
     });
   });
 
-  it('forces tool_choice: submit_gm_response', () => {
+  it('sets tool_choice: { type: \'any\' } so the inner tool loop can run', () => {
     const req = buildSessionRequest({
       gmContextBlob: baseBlob,
       campaignStateData,
@@ -160,10 +160,7 @@ describe('buildSessionRequest', () => {
       playerMessage: 'x',
       tools: SESSION_TOOLS,
     });
-    expect(req.toolChoice).toEqual({
-      type: 'tool',
-      name: 'submit_gm_response',
-    });
+    expect(req.toolChoice).toEqual({ type: 'any' });
     expect(req.tools).toContain(SUBMIT_GM_RESPONSE_TOOL);
   });
 });

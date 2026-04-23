@@ -52,6 +52,7 @@ function mockSessionService() {
         worldFacts: {},
       },
       thresholds: [],
+      diceRequests: [],
     }),
     listMessages: vi.fn(),
   };

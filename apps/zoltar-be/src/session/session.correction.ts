@@ -7,8 +7,13 @@ import type { ValidationRejection } from './session.validator';
  * rejection. Extends the original messages with (a) the rejected assistant
  * response verbatim and (b) a user turn carrying a single `tool_result`
  * content block that names the rejections and asks for a corrected
- * `submit_gm_response`. `tool_choice` is preserved so Claude is still forced
- * into the tool.
+ * `submit_gm_response`.
+ *
+ * `tool_choice` is overridden to force `submit_gm_response` specifically —
+ * the M7 default is `{ type: 'any' }` to enable the inner tool loop, but
+ * correction re-prompts must not re-enter that loop (rolls are inputs, not
+ * retry levers — see docs/decisions.md). The outgoing request here forbids
+ * any further `roll_dice` / `rules_lookup` calls on the correction pass.
  *
  * Pure function — no network, no DB.
  */
@@ -54,5 +59,6 @@ export function buildCorrectionRequest(args: {
       { role: 'assistant', content: args.originalAssistant.content },
       { role: 'user', content: [toolResultBlock] },
     ],
+    toolChoice: { type: 'tool', name: 'submit_gm_response' },
   };
 }

@@ -193,6 +193,71 @@ describe('writeTurnEvents (integration)', () => {
     expect(corrRow.supersededBy).toBeNull();
   });
 
+  it('interleaves executedRolls between player_action and gm_response in sequence order', async () => {
+    const { campaignId, adventureId, userId } = await seedFixture();
+
+    await getTestDb().transaction(async (tx) => {
+      await writeTurnEvents({
+        tx,
+        adventureId,
+        campaignId,
+        playerUserId: userId,
+        playerAction: { content: 'Check the panel.' },
+        executedRolls: [
+          {
+            notation: '1d100',
+            purpose: 'Panic check',
+            results: [73],
+            modifier: 0,
+            total: 73,
+          },
+          {
+            notation: '2d6+1',
+            purpose: 'Damage',
+            results: [3, 4],
+            modifier: 1,
+            total: 8,
+          },
+        ],
+        gmResponse: baseGmResponse,
+        applied: emptyApplied,
+        thresholds: [],
+      });
+    });
+
+    const rows = await getTestDb()
+      .select()
+      .from(schema.gameEvents)
+      .where(eq(schema.gameEvents.adventureId, adventureId))
+      .orderBy(asc(schema.gameEvents.sequenceNumber));
+
+    expect(rows.map((r) => r.eventType)).toEqual([
+      'player_action',
+      'dice_roll',
+      'dice_roll',
+      'gm_response',
+      'state_update',
+    ]);
+    expect(rows.map((r) => r.sequenceNumber)).toEqual([1, 2, 3, 4, 5]);
+
+    const firstRoll = rows[1];
+    expect(firstRoll.actorType).toBe('gm');
+    expect(firstRoll.actorId).toBeNull();
+    expect(firstRoll.rollSource).toBe('system_generated');
+    expect(firstRoll.payload).toMatchObject({
+      notation: '1d100',
+      purpose: 'Panic check',
+      total: 73,
+    });
+
+    const secondRoll = rows[2];
+    expect(secondRoll.payload).toMatchObject({
+      notation: '2d6+1',
+      total: 8,
+      modifier: 1,
+    });
+  });
+
   it('inserts a system-generated dice_roll event with the expected shape', async () => {
     const { campaignId, adventureId } = await seedFixture();
 

@@ -22,6 +22,7 @@ import {
   SessionOutputError,
   SessionPreconditionError,
   SessionService,
+  SessionToolLoopError,
 } from './session.service';
 
 import type { AuthUser } from '@uv/auth-core';
@@ -41,6 +42,13 @@ interface MessagesResponse {
   };
   applied: SendMessageResult['applied'];
   thresholds: SendMessageResult['thresholds'];
+  /** Player dice prompts issued by this turn. Empty array if none. */
+  diceRequests: Array<{
+    id: string;
+    notation: string;
+    purpose: string;
+    target: number | null;
+  }>;
 }
 
 @Controller('campaigns/:campaignId/adventures/:adventureId')
@@ -101,6 +109,12 @@ export class SessionController {
         },
         applied: result.applied,
         thresholds: result.thresholds,
+        diceRequests: result.diceRequests.map((r) => ({
+          id: r.id,
+          notation: r.notation,
+          purpose: r.purpose,
+          target: r.target,
+        })),
       };
     } catch (err) {
       if (err instanceof SessionPreconditionError) {
@@ -117,6 +131,16 @@ export class SessionController {
           error: 'gm_correction_failed',
           message:
             'GM re-narration was rejected by the validator. Try sending your action again.',
+        });
+      }
+      if (err instanceof SessionToolLoopError) {
+        this.logger.error(
+          `GM tool loop exhausted for adventure=${adventureId}: ${err.message}`,
+        );
+        throw new BadGatewayException({
+          error: 'gm_tool_loop_exhausted',
+          message:
+            'The GM is stuck in a tool-use loop. Try sending your action again.',
         });
       }
       if (err instanceof SessionOutputError) {

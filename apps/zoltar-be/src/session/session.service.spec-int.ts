@@ -24,6 +24,25 @@ import { SessionCorrectionError, SessionService } from './session.service';
 
 import type Anthropic from '@anthropic-ai/sdk';
 import type { AnthropicService } from '../anthropic/anthropic.service';
+import type { DiceService } from '../dice/dice.service';
+import type { RulesLookupService } from '../rules/rules-lookup.service';
+
+// These integration tests mock Claude to return submit_gm_response directly,
+// so roll_dice / rules_lookup paths are never exercised here; no-op stubs
+// are enough. The tool-loop behaviour is covered in session.tool-loop.spec.ts.
+function stubDice(): DiceService {
+  return {
+    rollForGm: vi.fn(() => {
+      throw new Error('DiceService should not be called in this test');
+    }),
+  } as unknown as DiceService;
+}
+
+function stubRules(): RulesLookupService {
+  return {
+    lookup: vi.fn(async () => ({ results: [] })),
+  } as unknown as RulesLookupService;
+}
 
 let repo: SessionRepository;
 let campaignRepo: CampaignRepository;
@@ -188,6 +207,8 @@ describe('SessionService (integration) — happy path', () => {
       repo,
       mockAnthropic(callSession),
       campaignRepo,
+      stubDice(),
+      stubRules(),
     );
 
     const result = await service.sendMessage(baseArgs(campaignId, adventureId));
@@ -288,6 +309,8 @@ describe('SessionService (integration) — happy path', () => {
       repo,
       mockAnthropic(callSession),
       campaignRepo,
+      stubDice(),
+      stubRules(),
     );
 
     await service.sendMessage(baseArgs(campaignId, adventureId));
@@ -328,6 +351,8 @@ describe('SessionService (integration) — correction succeeds', () => {
       repo,
       mockAnthropic(callSession),
       campaignRepo,
+      stubDice(),
+      stubRules(),
     );
 
     const result = await service.sendMessage(baseArgs(campaignId, adventureId));
@@ -405,6 +430,8 @@ describe('SessionService (integration) — correction fails', () => {
       repo,
       mockAnthropic(callSession),
       campaignRepo,
+      stubDice(),
+      stubRules(),
     );
 
     await expect(

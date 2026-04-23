@@ -11,6 +11,46 @@ import type {
 } from './session.validator';
 
 /**
+ * One entry per roll executed during a turn — whether issued by Claude via
+ * `roll_dice` (`source: 'system_generated'`) or submitted by the player via a
+ * `diceResult` action (`source: 'player_entered'`). Populated by the inner
+ * tool loop and written out as part of the telemetry row in Part 10.
+ *
+ * `sequenceNumber` is the `game_events.sequence_number` assigned when the
+ * row lands in the DB — known only at transaction time, so the inner loop
+ * emits records with `sequenceNumber: 0` as a placeholder and the write path
+ * fills in real values.
+ */
+export interface ExecutedRollRecord {
+  source: 'system_generated' | 'player_entered';
+  sequenceNumber: number;
+  notation: string;
+  purpose: string;
+  results: number[];
+  modifier: number;
+  total: number;
+  requestId?: string;
+}
+
+/**
+ * One entry per `rules_lookup` call the Warden made during a turn. Captures
+ * the query, how many chunks came back, and the top similarity — but **not**
+ * the chunk text. Re-running the query at review time reproduces the chunks
+ * deterministically (until the index is re-ingested), so storing full text
+ * would bloat `adventure_telemetry.payload` without marginal benefit.
+ *
+ * Zero-result lookups (`resultCount: 0`) are preserved faithfully — they are
+ * the primary signal M7.2 uses to prioritize ingestion coverage.
+ */
+export interface RulesLookupRecord {
+  query: string;
+  limit: number;
+  resultCount: number;
+  topSimilarity: number | null;
+  sources: string[];
+}
+
+/**
  * One row per turn in `adventure_telemetry`, keyed to the `gm_response`
  * event's sequence number. Captures everything playtest review (M7.1) needs
  * to replay a turn: the prompt the snapshot carried, the Claude request/
@@ -18,7 +58,7 @@ import type {
  * correction fired — the rejection list plus the corrected response.
  *
  * `diceRolls` is empty in M6 (dice work ships in M7); the field is present
- * now so the payload shape stays stable.
+ * now so the payload shape stays stable. Part 10 of M7 populates it.
  */
 export interface AdventureTelemetryPayload {
   playerMessage: string;

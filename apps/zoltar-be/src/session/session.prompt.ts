@@ -101,8 +101,11 @@ function mapRole(role: DbMessage['role']): 'user' | 'assistant' {
  *     [1..n-1] prior window messages in chronological order
  *     [n] user: the new player input
  *
- * `tool_choice` forces `submit_gm_response` — this eliminates the "Claude
- * responds with plain text instead of a tool call" failure class entirely.
+ * `tool_choice: { type: 'any' }` forces a tool call but lets Claude choose
+ * which one — the inner tool loop (session.service.ts) handles `roll_dice`
+ * and `rules_lookup` iteratively until `submit_gm_response` lands. Plain
+ * text responses are still rejected. The correction path overrides this to
+ * force `submit_gm_response` specifically (see buildCorrectionRequest).
  */
 export function buildSessionRequest(input: {
   gmContextBlob: GmContextBlob;
@@ -140,10 +143,7 @@ export function buildSessionRequest(input: {
 
   messages.push({ role: 'user', content: input.playerMessage });
 
-  const toolChoice: Anthropic.ToolChoiceTool = {
-    type: 'tool',
-    name: 'submit_gm_response',
-  };
+  const toolChoice: Anthropic.ToolChoiceAny = { type: 'any' };
 
   return {
     systemBlocks,
