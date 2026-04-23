@@ -8,6 +8,7 @@ describe('validateEnv', () => {
     NODE_ENV: 'development',
     PORT: '3000',
     ANTHROPIC_API_KEY: 'sk-ant-test',
+    VOYAGE_API_KEY: 'pa-voyage-test',
   };
 
   it('parses a fully valid env', () => {
@@ -59,5 +60,20 @@ describe('validateEnv', () => {
   it('throws when ANTHROPIC_API_KEY is missing', () => {
     const { ANTHROPIC_API_KEY: _omitted, ...withoutKey } = validEnv;
     expect(() => validateEnv(withoutKey)).toThrow(/ANTHROPIC_API_KEY/);
+  });
+
+  it('throws when VOYAGE_API_KEY is missing', () => {
+    const { VOYAGE_API_KEY: _omitted, ...withoutKey } = validEnv;
+    expect(() => validateEnv(withoutKey)).toThrow(/VOYAGE_API_KEY/);
+  });
+
+  it('defaults VOYAGE_EMBED_MODEL to voyage-3-lite', () => {
+    const result = validateEnv(validEnv);
+    expect(result.VOYAGE_EMBED_MODEL).toBe('voyage-3-lite');
+  });
+
+  it('accepts a VOYAGE_EMBED_MODEL override', () => {
+    const result = validateEnv({ ...validEnv, VOYAGE_EMBED_MODEL: 'voyage-3' });
+    expect(result.VOYAGE_EMBED_MODEL).toBe('voyage-3');
   });
 });

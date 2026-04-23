@@ -12,6 +12,8 @@ export const envSchema = z.object({
   PUBLIC_API_URL: z.string().url().default('https://api.zoltar.local'),
   CORS_ORIGINS: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().min(1),
+  VOYAGE_API_KEY: z.string().min(1),
+  VOYAGE_EMBED_MODEL: z.string().default('voyage-3-lite'),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -25,6 +25,7 @@ import { NoopRealtimeService } from './services/noop/noop-realtime.service';
 import { SmtpEmailService } from './services/smtp-email.service';
 import { SessionModule } from './session/session.module';
 import { SynthesisModule } from './synthesis/synthesis.module';
+import { VoyageModule } from './voyage/voyage.module';
 
 const deferredServiceProviders = [
   { provide: EntitlementsService, useClass: NoopEntitlementsService },
@@ -48,6 +49,7 @@ const deferredServiceProviders = [
     GridModule,
     SynthesisModule,
     DiceModule,
+    VoyageModule,
     SessionModule,
   ],
   providers: deferredServiceProviders,
