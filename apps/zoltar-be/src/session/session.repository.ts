@@ -15,6 +15,19 @@ import type { AdventureTelemetryPayload } from './session.telemetry';
 import type { ThresholdCrossing, ValidationResult } from './session.validator';
 import type { DbMessage } from './session.window';
 
+export interface DiceRequestRow {
+  id: string;
+  adventureId: string;
+  issuedAtSequence: number;
+  notation: string;
+  purpose: string;
+  target: number | null;
+  status: 'pending' | 'resolved' | 'cancelled';
+  resolvedAtSequence: number | null;
+  resolvedAt: Date | null;
+  createdAt: Date;
+}
+
 export interface ApplyTurnAtomicArgs {
   adventureId: string;
   campaignId: string;
@@ -151,6 +164,93 @@ export class SessionRepository {
       .update(schema.gmContexts)
       .set({ blob: updatedBlob, updatedAt: sql`now()` })
       .where(eq(schema.gmContexts.adventureId, args.adventureId));
+  }
+
+  /**
+   * Insert a pending dice_request row. Called from within the per-turn
+   * transaction in M8 once `submit_gm_response.diceRequests` has been parsed —
+   * the backend owns request-id generation so Claude never sees or supplies
+   * them. Returns the full row (the caller needs at least `id` to echo back
+   * on the HTTP response; returning everything keeps callers decoupled from
+   * future field additions).
+   */
+  async insertDiceRequest(args: {
+    tx: DbOrTx;
+    adventureId: string;
+    issuedAtSequence: number;
+    notation: string;
+    purpose: string;
+    target: number | null;
+  }): Promise<DiceRequestRow> {
+    const [row] = await args.tx
+      .insert(schema.diceRequests)
+      .values({
+        adventureId: args.adventureId,
+        issuedAtSequence: args.issuedAtSequence,
+        notation: args.notation,
+        purpose: args.purpose,
+        target: args.target,
+      })
+      .returning();
+    return row as DiceRequestRow;
+  }
+
+  /**
+   * Load a dice_request by id. Used by the diceResult action branch (M9) to
+   * validate that the row exists, is pending, and belongs to the given
+   * adventure before accepting a submitted result. Returns null for unknown
+   * ids so the controller can return 409 without needing a separate
+   * not-found exception.
+   */
+  async loadDiceRequest(id: string): Promise<DiceRequestRow | null> {
+    const rows = await this.db
+      .select()
+      .from(schema.diceRequests)
+      .where(eq(schema.diceRequests.id, id))
+      .limit(1);
+    return (rows[0] as DiceRequestRow | undefined) ?? null;
+  }
+
+  /**
+   * Transition a dice_request from `pending` to `resolved`, stamping the
+   * resolving `dice_roll.sequence_number` and `now()`. Called inside the same
+   * transaction that writes the `dice_roll` event so the two stay consistent.
+   */
+  async resolveDiceRequest(args: {
+    tx: DbOrTx;
+    id: string;
+    resolvedAtSequence: number;
+  }): Promise<void> {
+    await args.tx
+      .update(schema.diceRequests)
+      .set({
+        status: 'resolved',
+        resolvedAtSequence: args.resolvedAtSequence,
+        resolvedAt: sql`now()`,
+      })
+      .where(eq(schema.diceRequests.id, args.id));
+  }
+
+  /**
+   * All `pending` dice_requests for an adventure, ordered by issue sequence.
+   * Used by the adventure-bootstrap endpoint (so a returning user lands in
+   * the DicePrompt if they left mid-roll) and by the narrative-action guard
+   * (which blocks narrative submission while any request is still pending).
+   */
+  async pendingDiceRequestsForAdventure(
+    adventureId: string,
+  ): Promise<DiceRequestRow[]> {
+    const rows = await this.db
+      .select()
+      .from(schema.diceRequests)
+      .where(
+        and(
+          eq(schema.diceRequests.adventureId, adventureId),
+          eq(schema.diceRequests.status, 'pending'),
+        ),
+      )
+      .orderBy(asc(schema.diceRequests.issuedAtSequence));
+    return rows as DiceRequestRow[];
   }
 
   /**

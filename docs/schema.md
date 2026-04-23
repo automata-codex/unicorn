@@ -41,6 +41,11 @@ infra/
       V5__map_geometry_stub.sql
       V6__pending_canon.sql
       V7__rules_index.sql
+      V8__adventure_telemetry.sql
+      V9__adventure_status.sql
+      V10__character_sheet_drop_current_fields.sql
+      V11__adventure_status_in_progress.sql
+      V12__dice_request.sql
 ```
 
 The Drizzle schema definition lives in `apps/zoltar-be/src/db/schema.ts`.
@@ -298,6 +303,34 @@ CREATE TABLE pending_canon (
 
 CREATE INDEX pending_canon_adventure_idx ON pending_canon (adventure_id);
 CREATE INDEX pending_canon_status_idx ON pending_canon (adventure_id, status);
+```
+
+---
+
+### Dice Requests (`V12__dice_request.sql`)
+
+Player-facing dice prompts issued by Claude via `submit_gm_response.diceRequests`. The backend generates `id`, persists one row per prompt, and echoes the enriched list on the HTTP response. A subsequent `diceResult` action from the client resolves the row and writes a `dice_roll` event with `roll_source = 'player_entered'` and `payload.requestId` pointing back at this row.
+
+Lifecycle: `pending` → `resolved` (via the `diceResult` action) or `cancelled` (reserved for future caller-transfer / adventure-end cleanup — not exercised in M7).
+
+```sql
+CREATE TYPE dice_request_status AS ENUM ('pending', 'resolved', 'cancelled');
+
+CREATE TABLE dice_request (
+  id                   uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  adventure_id         uuid        NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
+  issued_at_sequence   integer     NOT NULL,                   -- gm_response sequence_number that issued the request
+  notation             text        NOT NULL,
+  purpose              text        NOT NULL,
+  target               integer,                                -- null in commitment mode
+  status               dice_request_status NOT NULL DEFAULT 'pending',
+  resolved_at_sequence integer,                                -- dice_roll sequence_number that resolved it
+  resolved_at          timestamptz,
+  created_at           timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX dice_request_adventure_idx        ON dice_request (adventure_id);
+CREATE INDEX dice_request_adventure_status_idx ON dice_request (adventure_id, status);
 ```
 
 ---
