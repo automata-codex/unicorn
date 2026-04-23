@@ -223,6 +223,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [ ] SQL views joining `game_events` and `adventure_telemetry` (per-turn, per-state-history, per-correction)
 - [ ] CLI script that produces a turn-by-turn markdown report for a given adventure id
 - [ ] Sanity-check the `adventure_telemetry` payload shape against a real Mothership run and adjust if fields are missing or redundant
+- [ ] Warden prompt versioning in production: persist version on each telemetry row, surface in M7.1 review output (parity with the playtest app's Setup dropdown — deferred from M7, see `docs/specs/zoltar/m7-ai-tools.md § Deferrals Introduced in M7`)
 
 #### M7.2 — Rules Ingestion Pipeline
 

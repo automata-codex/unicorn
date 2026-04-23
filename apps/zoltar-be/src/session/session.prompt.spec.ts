@@ -98,7 +98,10 @@ describe('buildSessionRequest', () => {
     expect(req.systemBlocks).toHaveLength(2);
     expect(req.systemBlocks[0].cache_control).toEqual({ type: 'ephemeral' });
     expect(req.systemBlocks[0].text).toContain('<gm_context>');
-    expect(req.systemBlocks[1].cache_control).toBeUndefined();
+    // Warden prompt is static across turns — cache breakpoint placed here
+    // lets a fresh turn read the whole system from cache when agendas also
+    // didn't change. See session.prompt.ts for the two-breakpoint layout.
+    expect(req.systemBlocks[1].cache_control).toEqual({ type: 'ephemeral' });
     expect(req.systemBlocks[1].text).toBe(WARDEN_SYSTEM_PROMPT_MOTHERSHIP);
   });
 
