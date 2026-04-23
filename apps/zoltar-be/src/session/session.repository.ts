@@ -13,12 +13,24 @@ import {
   type PendingSystemRoll,
   type WrittenDiceRollRecord,
 } from './session.events';
-import { writeAdventureTelemetry } from './session.telemetry';
+import {
+  buildAdventureTelemetryPayload,
+  writeAdventureTelemetry,
+} from './session.telemetry';
 
+import type Anthropic from '@anthropic-ai/sdk';
+import type { CallSessionParams } from '../anthropic/anthropic.service';
 import type { Db, DbOrTx } from '../db/db.provider';
 import type { SubmitGmResponse } from './session.schema';
-import type { AdventureTelemetryPayload } from './session.telemetry';
-import type { ThresholdCrossing, ValidationResult } from './session.validator';
+import type {
+  ExecutedRollRecord,
+  RulesLookupRecord,
+} from './session.telemetry';
+import type {
+  ThresholdCrossing,
+  ValidationRejection,
+  ValidationResult,
+} from './session.validator';
 import type { DbMessage } from './session.window';
 
 export interface DiceRequestRow {
@@ -40,6 +52,31 @@ export interface DiceRequestInput {
   target: number | null;
 }
 
+/**
+ * Inputs for the turn-level telemetry row. Passed as raw data rather than a
+ * pre-built `AdventureTelemetryPayload` because the payload's `diceRolls`
+ * entries need real `sequence_number` values from this turn's inserts, which
+ * only become known inside the atomic transaction.
+ */
+export interface TelemetryInputs {
+  playerMessage: string;
+  snapshotSent: string;
+  originalRequest: CallSessionParams;
+  originalResponse: Anthropic.Message;
+  originalParsed: SubmitGmResponse;
+  correction?: {
+    rejections: ValidationRejection[];
+    response: Anthropic.Message;
+    parsed: SubmitGmResponse;
+  };
+  /** Player-entered rolls from before this turn, with real DB sequence numbers. */
+  preTurnPlayerRolls: ExecutedRollRecord[];
+  /** Lookups from the inner tool loop. */
+  rulesLookups: RulesLookupRecord[];
+  /** Inner tool-loop iteration count. */
+  toolLoopIterations: number;
+}
+
 export interface ApplyTurnAtomicArgs {
   adventureId: string;
   campaignId: string;
@@ -57,7 +94,7 @@ export interface ApplyTurnAtomicArgs {
   /** Player-facing dice prompts to persist after gm_response. */
   diceRequests?: DiceRequestInput[];
   gmText: string;
-  telemetryPayload: AdventureTelemetryPayload;
+  telemetry: TelemetryInputs;
   autoPromoteCanon: boolean;
 }
 
@@ -264,19 +301,25 @@ export class SessionRepository {
     adventureId: string,
   ): Promise<
     Array<{
+      sequenceNumber: number;
       notation: string;
       purpose: string;
       target: number | null;
       results: number[];
+      modifier: number;
       total: number;
+      requestId: string;
     }>
   > {
     const result = await this.db.execute<{
+      sequence_number: number;
       notation: string;
       purpose: string;
       target: number | null;
       results: number[];
+      modifier: number;
       total: number;
+      request_id: string;
     }>(sql`
       WITH last_gm AS (
         SELECT COALESCE(MAX(sequence_number), 0) AS seq
@@ -284,11 +327,14 @@ export class SessionRepository {
         WHERE adventure_id = ${adventureId}
           AND event_type = 'gm_response'
       )
-      SELECT dq.notation,
+      SELECT ev.sequence_number,
+             dq.notation,
              dq.purpose,
              dq.target,
              (ev.payload->'results')::jsonb AS results,
-             (ev.payload->>'total')::int    AS total
+             COALESCE((ev.payload->>'modifier')::int, 0) AS modifier,
+             (ev.payload->>'total')::int    AS total,
+             (ev.payload->>'requestId')     AS request_id
       FROM game_event ev
       JOIN dice_request dq
         ON dq.id = (ev.payload->>'requestId')::uuid
@@ -299,11 +345,14 @@ export class SessionRepository {
       ORDER BY ev.sequence_number ASC
     `);
     return result.rows.map((r) => ({
+      sequenceNumber: Number(r.sequence_number),
       notation: r.notation,
       purpose: r.purpose,
       target: r.target,
       results: Array.isArray(r.results) ? r.results : [],
+      modifier: Number(r.modifier),
       total: Number(r.total),
+      requestId: r.request_id,
     }));
   }
 
@@ -450,11 +499,39 @@ export class SessionRepository {
         tx,
       });
 
+      // Materialize the final diceRolls array with real sequence numbers
+      // now that `writeTurnEvents` has assigned them. System-generated rolls
+      // get their seqs from events.diceRollSequences (positional match to
+      // args.executedRolls); player-entered rolls already carry real seqs
+      // from prior `diceResult` transactions.
+      const systemRollRecords: ExecutedRollRecord[] =
+        events.diceRollSequences.map((r) => ({
+          source: 'system_generated',
+          sequenceNumber: r.sequenceNumber,
+          notation: r.notation,
+          purpose: r.purpose,
+          results: r.results,
+          modifier: r.modifier,
+          total: r.total,
+        }));
+      const telemetryPayload = buildAdventureTelemetryPayload({
+        playerMessage: args.telemetry.playerMessage,
+        snapshotSent: args.telemetry.snapshotSent,
+        originalRequest: args.telemetry.originalRequest,
+        originalResponse: args.telemetry.originalResponse,
+        originalParsed: args.telemetry.originalParsed,
+        correction: args.telemetry.correction,
+        applied: args.applied,
+        thresholds: args.thresholds,
+        diceRolls: [...args.telemetry.preTurnPlayerRolls, ...systemRollRecords],
+        rulesLookups: args.telemetry.rulesLookups,
+        toolLoopIterations: args.telemetry.toolLoopIterations,
+      });
       await writeAdventureTelemetry({
         tx,
         adventureId: args.adventureId,
         sequenceNumber: events.gmResponseSeq,
-        payload: args.telemetryPayload,
+        payload: telemetryPayload,
       });
 
       // Flip status on the first turn. Conditional on `status = 'ready'` so

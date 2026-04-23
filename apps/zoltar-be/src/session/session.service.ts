@@ -21,7 +21,6 @@ import {
 
 import type { DiceResultAction } from './session.schema';
 import { buildStateSnapshot } from './session.snapshot';
-import { buildAdventureTelemetryPayload } from './session.telemetry';
 import { SESSION_TOOLS } from './session.tools';
 import { validateStateChanges } from './session.validator';
 import { buildMessageWindow } from './session.window';
@@ -320,30 +319,30 @@ export class SessionService {
       applied: validation.applied,
     });
 
-    // 7. Telemetry payload — keyed by convention to the original
-    //    `gm_response` sequence, even on a correction turn.
+    // 7. Snapshot the prompt that was sent — stored in telemetry for
+    //    playtest replay. Keyed by convention to the original `gm_response`
+    //    sequence, even on a correction turn.
     const snapshotSent = buildStateSnapshot({
       gmContextBlob,
       campaignStateData,
     });
-    const telemetryPayload = buildAdventureTelemetryPayload({
-      playerMessage: args.playerMessage,
-      snapshotSent,
-      originalRequest: request,
-      originalResponse,
-      originalParsed,
-      correction: correctionResponse
-        ? {
-            rejections: firstRoundRejections,
-            response: correctionResponse,
-            parsed: correctionParsed!,
-          }
-        : undefined,
-      applied: validation.applied,
-      thresholds: validation.thresholds,
-    });
 
-    // 8. The final narration sent to the player is always the corrected
+    // 8. Materialize player-entered pre-turn rolls as ExecutedRollRecord.
+    //    These already carry real sequence numbers from the diceResult
+    //    transactions that wrote them; system-generated rolls from this
+    //    turn's inner loop get their seqs inside applyTurnAtomic.
+    const preTurnPlayerRolls = resolvedPlayerRolls.map((r) => ({
+      source: 'player_entered' as const,
+      sequenceNumber: r.sequenceNumber,
+      notation: r.notation,
+      purpose: r.purpose,
+      results: r.results,
+      modifier: r.modifier,
+      total: r.total,
+      requestId: r.requestId,
+    }));
+
+    // 9. The final narration sent to the player is always the corrected
     //    text when a correction fired, otherwise the original.
     const finalParsed = correctionParsed ?? originalParsed;
 
@@ -378,7 +377,23 @@ export class SessionService {
       npcStates: finalParsed.gmUpdates?.npcStates ?? {},
       diceRequests: diceRequestInputs,
       gmText: finalParsed.playerText,
-      telemetryPayload,
+      telemetry: {
+        playerMessage: args.playerMessage,
+        snapshotSent,
+        originalRequest: request,
+        originalResponse,
+        originalParsed,
+        correction: correctionResponse
+          ? {
+              rejections: firstRoundRejections,
+              response: correctionResponse,
+              parsed: correctionParsed!,
+            }
+          : undefined,
+        preTurnPlayerRolls,
+        rulesLookups: innerLoop.rulesLookups,
+        toolLoopIterations: innerLoop.iterations,
+      },
       autoPromoteCanon: true,
     });
 
