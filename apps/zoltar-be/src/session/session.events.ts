@@ -134,3 +134,53 @@ function gmPayloadFor(r: SubmitGmResponse): Record<string, unknown> {
     adventureMode: r.adventureMode ?? null,
   };
 }
+
+export interface DiceRollEventPayload {
+  notation: string;
+  purpose: string;
+  results: number[];
+  modifier: number;
+  total: number;
+  requestId?: string;
+}
+
+export interface InsertDiceRollEventArgs {
+  tx: DbOrTx;
+  adventureId: string;
+  campaignId: string;
+  sequenceNumber: number;
+  actorType: 'gm' | 'player';
+  actorId: string | null;
+  rollSource: 'system_generated' | 'player_entered';
+  payload: DiceRollEventPayload;
+}
+
+/**
+ * Write a single `dice_roll` row to `game_events`. The caller is responsible
+ * for allocating `sequenceNumber` (see `nextSequenceNumber`) and for owning
+ * the surrounding transaction — in M7 this is the per-turn transaction that
+ * writes player_action, any intervening dice_roll rows from the inner tool
+ * loop, and the final gm_response/state_update events in contiguous order.
+ *
+ * `actorType: 'gm'` with `actorId: null` for system-generated rolls (the
+ * Warden is not a user); `actorType: 'player'` with `actorId: <user_id>` for
+ * player-entered rolls resolving a `dice_request`. `rollSource` mirrors this.
+ */
+export async function insertDiceRollEvent(
+  args: InsertDiceRollEventArgs,
+): Promise<{ id: string }> {
+  const [row] = await args.tx
+    .insert(schema.gameEvents)
+    .values({
+      adventureId: args.adventureId,
+      campaignId: args.campaignId,
+      sequenceNumber: args.sequenceNumber,
+      eventType: 'dice_roll',
+      actorType: args.actorType,
+      actorId: args.actorId,
+      rollSource: args.rollSource,
+      payload: args.payload as unknown as Record<string, unknown>,
+    })
+    .returning({ id: schema.gameEvents.id });
+  return { id: row.id };
+}

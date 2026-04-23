@@ -14,6 +14,7 @@ import { CampaignModule } from './campaign/campaign.module';
 import { CharacterModule } from './character/character.module';
 import { ConfigModule } from './config/config.module';
 import { DbModule } from './db/db.module';
+import { DiceModule } from './dice/dice.module';
 import { GridModule } from './grid/grid.module';
 import { HealthModule } from './health/health.module';
 import { NoopAssetStorageService } from './services/noop/noop-asset-storage.service';
@@ -46,6 +47,7 @@ const deferredServiceProviders = [
     AuthModule,
     GridModule,
     SynthesisModule,
+    DiceModule,
     SessionModule,
   ],
   providers: deferredServiceProviders,

@@ -5,6 +5,7 @@ import { AnthropicModule } from '../anthropic/anthropic.module';
 import { AuthModule } from '../auth/auth.module';
 import { CampaignModule } from '../campaign/campaign.module';
 import { CanonModule } from '../canon/canon.module';
+import { DiceModule } from '../dice/dice.module';
 
 import { SessionController } from './session.controller';
 import { SessionRepository } from './session.repository';
@@ -22,6 +23,7 @@ import { SessionService } from './session.service';
     AdventureModule,
     CampaignModule,
     CanonModule,
+    DiceModule,
   ],
   controllers: [SessionController],
   providers: [SessionRepository, SessionService],
