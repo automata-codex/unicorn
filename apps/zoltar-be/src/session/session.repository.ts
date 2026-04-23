@@ -287,6 +287,78 @@ export class SessionRepository {
   }
 
   /**
+   * All `dice_roll` events for the adventure, ordered by sequence. Joins
+   * `dice_request` (left, since system-generated rolls have no originating
+   * request) so the FE can render target/success-or-failure for
+   * player-entered rolls.
+   *
+   * Feeds the play-view message log — dice events are merged with the
+   * plain-message stream by `createdAt` client-side.
+   */
+  async listDiceRollEvents(
+    adventureId: string,
+  ): Promise<
+    Array<{
+      id: string;
+      sequenceNumber: number;
+      createdAt: Date;
+      source: 'system_generated' | 'player_entered';
+      notation: string;
+      purpose: string;
+      results: number[];
+      modifier: number;
+      total: number;
+      target: number | null;
+      requestId: string | null;
+    }>
+  > {
+    const result = await this.db.execute<{
+      id: string;
+      sequence_number: number;
+      created_at: Date;
+      roll_source: 'system_generated' | 'player_entered';
+      notation: string;
+      purpose: string;
+      results: number[];
+      modifier: number;
+      total: number;
+      target: number | null;
+      request_id: string | null;
+    }>(sql`
+      SELECT ev.id,
+             ev.sequence_number,
+             ev.created_at,
+             ev.roll_source,
+             (ev.payload->>'notation')          AS notation,
+             (ev.payload->>'purpose')           AS purpose,
+             (ev.payload->'results')::jsonb     AS results,
+             COALESCE((ev.payload->>'modifier')::int, 0) AS modifier,
+             (ev.payload->>'total')::int        AS total,
+             dq.target                          AS target,
+             (ev.payload->>'requestId')         AS request_id
+      FROM game_event ev
+      LEFT JOIN dice_request dq
+        ON dq.id::text = ev.payload->>'requestId'
+      WHERE ev.adventure_id = ${adventureId}
+        AND ev.event_type   = 'dice_roll'
+      ORDER BY ev.sequence_number ASC
+    `);
+    return result.rows.map((r) => ({
+      id: r.id,
+      sequenceNumber: Number(r.sequence_number),
+      createdAt: r.created_at,
+      source: r.roll_source,
+      notation: r.notation,
+      purpose: r.purpose,
+      results: Array.isArray(r.results) ? r.results : [],
+      modifier: Number(r.modifier),
+      total: Number(r.total),
+      target: r.target === null ? null : Number(r.target),
+      requestId: r.request_id,
+    }));
+  }
+
+  /**
    * Player-entered dice_roll events that landed after the most recent
    * `gm_response` for this adventure. These are rolls the player submitted
    * between turns; the prompt builder renders them as a synthetic

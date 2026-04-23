@@ -99,11 +99,12 @@ export class SessionController {
   ) {
     // assertMember is baked into adventureService.findById.
     await this.adventureService.findById(campaignId, adventureId, user.id);
-    const [messages, pendingDiceRequests] = await Promise.all([
+    const [messages, diceRolls, pendingDiceRequests] = await Promise.all([
       this.sessionService.listMessages(adventureId),
+      this.sessionService.listDiceRolls(adventureId),
       this.sessionService.getPendingDiceRequests(adventureId),
     ]);
-    return { messages, pendingDiceRequests };
+    return { messages, diceRolls, pendingDiceRequests };
   }
 
   @Post('messages')

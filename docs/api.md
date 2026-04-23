@@ -423,6 +423,19 @@ Get message history and pending dice prompts for an adventure. Cursor-based, mos
       "createdAt": "2026-03-01T12:00:00Z"
     }
   ],
+  "diceRolls": [
+    {
+      "id": "uuid",
+      "sequenceNumber": 2,
+      "createdAt": "2026-03-01T12:00:03Z",
+      "source": "system_generated",
+      "notation": "1d100",
+      "purpose": "Panic check for Dr. Chen",
+      "results": [73],
+      "total": 73,
+      "target": null
+    }
+  ],
   "pendingDiceRequests": [
     {
       "id": "uuid",
@@ -435,6 +448,8 @@ Get message history and pending dice prompts for an adventure. Cursor-based, mos
   "rollingSummary": "The crew boarded the Persephone and discovered..."
 }
 ```
+
+`diceRolls` is the full `game_event` dice stream for this adventure. The FE merges it with `messages` by `createdAt` to produce the unified play-view timeline (narrative bubbles + mechanical-event bubbles interleaved in sequence order). `source` is `"system_generated"` for rolls Claude executed via `roll_dice` and `"player_entered"` for player-submitted results.
 
 `pendingDiceRequests` is empty in the normal case (no outstanding rolls). When a user left the play view mid-roll, the prompt persists server-side and is surfaced here on reload so the FE can re-render the `DicePrompt` without losing state.
 

@@ -579,6 +579,39 @@ export class SessionService {
     }));
   }
 
+  /**
+   * All `dice_roll` events for an adventure, wire-formatted for the play view.
+   * Surfaces the info the FE needs to render a `DiceRollBubble`: source,
+   * notation, results, total, optional target (for player-entered rolls
+   * resolving a dice_request in soft_accountability mode).
+   */
+  async listDiceRolls(adventureId: string): Promise<
+    Array<{
+      id: string;
+      sequenceNumber: number;
+      createdAt: string;
+      source: 'system_generated' | 'player_entered';
+      notation: string;
+      purpose: string;
+      results: number[];
+      total: number;
+      target: number | null;
+    }>
+  > {
+    const rows = await this.repo.listDiceRollEvents(adventureId);
+    return rows.map((r) => ({
+      id: r.id,
+      sequenceNumber: r.sequenceNumber,
+      createdAt: r.createdAt.toISOString(),
+      source: r.source,
+      notation: r.notation,
+      purpose: r.purpose,
+      results: r.results,
+      total: r.total,
+      target: r.target,
+    }));
+  }
+
   private async callClaudeOnce(
     request: CallSessionParams,
     adventureId: string,
