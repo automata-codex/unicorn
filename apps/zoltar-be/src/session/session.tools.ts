@@ -15,5 +15,4 @@ export const SUBMIT_GM_RESPONSE_TOOL: Anthropic.Tool = {
   input_schema: submitGmResponseJsonSchema as Anthropic.Tool['input_schema'],
 };
 
-// `roll_dice` and `rules_lookup` are M6 additions — not registered yet.
 export const SESSION_TOOLS: Anthropic.Tool[] = [SUBMIT_GM_RESPONSE_TOOL];

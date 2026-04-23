@@ -62,12 +62,12 @@ export const submitGmResponseSchema = z.object({
     .optional(),
 
   // Player-facing dice prompts. Backend assigns IDs on receipt.
-  playerRolls: z
+  diceRequests: z
     .array(
       z.object({
         notation: z.string(),
         purpose: z.string(),
-        pool: z.string().optional(),
+        target: z.number().int().nullable().optional(),
       }),
     )
     .optional(),

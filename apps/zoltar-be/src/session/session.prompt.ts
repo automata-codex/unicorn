@@ -20,7 +20,7 @@ export const WARDEN_SYSTEM_PROMPT_MOTHERSHIP = [
   'compounds. Narrate consequences faithfully; do not soften them. Avoid',
   'improvising rules: when a mechanical ruling is uncertain, call the rules',
   'lookup tool rather than guess. When dice are needed, use the roll tool for',
-  'GM-side rolls and prompt the player via playerRolls for their rolls.',
+  'GM-side rolls and prompt the player via diceRequests for their rolls.',
   '',
   'Every turn you must call the submit_gm_response tool exactly once. The',
   'player sees only what you put in playerText. Propose state changes through',

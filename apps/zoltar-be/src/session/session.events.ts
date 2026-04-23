@@ -130,7 +130,7 @@ function gmPayloadFor(r: SubmitGmResponse): Record<string, unknown> {
     playerText: r.playerText,
     stateChanges: r.stateChanges ?? null,
     gmUpdates: r.gmUpdates ?? null,
-    playerRolls: r.playerRolls ?? null,
+    diceRequests: r.diceRequests ?? null,
     adventureMode: r.adventureMode ?? null,
   };
 }

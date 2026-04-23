@@ -784,9 +784,11 @@ Document this decision in `docs/DECISIONS.md`:
 
 ## Part 7: `dice_request` Persistence and the `diceResult` Action
 
-### 7.1 New migration: V10 — `dice_request`
+### 7.1 New migration: V12 — `dice_request`
 
-File: `infra/db/migrations/V10__dice_request.sql`
+File: `infra/db/migrations/V12__dice_request.sql`
+
+(The original spec named this `V10__dice_request.sql`; V10 and V11 were taken by other work between spec and implementation, so the actual slot is V12.)
 
 ```sql
 CREATE TYPE dice_request_status AS ENUM ('pending', 'resolved', 'cancelled');
@@ -1198,7 +1200,7 @@ Per `docs/CLAUDE.md`.
 All updates land in the same PR as the implementation, or as a small preceding cleanup PR where called out:
 
 - `docs/tools.md` — no schema changes needed (already canonical); verify tool descriptions still read correctly after the Warden prompt additions. If the descriptions drift from the in-code tool descriptions after implementation, update `docs/tools.md` to match — the code is the source of truth for descriptions.
-- `docs/schema.md` — add the `dice_request` table definition under a new subsection after `pending_canon`; add `V10__dice_request.sql` to the migration list.
+- `docs/schema.md` — add the `dice_request` table definition under a new subsection after `pending_canon`; add `V12__dice_request.sql` to the migration list.
 - `docs/api.md` — verify the `diceResult` action branch, the dice_request persistence in the `/actions` response, and `pendingDiceRequests` in the adventure bootstrap response all match `docs/api.md`; update if implementation diverges.
 - `docs/zoltar-design-doc.md` — no structural updates expected; dice rolling modes section already describes the M7 behaviour.
 - `docs/DECISIONS.md` — three new entries:

@@ -224,6 +224,16 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [ ] CLI script that produces a turn-by-turn markdown report for a given adventure id
 - [ ] Sanity-check the `adventure_telemetry` payload shape against a real Mothership run and adjust if fields are missing or redundant
 
+#### M7.2 — Rules Ingestion Pipeline
+
+*Populate the `rules_chunk` index for Mothership. M7 ships runtime plumbing (`rules_lookup` tool, `VoyageService`, pgvector query) but leaves the index empty so playtest evidence from M7 can prioritize ingestion coverage. Separate milestone because the pipeline is Python, not TypeScript, and is independently testable.*
+
+- [ ] Python ingestion pipeline under `ingestion/` (marker extraction → heading-aware chunking → Voyage document-mode embedding → SQL insert)
+- [ ] One-time local seed of Mothership rules chunks from the PDF
+- [ ] Fixup patch scaffolding for chunk-level corrections
+- [ ] Hash-verification step to detect source-document drift between re-ingestions
+- [ ] Ingestion smoke tests (chunk count, embedding dimensions, system_id tagging)
+
 #### M8 — Multiplayer Foundation
 
 *Caller model and initiative mode.*

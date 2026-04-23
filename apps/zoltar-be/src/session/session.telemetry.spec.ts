@@ -48,7 +48,7 @@ function stubParsed(overrides?: Partial<SubmitGmResponse>): SubmitGmResponse {
     playerText: 'narration',
     stateChanges: {},
     gmUpdates: {},
-    playerRolls: [],
+    diceRequests: [],
     adventureMode: null,
     ...overrides,
   };

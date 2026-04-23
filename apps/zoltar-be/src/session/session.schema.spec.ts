@@ -30,8 +30,8 @@ describe('submitGmResponseSchema', () => {
         notes: 'Party is running low on ammo.',
         proposedCanon: [{ summary: 'Ship has a brig.', context: 'Cell door.' }],
       },
-      playerRolls: [
-        { notation: '1d100', purpose: 'Fear save', pool: 'dr_chen_stress' },
+      diceRequests: [
+        { notation: '1d100', purpose: 'Fear save', target: 30 },
       ],
       adventureMode: 'initiative',
     });

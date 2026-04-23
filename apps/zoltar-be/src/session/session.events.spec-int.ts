@@ -70,7 +70,7 @@ const baseGmResponse: SubmitGmResponse = {
   playerText: 'The door groans open.',
   stateChanges: { resourcePools: { dr_chen_hp: { delta: -1 } } },
   gmUpdates: { npcStates: {}, proposedCanon: [] },
-  playerRolls: [],
+  diceRequests: [],
   adventureMode: null,
 };
 
