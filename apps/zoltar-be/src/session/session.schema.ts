@@ -76,3 +76,49 @@ export const submitGmResponseSchema = z.object({
 });
 
 export type SubmitGmResponse = z.infer<typeof submitGmResponseSchema>;
+
+/**
+ * `roll_dice` tool — server-side execution of a dice roll. Used for
+ * system-generated rolls (NPC actions, GM saves, panic checks, random
+ * resolutions). The result is computed by the backend, logged to
+ * `game_events`, and returned to Claude as a tool_result before narration.
+ * Player-facing rolls travel through `diceRequests` on `submit_gm_response`
+ * instead.
+ */
+export const rollDiceInputSchema = z.object({
+  notation: z.string(),
+  purpose: z.string(),
+});
+
+export const rollDiceOutputSchema = z.object({
+  notation: z.string(),
+  results: z.array(z.number().int()),
+  modifier: z.number().int().default(0),
+  total: z.number().int(),
+});
+
+export type RollDiceInput = z.infer<typeof rollDiceInputSchema>;
+export type RollDiceOutput = z.infer<typeof rollDiceOutputSchema>;
+
+/**
+ * `rules_lookup` tool — semantic search against the per-system rules index.
+ * Empty `results` is a valid (and in M7, expected) outcome: the index is
+ * populated by the separate M7.2 ingestion pipeline.
+ */
+export const rulesLookupInputSchema = z.object({
+  query: z.string(),
+  limit: z.number().int().min(1).max(5).default(3),
+});
+
+export const rulesLookupOutputSchema = z.object({
+  results: z.array(
+    z.object({
+      text: z.string(),
+      source: z.string(),
+      similarity: z.number(),
+    }),
+  ),
+});
+
+export type RulesLookupInput = z.infer<typeof rulesLookupInputSchema>;
+export type RulesLookupOutput = z.infer<typeof rulesLookupOutputSchema>;
