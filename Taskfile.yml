@@ -28,3 +28,9 @@ tasks:
     cmds:
       # --env-file=.env picks up DATABASE_URL from the repo-root symlink created during onboarding.
       - npx tsx --env-file=.env scripts/playtest-review.ts {{.CLI_ARGS}}
+
+  playtest:save-synthesis:
+    desc: Freeze a zero-turn adventure's starting conditions to a JSON file. Usage — task playtest:save-synthesis -- <adventure-id>
+    dir: apps/zoltar-be
+    cmds:
+      - npx tsx --env-file=.env scripts/save-synthesis.ts {{.CLI_ARGS}}

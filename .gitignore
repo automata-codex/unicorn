@@ -96,3 +96,6 @@ docs/plans
 
 # Playtest-review artifacts (contain prompt text + playtest transcripts)
 apps/zoltar-be/playtest-reports/
+
+# Synthesis save files (contain full GM context blob including hidden information)
+apps/zoltar-be/synthesis-saves/

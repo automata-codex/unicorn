@@ -16,6 +16,8 @@ This document defines the Zoltar database schema for Phase 1. It serves as the s
 
 **JSONB blobs:** Used for system-specific state (`campaign_state.data`, `character_sheets.data`, `gm_context.blob`) and flexible metadata (`grid_entities.tags`, `game_events.payload`, `pending_canon.entry`). Validated at the application layer with Zod — the database does not enforce blob shape.
 
+**`schema_version` columns:** Integer. Present on each table whose jsonb blob has a structured shape application code depends on (`campaign_state.schema_version`, `character_sheets.schema_version`, `gm_context.schema_version`). Bump only on a **breaking shape change** — a field removed, renamed, or type-changed, or a structural rearrangement that existing-row readers can't handle. Purely additive changes (new optional fields, new entries in a `Record`) do **not** bump; they're forward-compatible against older readers and backward-compatible against older data. Each bump is paired with migration code that either lazily migrates on read or rejects old rows loudly — either way, the integer is the signal that handling is required. This is distinct from the semver string convention used on oracle table files (`docs/specs/zoltar-playtest/pre-playtest-1.md`), which tracks content evolution for an audit trail rather than gating code paths.
+
 **`org_id`:** Present but nullable on `campaigns`. Null in self-hosted deployments (single implicit tenant). Populated in SaaS deployments and enforced via Row Level Security. RLS policies are not defined in this schema — they are applied by the SaaS deployment layer only.
 
 **Dice mode:** Set per campaign at creation. Two values: `soft_accountability` (player enters result, logged) and `commitment` (result committed before target revealed).
@@ -47,6 +49,7 @@ infra/
       V11__adventure_status_in_progress.sql
       V12__dice_request.sql
       V13__review_views.sql
+      V14__gm_context_schema_version.sql
 ```
 
 The Drizzle schema definition lives in `apps/zoltar-be/src/db/schema.ts`.
@@ -143,10 +146,11 @@ CREATE TABLE adventure (
 );
 
 CREATE TABLE gm_context (
-  id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  adventure_id uuid        NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
-  blob         jsonb       NOT NULL DEFAULT '{}',
-  updated_at   timestamptz NOT NULL DEFAULT now(),
+  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  adventure_id   uuid        NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
+  schema_version integer     NOT NULL DEFAULT 1,  -- Added in V14 (M7.1). Versions the `blob` shape.
+  blob           jsonb       NOT NULL DEFAULT '{}',
+  updated_at     timestamptz NOT NULL DEFAULT now(),
   UNIQUE (adventure_id)
 );
 
@@ -616,10 +620,11 @@ export const adventures = pgTable('adventure', {
 });
 
 export const gmContexts = pgTable('gm_context', {
-  id:          uuid('id').primaryKey().defaultRandom(),
-  adventureId: uuid('adventure_id').notNull().references(() => adventures.id, { onDelete: 'cascade' }),
-  blob:        jsonb('blob').notNull().default({}),
-  updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  id:            uuid('id').primaryKey().defaultRandom(),
+  adventureId:   uuid('adventure_id').notNull().references(() => adventures.id, { onDelete: 'cascade' }),
+  schemaVersion: integer('schema_version').notNull().default(1),
+  blob:          jsonb('blob').notNull().default({}),
+  updatedAt:     timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const campaignStates = pgTable('campaign_state', {
