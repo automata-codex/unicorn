@@ -25,6 +25,7 @@ import type { SubmitGmResponse } from './session.schema';
 import type {
   ExecutedRollRecord,
   RulesLookupRecord,
+  WardenPromptRef,
 } from './session.telemetry';
 import type {
   ThresholdCrossing,
@@ -75,6 +76,8 @@ export interface TelemetryInputs {
   rulesLookups: RulesLookupRecord[];
   /** Inner tool-loop iteration count. */
   toolLoopIterations: number;
+  /** Warden prompt in effect this turn — filename + 8-char hash prefix. */
+  wardenPrompt: WardenPromptRef;
 }
 
 export interface ApplyTurnAtomicArgs {
@@ -594,6 +597,7 @@ export class SessionRepository {
         diceRolls: [...args.telemetry.preTurnPlayerRolls, ...systemRollRecords],
         rulesLookups: args.telemetry.rulesLookups,
         toolLoopIterations: args.telemetry.toolLoopIterations,
+        wardenPrompt: args.telemetry.wardenPrompt,
       });
       await writeAdventureTelemetry({
         tx,

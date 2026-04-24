@@ -51,6 +51,19 @@ export interface RulesLookupRecord {
 }
 
 /**
+ * Identifies the Warden role prompt that was in effect for the turn. The
+ * text itself is not archived here — that would multiply payload size by
+ * thousands for no review-time benefit, since the file sits under
+ * `apps/zoltar-be/src/wardens/prompts/` and the review CLI embeds it
+ * inline by filename + hash lookup. The hash is the sha256 prefix exposed
+ * by `WardenPromptsService.getSelected(...).hash`.
+ */
+export interface WardenPromptRef {
+  filename: string;
+  hash: string;
+}
+
+/**
  * One row per turn in `adventure_telemetry`, keyed to the `gm_response`
  * event's sequence number. Captures everything playtest review (M7.1) needs
  * to replay a turn: the prompt the snapshot carried, the Claude request/
@@ -99,6 +112,7 @@ export interface AdventureTelemetryPayload {
   diceRolls: ExecutedRollRecord[];
   rulesLookups: RulesLookupRecord[];
   toolLoopIterations: number;
+  wardenPrompt: WardenPromptRef;
 }
 
 export function buildAdventureTelemetryPayload(input: {
@@ -123,6 +137,12 @@ export function buildAdventureTelemetryPayload(input: {
    * tool calls — submit_gm_response on the first request).
    */
   toolLoopIterations?: number;
+  /**
+   * Identifies the Warden prompt file + hash in effect this turn. Required —
+   * the review CLI needs this to embed the prompt text and a missing field
+   * would silently break the per-turn "Warden" header in the report.
+   */
+  wardenPrompt: WardenPromptRef;
 }): AdventureTelemetryPayload {
   const originalUsage = input.originalResponse.usage;
 
@@ -154,6 +174,7 @@ export function buildAdventureTelemetryPayload(input: {
     diceRolls,
     rulesLookups: input.rulesLookups ?? [],
     toolLoopIterations: input.toolLoopIterations ?? 1,
+    wardenPrompt: input.wardenPrompt,
   };
 
   if (input.correction) {

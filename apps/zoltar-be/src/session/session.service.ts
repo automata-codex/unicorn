@@ -400,6 +400,10 @@ export class SessionService {
         preTurnPlayerRolls,
         rulesLookups: innerLoop.rulesLookups,
         toolLoopIterations: innerLoop.iterations,
+        wardenPrompt: {
+          filename: wardenPrompt.filename,
+          hash: wardenPrompt.hash,
+        },
       },
       autoPromoteCanon: true,
     });

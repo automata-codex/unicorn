@@ -382,15 +382,26 @@ CREATE TABLE adventure_telemetry (
   id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   adventure_id     uuid        NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
   sequence_number  integer     NOT NULL,    -- matches game_events.sequence_number for the gm_response event
-  payload          jsonb       NOT NULL,    -- player input, full submit_gm_response output,
-                                            -- all roll_dice calls (notation, purpose, results),
-                                            -- prompt_tokens, completion_tokens
+  payload          jsonb       NOT NULL,
   created_at       timestamptz NOT NULL DEFAULT now(),
   UNIQUE (adventure_id, sequence_number)
 );
 
 CREATE INDEX adventure_telemetry_adventure_idx ON adventure_telemetry (adventure_id);
 ```
+
+The `payload` jsonb carries (see `AdventureTelemetryPayload` in `apps/zoltar-be/src/session/session.telemetry.ts`):
+
+- `playerMessage`, `snapshotSent` — the turn's inputs as Claude saw them.
+- `originalRequest` — model, systemBlocks count, messageCount, token usage.
+- `originalResponse` — the parsed `submit_gm_response` from Claude.
+- `notes` — `{ original, correction }` copies of `gmUpdates.notes`.
+- `correction` (optional) — rejection list, correction-round token usage, corrected response.
+- `applied`, `thresholds` — validator output.
+- `diceRolls` — every roll that landed in this turn's game_event window (system-generated and player-entered, sequence-ordered).
+- `rulesLookups` — one record per `rules_lookup` call (query, limit, result count, top similarity, sources). Zero-result entries are preserved; M7.2 prioritizes ingestion against them.
+- `toolLoopIterations` — inner tool-loop iteration count for the turn.
+- `wardenPrompt` — `{ filename, hash }` identifying the Warden role prompt in effect. The hash is the 8-char sha256 prefix exposed by `WardenPromptsService`. The text itself is not archived — the review CLI embeds it from `apps/zoltar-be/src/wardens/prompts/` by filename at report-generation time. (Added in M7.1.)
 
 ---
 

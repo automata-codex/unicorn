@@ -284,8 +284,15 @@ describe('SessionService (integration) — happy path', () => {
     expect(telemetry[0].sequenceNumber).toBe(2);
     const payload = telemetry[0].payload as {
       notes: { original: string | null };
+      wardenPrompt: { filename: string; hash: string };
     };
     expect(payload.notes.original).toBe('Escalating tension');
+    // wardenPrompt is populated from WardenPromptsService.getSelected — the
+    // stub returns the canned fixture for every turn in these tests.
+    expect(payload.wardenPrompt).toEqual({
+      filename: 'mothership-m7.txt',
+      hash: 'testhash',
+    });
 
     // Two message rows: player input, corrected GM narration.
     const messages = await db
