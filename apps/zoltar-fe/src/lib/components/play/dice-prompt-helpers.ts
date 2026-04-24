@@ -1,8 +1,4 @@
-import {
-  DiceNotationError,
-  executeDiceRoll,
-  parseDiceNotation,
-} from '@uv/game-systems';
+import { executeDiceRoll, parseDiceNotation } from '@uv/game-systems';
 
 /**
  * A single pending dice prompt as it arrives from the backend. Mirrors
@@ -99,5 +95,3 @@ export function allFilled(entries: DicePromptEntry[]): boolean {
 export function rollForMe(notation: string): number[] {
   return executeDiceRoll(notation).results;
 }
-
-export { DiceNotationError };
