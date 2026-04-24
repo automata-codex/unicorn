@@ -21,3 +21,10 @@ tasks:
     desc: Stop and remove the Docker stack. Volumes (and database data) are preserved.
     cmds:
       - docker compose down
+
+  playtest:review:
+    desc: Render a markdown playtest-review report for an adventure. Usage — task playtest:review -- <adventure-id>
+    dir: apps/zoltar-be
+    cmds:
+      # --env-file=.env picks up DATABASE_URL from the repo-root symlink created during onboarding.
+      - npx tsx --env-file=.env scripts/playtest-review.ts {{.CLI_ARGS}}

@@ -93,3 +93,6 @@ build/
 infra/traefik/certs/
 
 docs/plans
+
+# Playtest-review artifacts (contain prompt text + playtest transcripts)
+apps/zoltar-be/playtest-reports/
