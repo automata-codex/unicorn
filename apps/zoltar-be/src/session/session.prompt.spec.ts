@@ -1,15 +1,13 @@
 import { emptyMothershipState } from '@uv/game-systems';
 import { describe, expect, it } from 'vitest';
 
-import {
-  buildSessionRequest,
-  formatGmContextBlob,
-  WARDEN_SYSTEM_PROMPT_MOTHERSHIP,
-} from './session.prompt';
+import { buildSessionRequest, formatGmContextBlob } from './session.prompt';
 import { SESSION_TOOLS, SUBMIT_GM_RESPONSE_TOOL } from './session.tools';
 
 import type { GmContextBlob } from './session.snapshot';
 import type { DbMessage } from './session.window';
+
+const WARDEN_PROMPT_FIXTURE = 'You are the Warden.\n\nFixture prompt.';
 
 const baseBlob: GmContextBlob = {
   openingNarration: 'Amber lights pulse — the ship drifts.',
@@ -93,6 +91,7 @@ describe('buildSessionRequest', () => {
       campaignStateData,
       windowMessages: [],
       playerMessage: 'I check the airlock.',
+      wardenPromptText: WARDEN_PROMPT_FIXTURE,
       tools: SESSION_TOOLS,
     });
     expect(req.systemBlocks).toHaveLength(2);
@@ -102,7 +101,7 @@ describe('buildSessionRequest', () => {
     // lets a fresh turn read the whole system from cache when agendas also
     // didn't change. See session.prompt.ts for the two-breakpoint layout.
     expect(req.systemBlocks[1].cache_control).toEqual({ type: 'ephemeral' });
-    expect(req.systemBlocks[1].text).toBe(WARDEN_SYSTEM_PROMPT_MOTHERSHIP);
+    expect(req.systemBlocks[1].text).toBe(WARDEN_PROMPT_FIXTURE);
   });
 
   it('starts the message array with the state snapshot as a user message', () => {
@@ -111,6 +110,7 @@ describe('buildSessionRequest', () => {
       campaignStateData,
       windowMessages: [],
       playerMessage: 'I check the airlock.',
+      wardenPromptText: WARDEN_PROMPT_FIXTURE,
       tools: SESSION_TOOLS,
     });
     expect(req.messages[0].role).toBe('user');
@@ -129,6 +129,7 @@ describe('buildSessionRequest', () => {
       campaignStateData,
       windowMessages,
       playerMessage: 'Third turn input.',
+      wardenPromptText: WARDEN_PROMPT_FIXTURE,
       tools: SESSION_TOOLS,
     });
     expect(req.messages).toHaveLength(6);
@@ -161,6 +162,7 @@ describe('buildSessionRequest', () => {
       campaignStateData,
       windowMessages: [],
       playerMessage: 'x',
+      wardenPromptText: WARDEN_PROMPT_FIXTURE,
       tools: SESSION_TOOLS,
     });
     expect(req.toolChoice).toEqual({ type: 'any' });
@@ -173,6 +175,7 @@ describe('buildSessionRequest', () => {
       campaignStateData,
       windowMessages: [],
       playerMessage: 'I check the airlock.',
+      wardenPromptText: WARDEN_PROMPT_FIXTURE,
       resolvedPlayerRolls: [],
       tools: SESSION_TOOLS,
     });
@@ -188,6 +191,7 @@ describe('buildSessionRequest', () => {
       campaignStateData,
       windowMessages: [],
       playerMessage: 'I brace myself.',
+      wardenPromptText: WARDEN_PROMPT_FIXTURE,
       resolvedPlayerRolls: [
         {
           notation: '1d100',
@@ -215,6 +219,7 @@ describe('buildSessionRequest', () => {
       campaignStateData,
       windowMessages: [],
       playerMessage: 'x',
+      wardenPromptText: WARDEN_PROMPT_FIXTURE,
       resolvedPlayerRolls: [
         {
           notation: '1d100',
@@ -235,6 +240,7 @@ describe('buildSessionRequest', () => {
       campaignStateData,
       windowMessages: [],
       playerMessage: 'x',
+      wardenPromptText: WARDEN_PROMPT_FIXTURE,
       resolvedPlayerRolls: [
         {
           notation: '1d100',
@@ -258,6 +264,7 @@ describe('buildSessionRequest', () => {
       campaignStateData,
       windowMessages: [],
       playerMessage: 'x',
+      wardenPromptText: WARDEN_PROMPT_FIXTURE,
       resolvedPlayerRolls: [
         {
           notation: '1d100',

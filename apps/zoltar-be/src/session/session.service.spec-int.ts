@@ -26,6 +26,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import type { AnthropicService } from '../anthropic/anthropic.service';
 import type { DiceService } from '../dice/dice.service';
 import type { RulesLookupService } from '../rules/rules-lookup.service';
+import type { WardenPromptsService } from '../wardens/warden-prompts.service';
 
 // These integration tests mock Claude to return submit_gm_response directly,
 // so roll_dice / rules_lookup paths are never exercised here; no-op stubs
@@ -42,6 +43,16 @@ function stubRules(): RulesLookupService {
   return {
     lookup: vi.fn(() => Promise.resolve({ results: [] })),
   } as unknown as RulesLookupService;
+}
+
+function stubWardens(): WardenPromptsService {
+  return {
+    getSelected: vi.fn().mockReturnValue({
+      filename: 'mothership-m7.txt',
+      hash: 'testhash',
+      text: 'Test Warden prompt for integration tests.',
+    }),
+  } as unknown as WardenPromptsService;
 }
 
 let repo: SessionRepository;
@@ -209,6 +220,7 @@ describe('SessionService (integration) — happy path', () => {
       campaignRepo,
       stubDice(),
       stubRules(),
+      stubWardens(),
     );
 
     const result = await service.sendMessage(baseArgs(campaignId, adventureId));
@@ -311,6 +323,7 @@ describe('SessionService (integration) — happy path', () => {
       campaignRepo,
       stubDice(),
       stubRules(),
+      stubWardens(),
     );
 
     await service.sendMessage(baseArgs(campaignId, adventureId));
@@ -353,6 +366,7 @@ describe('SessionService (integration) — correction succeeds', () => {
       campaignRepo,
       stubDice(),
       stubRules(),
+      stubWardens(),
     );
 
     const result = await service.sendMessage(baseArgs(campaignId, adventureId));
@@ -432,6 +446,7 @@ describe('SessionService (integration) — correction fails', () => {
       campaignRepo,
       stubDice(),
       stubRules(),
+      stubWardens(),
     );
 
     await expect(
@@ -562,6 +577,7 @@ describe('SessionService (integration) — telemetry with dice and lookups', () 
       campaignRepo,
       rollingDice(),
       rulesWithHit(),
+      stubWardens(),
     );
 
     await service.sendMessage(baseArgs(campaignId, adventureId));
@@ -673,6 +689,7 @@ describe('SessionService (integration) — telemetry with dice and lookups', () 
       campaignRepo,
       stubDice(),
       stubRules(),
+      stubWardens(),
     );
 
     await service.sendMessage(baseArgs(campaignId, adventureId));
@@ -719,6 +736,7 @@ describe('SessionService (integration) — telemetry with dice and lookups', () 
       campaignRepo,
       stubDice(),
       stubRules(), // empty-index path — lookup returns { results: [] }
+      stubWardens(),
     );
 
     await service.sendMessage(baseArgs(campaignId, adventureId));

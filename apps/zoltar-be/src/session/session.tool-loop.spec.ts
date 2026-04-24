@@ -16,6 +16,7 @@ import type {
 import type { CampaignRepository } from '../campaign/campaign.repository';
 import type { DiceService } from '../dice/dice.service';
 import type { RulesLookupService } from '../rules/rules-lookup.service';
+import type { WardenPromptsService } from '../wardens/warden-prompts.service';
 import type { SessionRepository } from './session.repository';
 
 // --- helpers --------------------------------------------------------------
@@ -82,8 +83,22 @@ function makeService(
     getStateData: vi.fn().mockResolvedValue(emptyMothershipState()),
     getSystemId: vi.fn().mockResolvedValue('system-uuid-mothership'),
   } as unknown as CampaignRepository;
+  const wardens = {
+    getSelected: vi.fn().mockReturnValue({
+      filename: 'mothership-m7.txt',
+      hash: 'testhash',
+      text: 'Test Warden prompt.',
+    }),
+  } as unknown as WardenPromptsService;
   return {
-    service: new SessionService(repo, anthropic, campaignRepo, dice, rules),
+    service: new SessionService(
+      repo,
+      anthropic,
+      campaignRepo,
+      dice,
+      rules,
+      wardens,
+    ),
     callSession,
     dice,
     rules,

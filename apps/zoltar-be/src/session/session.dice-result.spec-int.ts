@@ -33,6 +33,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import type { AnthropicService } from '../anthropic/anthropic.service';
 import type { DiceService } from '../dice/dice.service';
 import type { RulesLookupService } from '../rules/rules-lookup.service';
+import type { WardenPromptsService } from '../wardens/warden-prompts.service';
 
 let repo: SessionRepository;
 let campaignRepo: CampaignRepository;
@@ -181,6 +182,16 @@ async function seedRequest(args: {
   return row.id;
 }
 
+function stubWardens(): WardenPromptsService {
+  return {
+    getSelected: vi.fn().mockReturnValue({
+      filename: 'mothership-m7.txt',
+      hash: 'testhash',
+      text: 'Test Warden prompt for integration tests.',
+    }),
+  } as unknown as WardenPromptsService;
+}
+
 function makeService(callSession: ReturnType<typeof vi.fn>) {
   return new SessionService(
     repo,
@@ -188,6 +199,7 @@ function makeService(callSession: ReturnType<typeof vi.fn>) {
     campaignRepo,
     stubDice(),
     stubRules(),
+    stubWardens(),
   );
 }
 

@@ -9,6 +9,7 @@ import { AnthropicService } from '../anthropic/anthropic.service';
 import { CampaignRepository } from '../campaign/campaign.repository';
 import { DiceService } from '../dice/dice.service';
 import { RulesLookupService } from '../rules/rules-lookup.service';
+import { WardenPromptsService } from '../wardens/warden-prompts.service';
 
 import { applyToCampaignState } from './session.applier';
 import { buildCorrectionRequest } from './session.correction';
@@ -175,6 +176,7 @@ export class SessionService {
     private readonly campaignRepo: CampaignRepository,
     private readonly dice: DiceService,
     private readonly rules: RulesLookupService,
+    private readonly wardens: WardenPromptsService,
   ) {}
 
   async sendMessage(args: SendMessageArgs): Promise<SendMessageResult> {
@@ -255,11 +257,15 @@ export class SessionService {
     //    landed between the last gm_response and this turn; the prompt
     //    builder renders them as a synthetic `[Dice results]` block before
     //    the narrative input.
+    // Warden prompt is resolved once per turn; the same triple feeds both
+    // the request builder and (in Part 2) the telemetry `wardenPrompt` field.
+    const wardenPrompt = this.wardens.getSelected('mothership');
     const request = buildSessionRequest({
       gmContextBlob,
       campaignStateData,
       windowMessages,
       playerMessage: args.playerMessage,
+      wardenPromptText: wardenPrompt.text,
       resolvedPlayerRolls,
       tools: SESSION_TOOLS,
     });

@@ -18,6 +18,8 @@ DEPLOYMENT_MODE=selfhosted
 
 The Anthropic API key is a personal key for development use. The Voyage AI key (`VOYAGE_API_KEY`, required; `VOYAGE_EMBED_MODEL` defaults to `voyage-3-lite`) powers query-time embedding for the `rules_lookup` tool — both are personal dev keys. The NoopRealtimeService is active — real-time features (live typing preview, presence indicators) are not available in this environment.
 
+`WARDEN_PROMPT_OVERRIDE_MOTHERSHIP` (optional, development only) forces the backend to use a specific Warden prompt file — e.g. `mothership-m7a.txt` — rather than the latest-by-version file under `apps/zoltar-be/src/wardens/prompts/`. Startup fails loudly if the named file does not exist. Intended for side-by-side playtest of two candidate prompts against the same saved synthesis, by running two backend instances with different overrides. Not intended for production self-hosted deployments.
+
 ### Workflow A — Full stack in Docker (first run, sanity checks, CI)
 
 ```sh
