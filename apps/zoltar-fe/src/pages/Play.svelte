@@ -8,7 +8,6 @@
   import DicePrompt, {
     type DiceSubmission,
   } from '../lib/components/play/DicePrompt.svelte';
-  import type { DicePromptRequest } from '../lib/components/play/dice-prompt-helpers';
   import MessageInput from '../lib/components/play/MessageInput.svelte';
   import MessageLog from '../lib/components/play/MessageLog.svelte';
   import {
@@ -21,12 +20,13 @@
   } from '../lib/components/play/play-helpers';
   import ThresholdBanner from '../lib/components/play/ThresholdBanner.svelte';
   import {
-    mergeTimeline,
     type DiceRollWire,
     type MessageWire,
+    mergeTimeline,
     type TimelineEntry,
   } from '../lib/components/play/timeline';
 
+  import type { DicePromptRequest } from '../lib/components/play/dice-prompt-helpers';
   import type { Adventure, CharacterSheet } from '../lib/types';
 
   interface TurnAppliedState {
@@ -38,7 +38,12 @@
   }
 
   interface TurnPayload {
-    message: { id: string; role: 'assistant'; content: string; createdAt: string };
+    message: {
+      id: string;
+      role: 'assistant';
+      content: string;
+      createdAt: string;
+    };
     applied: TurnAppliedState;
     thresholds: ThresholdCrossing[];
     diceRequests: DicePromptRequest[];
@@ -68,9 +73,7 @@
   // is suppressed and the narrative goes through POST /messages instead.
   let narrativeDraft = $state('');
 
-  let timeline = $derived<TimelineEntry[]>(
-    mergeTimeline(messages, diceRolls),
-  );
+  let timeline = $derived<TimelineEntry[]>(mergeTimeline(messages, diceRolls));
   let dicePending = $derived(pendingDiceRequests.length > 0);
 
   onMount(async () => {

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  mergeTimeline,
-  type DiceRollWire,
-  type MessageWire,
-} from './timeline';
+import { type DiceRollWire, type MessageWire, mergeTimeline } from './timeline';
 
-const msg = (id: string, t: string, role: MessageWire['role'] = 'user'): MessageWire => ({
+const msg = (
+  id: string,
+  t: string,
+  role: MessageWire['role'] = 'user',
+): MessageWire => ({
   id,
   role,
   content: id,

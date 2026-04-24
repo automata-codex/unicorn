@@ -33,9 +33,7 @@ export interface DicePromptEntry {
  * `DiceNotationError` via the shared parser — unexpected at runtime
  * (backend-issued notation is always valid) but surfaced for tests.
  */
-export function buildInitialEntry(
-  request: DicePromptRequest,
-): DicePromptEntry {
+export function buildInitialEntry(request: DicePromptRequest): DicePromptEntry {
   const { count, sides } = parseDiceNotation(request.notation);
   return {
     requestId: request.id,
@@ -80,9 +78,7 @@ export function validateDieInput(
  */
 export function allFilled(entries: DicePromptEntry[]): boolean {
   if (entries.length === 0) return false;
-  return entries.every((e) =>
-    e.entries.every((v) => typeof v === 'number'),
-  );
+  return entries.every((e) => e.entries.every((v) => typeof v === 'number'));
 }
 
 /**

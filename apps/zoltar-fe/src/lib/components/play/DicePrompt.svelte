@@ -2,10 +2,10 @@
   import {
     allFilled,
     buildInitialEntry,
-    rollForMe,
-    validateDieInput,
     type DicePromptEntry,
     type DicePromptRequest,
+    rollForMe,
+    validateDieInput,
   } from './dice-prompt-helpers';
 
   type DiceMode = 'soft_accountability' | 'commitment';
@@ -54,10 +54,12 @@
   // to `entries.entries` — we hold strings so partial inputs like "" or "3"
   // (mid-typing) don't fight number coercion.
   // svelte-ignore state_referenced_locally
-  let rawInputs: string[][] = $state(requests.map((r) => {
-    const { count } = buildInitialEntry(r);
-    return Array(count).fill('');
-  }));
+  let rawInputs: string[][] = $state(
+    requests.map((r) => {
+      const { count } = buildInitialEntry(r);
+      return Array(count).fill('');
+    }),
+  );
 
   function setDie(reqIdx: number, dieIdx: number, raw: string): void {
     rawInputs[reqIdx][dieIdx] = raw;
@@ -135,11 +137,8 @@
             Roll for me
           </button>
           <div class="inputs" role="group" aria-label="Raw die faces">
-            {#each Array.from({ length: entry.count }) as _, dieIdx (dieIdx)}
-              {@const validation = validateDieInput(
-                rawInputs[reqIdx][dieIdx],
-                entry.sides,
-              )}
+            {#each rawInputs[reqIdx] as raw, dieIdx (dieIdx)}
+              {@const validation = validateDieInput(raw, entry.sides)}
               <input
                 type="text"
                 inputmode="numeric"
@@ -148,7 +147,7 @@
                 class:system={entry.source === 'system_generated'}
                 aria-label={`d${entry.sides} face ${dieIdx + 1}`}
                 aria-invalid={validation.valid === false}
-                value={rawInputs[reqIdx][dieIdx]}
+                value={raw}
                 oninput={(e) =>
                   setDie(reqIdx, dieIdx, (e.target as HTMLInputElement).value)}
                 readonly={entry.source === 'system_generated'}

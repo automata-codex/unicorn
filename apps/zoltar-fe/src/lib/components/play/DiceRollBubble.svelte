@@ -26,9 +26,7 @@
     target === null ? null : total <= target ? 'success' : 'failure',
   );
 
-  let indicator = $derived(
-    source === 'system_generated' ? 'GM' : 'YOU',
-  );
+  let indicator = $derived(source === 'system_generated' ? 'GM' : 'YOU');
 </script>
 
 <div class="bubble" class:success={outcome === 'success'} class:failure={outcome === 'failure'}>
