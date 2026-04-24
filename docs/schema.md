@@ -46,6 +46,7 @@ infra/
       V10__character_sheet_drop_current_fields.sql
       V11__adventure_status_in_progress.sql
       V12__dice_request.sql
+      V13__review_views.sql
 ```
 
 The Drizzle schema definition lives in `apps/zoltar-be/src/db/schema.ts`.
@@ -402,6 +403,38 @@ The `payload` jsonb carries (see `AdventureTelemetryPayload` in `apps/zoltar-be/
 - `rulesLookups` — one record per `rules_lookup` call (query, limit, result count, top similarity, sources). Zero-result entries are preserved; M7.2 prioritizes ingestion against them.
 - `toolLoopIterations` — inner tool-loop iteration count for the turn.
 - `wardenPrompt` — `{ filename, hash }` identifying the Warden role prompt in effect. The hash is the 8-char sha256 prefix exposed by `WardenPromptsService`. The text itself is not archived — the review CLI embeds it from `apps/zoltar-be/src/wardens/prompts/` by filename at report-generation time. (Added in M7.1.)
+
+---
+
+### Review Views (`V13__review_views.sql`)
+
+Three read-only views shape `game_event` + `adventure_telemetry` into rows friendly to the M7.1 playtest-review CLI and to humans running ad-hoc queries in `psql`. Views are intentionally thin — the CLI does its own markdown formatting; these just hide the jsonb-path joins and the `superseded_by` direction. Views are not modelled in Drizzle; CLI queries use the raw `sql` template.
+
+**`turn_log`** — one row per `gm_response` event, joined to its telemetry row by `(adventure_id, sequence_number)`. The CLI's primary per-turn query source. Columns:
+
+- `adventure_id`, `gm_response_seq`, `turn_created_at`, `superseded_by`
+- `telemetry_seq`, `telemetry_payload` (the full jsonb, for ad-hoc drilling)
+- `player_message`, `gm_player_text` — the turn's input and output narration.
+- `warden_prompt_filename`, `warden_prompt_hash` — from the M7.1 `wardenPrompt` field. NULL for pre-M7.1 rows.
+- `prompt_tokens`, `completion_tokens`, `tool_loop_iterations`
+- `dice_roll_count`, `rules_lookup_count` — lengths of the corresponding arrays.
+- `had_correction` — `true` when the telemetry payload contains a `correction` entry.
+
+**`state_history`** — one row per `state_update` event. Surfaces applied deltas joined to the preceding `gm_response` or `correction` in the same adventure. Columns:
+
+- `adventure_id`, `state_update_seq`, `applied_at`
+- `applied` — the validator's applied deltas jsonb.
+- `thresholds` — threshold-crossing events jsonb.
+- `source_response_seq` — most recent preceding `gm_response` / `correction` sequence number in the same adventure. Correlated subquery; fine at MVP scale (hundreds of turns per adventure), rewrite as a window function if a single adventure ever grows to tens of thousands of events.
+
+**`correction_log`** — one row per `correction` event. Columns:
+
+- `adventure_id`, `correction_seq`, `corrected_at`
+- `original_seq`, `original_response` (jsonb payload of the superseded `gm_response`)
+- `corrected_response` (jsonb payload of the correction row)
+- `rejections`, `correction_prompt_tokens`, `correction_completion_tokens` — from `telemetry.payload.correction` on the original gm_response's telemetry row.
+
+`superseded_by` is stored on the **original** `gm_response` row pointing forward at the correction's id — `correction_log` joins `orig.superseded_by = c.id` accordingly. Correction rows themselves carry no `superseded_by`.
 
 ---
 
