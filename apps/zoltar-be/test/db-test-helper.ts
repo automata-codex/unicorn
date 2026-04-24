@@ -72,6 +72,7 @@ export async function teardownTestDb(): Promise<void> {
 const TRUNCATE_TABLES = [
   'adventure_telemetry',
   'pending_canon',
+  'dice_request',
   'game_event',
   'map_geometry',
   'grid_entity',

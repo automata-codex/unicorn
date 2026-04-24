@@ -62,12 +62,12 @@ export const submitGmResponseSchema = z.object({
     .optional(),
 
   // Player-facing dice prompts. Backend assigns IDs on receipt.
-  playerRolls: z
+  diceRequests: z
     .array(
       z.object({
         notation: z.string(),
         purpose: z.string(),
-        pool: z.string().optional(),
+        target: z.number().int().nullable().optional(),
       }),
     )
     .optional(),
@@ -76,3 +76,76 @@ export const submitGmResponseSchema = z.object({
 });
 
 export type SubmitGmResponse = z.infer<typeof submitGmResponseSchema>;
+
+/**
+ * `roll_dice` tool — server-side execution of a dice roll. Used for
+ * system-generated rolls (NPC actions, GM saves, panic checks, random
+ * resolutions). The result is computed by the backend, logged to
+ * `game_events`, and returned to Claude as a tool_result before narration.
+ * Player-facing rolls travel through `diceRequests` on `submit_gm_response`
+ * instead.
+ */
+export const rollDiceInputSchema = z.object({
+  notation: z.string(),
+  purpose: z.string(),
+});
+
+export const rollDiceOutputSchema = z.object({
+  notation: z.string(),
+  results: z.array(z.number().int()),
+  modifier: z.number().int().default(0),
+  total: z.number().int(),
+});
+
+export type RollDiceInput = z.infer<typeof rollDiceInputSchema>;
+export type RollDiceOutput = z.infer<typeof rollDiceOutputSchema>;
+
+/**
+ * `rules_lookup` tool — semantic search against the per-system rules index.
+ * Empty `results` is a valid (and in M7, expected) outcome: the index is
+ * populated by the separate M7.2 ingestion pipeline.
+ */
+export const rulesLookupInputSchema = z.object({
+  query: z.string(),
+  limit: z.number().int().min(1).max(5).default(3),
+});
+
+export const rulesLookupOutputSchema = z.object({
+  results: z.array(
+    z.object({
+      text: z.string(),
+      source: z.string(),
+      similarity: z.number(),
+    }),
+  ),
+});
+
+export type RulesLookupInput = z.infer<typeof rulesLookupInputSchema>;
+export type RulesLookupOutput = z.infer<typeof rulesLookupOutputSchema>;
+
+/**
+ * Player-submitted dice result in response to a backend-issued `dice_request`.
+ * The client echoes `notation` for audit-side defense-in-depth; the backend
+ * re-validates it against the persisted request and rejects mismatches.
+ *
+ * `source` distinguishes the client path: `player_entered` means the player
+ * typed raw die faces; `system_generated` means the client used the "Roll
+ * for me" button (executed via the shared `@uv/game-systems` parser, same
+ * code path as the backend's `roll_dice` tool).
+ *
+ * `autoAdvance` asks the backend to immediately run a Claude turn with no
+ * narrative input once this submission resolves the last pending dice_request
+ * for the adventure. The `[Dice results]` block carries the turn — the
+ * tabletop equivalent of "rolled 73" triggering the GM to narrate the
+ * outcome, with no player text required. Ignored if other requests are still
+ * pending after this one.
+ */
+export const diceResultActionSchema = z.object({
+  requestId: z.string().uuid(),
+  notation: z.string(),
+  results: z.array(z.number().int()).min(1),
+  source: z.enum(['player_entered', 'system_generated']),
+  autoAdvance: z.boolean().optional(),
+});
+
+export type DiceResultAction = z.infer<typeof diceResultActionSchema>;

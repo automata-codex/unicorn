@@ -24,6 +24,25 @@ import { SessionCorrectionError, SessionService } from './session.service';
 
 import type Anthropic from '@anthropic-ai/sdk';
 import type { AnthropicService } from '../anthropic/anthropic.service';
+import type { DiceService } from '../dice/dice.service';
+import type { RulesLookupService } from '../rules/rules-lookup.service';
+
+// These integration tests mock Claude to return submit_gm_response directly,
+// so roll_dice / rules_lookup paths are never exercised here; no-op stubs
+// are enough. The tool-loop behaviour is covered in session.tool-loop.spec.ts.
+function stubDice(): DiceService {
+  return {
+    rollForGm: vi.fn(() => {
+      throw new Error('DiceService should not be called in this test');
+    }),
+  } as unknown as DiceService;
+}
+
+function stubRules(): RulesLookupService {
+  return {
+    lookup: vi.fn(() => Promise.resolve({ results: [] })),
+  } as unknown as RulesLookupService;
+}
 
 let repo: SessionRepository;
 let campaignRepo: CampaignRepository;
@@ -188,6 +207,8 @@ describe('SessionService (integration) — happy path', () => {
       repo,
       mockAnthropic(callSession),
       campaignRepo,
+      stubDice(),
+      stubRules(),
     );
 
     const result = await service.sendMessage(baseArgs(campaignId, adventureId));
@@ -288,6 +309,8 @@ describe('SessionService (integration) — happy path', () => {
       repo,
       mockAnthropic(callSession),
       campaignRepo,
+      stubDice(),
+      stubRules(),
     );
 
     await service.sendMessage(baseArgs(campaignId, adventureId));
@@ -328,6 +351,8 @@ describe('SessionService (integration) — correction succeeds', () => {
       repo,
       mockAnthropic(callSession),
       campaignRepo,
+      stubDice(),
+      stubRules(),
     );
 
     const result = await service.sendMessage(baseArgs(campaignId, adventureId));
@@ -405,6 +430,8 @@ describe('SessionService (integration) — correction fails', () => {
       repo,
       mockAnthropic(callSession),
       campaignRepo,
+      stubDice(),
+      stubRules(),
     );
 
     await expect(
@@ -451,5 +478,264 @@ describe('SessionService (integration) — correction fails', () => {
       .where(eq(schema.messages.adventureId, adventureId));
     expect(messages).toHaveLength(1);
     expect(messages[0].role).toBe('player');
+  });
+});
+
+describe('SessionService (integration) — telemetry with dice and lookups', () => {
+  function rollingDice(): DiceService {
+    let n = 0;
+    return {
+      rollForGm: vi.fn((input: { notation: string }) => {
+        n += 1;
+        return {
+          notation: input.notation,
+          results: [n * 10],
+          modifier: 0,
+          total: n * 10,
+        };
+      }),
+    } as unknown as DiceService;
+  }
+
+  function rulesWithHit(): RulesLookupService {
+    return {
+      lookup: vi.fn().mockResolvedValue({
+        results: [
+          {
+            text: 'On a panic result of 71–80…',
+            source: 'PSG p.42',
+            similarity: 0.87,
+          },
+        ],
+      }),
+    } as unknown as RulesLookupService;
+  }
+
+  function rollToolUse(id: string, notation: string): Anthropic.Message {
+    return {
+      content: [
+        {
+          type: 'tool_use',
+          id,
+          name: 'roll_dice',
+          input: { notation, purpose: `roll ${id}` },
+        } as unknown as Anthropic.ToolUseBlock,
+      ],
+      model: 'claude-sonnet-4-6',
+      usage: { input_tokens: 50, output_tokens: 20 },
+    } as unknown as Anthropic.Message;
+  }
+
+  function lookupToolUse(id: string, query: string): Anthropic.Message {
+    return {
+      content: [
+        {
+          type: 'tool_use',
+          id,
+          name: 'rules_lookup',
+          input: { query, limit: 3 },
+        } as unknown as Anthropic.ToolUseBlock,
+      ],
+      model: 'claude-sonnet-4-6',
+      usage: { input_tokens: 50, output_tokens: 20 },
+    } as unknown as Anthropic.Message;
+  }
+
+  it('persists telemetry with materialized sequence numbers, rulesLookups, and toolLoopIterations', async () => {
+    const db = getTestDb();
+    const { campaignId, adventureId } = await seedReadyAdventure();
+
+    // Three Claude calls: rules_lookup, roll_dice, then submit_gm_response.
+    const callSession = vi
+      .fn()
+      .mockResolvedValueOnce(lookupToolUse('toolu_l1', 'panic result 73'))
+      .mockResolvedValueOnce(rollToolUse('toolu_r1', '1d100'))
+      .mockResolvedValueOnce(
+        toolUseMessage({
+          playerText: 'The pressure holds.',
+        }),
+      );
+
+    const service = new SessionService(
+      repo,
+      mockAnthropic(callSession),
+      campaignRepo,
+      rollingDice(),
+      rulesWithHit(),
+    );
+
+    await service.sendMessage(baseArgs(campaignId, adventureId));
+
+    const [row] = await db
+      .select()
+      .from(schema.adventureTelemetry)
+      .where(eq(schema.adventureTelemetry.adventureId, adventureId));
+
+    expect(row.sequenceNumber).toBe(3); // player_action=1, dice_roll=2, gm_response=3
+    const payload = row.payload as {
+      toolLoopIterations: number;
+      rulesLookups: Array<{
+        query: string;
+        resultCount: number;
+        topSimilarity: number | null;
+        sources: string[];
+      }>;
+      diceRolls: Array<{
+        source: string;
+        sequenceNumber: number;
+        notation: string;
+        total: number;
+      }>;
+    };
+
+    // Two tool iterations + the final submit_gm_response = 3.
+    expect(payload.toolLoopIterations).toBe(3);
+
+    // Rules lookup captured with its populated result.
+    expect(payload.rulesLookups).toHaveLength(1);
+    expect(payload.rulesLookups[0]).toMatchObject({
+      query: 'panic result 73',
+      resultCount: 1,
+      topSimilarity: 0.87,
+      sources: ['PSG p.42'],
+    });
+
+    // One system-generated roll with a real sequence number.
+    expect(payload.diceRolls).toHaveLength(1);
+    expect(payload.diceRolls[0].source).toBe('system_generated');
+    expect(payload.diceRolls[0].sequenceNumber).toBe(2);
+    expect(payload.diceRolls[0].notation).toBe('1d100');
+    expect(payload.diceRolls[0].total).toBe(10);
+  });
+
+  it('folds pre-turn player-entered rolls into diceRolls with their DB sequence numbers', async () => {
+    const db = getTestDb();
+    const { campaignId, adventureId } = await seedReadyAdventure();
+
+    // Seed a prior gm_response so playerDiceRollsSinceLastGmResponse has a
+    // reference point. This stands in for the previous turn.
+    await db.insert(schema.gameEvents).values({
+      adventureId,
+      campaignId,
+      sequenceNumber: 1,
+      eventType: 'gm_response',
+      actorType: 'gm',
+      actorId: null,
+      payload: { playerText: 'prior turn' },
+    });
+
+    // Seed a dice_request + resolving player_entered dice_roll event at
+    // sequence 2, as would happen after a POST /dice-results submission.
+    const requestId = '00000000-0000-0000-0000-000000000abc';
+    await db.insert(schema.diceRequests).values({
+      id: requestId,
+      adventureId,
+      issuedAtSequence: 1,
+      notation: '1d100',
+      purpose: 'Intellect save',
+      target: 65,
+      status: 'resolved',
+      resolvedAtSequence: 2,
+      resolvedAt: new Date(),
+    });
+    await db.insert(schema.gameEvents).values({
+      adventureId,
+      campaignId,
+      sequenceNumber: 2,
+      eventType: 'dice_roll',
+      actorType: 'player',
+      actorId: 'u1',
+      rollSource: 'player_entered',
+      payload: {
+        notation: '1d100',
+        purpose: 'Intellect save',
+        results: [34],
+        modifier: 0,
+        total: 34,
+        requestId,
+      },
+    });
+
+    // Flip the adventure to in_progress so sendMessage's status check passes.
+    await db
+      .update(schema.adventures)
+      .set({ status: 'in_progress' })
+      .where(eq(schema.adventures.id, adventureId));
+
+    const callSession = vi
+      .fn()
+      .mockResolvedValueOnce(
+        toolUseMessage({ playerText: 'You decipher the data.' }),
+      );
+    const service = new SessionService(
+      repo,
+      mockAnthropic(callSession),
+      campaignRepo,
+      stubDice(),
+      stubRules(),
+    );
+
+    await service.sendMessage(baseArgs(campaignId, adventureId));
+
+    const [row] = await db
+      .select()
+      .from(schema.adventureTelemetry)
+      .where(eq(schema.adventureTelemetry.adventureId, adventureId));
+
+    const payload = row.payload as {
+      diceRolls: Array<{
+        source: string;
+        sequenceNumber: number;
+        notation: string;
+        total: number;
+        requestId?: string;
+      }>;
+    };
+
+    expect(payload.diceRolls).toHaveLength(1);
+    expect(payload.diceRolls[0]).toMatchObject({
+      source: 'player_entered',
+      sequenceNumber: 2,
+      notation: '1d100',
+      total: 34,
+      requestId,
+    });
+  });
+
+  it('captures zero-result rules_lookups as M7.2 ingestion-priority signal', async () => {
+    const db = getTestDb();
+    const { campaignId, adventureId } = await seedReadyAdventure();
+
+    const callSession = vi
+      .fn()
+      .mockResolvedValueOnce(lookupToolUse('toolu_l1', 'wound severity'))
+      .mockResolvedValueOnce(
+        toolUseMessage({ playerText: 'Best-effort ruling.' }),
+      );
+
+    const service = new SessionService(
+      repo,
+      mockAnthropic(callSession),
+      campaignRepo,
+      stubDice(),
+      stubRules(), // empty-index path — lookup returns { results: [] }
+    );
+
+    await service.sendMessage(baseArgs(campaignId, adventureId));
+
+    const [row] = await db
+      .select()
+      .from(schema.adventureTelemetry)
+      .where(eq(schema.adventureTelemetry.adventureId, adventureId));
+    const payload = row.payload as {
+      rulesLookups: Array<{
+        resultCount: number;
+        topSimilarity: number | null;
+      }>;
+    };
+
+    expect(payload.rulesLookups).toHaveLength(1);
+    expect(payload.rulesLookups[0].resultCount).toBe(0);
+    expect(payload.rulesLookups[0].topSimilarity).toBeNull();
   });
 });

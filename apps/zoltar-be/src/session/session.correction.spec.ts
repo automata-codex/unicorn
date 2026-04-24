@@ -14,7 +14,8 @@ function originalRequest(): CallSessionParams {
       { role: 'user', content: 'Open the door.' },
     ],
     tools: [{ name: 'submit_gm_response' } as unknown as Anthropic.Tool],
-    toolChoice: { type: 'tool', name: 'submit_gm_response' },
+    // The M7 default — the inner tool loop runs against `any`.
+    toolChoice: { type: 'any' },
   };
 }
 
@@ -116,16 +117,31 @@ describe('buildCorrectionRequest', () => {
     expect(text).toContain('Re-narrate this turn');
   });
 
-  it('preserves tool_choice, tools, and systemBlocks from the original request', () => {
+  it('preserves tools and systemBlocks from the original request', () => {
     const request = originalRequest();
     const corrected = buildCorrectionRequest({
       originalRequest: request,
       originalAssistant: originalAssistantWithToolUse('toolu_1'),
       rejections,
     });
-    expect(corrected.toolChoice).toEqual(request.toolChoice);
     expect(corrected.tools).toBe(request.tools);
     expect(corrected.systemBlocks).toBe(request.systemBlocks);
+  });
+
+  it('overrides tool_choice to force submit_gm_response on the correction pass', () => {
+    // The correction must not re-enter the inner tool loop — rolls are
+    // inputs, not retry levers (docs/decisions.md). Even when the original
+    // request had tool_choice: { type: 'any' }, the correction is narrowed
+    // to force submit_gm_response.
+    const corrected = buildCorrectionRequest({
+      originalRequest: originalRequest(),
+      originalAssistant: originalAssistantWithToolUse('toolu_1'),
+      rejections,
+    });
+    expect(corrected.toolChoice).toEqual({
+      type: 'tool',
+      name: 'submit_gm_response',
+    });
   });
 
   it('throws when the original assistant response has no submit_gm_response tool_use', () => {

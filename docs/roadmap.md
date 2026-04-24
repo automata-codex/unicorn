@@ -223,6 +223,17 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [ ] SQL views joining `game_events` and `adventure_telemetry` (per-turn, per-state-history, per-correction)
 - [ ] CLI script that produces a turn-by-turn markdown report for a given adventure id
 - [ ] Sanity-check the `adventure_telemetry` payload shape against a real Mothership run and adjust if fields are missing or redundant
+- [ ] Warden prompt versioning in production: persist version on each telemetry row, surface in M7.1 review output (parity with the playtest app's Setup dropdown — deferred from M7, see `docs/specs/zoltar/m7-ai-tools.md § Deferrals Introduced in M7`)
+
+#### M7.2 — Rules Ingestion Pipeline
+
+*Populate the `rules_chunk` index for Mothership. M7 ships runtime plumbing (`rules_lookup` tool, `VoyageService`, pgvector query) but leaves the index empty so playtest evidence from M7 can prioritize ingestion coverage. Separate milestone because the pipeline is Python, not TypeScript, and is independently testable.*
+
+- [ ] Python ingestion pipeline under `ingestion/` (marker extraction → heading-aware chunking → Voyage document-mode embedding → SQL insert)
+- [ ] One-time local seed of Mothership rules chunks from the PDF
+- [ ] Fixup patch scaffolding for chunk-level corrections
+- [ ] Hash-verification step to detect source-document drift between re-ingestions
+- [ ] Ingestion smoke tests (chunk count, embedding dimensions, system_id tagging)
 
 #### M8 — Multiplayer Foundation
 

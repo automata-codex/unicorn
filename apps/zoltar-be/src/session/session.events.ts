@@ -6,16 +6,40 @@ import type { DbOrTx } from '../db/db.provider';
 import type { SubmitGmResponse } from './session.schema';
 import type { ThresholdCrossing, ValidationResult } from './session.validator';
 
+/**
+ * A dice roll executed by the inner tool loop, pending sequence-number
+ * allocation. Only system-generated rolls arrive here — player-entered rolls
+ * are written by the `diceResult` action handler in a separate transaction
+ * (Part 9), not as part of the turn's atomic write.
+ */
+export interface PendingSystemRoll {
+  notation: string;
+  purpose: string;
+  results: number[];
+  modifier: number;
+  total: number;
+}
+
 export interface WriteTurnEventsArgs {
   tx: DbOrTx;
   adventureId: string;
   campaignId: string;
   playerUserId: string;
   playerAction: { content: string };
+  executedRolls?: PendingSystemRoll[];
   gmResponse: SubmitGmResponse;
   correction?: SubmitGmResponse;
   applied: ValidationResult['applied'];
   thresholds: ThresholdCrossing[];
+}
+
+export interface WrittenDiceRollRecord {
+  sequenceNumber: number;
+  notation: string;
+  purpose: string;
+  results: number[];
+  modifier: number;
+  total: number;
 }
 
 export interface WriteTurnEventsResult {
@@ -23,6 +47,7 @@ export interface WriteTurnEventsResult {
   gmResponseSeq: number;
   correctionEventId?: string;
   stateUpdateSeq: number;
+  diceRollSequences: WrittenDiceRollRecord[];
 }
 
 /**
@@ -68,6 +93,39 @@ export async function writeTurnEvents(
     actorId: args.playerUserId,
     payload: { content: args.playerAction.content },
   });
+
+  // Interleave any dice_roll events from the inner tool loop here, between
+  // player_action and gm_response, in the order Claude issued them. These
+  // are all `system_generated` rolls — player-entered rolls resolve via the
+  // diceResult action in a separate transaction.
+  const diceRollSequences: WrittenDiceRollRecord[] = [];
+  for (const roll of args.executedRolls ?? []) {
+    const rollSeq = seq++;
+    await args.tx.insert(schema.gameEvents).values({
+      adventureId: args.adventureId,
+      campaignId: args.campaignId,
+      sequenceNumber: rollSeq,
+      eventType: 'dice_roll',
+      actorType: 'gm',
+      actorId: null,
+      rollSource: 'system_generated',
+      payload: {
+        notation: roll.notation,
+        purpose: roll.purpose,
+        results: roll.results,
+        modifier: roll.modifier,
+        total: roll.total,
+      },
+    });
+    diceRollSequences.push({
+      sequenceNumber: rollSeq,
+      notation: roll.notation,
+      purpose: roll.purpose,
+      results: roll.results,
+      modifier: roll.modifier,
+      total: roll.total,
+    });
+  }
 
   const gmResponseSeq = seq++;
   const [gmResponseRow] = await args.tx
@@ -122,6 +180,7 @@ export async function writeTurnEvents(
     gmResponseSeq,
     correctionEventId,
     stateUpdateSeq,
+    diceRollSequences,
   };
 }
 
@@ -130,7 +189,57 @@ function gmPayloadFor(r: SubmitGmResponse): Record<string, unknown> {
     playerText: r.playerText,
     stateChanges: r.stateChanges ?? null,
     gmUpdates: r.gmUpdates ?? null,
-    playerRolls: r.playerRolls ?? null,
+    diceRequests: r.diceRequests ?? null,
     adventureMode: r.adventureMode ?? null,
   };
+}
+
+export interface DiceRollEventPayload {
+  notation: string;
+  purpose: string;
+  results: number[];
+  modifier: number;
+  total: number;
+  requestId?: string;
+}
+
+export interface InsertDiceRollEventArgs {
+  tx: DbOrTx;
+  adventureId: string;
+  campaignId: string;
+  sequenceNumber: number;
+  actorType: 'gm' | 'player';
+  actorId: string | null;
+  rollSource: 'system_generated' | 'player_entered';
+  payload: DiceRollEventPayload;
+}
+
+/**
+ * Write a single `dice_roll` row to `game_events`. The caller is responsible
+ * for allocating `sequenceNumber` (see `nextSequenceNumber`) and for owning
+ * the surrounding transaction — in M7 this is the per-turn transaction that
+ * writes player_action, any intervening dice_roll rows from the inner tool
+ * loop, and the final gm_response/state_update events in contiguous order.
+ *
+ * `actorType: 'gm'` with `actorId: null` for system-generated rolls (the
+ * Warden is not a user); `actorType: 'player'` with `actorId: <user_id>` for
+ * player-entered rolls resolving a `dice_request`. `rollSource` mirrors this.
+ */
+export async function insertDiceRollEvent(
+  args: InsertDiceRollEventArgs,
+): Promise<{ id: string }> {
+  const [row] = await args.tx
+    .insert(schema.gameEvents)
+    .values({
+      adventureId: args.adventureId,
+      campaignId: args.campaignId,
+      sequenceNumber: args.sequenceNumber,
+      eventType: 'dice_roll',
+      actorType: args.actorType,
+      actorId: args.actorId,
+      rollSource: args.rollSource,
+      payload: args.payload as unknown as Record<string, unknown>,
+    })
+    .returning({ id: schema.gameEvents.id });
+  return { id: row.id };
 }

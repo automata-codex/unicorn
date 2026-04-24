@@ -1,18 +1,29 @@
 <script lang="ts">
+  /**
+   * Controlled narrative input. The parent owns `value` so it can be read
+   * from other handlers (DicePrompt's submit path, for instance, needs to
+   * know whether the player typed narrative alongside their rolls).
+   *
+   * `sendDisabled` gates only the SEND button, not the text field — while
+   * dice are pending the field stays editable so the player can start
+   * typing their reaction before rolling, but server-side the narrative
+   * POST is rejected until rolls resolve, so hiding SEND enforces the
+   * invariant client-side.
+   */
   let {
-    disabled = false,
+    value = $bindable(''),
+    sendDisabled = false,
     onsend,
   }: {
-    disabled?: boolean;
+    value?: string;
+    sendDisabled?: boolean;
     onsend: (content: string) => void;
   } = $props();
-
-  let value = $state('');
 
   function submit(event: Event) {
     event.preventDefault();
     const trimmed = value.trim();
-    if (!trimmed || disabled) return;
+    if (!trimmed || sendDisabled) return;
     onsend(trimmed);
     value = '';
   }
@@ -23,11 +34,14 @@
     type="text"
     placeholder="What do you do?"
     bind:value
-    {disabled}
     class="text"
     aria-label="Player input"
   />
-  <button type="submit" class="send" disabled={disabled || value.trim().length === 0}>
+  <button
+    type="submit"
+    class="send"
+    disabled={sendDisabled || value.trim().length === 0}
+  >
     SEND
   </button>
 </form>

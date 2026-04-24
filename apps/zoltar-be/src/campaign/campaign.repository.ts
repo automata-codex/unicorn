@@ -132,6 +132,15 @@ export class CampaignRepository {
     return rows[0]?.slug ?? null;
   }
 
+  async getSystemId(campaignId: string): Promise<string | null> {
+    const rows = await this.db
+      .select({ systemId: schema.campaigns.systemId })
+      .from(schema.campaigns)
+      .where(eq(schema.campaigns.id, campaignId))
+      .limit(1);
+    return rows[0]?.systemId ?? null;
+  }
+
   async findById(campaignId: string) {
     const rows = await this.db
       .select()

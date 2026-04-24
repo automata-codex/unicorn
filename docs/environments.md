@@ -16,7 +16,7 @@ STORAGE_PROVIDER=local
 DEPLOYMENT_MODE=selfhosted
 ```
 
-The Anthropic API key is a personal key for development use. The NoopRealtimeService is active — real-time features (live typing preview, presence indicators) are not available in this environment.
+The Anthropic API key is a personal key for development use. The Voyage AI key (`VOYAGE_API_KEY`, required; `VOYAGE_EMBED_MODEL` defaults to `voyage-3-lite`) powers query-time embedding for the `rules_lookup` tool — both are personal dev keys. The NoopRealtimeService is active — real-time features (live typing preview, presence indicators) are not available in this environment.
 
 ### Workflow A — Full stack in Docker (first run, sanity checks, CI)
 

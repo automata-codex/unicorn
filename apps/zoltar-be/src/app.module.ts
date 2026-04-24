@@ -14,8 +14,10 @@ import { CampaignModule } from './campaign/campaign.module';
 import { CharacterModule } from './character/character.module';
 import { ConfigModule } from './config/config.module';
 import { DbModule } from './db/db.module';
+import { DiceModule } from './dice/dice.module';
 import { GridModule } from './grid/grid.module';
 import { HealthModule } from './health/health.module';
+import { RulesModule } from './rules/rules.module';
 import { NoopAssetStorageService } from './services/noop/noop-asset-storage.service';
 import { NoopEntitlementsService } from './services/noop/noop-entitlements.service';
 import { NoopFeatureFlagService } from './services/noop/noop-feature-flag.service';
@@ -24,6 +26,7 @@ import { NoopRealtimeService } from './services/noop/noop-realtime.service';
 import { SmtpEmailService } from './services/smtp-email.service';
 import { SessionModule } from './session/session.module';
 import { SynthesisModule } from './synthesis/synthesis.module';
+import { VoyageModule } from './voyage/voyage.module';
 
 const deferredServiceProviders = [
   { provide: EntitlementsService, useClass: NoopEntitlementsService },
@@ -46,6 +49,9 @@ const deferredServiceProviders = [
     AuthModule,
     GridModule,
     SynthesisModule,
+    DiceModule,
+    VoyageModule,
+    RulesModule,
     SessionModule,
   ],
   providers: deferredServiceProviders,

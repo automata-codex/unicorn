@@ -1,23 +1,20 @@
 <script lang="ts">
+  import DiceRollBubble from './DiceRollBubble.svelte';
   import MessageBubble from './MessageBubble.svelte';
 
-  export interface LogMessage {
-    id: string;
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-  }
+  import type { TimelineEntry } from './timeline';
 
   let {
-    messages,
+    timeline,
     typing = false,
-  }: { messages: LogMessage[]; typing?: boolean } = $props();
+  }: { timeline: TimelineEntry[]; typing?: boolean } = $props();
 
   let scrollEl: HTMLDivElement | undefined = $state();
 
-  // Auto-scroll to bottom whenever the message list or typing state changes.
+  // Auto-scroll to bottom whenever the timeline or typing state changes.
   $effect(() => {
     // Read the signals we want to track.
-    const _len = messages.length;
+    const _len = timeline.length;
     const _typing = typing;
     // Acknowledge reads so the linter doesn't flag them; $effect uses them.
     void _len;
@@ -27,8 +24,19 @@
 </script>
 
 <div bind:this={scrollEl} class="log">
-  {#each messages as msg (msg.id)}
-    <MessageBubble role={msg.role} content={msg.content} />
+  {#each timeline as entry (entry.id)}
+    {#if entry.type === 'message'}
+      <MessageBubble role={entry.role} content={entry.content} />
+    {:else}
+      <DiceRollBubble
+        purpose={entry.purpose}
+        notation={entry.notation}
+        results={entry.results}
+        total={entry.total}
+        target={entry.target}
+        source={entry.source}
+      />
+    {/if}
   {/each}
   {#if typing}
     <div class="typing" aria-label="Warden is thinking">

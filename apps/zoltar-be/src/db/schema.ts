@@ -87,6 +87,12 @@ export const canonStatusEnum = pgEnum('canon_status', [
   'discarded',
 ]);
 
+export const diceRequestStatusEnum = pgEnum('dice_request_status', [
+  'pending',
+  'resolved',
+  'cancelled',
+]);
+
 export const indexSourceEnum = pgEnum('index_source', ['user_provided', 'srd']);
 
 // ---------------------------------------------------------------------------
@@ -350,6 +356,37 @@ export const pendingCanon = pgTable(
   (table) => [
     index('pending_canon_adventure_idx').on(table.adventureId),
     index('pending_canon_status_idx').on(table.adventureId, table.status),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Dice Requests
+// ---------------------------------------------------------------------------
+
+export const diceRequests = pgTable(
+  'dice_request',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    adventureId: uuid('adventure_id')
+      .notNull()
+      .references(() => adventures.id, { onDelete: 'cascade' }),
+    issuedAtSequence: integer('issued_at_sequence').notNull(),
+    notation: text('notation').notNull(),
+    purpose: text('purpose').notNull(),
+    target: integer('target'),
+    status: diceRequestStatusEnum('status').notNull().default('pending'),
+    resolvedAtSequence: integer('resolved_at_sequence'),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('dice_request_adventure_idx').on(table.adventureId),
+    index('dice_request_adventure_status_idx').on(
+      table.adventureId,
+      table.status,
+    ),
   ],
 );
 

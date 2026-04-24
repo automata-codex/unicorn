@@ -133,35 +133,30 @@ Create a new adventure within a campaign. In Phase 1 this is always Solo Blind �
 
 ---
 
-#### `POST /api/v1/campaigns/:campaignId/adventures/:adventureId/actions`
+#### `POST /api/v1/campaigns/:campaignId/adventures/:adventureId/messages`
 
-Submit a player action. Triggers the full GM pipeline. This is the primary command endpoint.
+Submit a narrative player action. Triggers the full GM pipeline — state snapshot construction, Claude call (with inner tool loop for `roll_dice` / `rules_lookup`), validator, correction pass if rejected, atomic turn write.
 
-Two action types:
+> **Note:** Narrative and dice-result submissions intentionally use separate endpoints (`POST /messages` and `POST /dice-results`) rather than a single `POST /actions` with a discriminated-union body. See `docs/decisions.md § Player-Action Endpoint Shape` for the rationale and the revisit condition.
 
-**Narrative action** — player describes what their character does:
+**Request:**
 ```json
 {
-  "type": "narrative",
   "content": "I try to access the ship's manifest on the terminal near the airlock."
-}
-```
-
-**Dice result** — player submits a roll result in response to a `diceRequest` from a previous GM response:
-```json
-{
-  "type": "diceResult",
-  "requestId": "uuid",
-  "notation": "1d100",
-  "results": [47],
-  "source": "player_entered"
 }
 ```
 
 **Response `200`:**
 ```json
 {
-  "playerText": "The terminal flickers to life...",
+  "message": {
+    "id": "uuid",
+    "role": "assistant",
+    "content": "The terminal flickers to life...",
+    "createdAt": "2026-03-01T12:00:00Z"
+  },
+  "applied": { "resourcePools": { "dr_chen_hp": { "current": 7, "max": 10 } } },
+  "thresholds": [],
   "diceRequests": [
     {
       "id": "uuid",
@@ -169,13 +164,79 @@ Two action types:
       "purpose": "Intellect save to interpret corrupted data",
       "target": null
     }
-  ],
-  "adventureMode": "freeform",
-  "initiativeOrder": null
+  ]
 }
 ```
 
-`diceRequests` is empty when Claude resolves the action without requiring a player roll. When present, the frontend shows the dice UI before the player can submit their next narrative action. The `requestId` in the dice result submission references the `id` returned here.
+`diceRequests` is empty when Claude resolves the action without requiring a player roll. When present, the frontend shows the dice UI before the player can submit their next narrative action.
+
+**Response `409 dice_pending`** — narrative submission is blocked while any `dice_request` for this adventure is still `pending`. Resolve outstanding prompts via `POST /dice-results` first.
+```json
+{
+  "error": "dice_pending",
+  "message": "Resolve the pending dice prompts before submitting a narrative action.",
+  "pendingRequestIds": ["uuid", "uuid"]
+}
+```
+
+Other error codes from this endpoint: `gm_correction_failed` (502), `gm_tool_loop_exhausted` (502).
+
+---
+
+#### `POST /api/v1/campaigns/:campaignId/adventures/:adventureId/dice-results`
+
+Player submits the result of a dice roll issued by a previous GM response. Resolves the referenced `dice_request`, writes a `dice_roll` event, and folds the outcome into the next narrative turn's prompt.
+
+**Request:**
+```json
+{
+  "requestId": "uuid",
+  "notation": "1d100",
+  "results": [47],
+  "source": "player_entered",
+  "autoAdvance": true
+}
+```
+
+`source` is `"system_generated"` when the client used the "Roll for me" button (executed via the shared `@uv/game-systems` parser, same code path as the backend's `roll_dice` tool) and `"player_entered"` when the player typed raw die faces.
+
+`autoAdvance` (optional, default `false`) asks the backend to run a Claude turn immediately after this submission resolves the last pending `dice_request`. This mirrors the tabletop beat where reporting a roll prompts the GM to narrate the outcome — no player narrative is required. Ignored when other `dice_request` rows remain pending. The typical FE pattern is to set `autoAdvance: true` when the player submits with an empty narrative field and `false` otherwise (falling back to `POST /messages`, which folds the resolved rolls into its own prompt via the `[Dice results]` block).
+
+**Response `200` (no auto-advance / pending remain):**
+```json
+{
+  "requestId": "uuid",
+  "accepted": true,
+  "pendingRequestIds": []
+}
+```
+
+**Response `200` (auto-advance fired):**
+```json
+{
+  "requestId": "uuid",
+  "accepted": true,
+  "pendingRequestIds": [],
+  "turn": {
+    "message": {
+      "id": "uuid",
+      "role": "assistant",
+      "content": "You brace for the pressure loss...",
+      "createdAt": "2026-04-23T14:00:00Z"
+    },
+    "applied": { "resourcePools": {} },
+    "thresholds": [],
+    "diceRequests": []
+  }
+}
+```
+
+`pendingRequestIds` lists remaining unresolved dice_requests for this adventure. The narrative input re-enables client-side when this array is empty. When `turn` is present, the FE should render the GM reply directly instead of calling `POST /messages`.
+
+**Error codes:**
+- `409 dice_request_conflict` — unknown id, already resolved, or scoped to a different adventure.
+- `422 dice_result_invalid` — notation mismatch vs. the persisted request, wrong number of results, or a result outside the per-die range.
+- When `autoAdvance` fires and the subsequent Claude turn fails, the standard `POST /messages` error codes apply: `502 gm_correction_failed`, `502 gm_tool_loop_exhausted`, `502` plain on parse / SDK errors. The dice_request is resolved before the turn runs, so retrying via `POST /messages` is always safe.
 
 ---
 
@@ -347,7 +408,7 @@ Get a single adventure including current mode and caller.
 
 #### `GET /api/v1/campaigns/:campaignId/adventures/:adventureId/messages`
 
-Get message history for an adventure. Cursor-based, most recent first.
+Get message history and pending dice prompts for an adventure. Cursor-based, most recent first. Used as the play-view bootstrap — the frontend renders the message log and, when `pendingDiceRequests` is non-empty, drops the user into the `DicePrompt` before the narrative input.
 
 **Query params:** `?limit=50&before=<cursor>`
 
@@ -362,12 +423,37 @@ Get message history for an adventure. Cursor-based, most recent first.
       "createdAt": "2026-03-01T12:00:00Z"
     }
   ],
+  "diceRolls": [
+    {
+      "id": "uuid",
+      "sequenceNumber": 2,
+      "createdAt": "2026-03-01T12:00:03Z",
+      "source": "system_generated",
+      "notation": "1d100",
+      "purpose": "Panic check for Dr. Chen",
+      "results": [73],
+      "total": 73,
+      "target": null
+    }
+  ],
+  "pendingDiceRequests": [
+    {
+      "id": "uuid",
+      "notation": "1d100",
+      "purpose": "Intellect save to interpret corrupted data",
+      "target": null
+    }
+  ],
   "nextCursor": "base64string",
   "rollingSummary": "The crew boarded the Persephone and discovered..."
 }
 ```
 
-`rollingSummary` is included so the frontend can display it at the top of the message log as context for history that has aged out of the window.
+`diceRolls` is the full `game_event` dice stream for this adventure. The FE merges it with `messages` by `createdAt` to produce the unified play-view timeline (narrative bubbles + mechanical-event bubbles interleaved in sequence order). `source` is `"system_generated"` for rolls Claude executed via `roll_dice` and `"player_entered"` for player-submitted results.
+
+`pendingDiceRequests` is empty in the normal case (no outstanding rolls). When a user left the play view mid-roll, the prompt persists server-side and is surfaced here on reload so the FE can re-render the `DicePrompt` without losing state.
+
+`rollingSummary` is included so the frontend can display it at the top of the message log as context for history that has aged out of the window. Still null through Phase 1 (see `docs/decisions.md`).
 
 ---
 
