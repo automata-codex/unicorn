@@ -79,8 +79,8 @@ describe('VoyageService.embed', () => {
   });
 
   it('throws VoyageError on a non-2xx response', async () => {
-    fetchMock.mockImplementation(
-      async () => new Response('rate limited', { status: 429 }),
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(new Response('rate limited', { status: 429 })),
     );
 
     const service = new VoyageService(makeConfig());
@@ -91,9 +91,10 @@ describe('VoyageService.embed', () => {
   });
 
   it('throws VoyageError when the response has no embedding', async () => {
-    fetchMock.mockImplementation(
-      async () =>
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(
         new Response(JSON.stringify({ data: [] }), { status: 200 }),
+      ),
     );
 
     const service = new VoyageService(makeConfig());

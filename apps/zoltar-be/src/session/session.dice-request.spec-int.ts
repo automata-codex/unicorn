@@ -35,7 +35,11 @@ async function seedFixture(): Promise<{
   const db = getTestDb();
   const [system] = await db
     .insert(schema.gameSystems)
-    .values({ slug: 'mothership', name: 'Mothership', indexSource: 'user_provided' })
+    .values({
+      slug: 'mothership',
+      name: 'Mothership',
+      indexSource: 'user_provided',
+    })
     .returning();
   const [campaign] = await db
     .insert(schema.campaigns)

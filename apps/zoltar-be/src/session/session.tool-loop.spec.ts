@@ -9,11 +9,13 @@ import {
 } from './session.service';
 
 import type Anthropic from '@anthropic-ai/sdk';
-import type { AnthropicService } from '../anthropic/anthropic.service';
+import type {
+  AnthropicService,
+  CallSessionParams,
+} from '../anthropic/anthropic.service';
+import type { CampaignRepository } from '../campaign/campaign.repository';
 import type { DiceService } from '../dice/dice.service';
 import type { RulesLookupService } from '../rules/rules-lookup.service';
-import type { CampaignRepository } from '../campaign/campaign.repository';
-import type { CallSessionParams } from '../anthropic/anthropic.service';
 import type { SessionRepository } from './session.repository';
 
 // --- helpers --------------------------------------------------------------
@@ -342,9 +344,7 @@ describe('SessionService.runInnerToolLoop', () => {
 
   it('returns is_error tool_result for an unknown tool name', async () => {
     callSession
-      .mockResolvedValueOnce(
-        message([toolUse('toolu_x', 'mystery_tool', {})]),
-      )
+      .mockResolvedValueOnce(message([toolUse('toolu_x', 'mystery_tool', {})]))
       .mockResolvedValueOnce(message([submitGmBlock()]));
     const { service } = makeService(callSession);
 

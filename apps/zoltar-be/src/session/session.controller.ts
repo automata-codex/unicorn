@@ -11,6 +11,7 @@ import {
   UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
+import { z } from 'zod';
 
 import { AdventureService } from '../adventure/adventure.service';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -18,8 +19,8 @@ import { SessionGuard } from '../auth/session.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 import {
-  diceResultActionSchema,
   type DiceResultAction,
+  diceResultActionSchema,
 } from './session.schema';
 import {
   DicePendingError,
@@ -31,8 +32,6 @@ import {
   SessionService,
   SessionToolLoopError,
 } from './session.service';
-
-import { z } from 'zod';
 
 import type { AuthUser } from '@uv/auth-core';
 import type { SendMessageResult } from './session.service';
@@ -232,14 +231,19 @@ export class SessionController {
     // assertMember via findById; also confirms the adventure exists and
     // belongs to this campaign.
     await this.adventureService.findById(campaignId, adventureId, user.id);
-    let result;
     try {
-      result = await this.sessionService.submitDiceResult({
+      const result = await this.sessionService.submitDiceResult({
         adventureId,
         campaignId,
         actorUserId: user.id,
         submission,
       });
+      return {
+        requestId: result.requestId,
+        accepted: result.accepted,
+        pendingRequestIds: result.pendingRequestIds,
+        ...(result.turn ? { turn: serializeTurn(result.turn) } : {}),
+      };
     } catch (err) {
       if (err instanceof DiceResultConflictError) {
         this.logger.warn(
@@ -263,11 +267,5 @@ export class SessionController {
       // mapping — gm_correction_failed, gm_tool_loop_exhausted, etc.
       this.translateTurnError(err, adventureId);
     }
-    return {
-      requestId: result.requestId,
-      accepted: result.accepted,
-      pendingRequestIds: result.pendingRequestIds,
-      ...(result.turn ? { turn: serializeTurn(result.turn) } : {}),
-    };
   }
 }

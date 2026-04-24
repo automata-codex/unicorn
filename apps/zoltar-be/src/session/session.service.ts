@@ -1,16 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { getMothershipPoolDefinition } from '@uv/game-systems';
+import {
+  getMothershipPoolDefinition,
+  type ParsedNotation,
+  parseDiceNotation,
+} from '@uv/game-systems';
 
 import { AnthropicService } from '../anthropic/anthropic.service';
 import { CampaignRepository } from '../campaign/campaign.repository';
 import { DiceService } from '../dice/dice.service';
 import { RulesLookupService } from '../rules/rules-lookup.service';
 
-import { parseDiceNotation } from '@uv/game-systems';
-
 import { applyToCampaignState } from './session.applier';
 import { buildCorrectionRequest } from './session.correction';
-import { insertDiceRollEvent, nextSequenceNumber } from './session.events';
 import { buildSessionRequest } from './session.prompt';
 import { SessionRepository } from './session.repository';
 import {
@@ -18,8 +19,6 @@ import {
   rulesLookupInputSchema,
   submitGmResponseSchema,
 } from './session.schema';
-
-import type { DiceResultAction } from './session.schema';
 import { buildStateSnapshot } from './session.snapshot';
 import { SESSION_TOOLS } from './session.tools';
 import { validateStateChanges } from './session.validator';
@@ -28,11 +27,8 @@ import { buildMessageWindow } from './session.window';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { CallSessionParams } from '../anthropic/anthropic.service';
 import type { PendingSystemRoll } from './session.events';
-import type {
-  DiceRequestInput,
-  DiceRequestRow,
-} from './session.repository';
-import type { SubmitGmResponse } from './session.schema';
+import type { DiceRequestInput, DiceRequestRow } from './session.repository';
+import type { DiceResultAction, SubmitGmResponse } from './session.schema';
 import type { CampaignStateData, GmContextBlob } from './session.snapshot';
 import type { RulesLookupRecord } from './session.telemetry';
 import type {
@@ -197,14 +193,19 @@ export class SessionService {
     }
 
     // 1. Preconditions.
-    const [rawBlob, rawState, playerEntityIds, priorMessages, resolvedPlayerRolls] =
-      await Promise.all([
-        this.repo.getGmContextBlob(args.adventureId),
-        this.campaignRepo.getStateData(args.campaignId),
-        this.repo.getPlayerEntityIds(args.campaignId),
-        this.repo.getMessagesAsc(args.adventureId),
-        this.repo.playerDiceRollsSinceLastGmResponse(args.adventureId),
-      ]);
+    const [
+      rawBlob,
+      rawState,
+      playerEntityIds,
+      priorMessages,
+      resolvedPlayerRolls,
+    ] = await Promise.all([
+      this.repo.getGmContextBlob(args.adventureId),
+      this.campaignRepo.getStateData(args.campaignId),
+      this.repo.getPlayerEntityIds(args.campaignId),
+      this.repo.getMessagesAsc(args.adventureId),
+      this.repo.playerDiceRollsSinceLastGmResponse(args.adventureId),
+    ]);
 
     if (!rawBlob) {
       throw new SessionPreconditionError(
@@ -459,7 +460,7 @@ export class SessionService {
       );
     }
 
-    let parsed;
+    let parsed: ParsedNotation;
     try {
       parsed = parseDiceNotation(request.notation);
     } catch (err) {
@@ -541,10 +542,13 @@ export class SessionService {
    * bootstrap and used to guard narrative submissions. Delegates to the repo
    * so callers don't need to know about dice_request internals.
    */
-  async getPendingDiceRequests(
-    adventureId: string,
-  ): Promise<
-    Array<{ id: string; notation: string; purpose: string; target: number | null }>
+  async getPendingDiceRequests(adventureId: string): Promise<
+    Array<{
+      id: string;
+      notation: string;
+      purpose: string;
+      target: number | null;
+    }>
   > {
     const rows = await this.repo.pendingDiceRequestsForAdventure(adventureId);
     return rows.map((r) => ({
@@ -670,7 +674,9 @@ export class SessionService {
       // Happy path: Claude called submit_gm_response. A single assistant
       // turn may carry other tool_use blocks alongside it; per spec the
       // presence of submit_gm_response terminates the loop immediately.
-      const submitGmCall = toolUses.find((t) => t.name === 'submit_gm_response');
+      const submitGmCall = toolUses.find(
+        (t) => t.name === 'submit_gm_response',
+      );
       if (submitGmCall) {
         const parsed = submitGmResponseSchema.safeParse(submitGmCall.input);
         if (!parsed.success) {
@@ -699,7 +705,7 @@ export class SessionService {
       for (const use of toolUses) {
         if (use.name === 'roll_dice') {
           toolResultBlocks.push(
-            await this.handleRollDice(use, executedRolls, args.adventureId),
+            this.handleRollDice(use, executedRolls, args.adventureId),
           );
           continue;
         }
@@ -745,11 +751,11 @@ export class SessionService {
     );
   }
 
-  private async handleRollDice(
+  private handleRollDice(
     use: Anthropic.ToolUseBlock,
     executedRolls: PendingSystemRoll[],
     adventureId: string,
-  ): Promise<Anthropic.ContentBlockParam> {
+  ): Anthropic.ContentBlockParam {
     const parsed = rollDiceInputSchema.safeParse(use.input);
     if (!parsed.success) {
       return {

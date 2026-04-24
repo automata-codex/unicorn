@@ -44,15 +44,15 @@ describe('DiceService.rollForGm', () => {
 
   it('translates an unsupported die size into DiceInvocationError', () => {
     const service = new DiceService();
-    expect(() =>
-      service.rollForGm({ notation: '1d7', purpose: 'x' }),
-    ).toThrow(DiceInvocationError);
+    expect(() => service.rollForGm({ notation: '1d7', purpose: 'x' })).toThrow(
+      DiceInvocationError,
+    );
   });
 
   it('translates an out-of-range count into DiceInvocationError', () => {
     const service = new DiceService();
-    expect(() =>
-      service.rollForGm({ notation: '0d6', purpose: 'x' }),
-    ).toThrow(DiceInvocationError);
+    expect(() => service.rollForGm({ notation: '0d6', purpose: 'x' })).toThrow(
+      DiceInvocationError,
+    );
   });
 });

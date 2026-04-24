@@ -9,9 +9,9 @@ import * as schema from '../db/schema';
 import {
   insertDiceRollEvent,
   nextSequenceNumber,
-  writeTurnEvents,
   type PendingSystemRoll,
   type WrittenDiceRollRecord,
+  writeTurnEvents,
 } from './session.events';
 import {
   buildAdventureTelemetryPayload,
@@ -295,9 +295,7 @@ export class SessionRepository {
    * Feeds the play-view message log — dice events are merged with the
    * plain-message stream by `createdAt` client-side.
    */
-  async listDiceRollEvents(
-    adventureId: string,
-  ): Promise<
+  async listDiceRollEvents(adventureId: string): Promise<
     Array<{
       id: string;
       sequenceNumber: number;
@@ -369,9 +367,7 @@ export class SessionRepository {
    * purpose/target metadata Claude needs to interpret success/failure).
    * Ordered by sequence_number so the render is chronological.
    */
-  async playerDiceRollsSinceLastGmResponse(
-    adventureId: string,
-  ): Promise<
+  async playerDiceRollsSinceLastGmResponse(adventureId: string): Promise<
     Array<{
       sequenceNumber: number;
       notation: string;

@@ -51,10 +51,10 @@ export const WARDEN_SYSTEM_PROMPT_MOTHERSHIP = [
   '  against a reveal, Body save against pressure loss).',
   '',
   'Include one entry per roll the player needs to make. Batch independent',
-  "rolls in a single submit_gm_response; serialize across turns only when one",
+  'rolls in a single submit_gm_response; serialize across turns only when one',
   "roll's outcome determines whether another fires (e.g. panic check cascades",
   'into a stress save). The player submits results via a follow-up action;',
-  "you will see those results at the top of their next message.",
+  'you will see those results at the top of their next message.',
   '',
   'WHEN TO CALL rules_lookup',
   '- Before adjudicating any mechanic you are not certain about: panic table',
@@ -79,7 +79,7 @@ export const WARDEN_SYSTEM_PROMPT_MOTHERSHIP = [
   '  identify gaps.',
   '',
   'Do not retry the same query hoping for different results. Do not narrate',
-  "reluctance to the player (\"I'm not sure how this works…\") — the player",
+  'reluctance to the player ("I\'m not sure how this works…") — the player',
   'experiences confident refereeing regardless of what the index contains.',
 ].join('\n');
 

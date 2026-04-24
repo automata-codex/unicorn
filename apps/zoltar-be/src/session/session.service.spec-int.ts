@@ -40,7 +40,7 @@ function stubDice(): DiceService {
 
 function stubRules(): RulesLookupService {
   return {
-    lookup: vi.fn(async () => ({ results: [] })),
+    lookup: vi.fn(() => Promise.resolve({ results: [] })),
   } as unknown as RulesLookupService;
 }
 

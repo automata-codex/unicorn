@@ -36,9 +36,7 @@ describe('submitGmResponseSchema', () => {
         notes: 'Party is running low on ammo.',
         proposedCanon: [{ summary: 'Ship has a brig.', context: 'Cell door.' }],
       },
-      diceRequests: [
-        { notation: '1d100', purpose: 'Fear save', target: 30 },
-      ],
+      diceRequests: [{ notation: '1d100', purpose: 'Fear save', target: 30 }],
       adventureMode: 'initiative',
     });
     expect(result.success).toBe(true);
@@ -120,9 +118,7 @@ describe('submitGmResponseSchema', () => {
   it('rejects a non-integer target on a diceRequests entry', () => {
     const result = submitGmResponseSchema.safeParse({
       playerText: 'x',
-      diceRequests: [
-        { notation: '1d100', purpose: 'Save', target: 42.5 },
-      ],
+      diceRequests: [{ notation: '1d100', purpose: 'Save', target: 42.5 }],
     });
     expect(result.success).toBe(false);
   });

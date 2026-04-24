@@ -155,7 +155,7 @@ describe('buildSessionRequest', () => {
     });
   });
 
-  it('sets tool_choice: { type: \'any\' } so the inner tool loop can run', () => {
+  it("sets tool_choice: { type: 'any' } so the inner tool loop can run", () => {
     const req = buildSessionRequest({
       gmContextBlob: baseBlob,
       campaignStateData,

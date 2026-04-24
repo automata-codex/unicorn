@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { VoyageService } from '../voyage/voyage.service';
 
+import { type RulesChunkMatch, RulesRepository } from './rules.repository';
 import { RulesLookupService } from './rules-lookup.service';
-import { RulesRepository, type RulesChunkMatch } from './rules.repository';
 
 function makeMocks(
   embedding: number[],
@@ -112,14 +112,15 @@ describe('RulesLookupService.lookup', () => {
     const voyage = {
       embed: vi.fn().mockRejectedValue(new Error('Voyage API error 429')),
     } as unknown as VoyageService;
+    const findByCosineSimilarity = vi.fn();
     const repo = {
-      findByCosineSimilarity: vi.fn(),
+      findByCosineSimilarity,
     } as unknown as RulesRepository;
     const service = new RulesLookupService(repo, voyage);
 
     await expect(
       service.lookup('s', { query: 'panic', limit: 3 }),
     ).rejects.toThrow(/429/);
-    expect(repo.findByCosineSimilarity).not.toHaveBeenCalled();
+    expect(findByCosineSimilarity).not.toHaveBeenCalled();
   });
 });

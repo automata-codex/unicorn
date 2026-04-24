@@ -2,8 +2,8 @@ import { Module } from '@nestjs/common';
 
 import { VoyageModule } from '../voyage/voyage.module';
 
-import { RulesLookupService } from './rules-lookup.service';
 import { RulesRepository } from './rules.repository';
+import { RulesLookupService } from './rules-lookup.service';
 
 @Module({
   imports: [VoyageModule],

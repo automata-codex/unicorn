@@ -66,7 +66,9 @@ function stubRules(): RulesLookupService {
   } as unknown as RulesLookupService;
 }
 
-function mockAnthropic(callSession: ReturnType<typeof vi.fn>): AnthropicService {
+function mockAnthropic(
+  callSession: ReturnType<typeof vi.fn>,
+): AnthropicService {
   return { callSession } as unknown as AnthropicService;
 }
 
@@ -94,13 +96,11 @@ async function seedFixture(): Promise<{
       diceMode: 'soft_accountability',
     })
     .returning();
-  await db
-    .insert(schema.campaignStates)
-    .values({
-      campaignId: campaign.id,
-      system: 'mothership',
-      data: emptyMothershipState(),
-    });
+  await db.insert(schema.campaignStates).values({
+    campaignId: campaign.id,
+    system: 'mothership',
+    data: emptyMothershipState(),
+  });
   await db.insert(schema.users).values({ id: 'u1', email: 'u1@x.test' });
   await db.insert(schema.campaignMembers).values({
     campaignId: campaign.id,
@@ -427,9 +427,7 @@ describe('SessionService.submitDiceResult (integration)', () => {
 });
 
 describe('SessionService.submitDiceResult autoAdvance (integration)', () => {
-  function submitGmToolUse(
-    input: Record<string, unknown>,
-  ): Anthropic.Message {
+  function submitGmToolUse(input: Record<string, unknown>): Anthropic.Message {
     return {
       content: [
         {
@@ -493,9 +491,7 @@ describe('SessionService.submitDiceResult autoAdvance (integration)', () => {
     );
     expect(diceBlock).toBeDefined();
     expect(
-      userMessages.some(
-        (m: Anthropic.MessageParam) => m.content === '',
-      ),
+      userMessages.some((m: Anthropic.MessageParam) => m.content === ''),
     ).toBe(false);
   });
 
