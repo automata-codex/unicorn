@@ -34,3 +34,9 @@ tasks:
     dir: apps/zoltar-be
     cmds:
       - npx tsx --env-file=.env scripts/save-synthesis.ts {{.CLI_ARGS}}
+
+  playtest:load-synthesis:
+    desc: Materialize a SynthesisExport JSON file into a new campaign + adventure. Usage — task playtest:load-synthesis -- <file.json> [--name "Prompt A run"]
+    dir: apps/zoltar-be
+    cmds:
+      - npx tsx --env-file=.env scripts/load-synthesis.ts {{.CLI_ARGS}}

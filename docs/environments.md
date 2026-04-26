@@ -20,6 +20,8 @@ The Anthropic API key is a personal key for development use. The Voyage AI key (
 
 `WARDEN_PROMPT_OVERRIDE_MOTHERSHIP` (optional, development only) forces the backend to use a specific Warden prompt file — e.g. `mothership-m7a.txt` — rather than the latest-by-version file under `apps/zoltar-be/src/wardens/prompts/`. Startup fails loudly if the named file does not exist. Intended for side-by-side playtest of two candidate prompts against the same saved synthesis, by running two backend instances with different overrides. Not intended for production self-hosted deployments.
 
+`PLAYTEST_LOAD_USER_ID` (optional, development only) is read by the `task playtest:load-synthesis` script to decide which user owns the new campaign that gets created when a synthesis JSON file is loaded. If set, must match an existing user id. If unset, the loader falls back to the first user row and prints a warning naming the chosen user (fine for single-developer dev loops; surface the fallback when the dev DB carries multiple imported users). If the `user` table is empty, the load exits non-zero. Not consulted by the backend itself — only by the CLI.
+
 ### Workflow A — Full stack in Docker (first run, sanity checks, CI)
 
 ```sh
