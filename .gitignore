@@ -93,3 +93,6 @@ build/
 infra/traefik/certs/
 
 docs/plans
+
+# Personal notes — kept on disk, not tracked
+docs/mental-health-toolkit.md
