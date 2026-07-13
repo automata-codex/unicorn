@@ -3,6 +3,8 @@
  * so rendering decisions can be tested without mounting Svelte.
  */
 
+import type { MessageWire } from './timeline';
+
 export interface ResourcePool {
   current: number;
   max: number | null;
@@ -139,4 +141,31 @@ export function classifySendError(input: {
     return 'gm_unavailable';
   }
   return 'unknown';
+}
+
+/**
+ * Prepends the adventure's opening narration as a synthetic first message,
+ * if present. The opening narration is never itself a row in the `message`
+ * table (see `AdventureRepository.findById`), so it must always be
+ * synthesized client-side and always be the first entry in the visible
+ * history — not just on the very first load before any real messages exist.
+ *
+ * Uses `new Date(0).toISOString()` as its `createdAt` so `mergeTimeline`'s
+ * stable sort always places it before any real message or dice-roll
+ * timestamp — correctness doesn't depend on array position.
+ */
+export function seedMessagesWithOpeningNarration(
+  bootstrapMessages: MessageWire[],
+  openingNarration: string | null | undefined,
+): MessageWire[] {
+  if (!openingNarration) return bootstrapMessages;
+  return [
+    {
+      id: 'opening',
+      role: 'assistant',
+      content: openingNarration,
+      createdAt: new Date(0).toISOString(),
+    },
+    ...bootstrapMessages,
+  ];
 }

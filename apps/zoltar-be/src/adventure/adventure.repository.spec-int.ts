@@ -145,6 +145,30 @@ describe('AdventureRepository (integration)', () => {
       const found = await repo.findById(adventure.id, campaignId);
       expect(found!.openingNarration).toBeNull();
     });
+
+    it('still returns openingNarration once the adventure is in_progress', async () => {
+      // Regression test: openingNarration used to be gated on
+      // `status === 'ready'`, so it silently disappeared the moment the
+      // first turn completed and flipped status to `in_progress` — even
+      // though the message log should always show it as the first entry.
+      const db = getTestDb();
+      const { campaignId } = await seedSystemAndCampaign();
+      await seedUser('u1', 'alice@example.com');
+      const adventure = await repo.insert({ campaignId, callerId: 'u1' });
+
+      await db.insert(schema.gmContexts).values({
+        adventureId: adventure.id,
+        blob: { openingNarration: 'Amber lights pulse overhead.' },
+      });
+      await db
+        .update(schema.adventures)
+        .set({ status: 'in_progress' })
+        .where(eq(schema.adventures.id, adventure.id));
+
+      const found = await repo.findById(adventure.id, campaignId);
+      expect(found).not.toBeNull();
+      expect(found!.openingNarration).toBe('Amber lights pulse overhead.');
+    });
   });
 
   describe('findAllForCampaign', () => {
