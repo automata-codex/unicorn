@@ -80,6 +80,8 @@
     font-size: var(--font-size-xs);
     letter-spacing: var(--tracking-wide);
     color: var(--color-roll-prompt-label);
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .purpose {
