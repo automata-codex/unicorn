@@ -232,7 +232,7 @@
 
   .notation {
     font-family: var(--font-primary);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-base);
     color: var(--color-roll-prompt-label);
     letter-spacing: var(--tracking-base);
   }

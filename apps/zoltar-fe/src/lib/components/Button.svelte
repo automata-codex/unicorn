@@ -31,7 +31,7 @@
 <style>
   .btn {
     font-family: var(--font-primary);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-base);
     letter-spacing: var(--tracking-base);
     text-transform: uppercase;
     padding: var(--space-4) var(--space-5);

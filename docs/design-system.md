@@ -164,8 +164,7 @@ Warden messages are left-anchored with a 2px left border using `--color-warden-c
 | `--font-size-2xs` | 11px | Metadata, icon labels |
 | `--font-size-xs` | 12px | Category labels (SURVIVORS, STATS) |
 | `--font-size-sm` | 13px | Hints, small UI text |
-| `--font-size-md` | 15px | Body, entry names, buttons |
-| `--font-size-base` | 16px | Message text, form values |
+| `--font-size-base` | 16px | Body, message text, form values, entry names, buttons |
 | `--font-size-lg` | 17px | Stat values, character name |
 | `--font-size-xl` | 19px | Screen titles |
 | `--font-size-2xl` | 21px | Campaign name |

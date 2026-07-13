@@ -154,8 +154,7 @@
   ); /* 11px metadata, icon labels */
   --font-size-xs: var(--primitive-font-size-xs); /* 12px category labels */
   --font-size-sm: var(--primitive-font-size-sm); /* 13px hints */
-  --font-size-md: var(--primitive-font-size-md); /* 15px body, entry names */
-  --font-size-base: var(--primitive-font-size-base); /* 16px message text */
+  --font-size-base: var(--primitive-font-size-base); /* 16px body, message text, form values */
   --font-size-lg: var(--primitive-font-size-lg); /* 17px stats, char name */
   --font-size-xl: var(--primitive-font-size-xl); /* 19px screen titles */
   --font-size-2xl: var(--primitive-font-size-2xl); /* 21px campaign name */
