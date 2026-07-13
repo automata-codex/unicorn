@@ -63,3 +63,14 @@ Flyway runs in a one-shot container managed by Docker Compose. The `task` wrappe
 | `task flyway:repair`  | Repair the schema history table after a failed migration                  |
 
 Migration files live in `infra/db/migrations/` and follow Flyway's `V{N}__{description}.sql` naming convention. The Drizzle TypeScript schema in `apps/zoltar-be/src/db/schema.ts` is the source of truth for inferred types and must be kept in sync with migrations manually.
+
+### Database backup / restore
+
+`infra/db/backup.sh` and `infra/db/restore.sh` wrap `pg_dump`/`pg_restore`, run inside the `db` compose service so they always target whichever database the running stack is configured for:
+
+| Command                                  | What it does                                                                |
+|-------------------------------------------|------------------------------------------------------------------------------|
+| `task db:backup [-- <output-file>]`      | Dump the database (custom format) to `infra/db/backups/backup_<timestamp>.dump`, or to `<output-file>` if given |
+| `task db:restore -- <backup-file>`       | Drop and recreate objects from `<backup-file>` (destructive — prompts for confirmation) |
+
+The `db` service must be running (`task up` or `task up:all`). Backups land in `infra/db/backups/`, which is gitignored since dumps contain full campaign/session data.
