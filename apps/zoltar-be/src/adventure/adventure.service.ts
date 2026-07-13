@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { CampaignService } from '../campaign/campaign.service';
 
@@ -26,5 +30,19 @@ export class AdventureService {
     const adventure = await this.repo.findById(adventureId, campaignId);
     if (!adventure) throw new NotFoundException('Adventure not found');
     return adventure;
+  }
+
+  async abort(campaignId: string, adventureId: string, userId: string) {
+    await this.campaignService.assertMember(campaignId, userId);
+    const existing = await this.repo.findById(adventureId, campaignId);
+    if (!existing) throw new NotFoundException('Adventure not found');
+
+    const aborted = await this.repo.abort(adventureId);
+    if (!aborted) {
+      throw new ConflictException(
+        `Adventure status must be active to abort, got "${existing.status}"`,
+      );
+    }
+    return aborted;
   }
 }

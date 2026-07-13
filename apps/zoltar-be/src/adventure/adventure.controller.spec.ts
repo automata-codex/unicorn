@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AdventureController } from './adventure.controller';
@@ -10,6 +14,7 @@ function mockAdventureService() {
     create: vi.fn(),
     findAllForCampaign: vi.fn(),
     findById: vi.fn(),
+    abort: vi.fn(),
   };
 }
 
@@ -87,6 +92,34 @@ describe('AdventureController', () => {
       await expect(
         controller.findOne('c1', 'missing', fakeUser),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('POST /campaigns/:campaignId/adventures/:adventureId/abort', () => {
+    it('aborts the adventure', async () => {
+      const aborted = { id: 'a1', status: 'aborted', completedAt: new Date() };
+      svc.abort.mockResolvedValue(aborted);
+
+      const result = await controller.abort('c1', 'a1', fakeUser);
+
+      expect(svc.abort).toHaveBeenCalledWith('c1', 'a1', 'u1');
+      expect(result).toEqual(aborted);
+    });
+
+    it('propagates NotFoundException when the adventure does not exist', async () => {
+      svc.abort.mockRejectedValue(new NotFoundException());
+
+      await expect(controller.abort('c1', 'missing', fakeUser)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('propagates ConflictException when the adventure is not active', async () => {
+      svc.abort.mockRejectedValue(new ConflictException());
+
+      await expect(controller.abort('c1', 'a1', fakeUser)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 });
