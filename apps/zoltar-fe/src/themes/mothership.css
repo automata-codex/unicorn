@@ -149,10 +149,8 @@
    * Font size aliases (components use these, not primitives)
    * ----------------------------------------------------------------------- */
 
-  --font-size-2xs: var(
-    --primitive-font-size-2xs
-  ); /* 7px  metadata, icon labels */
-  --font-size-xs: var(--primitive-font-size-xs); /* 9px  category labels */
+  /* Clamped to sm (12px) — the perfect-fourth ratio made xs unreadably small */
+  --font-size-xs: var(--primitive-font-size-sm); /* 12px category labels */
   --font-size-sm: var(--primitive-font-size-sm); /* 12px hints */
   --font-size-base: var(--primitive-font-size-base); /* 16px body, message text, form values */
   --font-size-lg: var(--primitive-font-size-lg); /* 21px stats, char name */

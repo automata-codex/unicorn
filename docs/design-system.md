@@ -160,11 +160,11 @@ Warden messages are left-anchored with a 2px left border using `--color-warden-c
 ### Font Sizes
 
 Modular scale: ratio 4/3 (perfect fourth), anchored at `--font-size-base` = 16px.
+`xs` is clamped to `sm` (12px) — the raw ratio made it unreadably small. `2xs` was removed.
 
 | Token | px | Use |
 |-------|----|-----|
-| `--font-size-2xs` | 7px | Metadata, icon labels |
-| `--font-size-xs` | 9px | Category labels (SURVIVORS, STATS) |
+| `--font-size-xs` | 12px (clamped) | Category labels (SURVIVORS, STATS) |
 | `--font-size-sm` | 12px | Hints, small UI text |
 | `--font-size-base` | 16px | Body, message text, form values, entry names, buttons |
 | `--font-size-lg` | 21px | Stat values, character name |
