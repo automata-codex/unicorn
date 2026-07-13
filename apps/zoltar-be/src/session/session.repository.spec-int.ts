@@ -146,4 +146,46 @@ describe('SessionRepository (integration)', () => {
       expect(afterRow.updatedAt).toEqual(beforeRow.updatedAt);
     });
   });
+
+  describe('listDiceRollEvents', () => {
+    it('returns createdAt as a real Date, not a driver string', async () => {
+      // Regression test: this method reads via raw `db.execute`, which
+      // bypasses Drizzle's column-type mapping — node-postgres hands back
+      // timestamptz as Postgres's text representation, not a Date, unless
+      // explicitly parsed. Downstream code (SessionService.listDiceRolls)
+      // calls `.toISOString()` on this field and crashed in production
+      // once an adventure had at least one dice_roll event.
+      const { campaignId, adventureId } = await seedFixture();
+      const request = await getTestDb().transaction(async (tx) =>
+        repo.insertDiceRequest({
+          tx,
+          adventureId,
+          issuedAtSequence: 1,
+          notation: '1d100',
+          purpose: 'test prompt',
+          target: 65,
+        }),
+      );
+      await repo.applyDiceResultAtomic({
+        adventureId,
+        campaignId,
+        requestId: request.id,
+        actorUserId: 'u1',
+        source: 'player_entered',
+        payload: {
+          notation: '1d100',
+          purpose: 'test prompt',
+          results: [34],
+          modifier: 0,
+          total: 34,
+        },
+      });
+
+      const [roll] = await repo.listDiceRollEvents(adventureId);
+
+      expect(roll).toBeDefined();
+      expect(roll.createdAt).toBeInstanceOf(Date);
+      expect(() => roll.createdAt.toISOString()).not.toThrow();
+    });
+  });
 });

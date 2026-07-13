@@ -316,7 +316,10 @@ export class SessionRepository {
     const result = await this.db.execute<{
       id: string;
       sequence_number: number;
-      created_at: Date;
+      // node-postgres does not apply Drizzle's column-type mapping to raw
+      // `db.execute` results — timestamptz comes back as Postgres's text
+      // representation, not a Date. Parse explicitly below.
+      created_at: string;
       roll_source: 'system_generated' | 'player_entered';
       notation: string;
       purpose: string;
@@ -347,7 +350,7 @@ export class SessionRepository {
     return result.rows.map((r) => ({
       id: r.id,
       sequenceNumber: Number(r.sequence_number),
-      createdAt: r.created_at,
+      createdAt: new Date(r.created_at),
       source: r.roll_source,
       notation: r.notation,
       purpose: r.purpose,
