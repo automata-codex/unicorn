@@ -290,10 +290,16 @@ export class SessionRepository {
   }
 
   /**
-   * All `dice_roll` events for the adventure, ordered by sequence. Joins
-   * `dice_request` (left, since system-generated rolls have no originating
-   * request) so the FE can render target/success-or-failure for
-   * player-entered rolls.
+   * Player-submitted `dice_roll` events (`actor_type = 'player'`) for the
+   * adventure, ordered by sequence. Excludes GM/NPC rolls from Claude's
+   * inner tool loop (`actor_type = 'gm'`, written by `writeTurnEvents`) —
+   * those are mechanical/narrative-support rolls, not something the player
+   * submitted, and showing them in the chat log was a UI quirk rather than
+   * intended behavior.
+   *
+   * Joins `dice_request` (left, since a system-generated "Roll for me"
+   * roll still resolves a request but a future row shape shouldn't hard-
+   * require it) so the FE can render target/success-or-failure.
    *
    * Feeds the play-view message log — dice events are merged with the
    * plain-message stream by `createdAt` client-side.
@@ -345,6 +351,7 @@ export class SessionRepository {
         ON dq.id::text = ev.payload->>'requestId'
       WHERE ev.adventure_id = ${adventureId}
         AND ev.event_type   = 'dice_roll'
+        AND ev.actor_type   = 'player'
       ORDER BY ev.sequence_number ASC
     `);
     return result.rows.map((r) => ({
@@ -363,22 +370,21 @@ export class SessionRepository {
   }
 
   /**
-   * Player-facing dice_roll events that landed after the most recent
-   * `gm_response` for this adventure. These are rolls the player submitted
-   * between turns — whether typed in (`player_entered`) or generated via
-   * the "Roll for me" button (`system_generated`) — the prompt builder
-   * renders them as a synthetic `[Dice results]` block immediately before
-   * the next narrative input so Claude knows what the dice said before
-   * narrating the outcome.
+   * Player-submitted dice_roll events (`actor_type = 'player'`) that landed
+   * after the most recent `gm_response` for this adventure — whether typed
+   * in (`player_entered`) or generated via the "Roll for me" button
+   * (`system_generated`). The prompt builder renders them as a synthetic
+   * `[Dice results]` block immediately before the next narrative input so
+   * Claude knows what the dice said before narrating the outcome.
    *
-   * Scoped to player-facing rolls via the `dice_request` join alone: any
-   * `dice_roll` event with a `payload.requestId` that resolves to a real
-   * `dice_request` row was written by `applyDiceResultAtomic` in response
-   * to a player submission, regardless of `roll_source`. GM/NPC rolls from
-   * the inner tool loop never populate `requestId`, so they never match
-   * the join — no additional `roll_source` filter is needed or correct
-   * here (a `roll_source = 'player_entered'` filter previously excluded
-   * legitimate "Roll for me" submissions and caused a stuck-turn bug).
+   * Filtered on `actor_type = 'player'` rather than `roll_source`: GM/NPC
+   * rolls from the inner tool loop are always written with
+   * `actor_type = 'gm'` (see `writeTurnEvents`), while both
+   * `applyDiceResultAtomic` write paths — typed-in and "Roll for me" —
+   * always write `actor_type = 'player'` regardless of `roll_source`. A
+   * prior `roll_source = 'player_entered'` filter excluded legitimate
+   * "Roll for me" submissions (`system_generated`) and caused a stuck-turn
+   * bug.
    *
    * Joins `game_event` (for results/total) back to `dice_request` (for the
    * purpose/target metadata Claude needs to interpret success/failure).
@@ -425,6 +431,7 @@ export class SessionRepository {
         ON dq.id = (ev.payload->>'requestId')::uuid
       WHERE ev.adventure_id = ${adventureId}
         AND ev.event_type   = 'dice_roll'
+        AND ev.actor_type   = 'player'
         AND ev.sequence_number > (SELECT seq FROM last_gm)
       ORDER BY ev.sequence_number ASC
     `);
