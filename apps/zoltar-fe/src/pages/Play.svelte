@@ -370,7 +370,11 @@
     <p class="error-text">{error}</p>
   {:else}
     {#if status}
-      <CharacterStatusStrip name={characterName} {status} />
+      <CharacterStatusStrip
+        name={characterName}
+        {status}
+        onviewsheet={() => push(`/campaigns/${campaignId}/characters`)}
+      />
     {/if}
     <ThresholdBanner {thresholds} />
     <MessageLog {timeline} typing={sending} />
