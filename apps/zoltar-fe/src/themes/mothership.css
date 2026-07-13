@@ -149,17 +149,14 @@
    * Font size aliases (components use these, not primitives)
    * ----------------------------------------------------------------------- */
 
-  --font-size-2xs: var(
-    --primitive-font-size-2xs
-  ); /* 8px  metadata, icon labels */
-  --font-size-xs: var(--primitive-font-size-xs); /* 9px  category labels */
-  --font-size-sm: var(--primitive-font-size-sm); /* 10px hints */
-  --font-size-md: var(--primitive-font-size-md); /* 11px body, entry names */
-  --font-size-base: var(--primitive-font-size-base); /* 12px message text */
-  --font-size-lg: var(--primitive-font-size-lg); /* 13px stats, char name */
-  --font-size-xl: var(--primitive-font-size-xl); /* 14px screen titles */
-  --font-size-2xl: var(--primitive-font-size-2xl); /* 16px campaign name */
-  --font-size-3xl: var(--primitive-font-size-3xl); /* 20px hero text */
+  /* Clamped to sm (12px) — the perfect-fourth ratio made xs unreadably small */
+  --font-size-xs: var(--primitive-font-size-sm); /* 12px category labels */
+  --font-size-sm: var(--primitive-font-size-sm); /* 12px hints */
+  --font-size-base: var(--primitive-font-size-base); /* 16px body, message text, form values */
+  --font-size-lg: var(--primitive-font-size-lg); /* 21px stats, char name */
+  --font-size-xl: var(--primitive-font-size-xl); /* 28px screen titles */
+  --font-size-2xl: var(--primitive-font-size-2xl); /* 38px campaign name */
+  --font-size-3xl: var(--primitive-font-size-3xl); /* 51px hero text */
 
   /* -----------------------------------------------------------------------
    * Letter spacing aliases
@@ -183,16 +180,16 @@
    * Spacing aliases
    * ----------------------------------------------------------------------- */
 
-  --space-1: var(--primitive-space-1); /* 4px */
-  --space-2: var(--primitive-space-2); /* 6px */
-  --space-3: var(--primitive-space-3); /* 8px */
-  --space-4: var(--primitive-space-4); /* 10px */
-  --space-5: var(--primitive-space-5); /* 12px */
-  --space-6: var(--primitive-space-6); /* 14px */
-  --space-7: var(--primitive-space-7); /* 16px */
-  --space-8: var(--primitive-space-8); /* 20px */
-  --space-9: var(--primitive-space-9); /* 24px */
-  --space-10: var(--primitive-space-10); /* 32px */
+  --space-1: var(--primitive-space-1); /* 5px */
+  --space-2: var(--primitive-space-2); /* 8px */
+  --space-3: var(--primitive-space-3); /* 11px */
+  --space-4: var(--primitive-space-4); /* 13px */
+  --space-5: var(--primitive-space-5); /* 16px */
+  --space-6: var(--primitive-space-6); /* 19px */
+  --space-7: var(--primitive-space-7); /* 21px */
+  --space-8: var(--primitive-space-8); /* 27px */
+  --space-9: var(--primitive-space-9); /* 32px */
+  --space-10: var(--primitive-space-10); /* 43px */
 
   /* -----------------------------------------------------------------------
    * Border radius aliases

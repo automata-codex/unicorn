@@ -135,17 +135,16 @@
 
   /* -----------------------------------------------------------------------
    * Typography — Scale (px)
+   * Modular scale: ratio 4/3 (perfect fourth), anchored at base = 16px.
    * ----------------------------------------------------------------------- */
 
-  --primitive-font-size-2xs: 8px;
   --primitive-font-size-xs: 9px;
-  --primitive-font-size-sm: 10px;
-  --primitive-font-size-md: 11px;
-  --primitive-font-size-base: 12px;
-  --primitive-font-size-lg: 13px;
-  --primitive-font-size-xl: 14px;
-  --primitive-font-size-2xl: 16px;
-  --primitive-font-size-3xl: 20px;
+  --primitive-font-size-sm: 12px;
+  --primitive-font-size-base: 16px;
+  --primitive-font-size-lg: 21px;
+  --primitive-font-size-xl: 28px;
+  --primitive-font-size-2xl: 38px;
+  --primitive-font-size-3xl: 51px;
 
   /* -----------------------------------------------------------------------
    * Typography — Line height
@@ -169,16 +168,16 @@
    * Spacing
    * ----------------------------------------------------------------------- */
 
-  --primitive-space-1: 4px;
-  --primitive-space-2: 6px;
-  --primitive-space-3: 8px;
-  --primitive-space-4: 10px;
-  --primitive-space-5: 12px;
-  --primitive-space-6: 14px;
-  --primitive-space-7: 16px;
-  --primitive-space-8: 20px;
-  --primitive-space-9: 24px;
-  --primitive-space-10: 32px;
+  --primitive-space-1: 5px;
+  --primitive-space-2: 8px;
+  --primitive-space-3: 11px;
+  --primitive-space-4: 13px;
+  --primitive-space-5: 16px;
+  --primitive-space-6: 19px;
+  --primitive-space-7: 21px;
+  --primitive-space-8: 27px;
+  --primitive-space-9: 32px;
+  --primitive-space-10: 43px;
 
   /* -----------------------------------------------------------------------
    * Border radius

@@ -16,6 +16,7 @@
     type CharacterStatus,
     classifySendError,
     deriveCharacterStatus,
+    seedMessagesWithOpeningNarration,
     type ThresholdCrossing,
   } from '../lib/components/play/play-helpers';
   import ThresholdBanner from '../lib/components/play/ThresholdBanner.svelte';
@@ -128,18 +129,10 @@
       });
       diceMode = campaign.diceMode ?? 'soft_accountability';
 
-      if (bootstrap.messages.length === 0 && adventure.openingNarration) {
-        messages = [
-          {
-            id: 'opening',
-            role: 'assistant',
-            content: adventure.openingNarration,
-            createdAt: new Date(0).toISOString(),
-          },
-        ];
-      } else {
-        messages = bootstrap.messages;
-      }
+      messages = seedMessagesWithOpeningNarration(
+        bootstrap.messages,
+        adventure.openingNarration,
+      );
       diceRolls = bootstrap.diceRolls;
       pendingDiceRequests = bootstrap.pendingDiceRequests;
     } catch {
@@ -370,7 +363,11 @@
     <p class="error-text">{error}</p>
   {:else}
     {#if status}
-      <CharacterStatusStrip name={characterName} {status} />
+      <CharacterStatusStrip
+        name={characterName}
+        {status}
+        onviewsheet={() => push(`/campaigns/${campaignId}/characters`)}
+      />
     {/if}
     <ThresholdBanner {thresholds} />
     <MessageLog {timeline} typing={sending} />

@@ -159,17 +159,18 @@ Warden messages are left-anchored with a 2px left border using `--color-warden-c
 
 ### Font Sizes
 
+Modular scale: ratio 4/3 (perfect fourth), anchored at `--font-size-base` = 16px.
+`xs` is clamped to `sm` (12px) — the raw ratio made it unreadably small. `2xs` was removed.
+
 | Token | px | Use |
 |-------|----|-----|
-| `--font-size-2xs` | 8px | Metadata, icon labels |
-| `--font-size-xs` | 9px | Category labels (SURVIVORS, STATS) |
-| `--font-size-sm` | 10px | Hints, small UI text |
-| `--font-size-md` | 11px | Body, entry names, buttons |
-| `--font-size-base` | 12px | Message text, form values |
-| `--font-size-lg` | 13px | Stat values, character name |
-| `--font-size-xl` | 14px | Screen titles |
-| `--font-size-2xl` | 16px | Campaign name |
-| `--font-size-3xl` | 20px | Hero text |
+| `--font-size-xs` | 12px (clamped) | Category labels (SURVIVORS, STATS) |
+| `--font-size-sm` | 12px | Hints, small UI text |
+| `--font-size-base` | 16px | Body, message text, form values, entry names, buttons |
+| `--font-size-lg` | 21px | Stat values, character name |
+| `--font-size-xl` | 28px | Screen titles |
+| `--font-size-2xl` | 38px | Campaign name |
+| `--font-size-3xl` | 51px | Hero text |
 
 ### Letter Spacing
 
@@ -185,16 +186,16 @@ Warden messages are left-anchored with a 2px left border using `--color-warden-c
 
 | Token | px |
 |-------|----|
-| `--space-1` | 4px |
-| `--space-2` | 6px |
-| `--space-3` | 8px |
-| `--space-4` | 10px |
-| `--space-5` | 12px |
-| `--space-6` | 14px |
-| `--space-7` | 16px |
-| `--space-8` | 20px |
-| `--space-9` | 24px |
-| `--space-10` | 32px |
+| `--space-1` | 5px |
+| `--space-2` | 8px |
+| `--space-3` | 11px |
+| `--space-4` | 13px |
+| `--space-5` | 16px |
+| `--space-6` | 19px |
+| `--space-7` | 21px |
+| `--space-8` | 27px |
+| `--space-9` | 32px |
+| `--space-10` | 43px |
 
 ### Border Radius
 

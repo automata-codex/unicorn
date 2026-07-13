@@ -187,5 +187,60 @@ describe('SessionRepository (integration)', () => {
       expect(roll.createdAt).toBeInstanceOf(Date);
       expect(() => roll.createdAt.toISOString()).not.toThrow();
     });
+
+    it('excludes GM/NPC rolls from the inner tool loop', async () => {
+      // GM rolls are written by `writeTurnEvents` with actor_type 'gm' and
+      // no `requestId` in the payload (they don't resolve a dice_request).
+      // They're mechanical/narrative-support rolls, not something the
+      // player submitted, and shouldn't appear in the chat log.
+      const { campaignId, adventureId } = await seedFixture();
+      const request = await getTestDb().transaction(async (tx) =>
+        repo.insertDiceRequest({
+          tx,
+          adventureId,
+          issuedAtSequence: 1,
+          notation: '1d100',
+          purpose: 'test prompt',
+          target: 65,
+        }),
+      );
+      await repo.applyDiceResultAtomic({
+        adventureId,
+        campaignId,
+        requestId: request.id,
+        actorUserId: 'u1',
+        source: 'player_entered',
+        payload: {
+          notation: '1d100',
+          purpose: 'test prompt',
+          results: [34],
+          modifier: 0,
+          total: 34,
+        },
+      });
+      await getTestDb()
+        .insert(schema.gameEvents)
+        .values({
+          adventureId,
+          campaignId,
+          sequenceNumber: 2,
+          eventType: 'dice_roll',
+          actorType: 'gm',
+          actorId: null,
+          rollSource: 'system_generated',
+          payload: {
+            notation: '2d6',
+            purpose: 'ambush check',
+            results: [4, 5],
+            modifier: 0,
+            total: 9,
+          },
+        });
+
+      const rolls = await repo.listDiceRollEvents(adventureId);
+
+      expect(rolls).toHaveLength(1);
+      expect(rolls[0].notation).toBe('1d100');
+    });
   });
 });

@@ -594,10 +594,11 @@ export class SessionService {
   }
 
   /**
-   * All `dice_roll` events for an adventure, wire-formatted for the play view.
-   * Surfaces the info the FE needs to render a `DiceRollBubble`: source,
-   * notation, results, total, optional target (for player-entered rolls
-   * resolving a dice_request in soft_accountability mode).
+   * Player-submitted `dice_roll` events for an adventure, wire-formatted for
+   * the play view. Surfaces the info the FE needs to render a
+   * `DiceRollBubble`: source, notation, results, total, optional target (for
+   * player-entered rolls resolving a dice_request in soft_accountability
+   * mode). GM/NPC rolls are excluded — see `listDiceRollEvents`.
    */
   async listDiceRolls(adventureId: string): Promise<
     Array<{

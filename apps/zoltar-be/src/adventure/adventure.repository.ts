@@ -72,7 +72,9 @@ export class AdventureRepository {
     return {
       ...adventure,
       openingNarration:
-        adventure.status === 'ready' ? (blob?.openingNarration ?? null) : null,
+        adventure.status !== 'synthesizing'
+          ? (blob?.openingNarration ?? null)
+          : null,
     };
   }
 }

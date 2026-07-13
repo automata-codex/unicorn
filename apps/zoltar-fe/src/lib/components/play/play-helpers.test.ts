@@ -7,7 +7,9 @@ import {
   classifySendError,
   deriveCharacterStatus,
   formatThresholdLine,
+  seedMessagesWithOpeningNarration,
 } from './play-helpers';
+import type { MessageWire } from './timeline';
 
 function stateWith(overrides: Partial<CampaignStateData>): CampaignStateData {
   return {
@@ -163,5 +165,59 @@ describe('classifySendError', () => {
 
   it('maps anything else to unknown', () => {
     expect(classifySendError({ status: 500 })).toBe('unknown');
+  });
+});
+
+describe('seedMessagesWithOpeningNarration', () => {
+  const real: MessageWire = {
+    id: 'm1',
+    role: 'user',
+    content: 'I open the door.',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  };
+
+  it('prepends the opening narration ahead of existing messages', () => {
+    const result = seedMessagesWithOpeningNarration(
+      [real],
+      'Amber lights pulse overhead.',
+    );
+    expect(result).toEqual([
+      {
+        id: 'opening',
+        role: 'assistant',
+        content: 'Amber lights pulse overhead.',
+        createdAt: new Date(0).toISOString(),
+      },
+      real,
+    ]);
+  });
+
+  it('prepends even when bootstrapMessages is empty (first-ever load)', () => {
+    const result = seedMessagesWithOpeningNarration(
+      [],
+      'Amber lights pulse overhead.',
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ id: 'opening', role: 'assistant' });
+  });
+
+  it('returns bootstrapMessages unchanged when openingNarration is null', () => {
+    expect(seedMessagesWithOpeningNarration([real], null)).toEqual([real]);
+  });
+
+  it('returns bootstrapMessages unchanged when openingNarration is undefined', () => {
+    expect(seedMessagesWithOpeningNarration([real], undefined)).toEqual([
+      real,
+    ]);
+  });
+
+  it('returns bootstrapMessages unchanged when openingNarration is an empty string', () => {
+    expect(seedMessagesWithOpeningNarration([real], '')).toEqual([real]);
+  });
+
+  it('does not mutate the input array', () => {
+    const input = [real];
+    seedMessagesWithOpeningNarration(input, 'x');
+    expect(input).toEqual([real]);
   });
 });
