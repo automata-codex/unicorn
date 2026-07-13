@@ -1,11 +1,11 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-
-import type { ConfigService } from '@nestjs/config';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { WardenPromptsService } from './warden-prompts.service';
+
+import type { ConfigService } from '@nestjs/config';
 
 function makeConfig(env: Record<string, string | undefined>): ConfigService {
   return {

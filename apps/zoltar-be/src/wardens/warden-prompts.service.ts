@@ -1,6 +1,5 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
@@ -75,10 +74,7 @@ export class WardenPromptsService implements OnModuleInit {
     return [...(this.prompts.get(system) ?? [])];
   }
 
-  getByFilename(
-    system: SystemSlug,
-    filename: string,
-  ): WardenPromptFile | null {
+  getByFilename(system: SystemSlug, filename: string): WardenPromptFile | null {
     const list = this.prompts.get(system) ?? [];
     return list.find((p) => p.filename === filename) ?? null;
   }

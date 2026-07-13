@@ -11,7 +11,6 @@ import {
 import type Anthropic from '@anthropic-ai/sdk';
 import type { AnthropicService } from '../anthropic/anthropic.service';
 import type { WardenPromptsService } from '../wardens/warden-prompts.service';
-
 import type {
   ApplyTurnAtomicArgs,
   ApplyTurnAtomicResult,
@@ -167,7 +166,14 @@ function makeService(
   wardens = makeWardens(),
 ) {
   const anthropic = { callSession } as unknown as AnthropicService;
-  return new SessionService(repo, anthropic, campaignRepo, dice, rules, wardens);
+  return new SessionService(
+    repo,
+    anthropic,
+    campaignRepo,
+    dice,
+    rules,
+    wardens,
+  );
 }
 
 const args = {
