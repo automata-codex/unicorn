@@ -203,6 +203,7 @@ export const gmContexts = pgTable('gm_context', {
   adventureId: uuid('adventure_id')
     .notNull()
     .references(() => adventures.id, { onDelete: 'cascade' }),
+  schemaVersion: integer('schema_version').notNull().default(1),
   blob: jsonb('blob').notNull().default({}),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()

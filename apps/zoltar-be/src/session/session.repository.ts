@@ -25,6 +25,7 @@ import type { SubmitGmResponse } from './session.schema';
 import type {
   ExecutedRollRecord,
   RulesLookupRecord,
+  WardenPromptRef,
 } from './session.telemetry';
 import type {
   ThresholdCrossing,
@@ -75,6 +76,8 @@ export interface TelemetryInputs {
   rulesLookups: RulesLookupRecord[];
   /** Inner tool-loop iteration count. */
   toolLoopIterations: number;
+  /** Warden prompt in effect this turn — filename + 8-char hash prefix. */
+  wardenPrompt: WardenPromptRef;
 }
 
 export interface ApplyTurnAtomicArgs {
@@ -313,7 +316,10 @@ export class SessionRepository {
     const result = await this.db.execute<{
       id: string;
       sequence_number: number;
-      created_at: Date;
+      // node-postgres does not apply Drizzle's column-type mapping to raw
+      // `db.execute` results — timestamptz comes back as Postgres's text
+      // representation, not a Date. Parse explicitly below.
+      created_at: string;
       roll_source: 'system_generated' | 'player_entered';
       notation: string;
       purpose: string;
@@ -344,7 +350,7 @@ export class SessionRepository {
     return result.rows.map((r) => ({
       id: r.id,
       sequenceNumber: Number(r.sequence_number),
-      createdAt: r.created_at,
+      createdAt: new Date(r.created_at),
       source: r.roll_source,
       notation: r.notation,
       purpose: r.purpose,
@@ -357,11 +363,22 @@ export class SessionRepository {
   }
 
   /**
-   * Player-entered dice_roll events that landed after the most recent
+   * Player-facing dice_roll events that landed after the most recent
    * `gm_response` for this adventure. These are rolls the player submitted
-   * between turns; the prompt builder renders them as a synthetic
-   * `[Dice results]` block immediately before the next narrative input so
-   * Claude knows what the dice said before narrating the outcome.
+   * between turns — whether typed in (`player_entered`) or generated via
+   * the "Roll for me" button (`system_generated`) — the prompt builder
+   * renders them as a synthetic `[Dice results]` block immediately before
+   * the next narrative input so Claude knows what the dice said before
+   * narrating the outcome.
+   *
+   * Scoped to player-facing rolls via the `dice_request` join alone: any
+   * `dice_roll` event with a `payload.requestId` that resolves to a real
+   * `dice_request` row was written by `applyDiceResultAtomic` in response
+   * to a player submission, regardless of `roll_source`. GM/NPC rolls from
+   * the inner tool loop never populate `requestId`, so they never match
+   * the join — no additional `roll_source` filter is needed or correct
+   * here (a `roll_source = 'player_entered'` filter previously excluded
+   * legitimate "Roll for me" submissions and caused a stuck-turn bug).
    *
    * Joins `game_event` (for results/total) back to `dice_request` (for the
    * purpose/target metadata Claude needs to interpret success/failure).
@@ -408,7 +425,6 @@ export class SessionRepository {
         ON dq.id = (ev.payload->>'requestId')::uuid
       WHERE ev.adventure_id = ${adventureId}
         AND ev.event_type   = 'dice_roll'
-        AND ev.roll_source  = 'player_entered'
         AND ev.sequence_number > (SELECT seq FROM last_gm)
       ORDER BY ev.sequence_number ASC
     `);
@@ -594,6 +610,7 @@ export class SessionRepository {
         diceRolls: [...args.telemetry.preTurnPlayerRolls, ...systemRollRecords],
         rulesLookups: args.telemetry.rulesLookups,
         toolLoopIterations: args.telemetry.toolLoopIterations,
+        wardenPrompt: args.telemetry.wardenPrompt,
       });
       await writeAdventureTelemetry({
         tx,

@@ -62,6 +62,11 @@ const emptyApplied: ValidationResult['applied'] = {
   worldFacts: {},
 };
 
+const stubWardenPrompt = {
+  filename: 'mothership-m7.txt',
+  hash: '97feadbd',
+};
+
 describe('buildAdventureTelemetryPayload', () => {
   it('produces the full payload shape without missing fields', () => {
     const payload = buildAdventureTelemetryPayload({
@@ -72,6 +77,7 @@ describe('buildAdventureTelemetryPayload', () => {
       originalParsed: stubParsed(),
       applied: emptyApplied,
       thresholds: [],
+      wardenPrompt: stubWardenPrompt,
     });
 
     expect(Object.keys(payload).sort()).toEqual(
@@ -86,6 +92,7 @@ describe('buildAdventureTelemetryPayload', () => {
         'snapshotSent',
         'thresholds',
         'toolLoopIterations',
+        'wardenPrompt',
       ].sort(),
     );
     expect(payload.originalRequest).toEqual({
@@ -94,6 +101,23 @@ describe('buildAdventureTelemetryPayload', () => {
       messageCount: 2,
       promptTokens: 1500,
       completionTokens: 420,
+    });
+  });
+
+  it('carries the wardenPrompt ref verbatim', () => {
+    const payload = buildAdventureTelemetryPayload({
+      playerMessage: 'x',
+      snapshotSent: 'x',
+      originalRequest: stubRequest(),
+      originalResponse: stubResponse(),
+      originalParsed: stubParsed(),
+      applied: emptyApplied,
+      thresholds: [],
+      wardenPrompt: { filename: 'mothership-m7a.txt', hash: 'b1c27ed1' },
+    });
+    expect(payload.wardenPrompt).toEqual({
+      filename: 'mothership-m7a.txt',
+      hash: 'b1c27ed1',
     });
   });
 
@@ -106,6 +130,7 @@ describe('buildAdventureTelemetryPayload', () => {
       originalParsed: stubParsed(),
       applied: emptyApplied,
       thresholds: [],
+      wardenPrompt: stubWardenPrompt,
     });
     expect(payload.diceRolls).toEqual([]);
   });
@@ -121,6 +146,7 @@ describe('buildAdventureTelemetryPayload', () => {
       }),
       applied: emptyApplied,
       thresholds: [],
+      wardenPrompt: stubWardenPrompt,
     });
     expect(payload.notes).toEqual({
       original: 'Claude thinks the reactor is overheating',
@@ -156,6 +182,7 @@ describe('buildAdventureTelemetryPayload', () => {
       },
       applied: emptyApplied,
       thresholds: [],
+      wardenPrompt: stubWardenPrompt,
     });
 
     expect(payload.notes).toEqual({
@@ -179,6 +206,7 @@ describe('buildAdventureTelemetryPayload', () => {
       originalParsed: stubParsed({ gmUpdates: {} }),
       applied: emptyApplied,
       thresholds: [],
+      wardenPrompt: stubWardenPrompt,
     });
     expect(payload.notes.original).toBeNull();
     expect(payload.notes.correction).toBeNull();
@@ -213,6 +241,7 @@ describe('buildAdventureTelemetryPayload', () => {
           total: 7,
         },
       ],
+      wardenPrompt: stubWardenPrompt,
     });
     // Sorted by sequenceNumber ascending.
     expect(payload.diceRolls.map((r) => r.sequenceNumber)).toEqual([2, 3]);
@@ -250,6 +279,7 @@ describe('buildAdventureTelemetryPayload', () => {
           total: 73,
         },
       ],
+      wardenPrompt: stubWardenPrompt,
     });
     expect(payload.diceRolls).toHaveLength(2);
     expect(payload.diceRolls[0].source).toBe('player_entered');
@@ -284,6 +314,7 @@ describe('buildAdventureTelemetryPayload', () => {
           sources: [],
         },
       ],
+      wardenPrompt: stubWardenPrompt,
     });
     expect(payload.rulesLookups).toHaveLength(2);
     // Empty-result entries are preserved — they are M7.2 ingestion priority signal.
@@ -306,6 +337,7 @@ describe('buildAdventureTelemetryPayload', () => {
       applied: emptyApplied,
       thresholds: [],
       toolLoopIterations: 4,
+      wardenPrompt: stubWardenPrompt,
     });
     expect(payload.toolLoopIterations).toBe(4);
   });
@@ -319,6 +351,7 @@ describe('buildAdventureTelemetryPayload', () => {
       originalParsed: stubParsed(),
       applied: emptyApplied,
       thresholds: [],
+      wardenPrompt: stubWardenPrompt,
     });
     expect(payload.toolLoopIterations).toBe(1);
   });
@@ -332,6 +365,7 @@ describe('buildAdventureTelemetryPayload', () => {
       originalParsed: stubParsed(),
       applied: emptyApplied,
       thresholds: [],
+      wardenPrompt: stubWardenPrompt,
     });
     expect(payload.rulesLookups).toEqual([]);
   });

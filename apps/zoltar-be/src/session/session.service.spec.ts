@@ -10,6 +10,7 @@ import {
 
 import type Anthropic from '@anthropic-ai/sdk';
 import type { AnthropicService } from '../anthropic/anthropic.service';
+import type { WardenPromptsService } from '../wardens/warden-prompts.service';
 import type {
   ApplyTurnAtomicArgs,
   ApplyTurnAtomicResult,
@@ -146,15 +147,33 @@ function makeRules(): import('../rules/rules-lookup.service').RulesLookupService
   } as unknown as import('../rules/rules-lookup.service').RulesLookupService;
 }
 
+function makeWardens(): WardenPromptsService {
+  return {
+    getSelected: vi.fn().mockReturnValue({
+      filename: 'mothership-m7.txt',
+      hash: 'deadbeef',
+      text: 'Fixture Warden prompt.',
+    }),
+  } as unknown as WardenPromptsService;
+}
+
 function makeService(
   callSession: ReturnType<typeof vi.fn>,
   repo: SessionRepository = makeRepo(),
   campaignRepo = makeCampaignRepo(),
   dice = makeDice(),
   rules = makeRules(),
+  wardens = makeWardens(),
 ) {
   const anthropic = { callSession } as unknown as AnthropicService;
-  return new SessionService(repo, anthropic, campaignRepo, dice, rules);
+  return new SessionService(
+    repo,
+    anthropic,
+    campaignRepo,
+    dice,
+    rules,
+    wardens,
+  );
 }
 
 const args = {

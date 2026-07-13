@@ -18,6 +18,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { SessionGuard } from '../auth/session.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
+import { SessionRequestBuildError } from './session.prompt';
 import {
   type DiceResultAction,
   diceResultActionSchema,
@@ -188,6 +189,14 @@ export class SessionController {
         `Session output error for adventure=${adventureId}: ${err.message}`,
       );
       throw new BadGatewayException('GM response could not be parsed.');
+    }
+    if (err instanceof SessionRequestBuildError) {
+      this.logger.error(
+        `Session request build error for adventure=${adventureId}: ${err.message}`,
+      );
+      throw new BadGatewayException(
+        'GM turn could not be prepared. Try sending your action again.',
+      );
     }
     if (err instanceof AnthropicError) {
       this.logger.error(

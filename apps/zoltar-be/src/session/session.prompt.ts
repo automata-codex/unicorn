@@ -6,82 +6,18 @@ import type { CampaignStateData, GmContextBlob } from './session.snapshot';
 import type { DbMessage } from './session.window';
 
 /**
- * The Warden-role system prompt for Mothership. Two parts:
- *   1. Voice/role — tone, narrative posture.
- *   2. TOOLS discipline — explicit guidance on when to call each of the
- *      three tools and what to do when rules_lookup returns nothing.
- *
- * Sits in the cached system region (see `cache_control: ephemeral` on the
- * Warden block in `buildSessionRequest`) — stable across turns of a single
- * adventure, qualifies for prompt caching. When a second system lands, move
- * this into `session/mothership/session.prompts.ts` alongside the pattern
- * established for synthesis prompts.
+ * Thrown when `buildSessionRequest` would produce a message array that
+ * doesn't end on a `user` turn. Anthropic rejects such requests outright
+ * ("This model does not support assistant message prefill") — surfacing
+ * that as a clear internal error here beats shipping a malformed request
+ * and having callers untangle a cryptic SDK 400 downstream.
  */
-export const WARDEN_SYSTEM_PROMPT_MOTHERSHIP = [
-  'You are the Warden of a Mothership RPG adventure.',
-  '',
-  'Mothership is a sci-fi horror TTRPG. The tone is claustrophobic, bleak, and',
-  'mechanically honest — characters are fragile, resources run out, and panic',
-  'compounds. Narrate consequences faithfully; do not soften them.',
-  '',
-  'The player sees only what you put in playerText. Propose state changes',
-  'through stateChanges; the backend validates and applies them.',
-  '',
-  'TOOLS',
-  '',
-  'You have three tools available: submit_gm_response, roll_dice, and',
-  'rules_lookup. Call tools in whatever order the situation requires. Every',
-  'turn must end with exactly one call to submit_gm_response.',
-  '',
-  'WHEN TO CALL roll_dice',
-  '- NPC attacks, saves, and reactions that the player does not physically',
-  '  roll for.',
-  '- Panic checks triggered by the fiction (stress accumulation, monstrous',
-  '  reveal, witnessing a teammate die).',
-  '- Random table resolutions (wound tables, encounter rolls, loot).',
-  '- Any outcome the world determines rather than the player — if a character',
-  '  is not pressing a button to resolve it, the Warden rolls.',
-  '',
-  "Do not pre-roll dice you haven't needed yet. Do not narrate a result you",
-  'have not executed — call the tool, wait for the result, then narrate.',
-  '',
-  'WHEN TO CALL diceRequests (in submit_gm_response)',
-  "- Any roll the player's character makes to resolve their own action.",
-  '- Saves the player must physically make to resist a threat (Fear save',
-  '  against a reveal, Body save against pressure loss).',
-  '',
-  'Include one entry per roll the player needs to make. Batch independent',
-  'rolls in a single submit_gm_response; serialize across turns only when one',
-  "roll's outcome determines whether another fires (e.g. panic check cascades",
-  'into a stress save). The player submits results via a follow-up action;',
-  'you will see those results at the top of their next message.',
-  '',
-  'WHEN TO CALL rules_lookup',
-  '- Before adjudicating any mechanic you are not certain about: panic table',
-  '  results, wound severity, combat order, recovery rules, stress thresholds.',
-  '- When the player asks a rules question you do not have a confident answer',
-  '  for.',
-  '- When you are about to narrate a mechanical outcome whose specific numbers',
-  '  matter — armor interaction, weapon damage, class ability effects.',
-  '',
-  'Query in natural language. "panic check result of 73" outperforms "panic 73".',
-  '',
-  'WHEN rules_lookup RETURNS NOTHING',
-  'The rules index may not yet contain the area you queried. An empty result',
-  'is normal, not an error. When this happens:',
-  '- Proceed with your best-effort ruling based on the fiction and what you',
-  '  know about the Mothership system.',
-  '- Keep the ruling internally consistent — if you invoke a number (save',
-  '  difficulty, damage amount, duration), use it consistently for the rest',
-  '  of the adventure.',
-  '- Add a one-line note to gmUpdates.notes: "Ruled without rulebook support:',
-  '  <topic>". This does not surface to the player; it lets a reviewer',
-  '  identify gaps.',
-  '',
-  'Do not retry the same query hoping for different results. Do not narrate',
-  'reluctance to the player ("I\'m not sure how this works…") — the player',
-  'experiences confident refereeing regardless of what the index contains.',
-].join('\n');
+export class SessionRequestBuildError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SessionRequestBuildError';
+  }
+}
 
 /**
  * Serializes the structured GM context into a human-readable block for
@@ -190,6 +126,12 @@ export function buildSessionRequest(input: {
   windowMessages: DbMessage[];
   playerMessage: string;
   /**
+   * The Warden role/tools-discipline prompt for the active system. Sourced
+   * from `WardenPromptsService` at the call site — keeps the text out of
+   * this module so prompt iteration doesn't touch compiled TypeScript.
+   */
+  wardenPromptText: string;
+  /**
    * Player-entered dice rolls that resolved between the last gm_response and
    * this turn's narrative input. Rendered as a synthetic `[Dice results]`
    * block immediately before the player's message so Claude can narrate the
@@ -211,7 +153,7 @@ export function buildSessionRequest(input: {
     },
     {
       type: 'text',
-      text: WARDEN_SYSTEM_PROMPT_MOTHERSHIP,
+      text: input.wardenPromptText,
       cache_control: { type: 'ephemeral' },
     },
   ];
@@ -252,6 +194,15 @@ export function buildSessionRequest(input: {
   }
 
   const toolChoice: Anthropic.ToolChoiceAny = { type: 'any' };
+
+  const lastMessage = messages[messages.length - 1];
+  if (!lastMessage || lastMessage.role !== 'user') {
+    throw new SessionRequestBuildError(
+      `buildSessionRequest produced a message array that does not end on a ` +
+        `'user' turn (last role: ${lastMessage?.role ?? 'none'}). Anthropic ` +
+        `rejects such requests as assistant message prefill.`,
+    );
+  }
 
   return {
     systemBlocks,

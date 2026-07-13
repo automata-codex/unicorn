@@ -33,6 +33,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import type { AnthropicService } from '../anthropic/anthropic.service';
 import type { DiceService } from '../dice/dice.service';
 import type { RulesLookupService } from '../rules/rules-lookup.service';
+import type { WardenPromptsService } from '../wardens/warden-prompts.service';
 
 let repo: SessionRepository;
 let campaignRepo: CampaignRepository;
@@ -181,6 +182,16 @@ async function seedRequest(args: {
   return row.id;
 }
 
+function stubWardens(): WardenPromptsService {
+  return {
+    getSelected: vi.fn().mockReturnValue({
+      filename: 'mothership-m7.txt',
+      hash: 'testhash',
+      text: 'Test Warden prompt for integration tests.',
+    }),
+  } as unknown as WardenPromptsService;
+}
+
 function makeService(callSession: ReturnType<typeof vi.fn>) {
   return new SessionService(
     repo,
@@ -188,6 +199,7 @@ function makeService(callSession: ReturnType<typeof vi.fn>) {
     campaignRepo,
     stubDice(),
     stubRules(),
+    stubWardens(),
   );
 }
 
@@ -528,6 +540,53 @@ describe('SessionService.submitDiceResult autoAdvance (integration)', () => {
     expect(messages.map((m) => m.role)).toEqual(['gm']);
   });
 
+  it('runs a Claude turn with no narrative when auto-advancing on a "Roll for me" (system_generated) result', async () => {
+    // Regression test for the bug this file's sibling test in the
+    // playerDiceRollsSinceLastGmResponse block documents: before the
+    // roll_source filter was removed, a system_generated roll produced an
+    // empty [Dice results] block on auto-advance, so the outgoing message
+    // array ended on the prior assistant turn and Anthropic rejected the
+    // request as "assistant message prefill". This exercises the full
+    // submitDiceResult -> sendMessage -> buildSessionRequest path end to
+    // end and asserts the request Claude actually received is well-formed.
+    const { campaignId, adventureId, userId } = await seedFixture();
+    const requestId = await seedRequest({
+      adventureId,
+      notation: '1d100',
+      target: 65,
+    });
+    const callSession = vi.fn().mockResolvedValueOnce(
+      submitGmToolUse({
+        playerText: 'The console blinks green. You made the jump.',
+      }),
+    );
+    const service = makeService(callSession);
+
+    const result = await service.submitDiceResult({
+      adventureId,
+      campaignId,
+      actorUserId: userId,
+      submission: {
+        requestId,
+        notation: '1d100',
+        results: [34],
+        source: 'system_generated',
+        autoAdvance: true,
+      },
+    });
+
+    expect(result.turn).toBeDefined();
+    expect(result.turn?.message.content).toBe(
+      'The console blinks green. You made the jump.',
+    );
+    expect(callSession).toHaveBeenCalledTimes(1);
+
+    const sent = callSession.mock.calls[0][0];
+    const lastMessage = sent.messages[sent.messages.length - 1];
+    expect(lastMessage.role).toBe('user');
+    expect(lastMessage.content).toContain('[Dice results]');
+  });
+
   it('does not call Claude when autoAdvance is true but other requests remain pending', async () => {
     const { campaignId, adventureId, userId } = await seedFixture();
     const r1 = await seedRequest({
@@ -716,5 +775,44 @@ describe('playerDiceRollsSinceLastGmResponse (integration)', () => {
     const { adventureId } = await seedFixture();
     const rolls = await repo.playerDiceRollsSinceLastGmResponse(adventureId);
     expect(rolls).toEqual([]);
+  });
+
+  it('includes rolls resolved via the "Roll for me" (system_generated) source', async () => {
+    // Regression test: playerDiceRollsSinceLastGmResponse used to filter on
+    // `roll_source = 'player_entered'`, which silently excluded rolls
+    // resolved via the client's "Roll for me" button (roll_source
+    // 'system_generated', still tied to a real dice_request). That left the
+    // [Dice results] block empty on auto-advance, which in turn produced a
+    // message array ending on the prior assistant turn — rejected by
+    // Anthropic as "assistant message prefill".
+    const { campaignId, adventureId, userId } = await seedFixture();
+    const requestId = await seedRequest({
+      adventureId,
+      notation: '1d100',
+      target: 65,
+    });
+    const service = makeService(vi.fn());
+
+    await service.submitDiceResult({
+      adventureId,
+      campaignId,
+      actorUserId: userId,
+      submission: {
+        requestId,
+        notation: '1d100',
+        results: [34],
+        source: 'system_generated',
+      },
+    });
+
+    const rolls = await repo.playerDiceRollsSinceLastGmResponse(adventureId);
+    expect(rolls).toHaveLength(1);
+    expect(rolls[0]).toMatchObject({
+      notation: '1d100',
+      target: 65,
+      results: [34],
+      total: 34,
+      requestId,
+    });
   });
 });

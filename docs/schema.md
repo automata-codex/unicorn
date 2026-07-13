@@ -16,6 +16,8 @@ This document defines the Zoltar database schema for Phase 1. It serves as the s
 
 **JSONB blobs:** Used for system-specific state (`campaign_state.data`, `character_sheets.data`, `gm_context.blob`) and flexible metadata (`grid_entities.tags`, `game_events.payload`, `pending_canon.entry`). Validated at the application layer with Zod — the database does not enforce blob shape.
 
+**`schema_version` columns:** Integer. Present on each table whose jsonb blob has a structured shape application code depends on (`campaign_state.schema_version`, `character_sheets.schema_version`, `gm_context.schema_version`). Bump only on a **breaking shape change** — a field removed, renamed, or type-changed, or a structural rearrangement that existing-row readers can't handle. Purely additive changes (new optional fields, new entries in a `Record`) do **not** bump; they're forward-compatible against older readers and backward-compatible against older data. Each bump is paired with migration code that either lazily migrates on read or rejects old rows loudly — either way, the integer is the signal that handling is required. This is distinct from the semver string convention used on oracle table files (`docs/specs/zoltar-playtest/pre-playtest-1.md`), which tracks content evolution for an audit trail rather than gating code paths.
+
 **`org_id`:** Present but nullable on `campaigns`. Null in self-hosted deployments (single implicit tenant). Populated in SaaS deployments and enforced via Row Level Security. RLS policies are not defined in this schema — they are applied by the SaaS deployment layer only.
 
 **Dice mode:** Set per campaign at creation. Two values: `soft_accountability` (player enters result, logged) and `commitment` (result committed before target revealed).
@@ -46,6 +48,8 @@ infra/
       V10__character_sheet_drop_current_fields.sql
       V11__adventure_status_in_progress.sql
       V12__dice_request.sql
+      V13__review_views.sql
+      V14__gm_context_schema_version.sql
 ```
 
 The Drizzle schema definition lives in `apps/zoltar-be/src/db/schema.ts`.
@@ -142,10 +146,11 @@ CREATE TABLE adventure (
 );
 
 CREATE TABLE gm_context (
-  id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  adventure_id uuid        NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
-  blob         jsonb       NOT NULL DEFAULT '{}',
-  updated_at   timestamptz NOT NULL DEFAULT now(),
+  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  adventure_id   uuid        NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
+  schema_version integer     NOT NULL DEFAULT 1,  -- Added in V14 (M7.1). Versions the `blob` shape.
+  blob           jsonb       NOT NULL DEFAULT '{}',
+  updated_at     timestamptz NOT NULL DEFAULT now(),
   UNIQUE (adventure_id)
 );
 
@@ -382,15 +387,58 @@ CREATE TABLE adventure_telemetry (
   id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   adventure_id     uuid        NOT NULL REFERENCES adventure(id) ON DELETE CASCADE,
   sequence_number  integer     NOT NULL,    -- matches game_events.sequence_number for the gm_response event
-  payload          jsonb       NOT NULL,    -- player input, full submit_gm_response output,
-                                            -- all roll_dice calls (notation, purpose, results),
-                                            -- prompt_tokens, completion_tokens
+  payload          jsonb       NOT NULL,
   created_at       timestamptz NOT NULL DEFAULT now(),
   UNIQUE (adventure_id, sequence_number)
 );
 
 CREATE INDEX adventure_telemetry_adventure_idx ON adventure_telemetry (adventure_id);
 ```
+
+The `payload` jsonb carries (see `AdventureTelemetryPayload` in `apps/zoltar-be/src/session/session.telemetry.ts`):
+
+- `playerMessage`, `snapshotSent` — the turn's inputs as Claude saw them.
+- `originalRequest` — model, systemBlocks count, messageCount, token usage.
+- `originalResponse` — the parsed `submit_gm_response` from Claude.
+- `notes` — `{ original, correction }` copies of `gmUpdates.notes`.
+- `correction` (optional) — rejection list, correction-round token usage, corrected response.
+- `applied`, `thresholds` — validator output.
+- `diceRolls` — every roll that landed in this turn's game_event window (system-generated and player-entered, sequence-ordered).
+- `rulesLookups` — one record per `rules_lookup` call (query, limit, result count, top similarity, sources). Zero-result entries are preserved; M7.2 prioritizes ingestion against them.
+- `toolLoopIterations` — inner tool-loop iteration count for the turn.
+- `wardenPrompt` — `{ filename, hash }` identifying the Warden role prompt in effect. The hash is the 8-char sha256 prefix exposed by `WardenPromptsService`. The text itself is not archived — the review CLI embeds it from `apps/zoltar-be/src/wardens/prompts/` by filename at report-generation time. (Added in M7.1.)
+
+---
+
+### Review Views (`V13__review_views.sql`)
+
+Three read-only views shape `game_event` + `adventure_telemetry` into rows friendly to the M7.1 playtest-review CLI and to humans running ad-hoc queries in `psql`. Views are intentionally thin — the CLI does its own markdown formatting; these just hide the jsonb-path joins and the `superseded_by` direction. Views are not modelled in Drizzle; CLI queries use the raw `sql` template.
+
+**`turn_log`** — one row per `gm_response` event, joined to its telemetry row by `(adventure_id, sequence_number)`. The CLI's primary per-turn query source. Columns:
+
+- `adventure_id`, `gm_response_seq`, `turn_created_at`, `superseded_by`
+- `telemetry_seq`, `telemetry_payload` (the full jsonb, for ad-hoc drilling)
+- `player_message`, `gm_player_text` — the turn's input and output narration.
+- `warden_prompt_filename`, `warden_prompt_hash` — from the M7.1 `wardenPrompt` field. NULL for pre-M7.1 rows.
+- `prompt_tokens`, `completion_tokens`, `tool_loop_iterations`
+- `dice_roll_count`, `rules_lookup_count` — lengths of the corresponding arrays.
+- `had_correction` — `true` when the telemetry payload contains a `correction` entry.
+
+**`state_history`** — one row per `state_update` event. Surfaces applied deltas joined to the preceding `gm_response` or `correction` in the same adventure. Columns:
+
+- `adventure_id`, `state_update_seq`, `applied_at`
+- `applied` — the validator's applied deltas jsonb.
+- `thresholds` — threshold-crossing events jsonb.
+- `source_response_seq` — most recent preceding `gm_response` / `correction` sequence number in the same adventure. Correlated subquery; fine at MVP scale (hundreds of turns per adventure), rewrite as a window function if a single adventure ever grows to tens of thousands of events.
+
+**`correction_log`** — one row per `correction` event. Columns:
+
+- `adventure_id`, `correction_seq`, `corrected_at`
+- `original_seq`, `original_response` (jsonb payload of the superseded `gm_response`)
+- `corrected_response` (jsonb payload of the correction row)
+- `rejections`, `correction_prompt_tokens`, `correction_completion_tokens` — from `telemetry.payload.correction` on the original gm_response's telemetry row.
+
+`superseded_by` is stored on the **original** `gm_response` row pointing forward at the correction's id — `correction_log` joins `orig.superseded_by = c.id` accordingly. Correction rows themselves carry no `superseded_by`.
 
 ---
 
@@ -572,10 +620,11 @@ export const adventures = pgTable('adventure', {
 });
 
 export const gmContexts = pgTable('gm_context', {
-  id:          uuid('id').primaryKey().defaultRandom(),
-  adventureId: uuid('adventure_id').notNull().references(() => adventures.id, { onDelete: 'cascade' }),
-  blob:        jsonb('blob').notNull().default({}),
-  updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  id:            uuid('id').primaryKey().defaultRandom(),
+  adventureId:   uuid('adventure_id').notNull().references(() => adventures.id, { onDelete: 'cascade' }),
+  schemaVersion: integer('schema_version').notNull().default(1),
+  blob:          jsonb('blob').notNull().default({}),
+  updatedAt:     timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const campaignStates = pgTable('campaign_state', {

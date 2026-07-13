@@ -31,3 +31,22 @@ tasks:
     desc: Restore the local dev database from a pg_dump custom-format file. Destructive — drops existing objects. Usage — task db:restore -- <backup-file>
     cmds:
       - ./infra/db/restore.sh {{.CLI_ARGS}}
+
+  playtest:review:
+    desc: Render a markdown playtest-review report for an adventure. Usage — task playtest:review -- <adventure-id>
+    dir: apps/zoltar-be
+    cmds:
+      # --env-file=.env picks up DATABASE_URL from the repo-root symlink created during onboarding.
+      - npx tsx --env-file=.env scripts/playtest-review.ts {{.CLI_ARGS}}
+
+  playtest:save-synthesis:
+    desc: Freeze a zero-turn adventure's starting conditions to a JSON file. Usage — task playtest:save-synthesis -- <adventure-id>
+    dir: apps/zoltar-be
+    cmds:
+      - npx tsx --env-file=.env scripts/save-synthesis.ts {{.CLI_ARGS}}
+
+  playtest:load-synthesis:
+    desc: Materialize a SynthesisExport JSON file into a new campaign + adventure. Usage — task playtest:load-synthesis -- <file.json> [--name "Prompt A run"]
+    dir: apps/zoltar-be
+    cmds:
+      - npx tsx --env-file=.env scripts/load-synthesis.ts {{.CLI_ARGS}}
