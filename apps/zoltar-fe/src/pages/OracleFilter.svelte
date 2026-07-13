@@ -6,6 +6,7 @@
   import Card from '../lib/components/Card.svelte';
   import PageLayout from '../lib/components/PageLayout.svelte';
   import SectionLabel from '../lib/components/SectionLabel.svelte';
+  import Textarea from '../lib/components/Textarea.svelte';
   import { builtInOracleCategories } from '../lib/data/oracle';
   import {
     activeCount,
@@ -35,6 +36,7 @@
   let expanded = $state<Record<string, boolean>>(
     Object.fromEntries(categories.map((c) => [c.id, true])),
   );
+  let addendum = $state('');
   let submitting = $state(false);
   let error = $state('');
   let coherenceConflicts = $state<CoherenceConflict[]>([]);
@@ -94,7 +96,10 @@
         `/api/v1/campaigns/${campaignId}/adventures/${adventureId}/synthesize`,
         {
           method: 'POST',
-          body: JSON.stringify({ oracleSelections }),
+          body: JSON.stringify({
+            oracleSelections,
+            addendum: addendum.trim() || undefined,
+          }),
         },
       );
 
@@ -219,6 +224,18 @@
     {/each}
   </div>
 
+  <Card>
+    <SectionLabel>ADDITIONAL DIRECTION</SectionLabel>
+    <p class="type-meta instruction addendum-instruction">
+      OPTIONAL — GIVE THE GM EXTRA CONTEXT FOR THIS ADVENTURE
+    </p>
+    <Textarea
+      value={addendum}
+      placeholder={`e.g. "Make the tone more paranoid" or "The survivor should be hiding something from the crew"`}
+      oninput={(e) => { addendum = (e.target as HTMLTextAreaElement).value; }}
+    />
+  </Card>
+
   <div class="submit-area">
     <Button fullWidth disabled={!beginEnabled} onclick={handleBegin}>
       {submitting ? 'SYNTHESIZING...' : 'BEGIN'}
@@ -246,6 +263,10 @@
 
   .instruction {
     margin-bottom: var(--space-7);
+  }
+
+  .addendum-instruction {
+    margin: var(--space-2) 0 var(--space-4);
   }
 
   .error-text {
