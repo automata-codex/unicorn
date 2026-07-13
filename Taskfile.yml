@@ -21,3 +21,13 @@ tasks:
     desc: Stop and remove the Docker stack. Volumes (and database data) are preserved.
     cmds:
       - docker compose down
+
+  db:backup:
+    desc: Back up the local dev database to infra/db/backups/. Usage — task db:backup [-- <output-file>]
+    cmds:
+      - ./infra/db/backup.sh {{.CLI_ARGS}}
+
+  db:restore:
+    desc: Restore the local dev database from a pg_dump custom-format file. Destructive — drops existing objects. Usage — task db:restore -- <backup-file>
+    cmds:
+      - ./infra/db/restore.sh {{.CLI_ARGS}}

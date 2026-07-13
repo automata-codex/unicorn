@@ -94,5 +94,8 @@ infra/traefik/certs/
 
 docs/plans
 
+# Local database backups (contain full campaign/session data)
+infra/db/backups/
+
 # Personal notes — kept on disk, not tracked
 docs/mental-health-toolkit.md
