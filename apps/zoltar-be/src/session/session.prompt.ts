@@ -6,6 +6,20 @@ import type { CampaignStateData, GmContextBlob } from './session.snapshot';
 import type { DbMessage } from './session.window';
 
 /**
+ * Thrown when `buildSessionRequest` would produce a message array that
+ * doesn't end on a `user` turn. Anthropic rejects such requests outright
+ * ("This model does not support assistant message prefill") — surfacing
+ * that as a clear internal error here beats shipping a malformed request
+ * and having callers untangle a cryptic SDK 400 downstream.
+ */
+export class SessionRequestBuildError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SessionRequestBuildError';
+  }
+}
+
+/**
  * Serializes the structured GM context into a human-readable block for
  * Claude. Sits in the cached system message, so it is stable across turns of
  * a single adventure and qualifies for prompt caching. `openingNarration` is
@@ -180,6 +194,15 @@ export function buildSessionRequest(input: {
   }
 
   const toolChoice: Anthropic.ToolChoiceAny = { type: 'any' };
+
+  const lastMessage = messages[messages.length - 1];
+  if (!lastMessage || lastMessage.role !== 'user') {
+    throw new SessionRequestBuildError(
+      `buildSessionRequest produced a message array that does not end on a ` +
+        `'user' turn (last role: ${lastMessage?.role ?? 'none'}). Anthropic ` +
+        `rejects such requests as assistant message prefill.`,
+    );
+  }
 
   return {
     systemBlocks,
