@@ -151,14 +151,14 @@
 
   --font-size-2xs: var(
     --primitive-font-size-2xs
-  ); /* 11px metadata, icon labels */
-  --font-size-xs: var(--primitive-font-size-xs); /* 12px category labels */
-  --font-size-sm: var(--primitive-font-size-sm); /* 13px hints */
+  ); /* 7px  metadata, icon labels */
+  --font-size-xs: var(--primitive-font-size-xs); /* 9px  category labels */
+  --font-size-sm: var(--primitive-font-size-sm); /* 12px hints */
   --font-size-base: var(--primitive-font-size-base); /* 16px body, message text, form values */
-  --font-size-lg: var(--primitive-font-size-lg); /* 17px stats, char name */
-  --font-size-xl: var(--primitive-font-size-xl); /* 19px screen titles */
-  --font-size-2xl: var(--primitive-font-size-2xl); /* 21px campaign name */
-  --font-size-3xl: var(--primitive-font-size-3xl); /* 27px hero text */
+  --font-size-lg: var(--primitive-font-size-lg); /* 21px stats, char name */
+  --font-size-xl: var(--primitive-font-size-xl); /* 28px screen titles */
+  --font-size-2xl: var(--primitive-font-size-2xl); /* 38px campaign name */
+  --font-size-3xl: var(--primitive-font-size-3xl); /* 51px hero text */
 
   /* -----------------------------------------------------------------------
    * Letter spacing aliases

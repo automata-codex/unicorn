@@ -135,16 +135,17 @@
 
   /* -----------------------------------------------------------------------
    * Typography — Scale (px)
+   * Modular scale: ratio 4/3 (perfect fourth), anchored at base = 16px.
    * ----------------------------------------------------------------------- */
 
-  --primitive-font-size-2xs: 11px;
-  --primitive-font-size-xs: 12px;
-  --primitive-font-size-sm: 13px;
+  --primitive-font-size-2xs: 7px;
+  --primitive-font-size-xs: 9px;
+  --primitive-font-size-sm: 12px;
   --primitive-font-size-base: 16px;
-  --primitive-font-size-lg: 17px;
-  --primitive-font-size-xl: 19px;
-  --primitive-font-size-2xl: 21px;
-  --primitive-font-size-3xl: 27px;
+  --primitive-font-size-lg: 21px;
+  --primitive-font-size-xl: 28px;
+  --primitive-font-size-2xl: 38px;
+  --primitive-font-size-3xl: 51px;
 
   /* -----------------------------------------------------------------------
    * Typography — Line height
