@@ -389,14 +389,42 @@ describe('SessionService.runInnerToolLoop', () => {
     );
     const { service } = makeService(callSession);
 
+    const expectedToolCalls = Array(INNER_TOOL_LOOP_CAP)
+      .fill('roll_dice')
+      .join(', ');
+    const expectedRolls = Array(INNER_TOOL_LOOP_CAP)
+      .fill('1d100 for "x"=50')
+      .join('; ');
     await expect(service.runInnerToolLoop(loopArgs)).rejects.toMatchObject({
-      message: expect.stringMatching(
-        /Tool calls per iteration: \[roll_dice, roll_dice, roll_dice, roll_dice, roll_dice, roll_dice, roll_dice, roll_dice\]\. executedRolls=8, rulesLookups=0/,
-      ),
+      message: `Inner tool loop did not terminate within ${INNER_TOOL_LOOP_CAP} iterations for adventure=adv-1. Tool calls per iteration: [${expectedToolCalls}]. Rolls: [${expectedRolls}]. Lookups: []`,
     });
     // Called once per iteration up to the cap (inclusive); the (cap+1)-th
     // call would break the invariant.
     expect(callSession).toHaveBeenCalledTimes(INNER_TOOL_LOOP_CAP);
+  });
+
+  it('lists distinct roll purposes and lookup queries in the exhaustion summary, not just counts', async () => {
+    // A busy-but-legitimate turn: a different purpose each time, not the
+    // same check repeated — the summary should make that distinguishable
+    // from a stuck loop re-rolling for the same reason.
+    let call = 0;
+    callSession.mockImplementation(() => {
+      call++;
+      return Promise.resolve(
+        message([
+          toolUse('toolu_lookup', 'rules_lookup', {
+            query: `npc_${call} stealth check rule`,
+          }),
+        ]),
+      );
+    });
+    const { service } = makeService(callSession);
+
+    await expect(service.runInnerToolLoop(loopArgs)).rejects.toMatchObject({
+      message: expect.stringContaining(
+        'Lookups: ["npc_1 stealth check rule"; "npc_2 stealth check rule"',
+      ),
+    });
   });
 
   it('names the invalid field paths in the exhaustion summary when stuck retrying a malformed submit_gm_response', async () => {
