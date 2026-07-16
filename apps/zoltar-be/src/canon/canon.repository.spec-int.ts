@@ -67,7 +67,7 @@ async function seedFixture(): Promise<{
 
 describe('CanonRepository (integration)', () => {
   describe('insertPendingCanon', () => {
-    it('bulk-inserts entries with status pending', async () => {
+    it("bulk-inserts entries with status pending, all sharing the proposing turn's sequence number", async () => {
       const { adventureId } = await seedFixture();
 
       await getTestDb().transaction(async (tx) =>
@@ -78,6 +78,7 @@ describe('CanonRepository (integration)', () => {
             { summary: 'Dr. Chen hides a key card', context: 'turn 3' },
             { summary: 'Reactor is overheating', context: 'turn 3' },
           ],
+          sequenceNumber: 7,
         }),
       );
 
@@ -88,6 +89,7 @@ describe('CanonRepository (integration)', () => {
       expect(rows).toHaveLength(2);
       for (const row of rows) {
         expect(row.status).toBe('pending');
+        expect(row.sequenceNumber).toBe(7);
       }
     });
 
@@ -95,7 +97,12 @@ describe('CanonRepository (integration)', () => {
       const { adventureId } = await seedFixture();
 
       await getTestDb().transaction(async (tx) =>
-        repo.insertPendingCanon({ tx, adventureId, entries: [] }),
+        repo.insertPendingCanon({
+          tx,
+          adventureId,
+          entries: [],
+          sequenceNumber: 7,
+        }),
       );
 
       const rows = await getTestDb()

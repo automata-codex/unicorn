@@ -21,6 +21,9 @@ export class CanonRepository {
     tx: DbOrTx;
     adventureId: string;
     entries: Array<{ summary: string; context: string }>;
+    /** The proposing turn's sequence number — every entry in one call
+     * shares it, since they all came from the same turn. */
+    sequenceNumber: number;
   }): Promise<void> {
     if (args.entries.length === 0) return;
     await args.tx.insert(schema.pendingCanon).values(
@@ -29,6 +32,7 @@ export class CanonRepository {
         summary: entry.summary,
         context: entry.context,
         status: 'pending' as const,
+        sequenceNumber: args.sequenceNumber,
       })),
     );
   }

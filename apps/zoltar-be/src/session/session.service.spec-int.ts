@@ -257,13 +257,16 @@ describe('SessionService (integration) — happy path', () => {
     ]);
     expect(events.map((e) => e.sequenceNumber)).toEqual([1, 2, 3]);
 
-    // Canon routed + auto-promoted (Solo Blind).
+    // Canon routed + auto-promoted (Solo Blind), sequence-numbered to the
+    // proposing turn's gm_response event (sequence 2, per the events array
+    // above).
     const canon = await db
       .select()
       .from(schema.pendingCanon)
       .where(eq(schema.pendingCanon.adventureId, adventureId));
     expect(canon).toHaveLength(1);
     expect(canon[0].status).toBe('promoted');
+    expect(canon[0].sequenceNumber).toBe(2);
 
     // NPC agenda merged into gm_context.blob.narrative.npcAgendas.
     const [ctxRow] = await db

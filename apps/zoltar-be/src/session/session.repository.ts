@@ -533,6 +533,7 @@ export class SessionRepository {
         tx,
         adventureId: args.adventureId,
         entries: args.proposedCanon,
+        sequenceNumber: events.gmResponseSeq,
       });
 
       if (args.autoPromoteCanon) {

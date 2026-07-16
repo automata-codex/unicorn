@@ -350,6 +350,12 @@ export const pendingCanon = pgTable(
     summary: text('summary').notNull(),
     context: text('context').notNull(),
     status: canonStatusEnum('status').notNull().default('pending'),
+    // Nullable — rows written before this column existed (V17) have no
+    // sequence data to backfill from. Not unique: every canon entry
+    // proposed in one turn shares that turn's sequence number (see
+    // `events.gmResponseSeq` at the `insertPendingCanon` call site).
+    // Mirrors `adventure_telemetry.sequence_number`'s population pattern.
+    sequenceNumber: integer('sequence_number'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -358,6 +364,10 @@ export const pendingCanon = pgTable(
   (table) => [
     index('pending_canon_adventure_idx').on(table.adventureId),
     index('pending_canon_status_idx').on(table.adventureId, table.status),
+    index('pending_canon_adventure_seq_idx').on(
+      table.adventureId,
+      table.sequenceNumber,
+    ),
   ],
 );
 
