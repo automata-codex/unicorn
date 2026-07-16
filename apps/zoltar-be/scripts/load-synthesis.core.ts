@@ -71,6 +71,109 @@ export function parseSynthesisExport(raw: unknown): SynthesisExport {
 }
 
 /**
+ * Reads the `adventure_synthesis_snapshots` row captured automatically at
+ * synthesis time (see `SynthesisRepository.writeGmContextAtomic`) for
+ * `sourceAdventureId`, joins `adventure`/`campaign`/`game_system` for the
+ * fields the snapshot row doesn't carry, and assembles + validates a
+ * `SynthesisExport`. Replaces the old `<file.json>` read path — this is the
+ * only place M7.3 reads that table for `load-synthesis`.
+ *
+ * Throws `LoadSynthesisError` with a clear message in two distinct cases a
+ * caller may want to tell apart: no snapshot row at all (exit 1 — wrong id,
+ * or an adventure that predates automatic capture and was never imported
+ * via the one-off legacy-snapshot script), vs. a snapshot that exists but
+ * doesn't reassemble into a valid `SynthesisExport` (exit 2, surfaced by
+ * `parseSynthesisExport` — e.g. a non-freeform or non-Mothership adventure,
+ * neither supported by `load-synthesis` today).
+ */
+export async function loadSynthesisSnapshot(
+  db: Db,
+  sourceAdventureId: string,
+): Promise<SynthesisExport> {
+  const [snapshotRow] = await db
+    .select()
+    .from(schema.adventureSynthesisSnapshots)
+    .where(
+      eq(schema.adventureSynthesisSnapshots.adventureId, sourceAdventureId),
+    )
+    .limit(1);
+  if (!snapshotRow) {
+    throw new LoadSynthesisError(
+      `no synthesis snapshot captured for adventure ${sourceAdventureId} — ` +
+        'either the adventure predates automatic capture (see the one-off ' +
+        'import script) or the id is wrong.',
+      1,
+    );
+  }
+
+  const [adventureRow] = await db
+    .select({
+      mode: schema.adventures.mode,
+      campaignId: schema.adventures.campaignId,
+    })
+    .from(schema.adventures)
+    .where(eq(schema.adventures.id, sourceAdventureId))
+    .limit(1);
+  if (!adventureRow) {
+    // The snapshot's FK is `ON DELETE CASCADE` from `adventure`, so this
+    // can't happen in normal operation — a clear error beats a cryptic
+    // undefined access downstream if it somehow did.
+    throw new LoadSynthesisError(
+      `adventure ${sourceAdventureId} referenced by its synthesis snapshot no longer exists.`,
+      1,
+    );
+  }
+
+  const [campaignRow] = await db
+    .select({
+      id: schema.campaigns.id,
+      name: schema.campaigns.name,
+      systemId: schema.campaigns.systemId,
+    })
+    .from(schema.campaigns)
+    .where(eq(schema.campaigns.id, adventureRow.campaignId))
+    .limit(1);
+  if (!campaignRow) {
+    throw new LoadSynthesisError(
+      `adventure ${sourceAdventureId} references missing campaign ${adventureRow.campaignId}.`,
+      1,
+    );
+  }
+
+  const [systemRow] = await db
+    .select({ slug: schema.gameSystems.slug })
+    .from(schema.gameSystems)
+    .where(eq(schema.gameSystems.id, campaignRow.systemId))
+    .limit(1);
+  if (!systemRow) {
+    throw new LoadSynthesisError(
+      `campaign ${campaignRow.id} references missing game_system ${campaignRow.systemId}.`,
+      1,
+    );
+  }
+
+  return parseSynthesisExport({
+    version: 1,
+    exportedAt: snapshotRow.capturedAt.toISOString(),
+    source: {
+      campaignId: campaignRow.id,
+      adventureId: sourceAdventureId,
+      campaignName: campaignRow.name,
+    },
+    system: { slug: systemRow.slug },
+    gmContext: {
+      schemaVersion: snapshotRow.gmContextSchemaVersion,
+      blob: snapshotRow.gmContextBlob,
+    },
+    campaignState: {
+      schemaVersion: snapshotRow.campaignStateSchemaVersion,
+      data: snapshotRow.campaignStateData,
+    },
+    adventure: { mode: adventureRow.mode },
+  });
+}
+
+/**
  * Runs the load transaction:
  *   1. Resolve the target user (explicit → env → first-row fallback).
  *   2. Resolve the `system_id` from the saved slug.

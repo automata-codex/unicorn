@@ -40,7 +40,7 @@ tasks:
       - npx tsx --env-file=.env scripts/playtest-review.ts {{.CLI_ARGS}}
 
   playtest:load-synthesis:
-    desc: Materialize a SynthesisExport JSON file into a new campaign + adventure. Usage — task playtest:load-synthesis -- <file.json> [--name "Prompt A run"]
+    desc: Clone a source adventure's captured synthesis snapshot into a new campaign + adventure. Usage — task playtest:load-synthesis -- <source-adventure-id> [--name "Prompt A run"]
     dir: apps/zoltar-be
     cmds:
       - npx tsx --env-file=.env scripts/load-synthesis.ts {{.CLI_ARGS}}

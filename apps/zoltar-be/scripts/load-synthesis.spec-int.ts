@@ -1,24 +1,20 @@
 import { eq } from 'drizzle-orm';
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-} from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { CanonRepository } from '../src/canon/canon.repository';
+import * as schema from '../src/db/schema';
+import { SynthesisRepository } from '../src/synthesis/synthesis.repository';
 import {
   getTestDb,
   setupTestDb,
   teardownTestDb,
   truncateAll,
 } from '../test/db-test-helper';
-import * as schema from '../src/db/schema';
 
 import {
   buildAndRunLoad,
   LoadSynthesisError,
+  loadSynthesisSnapshot,
   parseSynthesisExport,
 } from './load-synthesis.core';
 
@@ -49,9 +45,7 @@ const VALID_EXPORT: SynthesisExport = {
         oracleConnections: 'survivor motive',
       },
       structured: {
-        entities: [
-          { id: 'dr_chen', type: 'npc', visible: true, tags: ['pc'] },
-        ],
+        entities: [{ id: 'dr_chen', type: 'npc', visible: true, tags: ['pc'] }],
         flags: {
           adventure_complete: { value: false, trigger: 'player escapes' },
         },
@@ -91,6 +85,54 @@ async function seedUsers(ids: string[]): Promise<void> {
   }
 }
 
+/**
+ * Seeds a campaign + adventure directly with an `adventure_synthesis_snapshots`
+ * row, bypassing `writeGmContextAtomic` — for tests that only care about
+ * `loadSynthesisSnapshot`'s read/reassembly path, not the capture path
+ * (that's covered by `synthesis.repository.spec-int.ts` and by the
+ * round-trip test below).
+ */
+async function seedAdventureWithSnapshot(overrides?: {
+  mode?: 'freeform' | 'initiative';
+}): Promise<{ campaignId: string; adventureId: string }> {
+  const db = getTestDb();
+  const [campaign] = await db
+    .insert(schema.campaigns)
+    .values({
+      systemId: SYSTEM_ID,
+      name: 'Snapshot Source Campaign',
+      visibility: 'private',
+      diceMode: 'soft_accountability',
+    })
+    .returning();
+  const [adventure] = await db
+    .insert(schema.adventures)
+    .values({
+      campaignId: campaign.id,
+      status: 'ready',
+      mode: overrides?.mode ?? 'freeform',
+    })
+    .returning();
+  await db.insert(schema.adventureSynthesisSnapshots).values({
+    adventureId: adventure.id,
+    gmContextSchemaVersion: 1,
+    gmContextBlob: {
+      openingNarration: 'Snapshot narration.',
+      narrative: { location: 'loc' },
+    },
+    campaignStateSchemaVersion: 1,
+    campaignStateData: {
+      schemaVersion: 1,
+      resourcePools: { dr_chen_hp: { current: 10, max: 10 } },
+      entities: {},
+      flags: {},
+      scenarioState: {},
+      worldFacts: {},
+    },
+  });
+  return { campaignId: campaign.id, adventureId: adventure.id };
+}
+
 beforeAll(async () => {
   await setupTestDb();
 });
@@ -120,13 +162,163 @@ describe('parseSynthesisExport', () => {
     const bad = { ...VALID_EXPORT, source: { campaignId: 'not-a-uuid' } };
     const err = catchError(() => parseSynthesisExport(bad));
     expect(err).toBeInstanceOf(LoadSynthesisError);
-    expect((err as LoadSynthesisError).message).toMatch(/source\.campaignId|source\.adventureId|source\.campaignName/);
+    expect((err as LoadSynthesisError).message).toMatch(
+      /source\.campaignId|source\.adventureId|source\.campaignName/,
+    );
   });
 
   it('rejects a wholly unrecognizable shape', () => {
     expect(() => parseSynthesisExport({ hello: 'world' })).toThrow(
       LoadSynthesisError,
     );
+  });
+});
+
+describe('loadSynthesisSnapshot', () => {
+  it('assembles a valid SynthesisExport from a captured snapshot row', async () => {
+    await seedSystem();
+    const { campaignId, adventureId } = await seedAdventureWithSnapshot();
+
+    const exportPayload = await loadSynthesisSnapshot(getTestDb(), adventureId);
+
+    expect(exportPayload.version).toBe(1);
+    expect(exportPayload.source.campaignId).toBe(campaignId);
+    expect(exportPayload.source.adventureId).toBe(adventureId);
+    expect(exportPayload.source.campaignName).toBe('Snapshot Source Campaign');
+    expect(exportPayload.system.slug).toBe('mothership');
+    expect(exportPayload.adventure.mode).toBe('freeform');
+    expect(exportPayload.gmContext.schemaVersion).toBe(1);
+    expect(exportPayload.gmContext.blob).toEqual({
+      openingNarration: 'Snapshot narration.',
+      narrative: { location: 'loc' },
+    });
+    expect(exportPayload.campaignState.schemaVersion).toBe(1);
+  });
+
+  it('fails with exit code 1 when no snapshot row exists for an otherwise-real adventure', async () => {
+    await seedSystem();
+    const db = getTestDb();
+    const [campaign] = await db
+      .insert(schema.campaigns)
+      .values({
+        systemId: SYSTEM_ID,
+        name: 'No Snapshot Campaign',
+        visibility: 'private',
+        diceMode: 'soft_accountability',
+      })
+      .returning();
+    const [adventure] = await db
+      .insert(schema.adventures)
+      .values({ campaignId: campaign.id, status: 'ready', mode: 'freeform' })
+      .returning();
+
+    const err = await loadSynthesisSnapshot(db, adventure.id).catch(
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(LoadSynthesisError);
+    expect((err as LoadSynthesisError).exitCode).toBe(1);
+    expect((err as LoadSynthesisError).message).toMatch(
+      /no synthesis snapshot captured/,
+    );
+  });
+
+  it('fails with exit code 1 for an adventure id that does not exist at all', async () => {
+    const db = getTestDb();
+    const err = await loadSynthesisSnapshot(
+      db,
+      '00000000-0000-0000-0000-000000000999',
+    ).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(LoadSynthesisError);
+    expect((err as LoadSynthesisError).exitCode).toBe(1);
+    expect((err as LoadSynthesisError).message).toMatch(
+      /no synthesis snapshot captured/,
+    );
+  });
+
+  it('fails with exit code 2 (malformed, distinct from "no snapshot") when the adventure is non-freeform', async () => {
+    await seedSystem();
+    const { adventureId } = await seedAdventureWithSnapshot({
+      mode: 'initiative',
+    });
+
+    const db = getTestDb();
+    const err = await loadSynthesisSnapshot(db, adventureId).catch(
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(LoadSynthesisError);
+    expect((err as LoadSynthesisError).exitCode).toBe(2);
+    expect((err as LoadSynthesisError).message).toMatch(/adventure\.mode/);
+  });
+});
+
+describe('load-synthesis round trip (capture -> load)', () => {
+  it('loads a snapshot captured by the real writeGmContextAtomic path, preserving blob/data', async () => {
+    await seedSystem();
+    await seedUsers([USER_ID_PRIMARY]);
+    const db = getTestDb();
+
+    const [sourceCampaign] = await db
+      .insert(schema.campaigns)
+      .values({
+        systemId: SYSTEM_ID,
+        name: 'Real Synthesis Source',
+        visibility: 'private',
+        diceMode: 'soft_accountability',
+      })
+      .returning();
+    const [sourceAdventure] = await db
+      .insert(schema.adventures)
+      .values({
+        campaignId: sourceCampaign.id,
+        status: 'synthesizing',
+        mode: 'freeform',
+      })
+      .returning();
+
+    const canonRepo = new CanonRepository(db as never);
+    const synthesisRepo = new SynthesisRepository(db as never, canonRepo);
+
+    const sourceGmContextBlob = {
+      openingNarration: 'The reactor hums.',
+      narrative: { location: 'Engine bay' },
+    };
+    const sourceCampaignStateData = {
+      schemaVersion: 1,
+      resourcePools: { vasquez_hp: { current: 12, max: 15 } },
+      entities: {},
+      flags: {},
+      scenarioState: {},
+      worldFacts: {},
+    };
+
+    await synthesisRepo.writeGmContextAtomic({
+      adventureId: sourceAdventure.id,
+      campaignId: sourceCampaign.id,
+      gmContextBlob: sourceGmContextBlob,
+      campaignStateData: sourceCampaignStateData,
+      gridEntities: [],
+    });
+
+    const exportPayload = await loadSynthesisSnapshot(db, sourceAdventure.id);
+    const result = await buildAndRunLoad(db, {
+      exportPayload,
+      userId: USER_ID_PRIMARY,
+    });
+
+    expect(result.adventureId).not.toBe(sourceAdventure.id);
+    expect(result.campaignId).not.toBe(sourceCampaign.id);
+
+    const [loadedGmContext] = await db
+      .select()
+      .from(schema.gmContexts)
+      .where(eq(schema.gmContexts.adventureId, result.adventureId));
+    expect(loadedGmContext.blob).toEqual(sourceGmContextBlob);
+
+    const [loadedCampaignState] = await db
+      .select()
+      .from(schema.campaignStates)
+      .where(eq(schema.campaignStates.campaignId, result.campaignId));
+    expect(loadedCampaignState.data).toEqual(sourceCampaignStateData);
   });
 });
 
@@ -259,9 +451,9 @@ describe('buildAndRunLoad — user resolution', () => {
     await seedSystem();
 
     const db = getTestDb();
-    const err = await buildAndRunLoad(db, { exportPayload: VALID_EXPORT }).catch(
-      (e: unknown) => e,
-    );
+    const err = await buildAndRunLoad(db, {
+      exportPayload: VALID_EXPORT,
+    }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(LoadSynthesisError);
     expect((err as LoadSynthesisError).exitCode).toBe(1);
     expect((err as LoadSynthesisError).message).toMatch(/No users exist/);
