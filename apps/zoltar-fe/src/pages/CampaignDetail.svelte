@@ -21,16 +21,19 @@
   let showCompleted = $state(false);
   let confirmingDelete = $state(false);
   let deleting = $state(false);
+  let confirmingAbort = $state(false);
+  let aborting = $state(false);
   let editingName = $state(false);
   let nameInput = $state('');
 
   const activeStatuses = ['synthesizing', 'ready', 'in_progress'];
+  const finishedStatuses = ['completed', 'aborted'];
 
   let activeAdventures = $derived(
-    adventures.filter((a) => !['completed'].includes(a.status)),
+    adventures.filter((a) => !finishedStatuses.includes(a.status)),
   );
-  let completedAdventures = $derived(
-    adventures.filter((a) => a.status === 'completed'),
+  let finishedAdventures = $derived(
+    adventures.filter((a) => finishedStatuses.includes(a.status)),
   );
   let visibleAdventures = $derived(
     showCompleted ? adventures : activeAdventures,
@@ -38,6 +41,9 @@
 
   let hasActiveAdventure = $derived(
     adventures.some((a) => activeStatuses.includes(a.status)),
+  );
+  let activeAdventure = $derived(
+    adventures.find((a) => activeStatuses.includes(a.status)),
   );
 
   let newAdventureDisabledReason = $derived.by(() => {
@@ -121,6 +127,27 @@
       confirmingDelete = false;
     }
     deleting = false;
+  }
+
+  async function handleAbortAdventure() {
+    if (!activeAdventure) return;
+    aborting = true;
+    const res = await api(
+      `/api/v1/campaigns/${campaignId}/adventures/${activeAdventure.id}/abort`,
+      { method: 'POST' },
+    );
+
+    if (res.ok) {
+      const updated = await res.json();
+      adventures = adventures.map((a) =>
+        a.id === updated.id ? { ...a, ...updated } : a,
+      );
+      confirmingAbort = false;
+    } else {
+      error = 'Could not abort adventure.';
+      confirmingAbort = false;
+    }
+    aborting = false;
   }
 
   function statusColor(status: string): string {
@@ -238,18 +265,36 @@
         <p class="type-meta empty-adventures">NO ADVENTURES YET</p>
       {/if}
 
-      {#if completedAdventures.length > 0}
+      {#if finishedAdventures.length > 0}
         <Button
           variant="ghost"
           onclick={() => { showCompleted = !showCompleted; }}
         >
-          {showCompleted ? 'HIDE COMPLETED' : `SHOW COMPLETED (${completedAdventures.length})`}
+          {showCompleted ? 'HIDE PAST' : `SHOW PAST (${finishedAdventures.length})`}
         </Button>
       {/if}
     </Card>
 
     <!-- Danger zone -->
     <div class="danger-zone">
+      {#if hasActiveAdventure}
+        {#if confirmingAbort}
+          <p class="type-meta delete-warning">THIS WILL END THE CURRENT ADVENTURE — IT CANNOT BE RESUMED</p>
+          <div class="delete-confirm-buttons">
+            <Button fullWidth variant="ghost" onclick={() => { confirmingAbort = false; }}>
+              CANCEL
+            </Button>
+            <Button fullWidth disabled={aborting} onclick={handleAbortAdventure}>
+              {aborting ? 'ABORTING...' : 'CONFIRM ABORT'}
+            </Button>
+          </div>
+        {:else}
+          <Button fullWidth variant="ghost" onclick={() => { confirmingAbort = true; }}>
+            ABORT ADVENTURE
+          </Button>
+        {/if}
+      {/if}
+
       {#if confirmingDelete}
         <p class="type-meta delete-warning">THIS WILL DELETE THE CAMPAIGN AND ALL ITS DATA</p>
         <div class="delete-confirm-buttons">

@@ -6,6 +6,7 @@ import {
   SessionOutputError,
   SessionPreconditionError,
   SessionService,
+  SessionToolLoopError,
 } from './session.service';
 
 import type Anthropic from '@anthropic-ai/sdk';
@@ -247,7 +248,10 @@ describe('SessionService.sendMessage', () => {
     expect(applyTurnAtomic).not.toHaveBeenCalled();
   });
 
-  it('throws SessionOutputError when tool input fails schema validation', async () => {
+  it('throws SessionToolLoopError when tool input persistently fails schema validation', async () => {
+    // Every call returns the same malformed payload, so the inner loop's
+    // retry (see session.tool-loop.spec.ts) never recovers and exhausts
+    // INNER_TOOL_LOOP_CAP.
     callSession.mockResolvedValue(
       toolUseMessage('submit_gm_response', { playerText: 123 }),
     );
@@ -256,9 +260,26 @@ describe('SessionService.sendMessage', () => {
     const repo = makeRepo({ insertMessage, applyTurnAtomic });
     const service = makeService(callSession, repo);
     await expect(service.sendMessage(args)).rejects.toBeInstanceOf(
-      SessionOutputError,
+      SessionToolLoopError,
     );
     expect(applyTurnAtomic).not.toHaveBeenCalled();
+  });
+
+  it('recovers when a malformed submit_gm_response is followed by a valid one', async () => {
+    callSession
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_response', { gmUpdates: 'not an object' }),
+      )
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_response', { playerText: 'ok' }),
+      );
+    const insertMessage = makeInsertMessage();
+    const applyTurnAtomic = makeApplyTurnAtomic();
+    const repo = makeRepo({ insertMessage, applyTurnAtomic });
+    const service = makeService(callSession, repo);
+    await service.sendMessage(args);
+    expect(callSession).toHaveBeenCalledTimes(2);
+    expect(applyTurnAtomic).toHaveBeenCalledTimes(1);
   });
 
   it('throws SessionPreconditionError when gm_context is missing', async () => {

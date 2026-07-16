@@ -42,6 +42,7 @@ export const adventureStatusEnum = pgEnum('adventure_status', [
   'synthesizing',
   'ready',
   'in_progress',
+  'aborted',
   'completed',
   'failed',
 ]);

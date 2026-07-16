@@ -57,4 +57,13 @@ export class AdventureController {
   ) {
     return this.adventureService.findById(campaignId, adventureId, user.id);
   }
+
+  @Post(':adventureId/abort')
+  async abort(
+    @Param('campaignId') campaignId: string,
+    @Param('adventureId') adventureId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.adventureService.abort(campaignId, adventureId, user.id);
+  }
 }

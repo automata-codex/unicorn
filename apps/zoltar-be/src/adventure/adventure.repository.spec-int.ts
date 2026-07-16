@@ -171,6 +171,55 @@ describe('AdventureRepository (integration)', () => {
     });
   });
 
+  describe('abort', () => {
+    it.each([
+      'synthesizing',
+      'ready',
+      'in_progress',
+    ] as const)('transitions a %s adventure to aborted and stamps completedAt', async (status) => {
+      const db = getTestDb();
+      const { campaignId } = await seedSystemAndCampaign();
+      await seedUser('u1', 'alice@example.com');
+      const adventure = await repo.insert({ campaignId, callerId: 'u1' });
+      await db
+        .update(schema.adventures)
+        .set({ status })
+        .where(eq(schema.adventures.id, adventure.id));
+
+      const result = await repo.abort(adventure.id);
+
+      expect(result).not.toBeNull();
+      expect(result!.status).toBe('aborted');
+      expect(result!.completedAt).not.toBeNull();
+    });
+
+    it.each([
+      'aborted',
+      'completed',
+      'failed',
+    ] as const)('is a no-op when the adventure is already %s', async (status) => {
+      const db = getTestDb();
+      const { campaignId } = await seedSystemAndCampaign();
+      await seedUser('u1', 'alice@example.com');
+      const adventure = await repo.insert({ campaignId, callerId: 'u1' });
+      await db
+        .update(schema.adventures)
+        .set({ status })
+        .where(eq(schema.adventures.id, adventure.id));
+
+      const result = await repo.abort(adventure.id);
+
+      expect(result).toBeNull();
+      const found = await repo.findById(adventure.id, campaignId);
+      expect(found!.status).toBe(status);
+    });
+
+    it('returns null for a non-existent adventure', async () => {
+      const result = await repo.abort('00000000-0000-0000-0000-000000000000');
+      expect(result).toBeNull();
+    });
+  });
+
   describe('findAllForCampaign', () => {
     it('returns adventures ordered by createdAt descending', async () => {
       const { campaignId } = await seedSystemAndCampaign();

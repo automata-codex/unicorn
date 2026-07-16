@@ -377,7 +377,7 @@ describe('SessionService.runInnerToolLoop', () => {
     expect(toolResult.content).toMatch(/Unknown tool/);
   });
 
-  it('throws SessionToolLoopError on iteration cap exhaustion', async () => {
+  it('throws SessionToolLoopError on iteration cap exhaustion, with a per-iteration tool-call summary distinguishing dice spam from a stuck loop', async () => {
     // Claude never calls submit_gm_response — always rolls, forever.
     callSession.mockResolvedValue(
       message([
@@ -389,11 +389,58 @@ describe('SessionService.runInnerToolLoop', () => {
     );
     const { service } = makeService(callSession);
 
-    await expect(service.runInnerToolLoop(loopArgs)).rejects.toBeInstanceOf(
-      SessionToolLoopError,
-    );
+    const expectedToolCalls = Array(INNER_TOOL_LOOP_CAP)
+      .fill('roll_dice')
+      .join(', ');
+    const expectedRolls = Array(INNER_TOOL_LOOP_CAP)
+      .fill('1d100 for "x"=50')
+      .join('; ');
+    await expect(service.runInnerToolLoop(loopArgs)).rejects.toMatchObject({
+      message: `Inner tool loop did not terminate within ${INNER_TOOL_LOOP_CAP} iterations for adventure=adv-1. Tool calls per iteration: [${expectedToolCalls}]. Rolls: [${expectedRolls}]. Lookups: []`,
+    });
     // Called once per iteration up to the cap (inclusive); the (cap+1)-th
     // call would break the invariant.
+    expect(callSession).toHaveBeenCalledTimes(INNER_TOOL_LOOP_CAP);
+  });
+
+  it('lists distinct roll purposes and lookup queries in the exhaustion summary, not just counts', async () => {
+    // A busy-but-legitimate turn: a different purpose each time, not the
+    // same check repeated — the summary should make that distinguishable
+    // from a stuck loop re-rolling for the same reason.
+    let call = 0;
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    callSession.mockImplementation(() => {
+      call++;
+      return Promise.resolve(
+        message([
+          toolUse('toolu_lookup', 'rules_lookup', {
+            query: `npc_${call} stealth check rule`,
+          }),
+        ]),
+      );
+    });
+    const { service } = makeService(callSession);
+
+    await expect(service.runInnerToolLoop(loopArgs)).rejects.toMatchObject({
+      message: expect.stringContaining(
+        'Lookups: ["npc_1 stealth check rule"; "npc_2 stealth check rule"',
+      ),
+    });
+  });
+
+  it('names the invalid field paths in the exhaustion summary when stuck retrying a malformed submit_gm_response', async () => {
+    callSession.mockResolvedValue(
+      message([
+        submitGmBlock({ playerText: 'ok', gmUpdates: 'not an object' }),
+      ]),
+    );
+    const { service } = makeService(callSession);
+
+    await expect(service.runInnerToolLoop(loopArgs)).rejects.toMatchObject({
+      message: expect.stringMatching(
+        /submit_gm_response\(invalid: gmUpdates\)/,
+      ),
+    });
     expect(callSession).toHaveBeenCalledTimes(INNER_TOOL_LOOP_CAP);
   });
 
@@ -408,14 +455,40 @@ describe('SessionService.runInnerToolLoop', () => {
     );
   });
 
-  it('throws SessionOutputError when submit_gm_response input fails schema validation', async () => {
-    callSession.mockResolvedValueOnce(
-      message([submitGmBlock({ playerText: 123 })]),
+  it('retries and recovers when submit_gm_response input fails schema validation', async () => {
+    callSession
+      .mockResolvedValueOnce(message([submitGmBlock({ playerText: 123 })]))
+      .mockResolvedValueOnce(
+        message([submitGmBlock({ playerText: 'The door opens.' })]),
+      );
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(result.iterations).toBe(2);
+    expect(result.finalParsed.playerText).toBe('The door opens.');
+
+    const secondCall = callSession.mock.calls[1][0] as CallSessionParams;
+    const toolResult = (
+      secondCall.messages[secondCall.messages.length - 1] as {
+        content: Anthropic.ContentBlockParam[];
+      }
+    ).content[0] as Anthropic.ToolResultBlockParam;
+    expect(toolResult.is_error).toBe(true);
+    expect(toolResult.content).toMatch(/Invalid submit_gm_response input/);
+  });
+
+  it('throws SessionToolLoopError when submit_gm_response never passes schema validation', async () => {
+    // Claude keeps sending a malformed gmUpdates (string instead of object)
+    // no matter how many times it's corrected.
+    callSession.mockResolvedValue(
+      message([submitGmBlock({ gmUpdates: 'not an object' })]),
     );
     const { service } = makeService(callSession);
 
     await expect(service.runInnerToolLoop(loopArgs)).rejects.toBeInstanceOf(
-      SessionOutputError,
+      SessionToolLoopError,
     );
+    expect(callSession).toHaveBeenCalledTimes(INNER_TOOL_LOOP_CAP);
   });
 });

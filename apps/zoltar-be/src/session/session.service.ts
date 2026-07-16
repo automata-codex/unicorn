@@ -150,12 +150,15 @@ export interface SendMessageResult {
 }
 
 /**
- * Cap on inner tool-loop iterations. A typical turn is zero or one
- * rules_lookup plus zero to two dice rolls. Hitting this cap means Claude is
- * pathologically looping — we'd rather fail hard than spin up Claude cost
- * indefinitely.
+ * Cap on inner tool-loop iterations. Most turns finish in one or two, but
+ * combat-heavy turns can legitimately interleave several roll_dice and
+ * rules_lookup calls before submit_gm_response (playtest observed 8
+ * iterations — 4 rolls + 4 lookups — still short of resolving the turn).
+ * 8 was too tight and fired on real play, not just pathological looping;
+ * 20 leaves headroom for busy turns while still failing hard well before
+ * runaway Claude cost.
  */
-export const INNER_TOOL_LOOP_CAP = 8;
+export const INNER_TOOL_LOOP_CAP = 20;
 
 interface InnerToolLoopResult {
   finalRequest: CallSessionParams;
@@ -674,6 +677,11 @@ export class SessionService {
     let iteration = 0;
     const executedRolls: PendingSystemRoll[] = [];
     const rulesLookups: RulesLookupRecord[] = [];
+    // One entry per iteration, e.g. "roll_dice" or "submit_gm_response(invalid: gmUpdates)".
+    // Surfaced on cap exhaustion so the resulting SessionToolLoopError alone
+    // distinguishes a dice-heavy turn from a genuinely stuck retry loop,
+    // without having to correlate scattered per-iteration warn logs.
+    const iterationLog: string[] = [];
 
     while (iteration < INNER_TOOL_LOOP_CAP) {
       const response = await this.anthropic.callSession(request);
@@ -688,21 +696,32 @@ export class SessionService {
       const submitGmCall = toolUses.find(
         (t) => t.name === 'submit_gm_response',
       );
+      let submitGmError: string | undefined;
+      let submitGmErrorPaths: string | undefined;
       if (submitGmCall) {
         const parsed = submitGmResponseSchema.safeParse(submitGmCall.input);
-        if (!parsed.success) {
-          throw new SessionOutputError(
-            `submit_gm_response failed validation for adventure=${args.adventureId}: ${parsed.error.message}`,
-          );
+        if (parsed.success) {
+          return {
+            finalRequest: request,
+            finalResponse: response,
+            finalParsed: parsed.data,
+            executedRolls,
+            rulesLookups,
+            iterations: iteration + 1,
+          };
         }
-        return {
-          finalRequest: request,
-          finalResponse: response,
-          finalParsed: parsed.data,
-          executedRolls,
-          rulesLookups,
-          iterations: iteration + 1,
-        };
+        // Malformed payload — e.g. gmUpdates sent as a string instead of an
+        // object, which tends to happen right after a dice roll. Treat it
+        // like any other malformed tool call below and retry, bounded by
+        // the same INNER_TOOL_LOOP_CAP as every other iteration, rather
+        // than failing the whole turn on the first bad response.
+        submitGmError = parsed.error.message;
+        submitGmErrorPaths = parsed.error.issues
+          .map((i) => i.path.join('.') || '(root)')
+          .join(',');
+        this.logger.warn(
+          `submit_gm_response failed schema validation for adventure=${args.adventureId}, retrying: ${submitGmError}`,
+        );
       }
 
       if (toolUses.length === 0) {
@@ -731,6 +750,15 @@ export class SessionService {
           );
           continue;
         }
+        if (use.name === 'submit_gm_response') {
+          toolResultBlocks.push({
+            type: 'tool_result',
+            tool_use_id: use.id,
+            is_error: true,
+            content: `Invalid submit_gm_response input: ${submitGmError}. Call submit_gm_response again with a valid payload matching the tool schema.`,
+          });
+          continue;
+        }
         // Unknown tool name: most likely a hallucination. Hand Claude an
         // error tool_result rather than throwing so it has a chance to
         // recover.
@@ -745,6 +773,16 @@ export class SessionService {
         });
       }
 
+      iterationLog.push(
+        toolUses
+          .map((u) =>
+            u.name === 'submit_gm_response'
+              ? `submit_gm_response(invalid: ${submitGmErrorPaths})`
+              : u.name,
+          )
+          .join('+'),
+      );
+
       // Append the assistant turn + tool_result user turn, loop.
       request = {
         ...request,
@@ -757,8 +795,18 @@ export class SessionService {
       iteration++;
     }
 
+    // Surface what was actually rolled/looked up, not just the counts —
+    // "executedRolls=14" tells you nothing about whether that's 14 distinct
+    // checks in a busy combat or the same roll repeated because Claude kept
+    // disliking the result.
+    const rollSummary = executedRolls
+      .map((r) => `${r.notation} for "${r.purpose}"=${r.total}`)
+      .join('; ');
+    const lookupSummary = rulesLookups.map((l) => `"${l.query}"`).join('; ');
     throw new SessionToolLoopError(
-      `Inner tool loop did not terminate within ${INNER_TOOL_LOOP_CAP} iterations for adventure=${args.adventureId}`,
+      `Inner tool loop did not terminate within ${INNER_TOOL_LOOP_CAP} iterations for adventure=${args.adventureId}. ` +
+        `Tool calls per iteration: [${iterationLog.join(', ')}]. ` +
+        `Rolls: [${rollSummary}]. Lookups: [${lookupSummary}]`,
     );
   }
 
