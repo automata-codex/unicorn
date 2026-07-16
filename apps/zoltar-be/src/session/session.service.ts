@@ -802,9 +802,7 @@ export class SessionService {
     const rollSummary = executedRolls
       .map((r) => `${r.notation} for "${r.purpose}"=${r.total}`)
       .join('; ');
-    const lookupSummary = rulesLookups
-      .map((l) => `"${l.query}"`)
-      .join('; ');
+    const lookupSummary = rulesLookups.map((l) => `"${l.query}"`).join('; ');
     throw new SessionToolLoopError(
       `Inner tool loop did not terminate within ${INNER_TOOL_LOOP_CAP} iterations for adventure=${args.adventureId}. ` +
         `Tool calls per iteration: [${iterationLog.join(', ')}]. ` +

@@ -408,6 +408,7 @@ describe('SessionService.runInnerToolLoop', () => {
     // same check repeated — the summary should make that distinguishable
     // from a stuck loop re-rolling for the same reason.
     let call = 0;
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     callSession.mockImplementation(() => {
       call++;
       return Promise.resolve(
