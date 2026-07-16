@@ -1,11 +1,13 @@
 import { z } from 'zod';
 
 /**
- * Portable "starting conditions" clone for an adventure. Produced by the
- * `save-synthesis` CLI and consumed by `load-synthesis` to recreate the
- * same initial state in a new campaign + adventure. The mechanism by which
- * M7.1 runs the same scenario against different Warden prompt candidates:
- * freeze starting conditions once, load N times.
+ * Portable "starting conditions" clone for an adventure. Assembled from the
+ * automatically-captured `adventure_synthesis_snapshots` row (M7.3 —
+ * previously produced by the now-removed `save-synthesis` CLI) and consumed
+ * by `load-synthesis` to recreate the same initial state in a new campaign +
+ * adventure. The mechanism by which M7.1 runs the same scenario against
+ * different Warden prompt candidates: freeze starting conditions once, load
+ * N times.
  *
  * Versioned — the loader rejects unknown versions loudly. `version: 1`
  * covers M7.1's Mothership-only freeform use case. Future versions can

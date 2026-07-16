@@ -50,6 +50,8 @@ infra/
       V12__dice_request.sql
       V13__review_views.sql
       V14__gm_context_schema_version.sql
+      V15__adventure_status_aborted.sql
+      V16__adventure_synthesis_snapshots.sql
 ```
 
 The Drizzle schema definition lives in `apps/zoltar-be/src/db/schema.ts`.
@@ -410,6 +412,25 @@ The `payload` jsonb carries (see `AdventureTelemetryPayload` in `apps/zoltar-be/
 
 ---
 
+### Adventure Synthesis Snapshots (`V16__adventure_synthesis_snapshots.sql`)
+
+True starting-condition capture for an adventure — `gm_context.blob` and `campaign_state.data` as they stood immediately after synthesis, before any turn was played. Written once, automatically, inside `SynthesisRepository.writeGmContextAtomic` — no separate action required. Immutable: `onConflictDoNothing` on `adventure_id` means a later synthesis retry for the same adventure cannot change an already-captured snapshot.
+
+Feeds `load-synthesis` (clone starting conditions into a fresh campaign + adventure) and the M7.3 replay path (`reconstructStateAsOfTurn`'s turn-0 baseline, folded forward through `game_event` rows to reconstruct any later turn).
+
+```sql
+CREATE TABLE adventure_synthesis_snapshots (
+  adventure_id                   uuid        PRIMARY KEY REFERENCES adventure(id) ON DELETE CASCADE,
+  gm_context_schema_version      integer     NOT NULL,
+  gm_context_blob                jsonb       NOT NULL,
+  campaign_state_schema_version  integer     NOT NULL,
+  campaign_state_data            jsonb       NOT NULL,
+  captured_at                    timestamptz NOT NULL DEFAULT now()
+);
+```
+
+---
+
 ### Review Views (`V13__review_views.sql`)
 
 Three read-only views shape `game_event` + `adventure_telemetry` into rows friendly to the M7.1 playtest-review CLI and to humans running ad-hoc queries in `psql`. Views are intentionally thin — the CLI does its own markdown formatting; these just hide the jsonb-path joins and the `superseded_by` direction. Views are not modelled in Drizzle; CLI queries use the raw `sql` template.
@@ -729,6 +750,19 @@ export const pendingCanon = pgTable('pending_canon', {
   index('pending_canon_adventure_idx').on(table.adventureId),
   index('pending_canon_status_idx').on(table.adventureId, table.status),
 ]);
+
+// ---------------------------------------------------------------------------
+// Adventure Synthesis Snapshots
+// ---------------------------------------------------------------------------
+
+export const adventureSynthesisSnapshots = pgTable('adventure_synthesis_snapshots', {
+  adventureId:                uuid('adventure_id').primaryKey().references(() => adventures.id, { onDelete: 'cascade' }),
+  gmContextSchemaVersion:     integer('gm_context_schema_version').notNull(),
+  gmContextBlob:              jsonb('gm_context_blob').notNull(),
+  campaignStateSchemaVersion: integer('campaign_state_schema_version').notNull(),
+  campaignStateData:          jsonb('campaign_state_data').notNull(),
+  capturedAt:                 timestamp('captured_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 // ---------------------------------------------------------------------------
 // Map Geometry Stub (Phase 3)

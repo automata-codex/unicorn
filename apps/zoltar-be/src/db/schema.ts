@@ -362,6 +362,36 @@ export const pendingCanon = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Adventure Synthesis Snapshots
+// ---------------------------------------------------------------------------
+
+/**
+ * True starting-condition capture for an adventure — `gm_context.blob` and
+ * `campaign_state.data` as they stood immediately after synthesis, before
+ * any turn was played. Written once, automatically, inside
+ * `SynthesisRepository.writeGmContextAtomic`; never updated. Feeds
+ * `load-synthesis` (clone starting conditions into a fresh adventure) and
+ * the M7.3 replay path (turn-0 baseline to fold `game_events` forward from).
+ */
+export const adventureSynthesisSnapshots = pgTable(
+  'adventure_synthesis_snapshots',
+  {
+    adventureId: uuid('adventure_id')
+      .primaryKey()
+      .references(() => adventures.id, { onDelete: 'cascade' }),
+    gmContextSchemaVersion: integer('gm_context_schema_version').notNull(),
+    gmContextBlob: jsonb('gm_context_blob').notNull(),
+    campaignStateSchemaVersion: integer(
+      'campaign_state_schema_version',
+    ).notNull(),
+    campaignStateData: jsonb('campaign_state_data').notNull(),
+    capturedAt: timestamp('captured_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+);
+
+// ---------------------------------------------------------------------------
 // Dice Requests
 // ---------------------------------------------------------------------------
 

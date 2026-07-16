@@ -2,13 +2,20 @@ import { asc, eq } from 'drizzle-orm';
 
 import * as schema from '../src/db/schema';
 import {
-  synthesisExportSchema,
   type SynthesisExport,
+  synthesisExportSchema,
 } from '../src/synthesis/synthesis-export.schema';
 
-import { timestampLabel } from './save-synthesis.core';
-
 import type { Db } from '../src/db/db.provider';
+
+/** `yyyymmdd-hhmmss`, used to disambiguate cloned campaign names. */
+function timestampLabel(now: Date = new Date()): string {
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return (
+    `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
+    `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+  );
+}
 
 export class LoadSynthesisError extends Error {
   constructor(

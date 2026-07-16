@@ -81,7 +81,7 @@ async function seedFixture(): Promise<{
 
 describe('SynthesisRepository (integration)', () => {
   describe('writeGmContextAtomic', () => {
-    it('writes gm_context, upserts campaign_state, inserts grid_entity, flips status, and auto-promotes canon', async () => {
+    it('writes gm_context, upserts campaign_state, inserts grid_entity, flips status, auto-promotes canon, and captures a synthesis snapshot', async () => {
       const db = getTestDb();
       const { campaignId, adventureId } = await seedFixture();
 
@@ -174,6 +174,70 @@ describe('SynthesisRepository (integration)', () => {
       expect(canonRows).toHaveLength(1);
       expect(canonRows[0].status).toBe('promoted');
       expect(canonRows[0].reviewedAt).not.toBeNull();
+
+      const [snapshotRow] = await db
+        .select()
+        .from(schema.adventureSynthesisSnapshots)
+        .where(eq(schema.adventureSynthesisSnapshots.adventureId, adventureId));
+      expect(snapshotRow).toBeDefined();
+      expect(snapshotRow.gmContextBlob).toEqual(gmContextBlob);
+      expect(snapshotRow.campaignStateData).toEqual(campaignStateData);
+      expect(snapshotRow.gmContextSchemaVersion).toBe(1);
+      expect(snapshotRow.campaignStateSchemaVersion).toBe(1);
+      expect(snapshotRow.capturedAt).toBeInstanceOf(Date);
+    });
+
+    it('captures the snapshot once — a second call for the same adventure does not update it', async () => {
+      const db = getTestDb();
+      const { campaignId, adventureId } = await seedFixture();
+
+      const firstCampaignStateData = {
+        schemaVersion: 1,
+        resourcePools: { vasquez_hp: { current: 15, max: 15 } },
+        entities: {},
+        flags: {},
+        scenarioState: {},
+        worldFacts: {},
+      };
+      const firstGmContextBlob = { openingNarration: 'First synthesis.' };
+
+      await repo.writeGmContextAtomic({
+        adventureId,
+        campaignId,
+        gmContextBlob: firstGmContextBlob,
+        campaignStateData: firstCampaignStateData,
+        gridEntities: [],
+      });
+
+      // Simulate a retry with different content — `gm_context`/
+      // `campaign_state` upsert (onConflictDoUpdate), but the snapshot must
+      // not: it's a "written once, never updated" capture of the true
+      // starting state.
+      await repo.writeGmContextAtomic({
+        adventureId,
+        campaignId,
+        gmContextBlob: { openingNarration: 'Second synthesis — different.' },
+        campaignStateData: {
+          ...firstCampaignStateData,
+          worldFacts: { retried: 'true' },
+        },
+        gridEntities: [],
+      });
+
+      const [gmContextRow] = await db
+        .select()
+        .from(schema.gmContexts)
+        .where(eq(schema.gmContexts.adventureId, adventureId));
+      expect(gmContextRow.blob).toMatchObject({
+        openingNarration: 'Second synthesis — different.',
+      });
+
+      const [snapshotRow] = await db
+        .select()
+        .from(schema.adventureSynthesisSnapshots)
+        .where(eq(schema.adventureSynthesisSnapshots.adventureId, adventureId));
+      expect(snapshotRow.gmContextBlob).toEqual(firstGmContextBlob);
+      expect(snapshotRow.campaignStateData).toEqual(firstCampaignStateData);
     });
 
     it('does not insert grid_entity rows when none are provided', async () => {
@@ -254,6 +318,13 @@ describe('SynthesisRepository (integration)', () => {
         .from(schema.gmContexts)
         .where(eq(schema.gmContexts.adventureId, adventureId));
       expect(gmContextRows).toHaveLength(0);
+
+      // No synthesis snapshot was persisted either — same transaction.
+      const snapshotRows = await db
+        .select()
+        .from(schema.adventureSynthesisSnapshots)
+        .where(eq(schema.adventureSynthesisSnapshots.adventureId, adventureId));
+      expect(snapshotRows).toHaveLength(0);
     });
   });
 
