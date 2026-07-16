@@ -188,12 +188,12 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 
 *Get a coherent GM response back from Claude. No state changes applied yet. Spatial system and rolling summary deferred; see decisions.md.*
 
-- [ ] - Migrate client-side router to `svelte-spa-router` v5 (prerequisite for M6 play view layout; see hash URL tradeoff note in M3 spec)
-- [ ] `submit_gm_response` tool definition (including `proposed_canon` field)
-- [ ] State snapshot builder (visibility-filtered, GM context injected, `flagTriggers`, `characterAttributes`, no entity positions)
-- [ ] Claude API client with prompt caching for GM context blob
-- [ ] Prompt structure: `[GM context blob] → [state snapshot] → [last N kb of messages]`
-- [ ] Rolling N-kb message window (measure in kb; threshold per spec)
+- [x] Migrate client-side router to `svelte-spa-router` v5 (prerequisite for M6 play view layout; see hash URL tradeoff note in M3 spec)
+- [x] `submit_gm_response` tool definition (including `proposed_canon` field)
+- [x] State snapshot builder (visibility-filtered, GM context injected, `flagTriggers`, no entity positions; `characterAttributes` deferred — `MothershipCampaignState` has no source field for it yet, block is omitted per the spec's "omit if empty" rule, see `docs/decisions.md`)
+- [x] Claude API client with prompt caching for GM context blob
+- [x] Prompt structure: `[GM context blob] → [state snapshot] → [last N kb of messages]`
+- [x] Rolling N-kb message window (measure in kb; threshold per spec)
 
 #### M6 — GmService & State Management
 
@@ -211,19 +211,19 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 
 *Dice and rules lookup wired into the play loop.*
 
-- [ ] `roll_dice` tool (dice notation parser, server-side execution, audit log; records player-entered vs system-generated rolls)
-- [ ] Rules lookup tool (vector embedding pipeline, pgvector, query endpoint)
-- [ ] Tool call routing in `GmService`
-- [ ] Frontend: dice entry UI — "roll for me" button and manual raw roll entry paths
+- [x] `roll_dice` tool (dice notation parser, server-side execution, audit log; records player-entered vs system-generated rolls)
+- [x] Rules lookup tool (vector embedding pipeline, pgvector, query endpoint)
+- [x] Tool call routing in `GmService`
+- [x] Frontend: dice entry UI — "roll for me" button and manual raw roll entry paths
 
 #### M7.1 — Playtest Review Tooling
 
 *Turn-by-turn readback of `game_events` and `adventure_telemetry` for playtest analysis. Scoped here rather than M6 because M7 is the first milestone that produces playtest-worthy adventures — review tooling earns its keep against runs with dice and rules lookups in place, not M6's smoke-test turns. No web UI; a CLI script is the deliverable.*
 
-- [ ] SQL views joining `game_events` and `adventure_telemetry` (per-turn, per-state-history, per-correction)
-- [ ] CLI script that produces a turn-by-turn markdown report for a given adventure id
-- [ ] Sanity-check the `adventure_telemetry` payload shape against a real Mothership run and adjust if fields are missing or redundant
-- [ ] Warden prompt versioning in production: persist version on each telemetry row, surface in M7.1 review output (parity with the playtest app's Setup dropdown — deferred from M7, see `docs/specs/zoltar/m7-ai-tools.md § Deferrals Introduced in M7`)
+- [x] SQL views joining `game_events` and `adventure_telemetry` (per-turn, per-state-history, per-correction)
+- [x] CLI script that produces a turn-by-turn markdown report for a given adventure id
+- [x] Sanity-check the `adventure_telemetry` payload shape against a real Mothership run and adjust if fields are missing or redundant
+- [x] Warden prompt versioning in production: persist version on each telemetry row, surface in M7.1 review output (parity with the playtest app's Setup dropdown — deferred from M7, see `docs/specs/zoltar/m7-ai-tools.md § Deferrals Introduced in M7`). Versioning is filename + content-hash rather than a semantic version number.
 
 #### M7.2 — Rules Ingestion Pipeline
 
@@ -234,6 +234,29 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [ ] Fixup patch scaffolding for chunk-level corrections
 - [ ] Hash-verification step to detect source-document drift between re-ingestions
 - [ ] Ingestion smoke tests (chunk count, embedding dimensions, system_id tagging)
+
+#### M7.3 — Turn-State Replay Infrastructure
+
+*Prerequisite for M7.4 (Warden Eval Harness): automatic, no-action-required capture of an adventure's true starting state, plus a way to fold that state forward through the existing event log to reconstruct any later turn. Replaces the M7.1 `save-synthesis` script, which only ever handled the zero-turn case. Spec: [`docs/specs/zoltar/010-m7.3-turn-state-replay-spec.md`](specs/zoltar/010-m7.3-turn-state-replay-spec.md).*
+
+- [x] Automatic turn-0 capture — new `adventure_synthesis_snapshots` table, written once per adventure inside the existing synthesis-commit transaction; `save-synthesis` removed as redundant
+- [x] `load-synthesis` sources its starting state from `adventure_synthesis_snapshots` by adventure id, not a hand-supplied JSON file
+- [x] One-off script to import the pre-M7.3 playtest adventures' legacy `save-synthesis` output into the new table
+- [x] Consolidate `applyToCampaignState` and `mergeNpcAgendas` into one pure `applyValidatedTurn` function covering both `campaign_state.data` and `gm_context.blob`
+- [x] `sequence_number` column added to `pending_canon`, populated from the same per-adventure counter `game_events` uses
+- [x] `reconstructStateAsOfTurn(db, adventureId, targetSequenceNumber)` — folds turn-0 state forward through `game_events` (plus `pending_canon`, plus `messages`) to reconstruct state going into any turn of any adventure
+
+#### M7.4 — Warden Eval Harness
+
+*Regression suite for Warden prompt candidates against known failure modes surfaced by real playtests (out-of-order tool resolution, hidden-info leaks, unauditable state changes, etc.). Drives the real turn pipeline in-process rather than reimplementing it; seeds each fixture's starting state via M7.3's `reconstructStateAsOfTurn` rather than any bespoke save/load mechanism. Spec: [`docs/specs/zoltar/011-m7.4-eval-harness-spec.md`](specs/zoltar/011-m7.4-eval-harness-spec.md).*
+
+- [ ] `EvalFixture` format — `savePointRef` (adventure id + target sequence number), player input, structural and/or judge-graded assertions, failure-mode tag
+- [ ] Structural assertion checkers — deterministic, no second LLM call (e.g. tool-call ordering)
+- [ ] Judge-graded assertions — single grading call per fixture, Claude Sonnet 5, one rubric per failure-mode tag (not per fixture)
+- [ ] Harness CLI (`npm run eval:harness -- --fixtures ... --tag ... --prompt-variant ... --output ...`); A/B prompt comparison is two invocations plus a manual diff, not a built-in feature
+- [ ] Markdown output report (summary by tag, per-fixture failure detail)
+- [ ] Fixtures for each failure-mode tag identified in real playtests, at least 2 confirmed instances per tag where the fixture-count bar requires it
+- [ ] One deliberately-broken counterexample per structural checker, to prove the checker actually fails bad behavior and isn't silently passing everything
 
 #### M8 — Multiplayer Foundation
 
