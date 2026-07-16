@@ -270,10 +270,24 @@ describe('SessionService (integration) — happy path', () => {
       .select({ blob: schema.gmContexts.blob })
       .from(schema.gmContexts)
       .where(eq(schema.gmContexts.adventureId, adventureId));
-    const agendas = (
-      ctxRow.blob as { narrative: { npcAgendas: Record<string, string> } }
-    ).narrative.npcAgendas;
-    expect(agendas.corporate_spy_1).toBe('Now following the player');
+    const blob = ctxRow.blob as {
+      narrative: {
+        location: string;
+        hiddenTruth: string;
+        npcAgendas: Record<string, string>;
+      };
+      playerEntityIds?: unknown;
+    };
+    expect(blob.narrative.npcAgendas.corporate_spy_1).toBe(
+      'Now following the player',
+    );
+    // Untouched narrative fields pass through the merge unchanged.
+    expect(blob.narrative.location).toBe('Derelict freighter');
+    expect(blob.narrative.hiddenTruth).toBe('truth');
+    // `playerEntityIds` is a per-request prompt-building addition
+    // (session.snapshot.ts) spliced onto the blob in memory for Claude's
+    // prompt — it must never be persisted into the `gm_context.blob` column.
+    expect(blob.playerEntityIds).toBeUndefined();
 
     // One telemetry row keyed to the gm_response sequence.
     const telemetry = await db
