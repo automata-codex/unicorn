@@ -197,7 +197,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 
 #### M6 — GmService & State Management
 
-*Apply GM responses to game state and close the play loop. Spec: [`docs/specs/zoltar/m6-state-management.md`](specs/zoltar/m6-state-management.md).*
+*Apply GM responses to game state and close the play loop. Spec: [`docs/specs/zoltar/m6-state-management.md`](specs/zoltar/006-m6-state-management.md).*
 
 - [x] `GmService` orchestrating request/response cycle (lives on `SessionService`; the `GmService` name is retired — one session service, not two)
 - [x] Backend state change validation (resource deductions, HP thresholds, flag changes) + application to DB
