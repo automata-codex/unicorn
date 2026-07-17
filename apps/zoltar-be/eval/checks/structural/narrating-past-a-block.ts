@@ -1,3 +1,5 @@
+import { getWinningResponseEvent } from '../../harness-runner';
+
 import type { TurnExecutionResult } from '../../harness-runner';
 import type { StructuralVerdict } from './types';
 
@@ -34,12 +36,7 @@ export function checkNarratingPastABlock(
     };
   }
 
-  const responseEvents = result.gameEvents
-    .filter(
-      (e) => e.eventType === 'gm_response' || e.eventType === 'correction',
-    )
-    .sort((a, b) => b.sequenceNumber - a.sequenceNumber);
-  const winningResponse = responseEvents[0];
+  const winningResponse = getWinningResponseEvent(result);
   if (!winningResponse) {
     return {
       passed: true,

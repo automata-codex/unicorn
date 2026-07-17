@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { and, asc, eq } from 'drizzle-orm';
 
+import { AnthropicService } from '../src/anthropic/anthropic.service';
 import { AppModule } from '../src/app.module';
 import { DB_TOKEN } from '../src/db/db.provider';
 import * as schema from '../src/db/schema';
@@ -37,6 +38,9 @@ import type { EvalFixture } from './fixture.schema';
 export interface HarnessSession {
   db: Db;
   sessionService: SessionService;
+  /** Same DI-wired instance `SessionService` itself uses — Part 5's judge
+   * call reuses this rather than constructing a second Anthropic client. */
+  anthropicService: AnthropicService;
   close: () => Promise<void>;
 }
 
@@ -48,6 +52,7 @@ export async function createHarnessSession(): Promise<HarnessSession> {
   return {
     db: moduleRef.get<Db>(DB_TOKEN),
     sessionService: moduleRef.get(SessionService),
+    anthropicService: moduleRef.get(AnthropicService),
     close: () => moduleRef.close(),
   };
 }
@@ -251,6 +256,25 @@ export interface TurnExecutionResult {
         kind: 'diceResult';
         result: Awaited<ReturnType<SessionService['submitDiceResult']>>;
       };
+}
+
+/**
+ * The `gm_response`/`correction` event whose `playerText`/`gmUpdates` is
+ * what actually reached the player this turn: the correction's, if a
+ * correction fired (`writeTurnEvents` always writes it immediately after
+ * the original, before `state_update`, so the higher-sequence one of the
+ * two is always the winner), otherwise the original `gm_response`'s.
+ * Shared by `NARRATING-PAST-A-BLOCK` and the judge call — both need "the
+ * text the player actually saw," not the (possibly-superseded) original.
+ */
+export function getWinningResponseEvent(
+  result: TurnExecutionResult,
+): typeof schema.gameEvents.$inferSelect | undefined {
+  return result.gameEvents
+    .filter(
+      (e) => e.eventType === 'gm_response' || e.eventType === 'correction',
+    )
+    .sort((a, b) => b.sequenceNumber - a.sequenceNumber)[0];
 }
 
 /**
