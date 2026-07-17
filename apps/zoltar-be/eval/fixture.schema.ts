@@ -98,15 +98,31 @@ const assertionSchema = z.discriminatedUnion('mode', [
 
 export type Assertion = z.infer<typeof assertionSchema>;
 
-export const evalFixtureSchema = z.object({
-  id: z.string().min(1),
-  tag: failureModeTagSchema,
-  sourceAdventureId: z.string().uuid(),
-  /** Traceability back to the original playtest turn this fixture reproduces. */
-  sourceSequenceNumber: z.number().int().nonnegative(),
-  seededState: seededStateSchema,
-  playerInput: playerInputSchema,
-  assertion: assertionSchema,
-});
+export const evalFixtureSchema = z
+  .object({
+    id: z.string().min(1),
+    tag: failureModeTagSchema,
+    sourceAdventureId: z.string().uuid(),
+    /** Traceability back to the original playtest turn this fixture reproduces. */
+    sourceSequenceNumber: z.number().int().nonnegative(),
+    seededState: seededStateSchema,
+    playerInput: playerInputSchema,
+    assertion: assertionSchema,
+  })
+  .refine(
+    (fixture) =>
+      judgedFailureModeTags.includes(
+        fixture.tag as (typeof judgedFailureModeTags)[number],
+      )
+        ? fixture.assertion.mode === 'judged'
+        : fixture.assertion.mode === 'structural',
+    {
+      message:
+        "assertion.mode must match the fixture's tag — judged tags " +
+        '(HIDDEN-INFO-LEAK, OVER-RESOLUTION) require a judged assertion, ' +
+        'every other tag requires a structural assertion',
+      path: ['assertion', 'mode'],
+    },
+  );
 
 export type EvalFixture = z.infer<typeof evalFixtureSchema>;

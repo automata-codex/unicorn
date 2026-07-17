@@ -77,4 +77,22 @@ describe('evalFixtureSchema', () => {
     const result = evalFixtureSchema.safeParse(badFacts);
     expect(result.success).toBe(false);
   });
+
+  it('rejects a judged tag paired with a structural assertion', () => {
+    const mismatched = {
+      ...VALID_JUDGED_FIXTURE,
+      assertion: VALID_STRUCTURAL_FIXTURE.assertion,
+    };
+    const result = evalFixtureSchema.safeParse(mismatched);
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a structural tag paired with a judged assertion', () => {
+    const mismatched = {
+      ...VALID_STRUCTURAL_FIXTURE,
+      assertion: VALID_JUDGED_FIXTURE.assertion,
+    };
+    const result = evalFixtureSchema.safeParse(mismatched);
+    expect(result.success).toBe(false);
+  });
 });
