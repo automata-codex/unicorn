@@ -11,7 +11,7 @@ import { DiceService } from '../dice/dice.service';
 import { RulesLookupService } from '../rules/rules-lookup.service';
 import { WardenPromptsService } from '../wardens/warden-prompts.service';
 
-import { applyToCampaignState } from './session.applier';
+import { applyValidatedTurn } from './session.applier';
 import { buildCorrectionRequest } from './session.correction';
 import { buildSessionRequest } from './session.prompt';
 import { SessionRepository } from './session.repository';
@@ -323,13 +323,26 @@ export class SessionService {
       }
     }
 
-    // 6. Compute the final state by merging applied deltas.
-    const finalState = applyToCampaignState({
-      currentData: campaignStateData,
+    // 7. The final narration/state-change payload sent to the player is
+    //    always the corrected one when a correction fired, otherwise the
+    //    original. Computed here (not just at bundling time below) because
+    //    `gmUpdates.npcStates` feeds the gm_context blob merge that follows.
+    const finalParsed = correctionParsed ?? originalParsed;
+
+    // 8. Compute the final campaign state and gm_context blob by merging
+    //    this turn's applied deltas / npcStates. `rawBlob` — not the
+    //    `playerEntityIds`-augmented `gmContextBlob` above — is the correct
+    //    prior value here: `playerEntityIds` is a per-request prompt-
+    //    building addition (session.snapshot.ts), never persisted state.
+    //    Merging it in would write it into the `gm_context.blob` column.
+    const { newCampaignState, newGmContextBlob } = applyValidatedTurn({
+      priorCampaignState: campaignStateData,
+      priorGmContextBlob: rawBlob,
       applied: validation.applied,
+      npcStates: finalParsed.gmUpdates?.npcStates ?? {},
     });
 
-    // 7. Snapshot the prompt that was sent — stored in telemetry for
+    // 9. Snapshot the prompt that was sent — stored in telemetry for
     //    playtest replay. Keyed by convention to the original `gm_response`
     //    sequence, even on a correction turn.
     const snapshotSent = buildStateSnapshot({
@@ -337,10 +350,10 @@ export class SessionService {
       campaignStateData,
     });
 
-    // 8. Materialize player-entered pre-turn rolls as ExecutedRollRecord.
-    //    These already carry real sequence numbers from the diceResult
-    //    transactions that wrote them; system-generated rolls from this
-    //    turn's inner loop get their seqs inside applyTurnAtomic.
+    // 10. Materialize player-entered pre-turn rolls as ExecutedRollRecord.
+    //     These already carry real sequence numbers from the diceResult
+    //     transactions that wrote them; system-generated rolls from this
+    //     turn's inner loop get their seqs inside applyTurnAtomic.
     const preTurnPlayerRolls = resolvedPlayerRolls.map((r) => ({
       source: 'player_entered' as const,
       sequenceNumber: r.sequenceNumber,
@@ -352,11 +365,7 @@ export class SessionService {
       requestId: r.requestId,
     }));
 
-    // 9. The final narration sent to the player is always the corrected
-    //    text when a correction fired, otherwise the original.
-    const finalParsed = correctionParsed ?? originalParsed;
-
-    // 10. Bundle every write into one transaction.
+    // 11. Bundle every write into one transaction.
     //     Phase 1 hardcodes autoPromoteCanon = true (every campaign is Solo
     //     Blind). Phase 2 introduces `campaign.creation_mode` and this becomes
     //     `creationMode === 'solo_blind'`.
@@ -376,7 +385,7 @@ export class SessionService {
       adventureId: args.adventureId,
       campaignId: args.campaignId,
       playerUserId: args.playerUserId,
-      campaignStateData: finalState,
+      campaignStateData: newCampaignState,
       playerAction: { content: args.playerMessage },
       executedRolls: innerLoop.executedRolls,
       gmResponse: originalParsed,
@@ -384,7 +393,7 @@ export class SessionService {
       applied: validation.applied,
       thresholds: validation.thresholds,
       proposedCanon: finalParsed.gmUpdates?.proposedCanon ?? [],
-      npcStates: finalParsed.gmUpdates?.npcStates ?? {},
+      gmContextBlob: newGmContextBlob,
       diceRequests: diceRequestInputs,
       gmText: finalParsed.playerText,
       telemetry: {

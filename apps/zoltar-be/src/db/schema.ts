@@ -350,6 +350,12 @@ export const pendingCanon = pgTable(
     summary: text('summary').notNull(),
     context: text('context').notNull(),
     status: canonStatusEnum('status').notNull().default('pending'),
+    // Nullable — rows written before this column existed (V17) have no
+    // sequence data to backfill from. Not unique: every canon entry
+    // proposed in one turn shares that turn's sequence number (see
+    // `events.gmResponseSeq` at the `insertPendingCanon` call site).
+    // Mirrors `adventure_telemetry.sequence_number`'s population pattern.
+    sequenceNumber: integer('sequence_number'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -358,7 +364,41 @@ export const pendingCanon = pgTable(
   (table) => [
     index('pending_canon_adventure_idx').on(table.adventureId),
     index('pending_canon_status_idx').on(table.adventureId, table.status),
+    index('pending_canon_adventure_seq_idx').on(
+      table.adventureId,
+      table.sequenceNumber,
+    ),
   ],
+);
+
+// ---------------------------------------------------------------------------
+// Adventure Synthesis Snapshots
+// ---------------------------------------------------------------------------
+
+/**
+ * True starting-condition capture for an adventure — `gm_context.blob` and
+ * `campaign_state.data` as they stood immediately after synthesis, before
+ * any turn was played. Written once, automatically, inside
+ * `SynthesisRepository.writeGmContextAtomic`; never updated. Feeds
+ * `load-synthesis` (clone starting conditions into a fresh adventure) and
+ * the M7.3 replay path (turn-0 baseline to fold `game_events` forward from).
+ */
+export const adventureSynthesisSnapshots = pgTable(
+  'adventure_synthesis_snapshots',
+  {
+    adventureId: uuid('adventure_id')
+      .primaryKey()
+      .references(() => adventures.id, { onDelete: 'cascade' }),
+    gmContextSchemaVersion: integer('gm_context_schema_version').notNull(),
+    gmContextBlob: jsonb('gm_context_blob').notNull(),
+    campaignStateSchemaVersion: integer(
+      'campaign_state_schema_version',
+    ).notNull(),
+    campaignStateData: jsonb('campaign_state_data').notNull(),
+    capturedAt: timestamp('captured_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
 );
 
 // ---------------------------------------------------------------------------

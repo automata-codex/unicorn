@@ -68,6 +68,26 @@ export class SynthesisRepository {
           set: { data: args.campaignStateData, updatedAt: sql`now()` },
         });
 
+      // True starting-condition capture — written once, automatically, and
+      // never updated (onConflictDoNothing). `commitGmContext` commits
+      // synthesis exactly once per adventure in practice, so there's no
+      // retry-with-different-content path that could make this stale.
+      // Hardcoded schema versions of 1 match `gm_context.schema_version` /
+      // `campaign_state.schema_version`'s column defaults (schema.ts) —
+      // the same value this write path implicitly produces above.
+      await tx
+        .insert(schema.adventureSynthesisSnapshots)
+        .values({
+          adventureId: args.adventureId,
+          gmContextSchemaVersion: 1,
+          gmContextBlob: args.gmContextBlob,
+          campaignStateSchemaVersion: 1,
+          campaignStateData: args.campaignStateData,
+        })
+        .onConflictDoNothing({
+          target: schema.adventureSynthesisSnapshots.adventureId,
+        });
+
       if (args.gridEntities.length > 0) {
         await tx.insert(schema.gridEntities).values(
           args.gridEntities.map((entity) => ({

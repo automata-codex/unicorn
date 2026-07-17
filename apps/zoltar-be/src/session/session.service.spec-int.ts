@@ -257,23 +257,40 @@ describe('SessionService (integration) — happy path', () => {
     ]);
     expect(events.map((e) => e.sequenceNumber)).toEqual([1, 2, 3]);
 
-    // Canon routed + auto-promoted (Solo Blind).
+    // Canon routed + auto-promoted (Solo Blind), sequence-numbered to the
+    // proposing turn's gm_response event (sequence 2, per the events array
+    // above).
     const canon = await db
       .select()
       .from(schema.pendingCanon)
       .where(eq(schema.pendingCanon.adventureId, adventureId));
     expect(canon).toHaveLength(1);
     expect(canon[0].status).toBe('promoted');
+    expect(canon[0].sequenceNumber).toBe(2);
 
     // NPC agenda merged into gm_context.blob.narrative.npcAgendas.
     const [ctxRow] = await db
       .select({ blob: schema.gmContexts.blob })
       .from(schema.gmContexts)
       .where(eq(schema.gmContexts.adventureId, adventureId));
-    const agendas = (
-      ctxRow.blob as { narrative: { npcAgendas: Record<string, string> } }
-    ).narrative.npcAgendas;
-    expect(agendas.corporate_spy_1).toBe('Now following the player');
+    const blob = ctxRow.blob as {
+      narrative: {
+        location: string;
+        hiddenTruth: string;
+        npcAgendas: Record<string, string>;
+      };
+      playerEntityIds?: unknown;
+    };
+    expect(blob.narrative.npcAgendas.corporate_spy_1).toBe(
+      'Now following the player',
+    );
+    // Untouched narrative fields pass through the merge unchanged.
+    expect(blob.narrative.location).toBe('Derelict freighter');
+    expect(blob.narrative.hiddenTruth).toBe('truth');
+    // `playerEntityIds` is a per-request prompt-building addition
+    // (session.snapshot.ts) spliced onto the blob in memory for Claude's
+    // prompt — it must never be persisted into the `gm_context.blob` column.
+    expect(blob.playerEntityIds).toBeUndefined();
 
     // One telemetry row keyed to the gm_response sequence.
     const telemetry = await db

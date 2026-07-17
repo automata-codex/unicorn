@@ -1,17 +1,18 @@
 #!/usr/bin/env tsx
 /**
- * M7.1 load-synthesis CLI — materializes a SynthesisExport JSON file
- * into a new campaign + adventure, ready to play. The loaded adventure
- * uses fresh UUIDs; loading the same file twice produces two distinct
- * campaigns so N candidate Warden prompts can run against the same
- * starting conditions.
+ * M7.1 load-synthesis CLI — materializes the automatically-captured
+ * synthesis snapshot for a source adventure (see
+ * `SynthesisRepository.writeGmContextAtomic`, M7.3) into a new campaign +
+ * adventure, ready to play. The loaded adventure uses fresh UUIDs; loading
+ * from the same source adventure twice produces two distinct campaigns so N
+ * candidate Warden prompts can run against the same starting conditions.
  *
  * Usage:
- *   npx tsx scripts/load-synthesis.ts <file.json>
- *   npx tsx scripts/load-synthesis.ts <file.json> --name "Prompt A run"
+ *   npx tsx scripts/load-synthesis.ts <source-adventure-id>
+ *   npx tsx scripts/load-synthesis.ts <source-adventure-id> --name "Prompt A run"
  *
  * Or via the task wrapper:
- *   task playtest:load-synthesis -- <file.json>
+ *   task playtest:load-synthesis -- <source-adventure-id>
  *
  * Environment:
  *   PLAYTEST_LOAD_USER_ID — user id to own the new campaign. Unset →
@@ -19,9 +20,7 @@
  *   the script exits non-zero.
  */
 
-import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 
@@ -30,11 +29,11 @@ import * as schema from '../src/db/schema';
 import {
   buildAndRunLoad,
   LoadSynthesisError,
-  parseSynthesisExport,
+  loadSynthesisSnapshot,
 } from './load-synthesis.core';
 
 interface CliArgs {
-  filePath: string;
+  sourceAdventureId: string;
   nameOverride: string | null;
 }
 
@@ -55,7 +54,7 @@ function parseCliArgs(argv: string[]): CliArgs {
   });
   if (positionals.length === 0) {
     throw new UsageError(
-      'missing <file.json>. Usage: load-synthesis <file.json> [--name <string>]',
+      'missing <source-adventure-id>. Usage: load-synthesis <source-adventure-id> [--name <string>]',
     );
   }
   if (positionals.length > 1) {
@@ -64,7 +63,7 @@ function parseCliArgs(argv: string[]): CliArgs {
     );
   }
   return {
-    filePath: positionals[0],
+    sourceAdventureId: positionals[0],
     nameOverride: typeof values.name === 'string' ? values.name : null,
   };
 }
@@ -87,38 +86,14 @@ async function main(): Promise<number> {
     return 2;
   }
 
-  let rawJson: string;
-  try {
-    rawJson = readFileSync(cli.filePath, 'utf8');
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    process.stderr.write(`failed to read ${cli.filePath}: ${msg}\n`);
-    return 1;
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(rawJson);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    process.stderr.write(`${cli.filePath} is not valid JSON: ${msg}\n`);
-    return 2;
-  }
-
-  let exportPayload: ReturnType<typeof parseSynthesisExport>;
-  try {
-    exportPayload = parseSynthesisExport(parsed);
-  } catch (err) {
-    if (err instanceof LoadSynthesisError) {
-      process.stderr.write(`${err.message}\n`);
-      return err.exitCode;
-    }
-    throw err;
-  }
-
   const pool = new Pool({ connectionString: databaseUrl });
   const db = drizzle(pool, { schema });
   try {
+    const exportPayload = await loadSynthesisSnapshot(
+      db,
+      cli.sourceAdventureId,
+    );
+
     const result = await buildAndRunLoad(db, {
       exportPayload,
       nameOverride: cli.nameOverride ?? undefined,
@@ -129,7 +104,7 @@ async function main(): Promise<number> {
       process.stderr.write(`warning: ${w}\n`);
     }
     process.stdout.write(
-      `loaded from ${cli.filePath}\n` +
+      `loaded from adventure ${cli.sourceAdventureId}\n` +
         `  campaign: ${result.campaignId} — ${result.campaignName}\n` +
         `  adventure: ${result.adventureId}\n` +
         `  owner:    ${result.resolvedUserId}\n\n` +
