@@ -58,6 +58,19 @@ const seededStateSchema = z.object({
   gmContextBlob: z.record(z.string(), z.unknown()),
   pendingCanon: z.array(z.record(z.string(), z.unknown())),
   messages: z.array(z.record(z.string(), z.unknown())),
+  /**
+   * Pending `dice_request` rows still open as of the target turn — needed
+   * only for fixtures whose `playerInput.type` is `'diceResult'` (the
+   * harness resolves one of these against `SessionService.submitDiceResult`
+   * rather than seeding a fresh scratch adventure with nothing to resolve).
+   * `reconstructStateAsOfTurn` (M7.3) doesn't return this — it's out of
+   * that function's scope, not something this milestone revisits — so
+   * `capture-fixture` reads it separately, directly from `dice_request`.
+   * Empty for `'message'`-type fixtures, which is the common case; defaults
+   * to `[]` so fixture files captured before this field existed still
+   * parse.
+   */
+  pendingDiceRequests: z.array(z.record(z.string(), z.unknown())).default([]),
   /** Provenance only — never read at eval-run time. */
   capturedAt: z.string(),
 });

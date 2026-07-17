@@ -64,6 +64,16 @@ export function getTestDb(): NodePgDatabase<typeof schema> {
   return db;
 }
 
+/**
+ * The `zoltar_test` connection string, for tests that need to point a
+ * separate connection (e.g. a full Nest `AppModule` bootstrap, which reads
+ * `DATABASE_URL` itself via `ConfigService`) at the same database `getTestDb()`
+ * already uses, rather than the real dev database.
+ */
+export function getTestDatabaseUrl(): string {
+  return testUrl;
+}
+
 export async function teardownTestDb(): Promise<void> {
   if (pool) await pool.end();
 }

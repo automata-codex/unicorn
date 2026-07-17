@@ -5,7 +5,11 @@ export default defineConfig({
   test: {
     globals: false,
     root: './',
-    include: ['src/**/*.spec-int.ts', 'scripts/**/*.spec-int.ts'],
+    include: [
+      'src/**/*.spec-int.ts',
+      'scripts/**/*.spec-int.ts',
+      'eval/**/*.spec-int.ts',
+    ],
     environment: 'node',
     testTimeout: 30_000,
     hookTimeout: 60_000,

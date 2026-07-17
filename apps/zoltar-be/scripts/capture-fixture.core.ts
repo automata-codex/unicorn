@@ -1,8 +1,11 @@
+import { and, asc, eq, gte, isNull, lt, or } from 'drizzle-orm';
+
 import {
   type EvalFixture,
   type FailureModeTag,
   judgedFailureModeTags,
 } from '../eval/fixture.schema';
+import * as schema from '../src/db/schema';
 import { reconstructStateAsOfTurn } from '../src/replay/reconstruct-state';
 
 import type { Db } from '../src/db/db.provider';
@@ -18,6 +21,36 @@ function isJudgedTag(tag: FailureModeTag): boolean {
   return judgedFailureModeTags.includes(
     tag as (typeof judgedFailureModeTags)[number],
   );
+}
+
+/**
+ * `dice_request` rows still pending "as of" the target turn — issued
+ * before it, and not yet resolved before it. Not part of
+ * `reconstructStateAsOfTurn`'s own output (M7.3 is out of scope for this
+ * milestone to revisit), so this is a separate, direct read against the
+ * same precondition `reconstructStateAsOfTurn` already checked (a valid
+ * `player_action` sequence number for this adventure).
+ */
+async function pendingDiceRequestsAsOfTurn(
+  db: Db,
+  adventureId: string,
+  targetSequenceNumber: number,
+): Promise<Record<string, unknown>[]> {
+  const rows = await db
+    .select()
+    .from(schema.diceRequests)
+    .where(
+      and(
+        eq(schema.diceRequests.adventureId, adventureId),
+        lt(schema.diceRequests.issuedAtSequence, targetSequenceNumber),
+        or(
+          isNull(schema.diceRequests.resolvedAtSequence),
+          gte(schema.diceRequests.resolvedAtSequence, targetSequenceNumber),
+        ),
+      ),
+    )
+    .orderBy(asc(schema.diceRequests.issuedAtSequence));
+  return rows as unknown as Record<string, unknown>[];
 }
 
 /**
@@ -47,6 +80,11 @@ export async function captureFixture(
     args.adventureId,
     args.targetSequenceNumber,
   );
+  const pendingDiceRequests = await pendingDiceRequestsAsOfTurn(
+    db,
+    args.adventureId,
+    args.targetSequenceNumber,
+  );
 
   return {
     id: args.id,
@@ -67,6 +105,7 @@ export async function captureFixture(
         unknown
       >[],
       messages: reconstructed.messages as unknown as Record<string, unknown>[],
+      pendingDiceRequests,
       capturedAt: new Date().toISOString(),
     },
     playerInput: {
