@@ -3,7 +3,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import * as schema from '../src/db/schema';
 import {
-  getTestDatabaseUrl,
   getTestDb,
   setupTestDb,
   teardownTestDb,
@@ -26,15 +25,11 @@ import type { HarnessSession } from './harness-runner';
 const RUN_LIVE = process.env.RUN_LIVE_EVAL_TESTS === '1';
 
 // `createHarnessSession` bootstraps the real AppModule, which reads
-// ANTHROPIC_API_KEY/VOYAGE_API_KEY/NODE_ENV via ConfigService — unlike every
-// other *.spec-int.ts file, which only ever talks to Postgres directly and
-// never needs these. Loads .env if present; existing env vars always win.
-try {
-  process.loadEnvFile();
-} catch {
-  // No .env file found (e.g. CI without the repo-root symlink) — rely on
-  // whatever's already in process.env.
-}
+// ANTHROPIC_API_KEY/VOYAGE_API_KEY/DATABASE_URL/NODE_ENV via ConfigService —
+// unlike every other *.spec-int.ts file, which only ever talks to Postgres
+// directly and never needs these. `.env` loading and pointing DATABASE_URL
+// at zoltar_test both happen in vitest-integration-setup.ts, before this
+// file's own imports resolve — see that file for why it can't be done here.
 
 beforeAll(() => setupTestDb());
 afterAll(() => teardownTestDb());
@@ -192,10 +187,9 @@ describe('runFixtureTurn — diceResult path (no live Anthropic call)', () => {
   let harness: HarnessSession;
 
   beforeAll(async () => {
-    // Point the Nest-bootstrapped AppModule's own DB connection at the same
-    // zoltar_test database getTestDb() already created/migrated, not the
-    // real dev database ConfigService would otherwise default to.
-    process.env.DATABASE_URL = getTestDatabaseUrl();
+    // DATABASE_URL is pointed at zoltar_test by vitest-integration-setup.ts
+    // (a setupFiles entry, run before this file's own imports resolve) —
+    // setting it here would be too late; see that file for why.
     harness = await createHarnessSession();
   });
 
@@ -268,7 +262,6 @@ describe.skipIf(!RUN_LIVE)(
     let harness: HarnessSession;
 
     beforeAll(async () => {
-      process.env.DATABASE_URL = getTestDatabaseUrl();
       harness = await createHarnessSession();
     });
 

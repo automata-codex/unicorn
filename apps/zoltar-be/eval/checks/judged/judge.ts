@@ -92,22 +92,20 @@ function extractPlayerText(result: TurnExecutionResult): string {
 }
 
 /**
- * Runs one judge-graded assertion: builds the rubric prompt (template with
- * `fixture.assertion.facts` interpolated, plus the turn's own narration and
- * tool-call sequence), forces a `judge_verdict` tool call on Sonnet 5, and
- * returns the parsed verdict. Throws if `fixture.assertion.mode` isn't
+ * Resolves a judged fixture's rubric template into its final question text
+ * — `fixture.assertion.facts` interpolated in, validated against the
+ * rubric's `requiredFacts` first. Exported (not just inlined into
+ * `runJudgeCall`) so the `eval:harness` CLI (Part 7) can show the same text
+ * as a report's "Expected: ..." line without re-deriving or duplicating
+ * this resolution logic. Throws if `fixture.assertion.mode` isn't
  * `'judged'`, if no rubric is registered for `fixture.assertion.rubric`, or
  * if a required fact is missing — all three are fixture-authoring mistakes
  * that should fail loudly rather than silently produce a degraded prompt.
  */
-export async function runJudgeCall(
-  anthropic: AnthropicService,
-  fixture: EvalFixture,
-  result: TurnExecutionResult,
-): Promise<JudgedVerdict> {
+export function resolveRubricText(fixture: EvalFixture): string {
   if (fixture.assertion.mode !== 'judged') {
     throw new Error(
-      `runJudgeCall called with a non-judged fixture "${fixture.id}"`,
+      `resolveRubricText called with a non-judged fixture "${fixture.id}"`,
     );
   }
 
@@ -128,7 +126,21 @@ export async function runJudgeCall(
     }
   }
 
-  const rubricText = interpolate(rubric.template, fixture.assertion.facts);
+  return interpolate(rubric.template, fixture.assertion.facts);
+}
+
+/**
+ * Runs one judge-graded assertion: builds the rubric prompt (via
+ * `resolveRubricText`, plus the turn's own narration and tool-call
+ * sequence), forces a `judge_verdict` tool call on Sonnet 5, and returns
+ * the parsed verdict.
+ */
+export async function runJudgeCall(
+  anthropic: AnthropicService,
+  fixture: EvalFixture,
+  result: TurnExecutionResult,
+): Promise<JudgedVerdict> {
+  const rubricText = resolveRubricText(fixture);
   const prompt =
     `${rubricText}\n\n` +
     `--- This turn's narration (playerText) ---\n${extractPlayerText(result)}\n\n` +

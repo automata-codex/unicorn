@@ -20,6 +20,19 @@ import type { EvalFixture } from './fixture.schema';
  * picking `SessionModule`'s transitive imports, and guarantees the harness
  * exercises exactly the module graph production does.
  *
+ * **Must be run through a transform that emits correct TypeScript decorator
+ * metadata** (`design:paramtypes`) — plain `tsx` (esbuild) does not, and
+ * every `@Injectable()` constructor-injecting a dependency by type (which is
+ * all of them here) silently receives `undefined` for that parameter
+ * instead, surfacing as confusing `Cannot read properties of undefined`
+ * errors deep in Nest's injector. Confirmed empirically: `AnthropicService`
+ * failed reliably via plain `tsx`, and `Reflect.getMetadata('design:paramtypes', AnthropicService)`
+ * came back `undefined` under it — but returned the real `[ConfigService]`
+ * under `@swc-node/register`. This never surfaced inside Vitest because the
+ * test configs already transform via `unplugin-swc`. The `eval:harness` CLI
+ * (Part 7) invokes this module via `node -r @swc-node/register -r reflect-metadata`,
+ * not `tsx`, specifically because of this.
+ *
  * `moduleRef.init()` (not just `.compile()`) is required so
  * `WardenPromptsService`'s `OnModuleInit` hook actually runs — Nest only
  * runs lifecycle hooks on init, not on bare compilation. No HTTP server is

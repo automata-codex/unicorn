@@ -16,7 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "eval:harness": "node -r @swc-node/register -r reflect-metadata scripts/eval-harness.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.89.0",
@@ -43,7 +44,8 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
-    "@swc/core": "^1.10.0",
+    "@swc-node/register": "^1.12.0",
+    "@swc/core": "^1.15.43",
     "@types/node": "^22.10.7",
     "@types/nodemailer": "^8.0.0",
     "@types/pg": "^8.11.0",
