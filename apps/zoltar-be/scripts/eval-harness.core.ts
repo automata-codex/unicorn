@@ -39,6 +39,16 @@ export interface RunHarnessResult {
   loadErrors: FixtureLoadError[];
 }
 
+/** The fixture's own "what we expected" text — the `check` string as-is
+ * for structural fixtures, the resolved (fact-interpolated) rubric text for
+ * judged ones. Split out from `evaluateFixture` so the error-handling path
+ * in `runHarness` can compute it independent of whether the turn itself
+ * completed. */
+function expectedTextFor(fixture: EvalFixture): string {
+  if (fixture.assertion.mode === 'structural') return fixture.assertion.check;
+  return resolveRubricText(fixture);
+}
+
 async function evaluateFixture(
   fixture: EvalFixture,
   turnResult: TurnExecutionResult,
@@ -79,12 +89,20 @@ async function evaluateFixture(
  * there's no benefit to the concurrency complexity of parallelizing, and
  * serial execution keeps report ordering predictable.
  *
- * A single fixture throwing (a genuinely unexpected error — a live model
- * call failing, a checker rejecting a malformed fixture) aborts the whole
- * run after cleaning up that fixture's own scratch adventure; it does not
- * silently continue past an error the way a resilient batch job might.
- * This is a manually-invoked local tool an operator is watching, not an
- * unattended CI job — see spec "Out of Scope: CI integration."
+ * A single fixture's turn failing to even complete — a live model call
+ * producing output that fails schema validation, the inner tool loop
+ * exhausting its iteration cap, a checker rejecting a malformed fixture —
+ * is recorded as a **failed** `FixtureResult` (with the error message as
+ * `actual`) rather than aborting the whole run. Originally this did abort
+ * the run; Part 8's real-fixture pass found that real LLM output is
+ * variable enough (a correction round's own retry occasionally produces
+ * further-malformed output; an off-screen combat turn can blow the tool
+ * loop cap on one run and not the next) that a hard abort meant a single
+ * flaky turn threw away every other fixture's result in the same
+ * invocation. A turn that doesn't complete is, if anything, a *stronger*
+ * failure signal than the specific bug a fixture's checker was targeting —
+ * treating it as a normal failed result rather than a crash is the more
+ * useful behavior for what this tool is actually for.
  */
 export async function runHarness(
   args: RunHarnessArgs,
@@ -120,6 +138,21 @@ export async function runHarness(
         results.push(
           await evaluateFixture(fixture, turnResult, harness.anthropicService),
         );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        let expected: string;
+        try {
+          expected = expectedTextFor(fixture);
+        } catch {
+          expected =
+            '(unavailable — resolving the expected text itself failed)';
+        }
+        results.push({
+          fixture,
+          passed: false,
+          expected,
+          actual: `ERRORED before an assertion could run: ${message}`,
+        });
       } finally {
         if (!args.keepScratch) {
           await teardownScratchAdventure(harness.db, seeded.campaignId);

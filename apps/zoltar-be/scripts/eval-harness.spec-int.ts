@@ -199,6 +199,38 @@ describe('runHarness (integration)', () => {
     expect(results[0].fixture.id).toBe('pass-fixture');
   });
 
+  it('records a failed result instead of aborting the run when a fixture errors mid-turn', async () => {
+    await seedPrereqs();
+    // MISSING-CANON-CAPTURE's checker throws if `check` has no "expects:"
+    // marker — a fixture-authoring mistake, not a live-model failure, but
+    // exercises the same "the turn/evaluation threw" path without needing
+    // a real Anthropic call.
+    const errorFixture = {
+      ...PASS_FIXTURE,
+      id: 'error-fixture',
+      tag: 'MISSING-CANON-CAPTURE',
+      assertion: {
+        mode: 'structural',
+        check: 'this check text has no trigger marker at all',
+      },
+    };
+    writeFileSync(join(fixturesDir, 'pass.json'), JSON.stringify(PASS_FIXTURE));
+    writeFileSync(
+      join(fixturesDir, 'error.json'),
+      JSON.stringify(errorFixture),
+    );
+
+    const { results } = await runHarness({ fixturesDir });
+
+    expect(results).toHaveLength(2);
+    const byId = Object.fromEntries(results.map((r) => [r.fixture.id, r]));
+    expect(byId['pass-fixture'].passed).toBe(true);
+    expect(byId['error-fixture'].passed).toBe(false);
+    expect(byId['error-fixture'].actual).toMatch(
+      /ERRORED before an assertion could run/,
+    );
+  });
+
   it('leaves the scratch campaign in place when keepScratch is true', async () => {
     await seedPrereqs();
     writeFileSync(join(fixturesDir, 'pass.json'), JSON.stringify(PASS_FIXTURE));
