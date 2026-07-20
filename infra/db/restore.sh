@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Restore the local dev database from a pg_dump custom-format file, run inside the `db` compose service.
 # Drops and recreates existing objects before restoring — destructive, local dev only.
+# Set DB_BACKUP_DIR to change where a bare filename (no "/") is looked up (default: infra/db/backups).
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
@@ -10,7 +11,12 @@ if [[ $# -lt 1 ]]; then
   exit 1
 fi
 
+BACKUP_DIR="${DB_BACKUP_DIR:-infra/db/backups}"
+
 FILE="$1"
+if [[ "$FILE" != */* ]]; then
+  FILE="$BACKUP_DIR/$FILE"
+fi
 if [[ ! -f "$FILE" ]]; then
   echo "Backup file not found: $FILE" >&2
   exit 1

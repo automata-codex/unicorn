@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Back up the local dev database via pg_dump, run inside the `db` compose service.
+# Set DB_BACKUP_DIR to change where backups are written (default: infra/db/backups).
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
-OUT_DIR="infra/db/backups"
+OUT_DIR="${DB_BACKUP_DIR:-infra/db/backups}"
 mkdir -p "$OUT_DIR"
 
 OUT_FILE="${1:-$OUT_DIR/backup_$(date +%Y%m%d%H%M%S).dump}"

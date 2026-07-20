@@ -8,6 +8,8 @@
  *   npx tsx scripts/playtest-review.ts <adventure-id> --stdout  -> prints
  *   npx tsx scripts/playtest-review.ts <adventure-id> --output <path>
  *
+ * Set PLAYTEST_REPORTS_DIR to change the default output directory.
+ *
  * Or via the task wrapper:
  *   task playtest:review -- <adventure-id>
  */
@@ -70,13 +72,20 @@ class UsageError extends Error {
   }
 }
 
-function defaultOutputPath(adventureId: string): string {
+/**
+ * `PLAYTEST_REPORTS_DIR` overrides the output directory when set; defaults
+ * to `playtest-reports` resolved against the current working directory.
+ */
+export function defaultOutputPath(adventureId: string): string {
   const now = new Date();
   const pad = (n: number): string => String(n).padStart(2, '0');
   const stamp =
     `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
     `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-  return resolve('playtest-reports', `${adventureId}-${stamp}.md`);
+  const reportsDir = process.env.PLAYTEST_REPORTS_DIR?.length
+    ? process.env.PLAYTEST_REPORTS_DIR
+    : 'playtest-reports';
+  return resolve(reportsDir, `${adventureId}-${stamp}.md`);
 }
 
 async function main(): Promise<number> {
@@ -135,10 +144,12 @@ async function main(): Promise<number> {
   }
 }
 
-main().then(
-  (code) => process.exit(code),
-  (err) => {
-    process.stderr.write(`${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
-    process.exit(1);
-  },
-);
+if (require.main === module) {
+  main().then(
+    (code) => process.exit(code),
+    (err) => {
+      process.stderr.write(`${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+      process.exit(1);
+    },
+  );
+}
