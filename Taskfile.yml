@@ -23,12 +23,14 @@ tasks:
       - docker compose down
 
   db:backup:
-    desc: Back up the local dev database to infra/db/backups/. Usage — task db:backup [-- <output-file>]
+    desc: Back up the local dev database to infra/db/backups/ (or $DB_BACKUP_DIR). Usage — task db:backup [-- <output-file>]
+    dotenv: ['.env']
     cmds:
       - ./infra/db/backup.sh {{.CLI_ARGS}}
 
   db:restore:
     desc: Restore the local dev database from a pg_dump custom-format file. Destructive — drops existing objects. Usage — task db:restore -- <backup-file>
+    dotenv: ['.env']
     cmds:
       - ./infra/db/restore.sh {{.CLI_ARGS}}
 
