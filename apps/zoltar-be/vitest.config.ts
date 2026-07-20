@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     globals: false,
     root: './',
-    include: ['src/**/*.spec.ts'],
+    include: ['src/**/*.spec.ts', 'scripts/**/*.spec.ts'],
     exclude: ['src/**/*.spec-int.ts'],
     environment: 'node',
   },
