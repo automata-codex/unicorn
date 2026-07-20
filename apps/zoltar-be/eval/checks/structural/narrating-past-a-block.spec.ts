@@ -56,6 +56,50 @@ describe('checkNarratingPastABlock', () => {
     expect(checkNarratingPastABlock(result).passed).toBe(true);
   });
 
+  it('fails on block-acknowledging language even with no pending dice_request (missing-data block, deliberately-broken counterexample)', () => {
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({
+          sequenceNumber: 3,
+          eventType: 'gm_response',
+          payload: {
+            playerText:
+              "What's your Instinct score? While you're deciding, here's " +
+              'what your body is already doing regardless of the number: ' +
+              "the contractor's boot shifts weight.",
+          },
+        }),
+      ],
+      // No pending dice_request at all — this turn is blocked on a missing
+      // stat value, not a roll. The dice_request-based signal alone would
+      // never catch this.
+      diceRequests: [],
+    });
+
+    const verdict = checkNarratingPastABlock(result);
+    expect(verdict.passed).toBe(false);
+    expect(verdict.actual).toMatch(/acknowledges an unresolved decision/);
+  });
+
+  it('does not false-positive on unrelated uses of "while" or "regardless" (boundary)', () => {
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({
+          sequenceNumber: 3,
+          eventType: 'gm_response',
+          payload: {
+            playerText:
+              'While you catch your breath, the corridor stays quiet. ' +
+              'Regardless of the noise outside, nothing here has moved.',
+          },
+        }),
+      ],
+      diceRequests: [],
+    });
+
+    expect(checkNarratingPastABlock(result).passed).toBe(true);
+  });
+
   it('prefers the correction event over the original gm_response when both exist', () => {
     const result = fakeTurnExecutionResult({
       gameEvents: [
