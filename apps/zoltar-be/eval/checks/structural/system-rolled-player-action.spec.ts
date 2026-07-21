@@ -1,20 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
 import { checkSystemRolledPlayerAction } from './system-rolled-player-action';
-import {
-  fakeDiceRequest,
-  fakeDiceRoll,
-  fakeTurnExecutionResult,
-} from './test-helpers';
+import { fakeDiceRoll, fakeTurnExecutionResult } from './test-helpers';
+
+const CAMPAIGN_STATE_WITH_PLAYER = {
+  resourcePools: {
+    alvarez_hp: { current: 10, max: 20 },
+    alvarez_armor: { current: 5, max: 10 },
+    veridian_contractor_alpha_hp: { current: 8, max: 15 },
+  },
+};
 
 describe('checkSystemRolledPlayerAction', () => {
-  it('passes when the first dice_roll carries roll_source=player_entered', () => {
+  it('passes when no player-attributed consequence roll appears this turn (boundary)', () => {
     const result = fakeTurnExecutionResult({
+      campaignState: CAMPAIGN_STATE_WITH_PLAYER,
       gameEvents: [
         fakeDiceRoll({
           sequenceNumber: 1,
-          purpose: 'player attack roll',
-          rollSource: 'player_entered',
+          purpose: 'Contractor Alpha combat attack roll against Alvarez',
         }),
       ],
     });
@@ -22,55 +26,85 @@ describe('checkSystemRolledPlayerAction', () => {
     expect(checkSystemRolledPlayerAction(result).passed).toBe(true);
   });
 
-  it('fails when the first dice_roll is system-generated with no pending dice_request (deliberately-broken counterexample)', () => {
+  it('fails when the player-attributed damage roll appears system-side (deliberately-broken counterexample, from real replayed output)', () => {
     const result = fakeTurnExecutionResult({
+      campaignState: CAMPAIGN_STATE_WITH_PLAYER,
       gameEvents: [
         fakeDiceRoll({
           sequenceNumber: 1,
-          purpose: 'player attack roll',
-          rollSource: 'system_generated',
+          purpose: 'Contractor Alpha combat attack roll against Alvarez',
+        }),
+        fakeDiceRoll({
+          sequenceNumber: 2,
+          purpose: 'Alvarez rifle damage if her attack hits',
         }),
       ],
-      diceRequests: [],
     });
 
     const verdict = checkSystemRolledPlayerAction(result);
     expect(verdict.passed).toBe(false);
-    expect(verdict.actual).toMatch(/system_generated/);
+    expect(verdict.actual).toMatch(/sequence 2/);
   });
 
-  it('passes when the first dice_roll is system-generated but a separate dice_request is pending', () => {
+  it('does not flag an NPC damage roll that merely mentions the player as the target', () => {
     const result = fakeTurnExecutionResult({
+      campaignState: CAMPAIGN_STATE_WITH_PLAYER,
       gameEvents: [
         fakeDiceRoll({
           sequenceNumber: 1,
-          purpose: 'NPC reaction roll',
-          rollSource: 'system_generated',
+          purpose: 'Contractor rifle damage to Alvarez if hit lands',
         }),
-      ],
-      diceRequests: [
-        fakeDiceRequest({ notation: '1d10', purpose: 'Fear save' }),
       ],
     });
 
     expect(checkSystemRolledPlayerAction(result).passed).toBe(true);
   });
 
-  it('passes when there are no dice_roll events and no pending dice_request (boundary)', () => {
-    const result = fakeTurnExecutionResult();
+  it('is not fooled by an unrelated pending dice_request into ignoring a system-rolled player consequence', () => {
+    // Confirmed against real replayed output: the same turn can defer the
+    // to-hit roll to the player (a genuinely pending dice_request) while
+    // still pre-rolling the player's own damage system-side — the pending
+    // request for a *different* roll must not excuse this.
+    const result = fakeTurnExecutionResult({
+      campaignState: CAMPAIGN_STATE_WITH_PLAYER,
+      gameEvents: [
+        fakeDiceRoll({
+          sequenceNumber: 1,
+          purpose: 'Alvarez rifle damage if hit',
+        }),
+      ],
+      diceRequests: [
+        {
+          id: 'req-1',
+          adventureId: 'a1',
+          issuedAtSequence: 1,
+          notation: '1d100',
+          purpose: 'Alvarez shoots contractor Alpha — roll under Combat to hit',
+          target: 30,
+          status: 'pending',
+          resolvedAtSequence: null,
+          resolvedAt: null,
+          createdAt: new Date('2026-07-15T00:00:00.000Z'),
+        },
+      ],
+    });
 
-    expect(checkSystemRolledPlayerAction(result).passed).toBe(true);
+    expect(checkSystemRolledPlayerAction(result).passed).toBe(false);
   });
 
-  it('passes when there are no dice_roll events but a dice_request is pending', () => {
+  it('passes when no player entity can be identified from campaignState (boundary)', () => {
     const result = fakeTurnExecutionResult({
-      diceRequests: [
-        fakeDiceRequest({ notation: '1d10', purpose: 'Fear save' }),
+      campaignState: {},
+      gameEvents: [
+        fakeDiceRoll({
+          sequenceNumber: 1,
+          purpose: 'Alvarez rifle damage if hit',
+        }),
       ],
     });
 
     const verdict = checkSystemRolledPlayerAction(result);
     expect(verdict.passed).toBe(true);
-    expect(verdict.actual).toMatch(/deferred to the player/);
+    expect(verdict.actual).toMatch(/no player entity could be identified/);
   });
 });
