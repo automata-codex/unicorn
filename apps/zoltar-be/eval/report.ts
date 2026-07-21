@@ -28,21 +28,26 @@ function summaryByTag(results: FixtureResult[]): string[] {
     .map(([tag, { passed, total }]) => `- ${tag}: ${passed}/${total} passed`);
 }
 
-function failureBlocks(results: FixtureResult[]): string[] {
+function resultBlocks(results: FixtureResult[], passed: boolean): string[] {
   return results
-    .filter((result) => !result.passed)
+    .filter((result) => result.passed === passed)
     .map(
       (result) =>
-        `### ${result.fixture.id} — FAILED\n` +
+        `### ${result.fixture.id} — ${passed ? 'PASSED' : 'FAILED'}\n` +
         `Expected: ${result.expected}\n` +
         `Actual: ${result.actual}`,
     );
 }
 
 /**
- * Renders the M7.4 spec's "Output Format" markdown exactly. `runLabel` is
- * typically the prompt-variant filename (or "baseline" for the unmodified
- * prompt) — whatever the caller wants displayed as which run this is.
+ * Renders the M7.4 spec's "Output Format" markdown, extended with a
+ * trailing "## Passes" section (beyond what the spec illustrates) so a
+ * reviewer confirming a whole fixture library against a baseline prompt can
+ * see every fixture's Expected/Actual detail, not just the failing ones —
+ * a passing regression fixture can still be passing for the wrong reason.
+ * `runLabel` is typically the prompt-variant filename (or "baseline" for
+ * the unmodified prompt) — whatever the caller wants displayed as which
+ * run this is.
  *
  * Renders valid, non-crashing markdown for empty `results` too (fixture
  * count 0, both sections present but empty) — the spec's fixture-count bar
@@ -61,7 +66,8 @@ export function renderReport(
     `# Eval Run: ${runLabel}`,
     `Fixtures: ${results.length}  |  Passed: ${passedCount}  |  Failed: ${failedCount}`,
     ['## Summary by tag', ...summaryByTag(results)].join('\n'),
-    ['## Failures', ...failureBlocks(results)].join('\n\n'),
+    ['## Failures', ...resultBlocks(results, false)].join('\n\n'),
+    ['## Passes', ...resultBlocks(results, true)].join('\n\n'),
   ];
 
   return `${sections.join('\n\n')}\n`;

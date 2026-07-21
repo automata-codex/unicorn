@@ -136,6 +136,16 @@ async function main(): Promise<number> {
     tags: cli.tags,
     promptVariant: cli.promptVariant,
     keepScratch: cli.keepScratch,
+    onProgress: (event) => {
+      const label = `[${event.index + 1}/${event.total}] ${event.fixture.id} (${event.fixture.tag})`;
+      if (event.type === 'fixture-start') {
+        process.stderr.write(`${label} — running...\n`);
+        return;
+      }
+      const verdict = event.result.passed ? 'PASSED' : 'FAILED';
+      const seconds = (event.durationMs / 1000).toFixed(1);
+      process.stderr.write(`${label} — ${verdict} (${seconds}s)\n`);
+    },
   });
 
   for (const loadError of loadErrors) {

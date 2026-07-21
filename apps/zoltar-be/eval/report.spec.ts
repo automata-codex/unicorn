@@ -43,11 +43,13 @@ describe('renderReport', () => {
         '\n' +
         '## Summary by tag\n' +
         '\n' +
-        '## Failures\n',
+        '## Failures\n' +
+        '\n' +
+        '## Passes\n',
     );
   });
 
-  it('renders an all-pass report with one tag', () => {
+  it('renders an all-pass report with one tag, including Expected/Actual detail in Passes', () => {
     const results: FixtureResult[] = [
       result({
         fixture: fixture('turn19', 'OUT-OF-ORDER-RESOLUTION'),
@@ -69,7 +71,17 @@ describe('renderReport', () => {
         '## Summary by tag\n' +
         '- OUT-OF-ORDER-RESOLUTION: 2/2 passed\n' +
         '\n' +
-        '## Failures\n',
+        '## Failures\n' +
+        '\n' +
+        '## Passes\n' +
+        '\n' +
+        '### turn19 — PASSED\n' +
+        'Expected: no damage roll before to-hit roll resolves\n' +
+        'Actual: no violation found\n' +
+        '\n' +
+        '### turn21 — PASSED\n' +
+        'Expected: no damage roll before to-hit roll resolves\n' +
+        'Actual: no violation found\n',
     );
   });
 
@@ -95,7 +107,9 @@ describe('renderReport', () => {
         '\n' +
         '### turn19 — FAILED\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
-        'Actual: damage roll at sequence 2 preceded to-hit roll at sequence 3\n',
+        'Actual: damage roll at sequence 2 preceded to-hit roll at sequence 3\n' +
+        '\n' +
+        '## Passes\n',
     );
   });
 
@@ -126,7 +140,13 @@ describe('renderReport', () => {
         '\n' +
         '### turn28 — FAILED\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
-        'Actual: damage roll at sequence 5 preceded to-hit roll at sequence 6\n',
+        'Actual: damage roll at sequence 5 preceded to-hit roll at sequence 6\n' +
+        '\n' +
+        '## Passes\n' +
+        '\n' +
+        '### turn19 — PASSED\n' +
+        'Expected: no damage roll before to-hit roll resolves\n' +
+        'Actual: no violation found\n',
     );
   });
 
@@ -164,7 +184,17 @@ describe('renderReport', () => {
         '\n' +
         '### turn24b — FAILED\n' +
         'Expected: no leak beyond perception boundary\n' +
-        'Actual: reveals a roll value beyond the boundary\n',
+        'Actual: reveals a roll value beyond the boundary\n' +
+        '\n' +
+        '## Passes\n' +
+        '\n' +
+        '### turn24 — PASSED\n' +
+        'Expected: no damage roll before to-hit roll resolves\n' +
+        'Actual: resolution level matches\n' +
+        '\n' +
+        '### turn19 — PASSED\n' +
+        'Expected: no damage roll before to-hit roll resolves\n' +
+        'Actual: no violation found\n',
     );
   });
 });

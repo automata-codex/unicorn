@@ -16,6 +16,25 @@ import type { TurnExecutionResult } from '../eval/harness-runner';
 import type { FixtureResult } from '../eval/report';
 import type { AnthropicService } from '../src/anthropic/anthropic.service';
 
+/** Emitted around each fixture's run so a long invocation (a full 14-fixture
+ * run can take several minutes — most fixtures make a real, possibly-slow
+ * Anthropic call) can report progress instead of appearing to hang. */
+export type HarnessProgressEvent =
+  | {
+      type: 'fixture-start';
+      index: number;
+      total: number;
+      fixture: EvalFixture;
+    }
+  | {
+      type: 'fixture-done';
+      index: number;
+      total: number;
+      fixture: EvalFixture;
+      result: FixtureResult;
+      durationMs: number;
+    };
+
 export interface RunHarnessArgs {
   fixturesDir: string;
   tags?: FailureModeTag[];
@@ -28,6 +47,9 @@ export interface RunHarnessArgs {
   /** Skip `teardownScratchAdventure` for every fixture this run, leaving
    * `__eval__`-tagged campaigns in place for manual inspection. */
   keepScratch?: boolean;
+  /** Optional progress callback, fired before and after each fixture.
+   * Omitted by tests/callers that don't care about progress. */
+  onProgress?: (event: HarnessProgressEvent) => void;
 }
 
 export interface RunHarnessResult {
@@ -124,10 +146,16 @@ export async function runHarness(
   const results: FixtureResult[] = [];
 
   try {
-    for (const fixture of fixtures) {
+    const total = fixtures.length;
+    for (let index = 0; index < total; index++) {
+      const fixture = fixtures[index];
+      args.onProgress?.({ type: 'fixture-start', index, total, fixture });
+      const startedAt = Date.now();
+
       const seeded = await seedScratchAdventure(harness.db, fixture, {
         runId,
       });
+      let result: FixtureResult;
       try {
         const turnResult = await runFixtureTurn(
           harness.db,
@@ -135,8 +163,10 @@ export async function runHarness(
           fixture,
           seeded,
         );
-        results.push(
-          await evaluateFixture(fixture, turnResult, harness.anthropicService),
+        result = await evaluateFixture(
+          fixture,
+          turnResult,
+          harness.anthropicService,
         );
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -147,17 +177,27 @@ export async function runHarness(
           expected =
             '(unavailable — resolving the expected text itself failed)';
         }
-        results.push({
+        result = {
           fixture,
           passed: false,
           expected,
           actual: `ERRORED before an assertion could run: ${message}`,
-        });
+        };
       } finally {
         if (!args.keepScratch) {
           await teardownScratchAdventure(harness.db, seeded.campaignId);
         }
       }
+
+      results.push(result);
+      args.onProgress?.({
+        type: 'fixture-done',
+        index,
+        total,
+        fixture,
+        result,
+        durationMs: Date.now() - startedAt,
+      });
     }
   } finally {
     await harness.close();

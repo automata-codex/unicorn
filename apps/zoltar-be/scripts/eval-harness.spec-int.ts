@@ -46,7 +46,7 @@ async function seedPrereqs(): Promise<void> {
 const BASE_SEEDED_STATE = {
   campaignState: {
     schemaVersion: 1,
-    resourcePools: {},
+    resourcePools: { alvarez_hp: { max: 20, current: 20 } },
     entities: {},
     flags: {},
     scenarioState: {},
@@ -61,6 +61,16 @@ const BASE_SEEDED_STATE = {
 // Both use the diceResult path (no live Anthropic call — applyDiceResultAtomic
 // never touches Claude) so this test file stays free and fast by default,
 // same reasoning as harness-runner.spec-int.ts's diceResult-path test.
+//
+// checkSystemRolledPlayerAction (see eval/checks/structural/system-rolled-player-action.ts)
+// no longer looks at roll_source at all — every tool-loop roll is
+// unconditionally 'system_generated' regardless of which entity it
+// represents, so that field can't distinguish these cases. It instead flags
+// any dice_roll whose purpose reads as a conditional-damage consequence
+// ("damage ... if ... hits/succeeds/lands/connects") AND is attributed to a
+// player-entity name derived from campaignState.resourcePools keys
+// (`alvarez_hp` -> "alvarez"). PASS_FIXTURE's purpose deliberately doesn't
+// match that pattern; FAIL_FIXTURE's does and is attributed to "alvarez".
 const PASS_FIXTURE = {
   id: 'pass-fixture',
   tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
@@ -90,7 +100,11 @@ const FAIL_FIXTURE = {
   seededState: {
     ...BASE_SEEDED_STATE,
     pendingDiceRequests: [
-      { notation: '1d10', purpose: 'Fear save', target: 30 },
+      {
+        notation: '1d10',
+        purpose: 'Alvarez rifle damage if Combat roll succeeds',
+        target: 30,
+      },
     ],
   },
   playerInput: {
