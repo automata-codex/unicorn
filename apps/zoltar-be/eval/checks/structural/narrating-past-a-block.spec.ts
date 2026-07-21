@@ -100,6 +100,68 @@ describe('checkNarratingPastABlock', () => {
     expect(checkNarratingPastABlock(result).passed).toBe(true);
   });
 
+  it('fails on bare "regardless:" continuation language with no "while" or "regardless of", from real replayed output (deliberately-broken counterexample)', () => {
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({
+          sequenceNumber: 3,
+          eventType: 'gm_response',
+          payload: {
+            playerText:
+              "Roll your Combat (1d100, under 30). The world's side of this " +
+              'exchange has already resolved — here’s what happens ' +
+              "regardless: Contractor Alpha's return burst misses again.",
+          },
+        }),
+      ],
+      diceRequests: [fakeDiceRequest({ notation: '1d100', purpose: 'combat' })],
+    });
+
+    const verdict = checkNarratingPastABlock(result);
+    expect(verdict.passed).toBe(false);
+    expect(verdict.actual).toMatch(/acknowledges an unresolved decision/);
+  });
+
+  it('fails on "you put X damage" resolution language, from real replayed output (deliberately-broken counterexample)', () => {
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({
+          sequenceNumber: 3,
+          eventType: 'gm_response',
+          payload: {
+            playerText:
+              'If your Combat roll lands under 30, you put 4 damage into ' +
+              'Contractor Alpha.',
+          },
+        }),
+      ],
+      diceRequests: [fakeDiceRequest({ notation: '1d100', purpose: 'combat' })],
+    });
+
+    const verdict = checkNarratingPastABlock(result);
+    expect(verdict.passed).toBe(false);
+    expect(verdict.actual).toMatch(/resolution language/);
+  });
+
+  it('does not false-positive on unrelated "regardless of X" phrasing lacking a number/score/result anchor (boundary)', () => {
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({
+          sequenceNumber: 3,
+          eventType: 'gm_response',
+          payload: {
+            playerText:
+              'The reading holds steady regardless of the interference, ' +
+              'a fact worth noting for later.',
+          },
+        }),
+      ],
+      diceRequests: [],
+    });
+
+    expect(checkNarratingPastABlock(result).passed).toBe(true);
+  });
+
   it('prefers the correction event over the original gm_response when both exist', () => {
     const result = fakeTurnExecutionResult({
       gameEvents: [

@@ -18,7 +18,7 @@ interface GmResponsePayload {
  * flagged explicitly, not silently accepted as solved.
  */
 const RESOLUTION_LANGUAGE_PATTERN =
-  /\b(succeeds?|fails?|you (hit|deal|take)|damage is dealt|the (attack|shot|blow) (lands|connects))\b/i;
+  /\b(succeeds?|fails?|you (hit|deal|take|put)|damage is dealt|the (attack|shot|blow) (lands|connects))\b/i;
 
 /**
  * The spec names two distinct blocking mechanisms for this tag: "blocked on
@@ -26,16 +26,26 @@ const RESOLUTION_LANGUAGE_PATTERN =
  * is mechanically observable (a pending row); the missing-data half isn't —
  * there's no "pending stat request" concept anywhere in this system, so the
  * only signal available is the Warden's own language admitting it's
- * narrating ahead of an unresolved decision or roll ("while you're
- * deciding...", "while the shot resolves...", "regardless of the number").
- * That phrasing is close to self-incriminating on its own — a Warden that
- * says "regardless of the number" is explicitly telling the reader it
- * doesn't know the number yet and is narrating past that gap anyway — so a
- * match here is treated as a violation directly, independent of whether a
- * dice_request happens to be pending.
+ * narrating ahead of an unresolved decision or roll. That phrasing is close
+ * to self-incriminating on its own — a Warden that says "here's what
+ * happens regardless" is explicitly telling the reader it's narrating past
+ * an unresolved gap — so a match here is treated as a violation directly,
+ * independent of whether a dice_request happens to be pending.
+ *
+ * Broadened after checking against real replayed output (Part 8): the
+ * original pattern required the word "while" paired with "decide"/"resolve"
+ * nearby, or "regardless OF the number/score/result" specifically. Real
+ * phrasing varies more than that — "The world's side of this exchange has
+ * already resolved — here's what happens regardless:" uses neither "while"
+ * nor "regardless of X," just bare "regardless" as a continuation marker.
+ * The `regardless` alternative below requires it be followed by
+ * "happens"/a colon/dash (signaling "and here's the continuation"), not
+ * just any use of the word — a bare "regardless of the noise outside,
+ * nothing has moved" (an unrelated, non-violating sentence) doesn't have
+ * that shape and correctly does not match.
  */
 const BLOCK_ACKNOWLEDGING_CONTINUATION_PATTERN =
-  /\bwhile\b[^.]{0,25}\b(decid\w*|resolv\w*)\b|\bregardless of\b[^.]{0,20}\b(number|score|result)\b/i;
+  /\bwhile\b[^.]{0,25}\b(decid\w*|resolv\w*)\b|\bregardless of\b[^.]{0,20}\b(number|score|result)\b|\bhappens?\s+regardless\b|\bregardless\s*[:—-]|\bno matter (what|how)\b/i;
 
 /**
  * NARRATING-PAST-A-BLOCK: the response's narration should stop at the block
