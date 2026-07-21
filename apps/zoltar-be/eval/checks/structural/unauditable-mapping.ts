@@ -2,10 +2,37 @@ import type { DiceRollEventPayload } from '../../../src/session/session.events';
 import type { TurnExecutionResult } from '../../harness-runner';
 import type { StructuralVerdict } from './types';
 
-/** Heuristic, substring-based — see spec's UNAUDITABLE-MAPPING row. */
+/**
+ * Heuristic, substring-based — see spec's UNAUDITABLE-MAPPING row.
+ *
+ * Broadened after checking against real replayed output (Part 8): the
+ * original pattern only matched exact-tense phrases ("determine which",
+ * missing "determin**ing** which") and a short keyword list that real
+ * purpose text mostly doesn't use at all — actual GM-improvisation rolls
+ * are phrased as "Does Alvarez encounter anything...",  "What does Alvarez
+ * notice or find...", "rolling for environmental detail/discovery", not
+ * "select"/"decide". These patterns instead target the underlying
+ * *function* of the roll (picking what the player perceives/finds/
+ * encounters, or which of several NPCs/options applies) regardless of
+ * exact verb tense or phrasing.
+ */
 const NARRATIVE_SELECTION_PATTERN =
-  /\bdetermine which\b|\bselect\b|\bdecide\b|\bwhich\s+\w+\s+(?:is|will)\b/i;
-const MECHANICAL_PATTERN = /\bto[- ]?hit\b|\bdamage\b|\bsave\b|\bcheck\b/i;
+  /\bdetermin\w*\s+which\b|\bselect\w*\b|\bdecide\w*\b|\bwhich\s+\w+\s+(?:is|will)\b|\brolling for\b|\brandom\b[^.]{0,30}\b(detail|encounter|event|discovery)\b|\b(what|which)\s+\S+\s+(notices?|finds?|discovers?|encounters?)\b|\bdoes\s+\S+\s+(notice|encounter|find)\b/i;
+
+/**
+ * Deliberately narrower than it looks like it should be: a bare "check" is
+ * NOT included here, even though it reads as "mechanical" in isolation —
+ * real narrative-selection rolls get called "atmosphere check"/"ambient
+ * detail... check" just as often as genuine mechanical resolution rolls
+ * do, so including it excluded real UNAUDITABLE-MAPPING violations from
+ * ever being classified as narrative-selection at all (confirmed against
+ * real replayed output). Only terms that specifically imply resolving a
+ * *known* mechanical target (to-hit, damage, a named save, armor
+ * reduction) belong here.
+ */
+const MECHANICAL_PATTERN =
+  /\bto[- ]?hit\b|\bdamage\b|\bsave\b|\barmor\b|\bcombat roll\b/i;
+
 /** A number followed (loosely) by an interpretation marker — the "this
  * result means that" mapping the rubric requires be stated up front. */
 const MAPPING_STATED_PATTERN = /\d[^.]*(?:=|:|\bmeans\b|\bindicates\b)/i;
