@@ -7,10 +7,13 @@ import type { StructuralVerdict } from './types';
  * perceives/discovers — perception, stealth, and search checks are the
  * clearest examples of "rolls that gate player-visible content." Same
  * caveat class as this file's siblings: a substring classifier over free
- * text, not a guaranteed-general parser.
+ * text, not a guaranteed-general parser. Broadened after checking against
+ * real replayed output (Part 8) to also include "encounter"/"aware" —
+ * plain-language phrasing this repo's own GM-improvisation rolls actually
+ * use for perception/awareness checks just as often as "notice"/"detect".
  */
 const PLAYER_VISIBLE_STAKES_PATTERN =
-  /\b(notice|spot|perceive|detect|discover|overhear|sneak|stealth|search|hidden)\w*\b/i;
+  /\b(notice|spot|perceive|detect|discover|overhear|sneak|stealth|search|hidden|encounter|aware)\w*\b/i;
 
 /**
  * UNSURFACED-CHECK: a roll that gates player-visible content should produce

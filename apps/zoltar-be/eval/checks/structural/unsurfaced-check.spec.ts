@@ -30,6 +30,21 @@ describe('checkUnsurfacedCheck', () => {
     expect(verdict.actual).toMatch(/resolved system-side/);
   });
 
+  it('fails on "encounter" phrasing alone, with no notice/detect/spot keyword present, from real replayed output (deliberately-broken counterexample)', () => {
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeDiceRoll({
+          sequenceNumber: 1,
+          purpose:
+            'Does Alvarez encounter anything in the corridor between bulkhead and hub junction',
+          rollSource: 'system_generated',
+        }),
+      ],
+    });
+
+    expect(checkUnsurfacedCheck(result).passed).toBe(false);
+  });
+
   it('passes when the stakes-gating roll is player-entered', () => {
     const result = fakeTurnExecutionResult({
       gameEvents: [
