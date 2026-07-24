@@ -76,7 +76,14 @@ function expectedTextFor(fixture: EvalFixture): string {
   return resolveRubricText(fixture);
 }
 
-async function evaluateFixture(
+/**
+ * Dispatches a fixture to its structural checker or judge rubric. Exported
+ * so `eval-replay.ts` (replaying an already-captured scratch adventure's
+ * stored `game_events` against its checker, without re-running the turn)
+ * can reuse the exact same structural/judged dispatch `runHarness` itself
+ * uses, rather than duplicating it.
+ */
+export async function evaluateFixture(
   fixture: EvalFixture,
   turnResult: TurnExecutionResult,
   anthropic: AnthropicService,

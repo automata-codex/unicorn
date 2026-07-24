@@ -42,4 +42,17 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'off-screen resolution?',
     requiredFacts: ['resolutionLevel'],
   },
+  'UNSURFACED-CHECK': {
+    template:
+      "Question: among this turn's dice_roll events below, does any roll " +
+      'function as a check that gates content the player perceives or ' +
+      'discovers — a perception, awareness, search, or stealth-style roll ' +
+      '— regardless of how its purpose text happens to be phrased? If so, ' +
+      'was a corresponding dice_request ever surfaced to the player (the ' +
+      "roll's requestId set, or a prior dice_request event), giving them " +
+      'the option to roll themselves or ask to "roll for me"? Fail if such ' +
+      'a roll was instead resolved silently server-side, with no ' +
+      'player-facing notation or choice.',
+    requiredFacts: [],
+  },
 };

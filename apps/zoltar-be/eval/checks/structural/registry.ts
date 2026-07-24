@@ -3,7 +3,6 @@ import { checkNarratingPastABlock } from './narrating-past-a-block';
 import { checkOutOfOrderResolution } from './out-of-order-resolution';
 import { checkSystemRolledPlayerAction } from './system-rolled-player-action';
 import { checkUnauditableMapping } from './unauditable-mapping';
-import { checkUnsurfacedCheck } from './unsurfaced-check';
 
 import type {
   EvalFixture,
@@ -32,5 +31,4 @@ export const structuralCheckers: Record<
   'MISSING-CANON-CAPTURE': (result, fixture) =>
     checkMissingCanonCapture(result, fixture),
   'NARRATING-PAST-A-BLOCK': (result) => checkNarratingPastABlock(result),
-  'UNSURFACED-CHECK': (result) => checkUnsurfacedCheck(result),
 };

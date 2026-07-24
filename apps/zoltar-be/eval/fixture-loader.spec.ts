@@ -115,8 +115,9 @@ describe('loadFixtures', () => {
           id: 'b',
           tag: 'UNSURFACED-CHECK',
           assertion: {
-            mode: 'structural',
-            check: 'rolls gate visible content',
+            mode: 'judged',
+            rubric: 'UNSURFACED-CHECK',
+            facts: {},
           },
         }),
       ),

@@ -117,12 +117,16 @@ const FAIL_FIXTURE = {
   },
 };
 
-// Purpose "Fear save" doesn't match UNSURFACED-CHECK's stakes-gating
-// heuristic, so this passes regardless of roll source — used only to
-// confirm --tag filtering excludes it.
+// Purpose "Fear save" contains no conditional-damage language
+// (checkOutOfOrderResolution's CONDITIONAL_DAMAGE_PATTERN), and this
+// diceResult-path turn has no player_action event to precede either, so
+// this passes regardless of roll source — used only to confirm --tag
+// filtering excludes it. Deliberately a structural (not judged) tag: this
+// file's whole point is exercising the diceResult path with no live
+// Anthropic call, which a judged assertion would require.
 const OTHER_TAG_FIXTURE = {
   id: 'other-tag-fixture',
-  tag: 'UNSURFACED-CHECK',
+  tag: 'OUT-OF-ORDER-RESOLUTION',
   sourceAdventureId: '00000000-0000-0000-0000-000000000003',
   sourceSequenceNumber: 1,
   seededState: {
@@ -137,7 +141,7 @@ const OTHER_TAG_FIXTURE = {
   },
   assertion: {
     mode: 'structural',
-    check: 'rolls that gate player-visible content are surfaced',
+    check: 'no damage roll before to-hit roll resolves',
   },
 };
 
@@ -177,7 +181,7 @@ describe('runHarness (integration)', () => {
 
     expect(report).toContain('Fixtures: 3  |  Passed: 2  |  Failed: 1');
     expect(report).toContain('SYSTEM-ROLLED-PLAYER-ACTION: 1/2 passed');
-    expect(report).toContain('UNSURFACED-CHECK: 1/1 passed');
+    expect(report).toContain('OUT-OF-ORDER-RESOLUTION: 1/1 passed');
     expect(report).toContain('### fail-fixture — FAILED');
   });
 

@@ -21,20 +21,28 @@ export const failureModeTagSchema = z.enum([
 
 export type FailureModeTag = z.infer<typeof failureModeTagSchema>;
 
-/** The six tags checked deterministically, no second LLM call. */
+/** The five tags checked deterministically, no second LLM call. */
 export const structuralFailureModeTags = [
   'OUT-OF-ORDER-RESOLUTION',
   'SYSTEM-ROLLED-PLAYER-ACTION',
   'UNAUDITABLE-MAPPING',
   'MISSING-CANON-CAPTURE',
   'NARRATING-PAST-A-BLOCK',
-  'UNSURFACED-CHECK',
 ] as const satisfies readonly FailureModeTag[];
 
-/** The two tags graded by a single Claude Sonnet 5 judge call per fixture. */
+/**
+ * The three tags graded by a single Claude Sonnet 5 judge call per fixture.
+ * UNSURFACED-CHECK moved here from `structuralFailureModeTags` after a
+ * real-run false pass: its regex classifier ("does this roll's purpose text
+ * contain a perception-flavored keyword") missed a stakes-gating roll
+ * phrased as "Does anything react to Alvarez moving..." — no fixed keyword
+ * list can keep pace with arbitrarily-phrased LLM narration of the same
+ * underlying question, which a judge call answers directly instead.
+ */
 export const judgedFailureModeTags = [
   'HIDDEN-INFO-LEAK',
   'OVER-RESOLUTION',
+  'UNSURFACED-CHECK',
 ] as const satisfies readonly FailureModeTag[];
 
 /**
@@ -132,8 +140,8 @@ export const evalFixtureSchema = z
     {
       message:
         "assertion.mode must match the fixture's tag — judged tags " +
-        '(HIDDEN-INFO-LEAK, OVER-RESOLUTION) require a judged assertion, ' +
-        'every other tag requires a structural assertion',
+        '(HIDDEN-INFO-LEAK, OVER-RESOLUTION, UNSURFACED-CHECK) require a ' +
+        'judged assertion, every other tag requires a structural assertion',
       path: ['assertion', 'mode'],
     },
   );
