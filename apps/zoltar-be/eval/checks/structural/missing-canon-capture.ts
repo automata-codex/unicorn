@@ -1,6 +1,12 @@
+import { getWinningResponseEvent } from '../../turn-result';
+
 import type { EvalFixture } from '../../fixture.schema';
 import type { TurnExecutionResult } from '../../turn-result';
 import type { StructuralVerdict } from './types';
+
+interface GmResponsePayload {
+  playerText: string;
+}
 
 /**
  * MISSING-CANON-CAPTURE is the one structural check that also needs a
@@ -13,6 +19,22 @@ import type { StructuralVerdict } from './types';
  */
 function parseExpectedNewDetail(check: string): string | null {
   const match = check.match(/expects:\s*(.+)$/i);
+  return match ? match[1].trim() : null;
+}
+
+/**
+ * A fixture author quoting the literal phrase that should appear if the
+ * turn introduces the expected detail — e.g. `expects: ... ("RESTRICTED —
+ * VERIDIAN INTERNAL")` — is already this fixture library's natural
+ * authoring convention (see `turn02-missing-canon-capture.json`). Reused
+ * here as the signal for whether this turn's live, non-deterministic
+ * narration actually introduced the detail at all, distinct from whether it
+ * captured it durably. No quoted phrase means this signal is unavailable,
+ * not that nothing was introduced — callers must treat `null` as "can't
+ * tell," not as a negative result.
+ */
+function parseIntroductionMarker(check: string): string | null {
+  const match = check.match(/["“]([^"”]+)["”]/);
   return match ? match[1].trim() : null;
 }
 
@@ -76,6 +98,23 @@ export function checkMissingCanonCapture(
       outcome: 'PASSED',
       actual: `${newCanon.length} new pending_canon row(s) proposed this turn (sequence ${gmResponseEvent!.sequenceNumber}): ${newCanon.map((c) => c.summary).join('; ')}`,
     };
+  }
+
+  const introductionMarker = parseIntroductionMarker(fixture.assertion.check);
+  if (introductionMarker) {
+    const winningResponse = getWinningResponseEvent(result);
+    const playerText = winningResponse
+      ? ((winningResponse.payload as GmResponsePayload).playerText ?? '')
+      : '';
+    if (!playerText.toLowerCase().includes(introductionMarker.toLowerCase())) {
+      return {
+        outcome: 'NOT_APPLICABLE',
+        actual:
+          `expected new detail's marker phrase ("${introductionMarker}") never appears in ` +
+          "this turn's playerText — the narration didn't introduce the detail this run, so " +
+          'there was nothing to capture',
+      };
+    }
   }
 
   return {

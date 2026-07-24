@@ -92,6 +92,68 @@ describe('checkMissingCanonCapture', () => {
     expect(checkMissingCanonCapture(result, FIXTURE).outcome).toBe('FAILED');
   });
 
+  it('is not applicable when the check text names a quoted marker phrase that never appears in playerText this turn', () => {
+    // Real case: a fixture expects capture of a detail (quoting the literal
+    // phrase that should appear if the turn introduces it), but this run's
+    // live, non-deterministic narration never brought the detail up at all
+    // — a different story path than the one the fixture was captured from,
+    // not a capture failure.
+    const quotedFixture = fakeFixture({
+      tag: 'MISSING-CANON-CAPTURE',
+      seededState: FIXTURE.seededState,
+      assertion: {
+        mode: 'structural',
+        check:
+          'expects: a new worldFacts entry for the restricted comms module ("RESTRICTED — VERIDIAN INTERNAL")',
+      },
+    });
+    const result = fakeTurnExecutionResult({
+      campaignState: { worldFacts: { corridor_length: 'eight meters' } },
+      gameEvents: [
+        fakeGameEvent({
+          sequenceNumber: 3,
+          eventType: 'gm_response',
+          payload: { playerText: 'The corridor stretches on, unremarkable.' },
+        }),
+      ],
+      pendingCanon: [],
+    });
+
+    const verdict = checkMissingCanonCapture(result, quotedFixture);
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
+    expect(verdict.actual).toMatch(/never appears/);
+  });
+
+  it('still fails when the marker phrase does appear in playerText but capture never happened (genuine violation)', () => {
+    const quotedFixture = fakeFixture({
+      tag: 'MISSING-CANON-CAPTURE',
+      seededState: FIXTURE.seededState,
+      assertion: {
+        mode: 'structural',
+        check:
+          'expects: a new worldFacts entry for the restricted comms module ("RESTRICTED — VERIDIAN INTERNAL")',
+      },
+    });
+    const result = fakeTurnExecutionResult({
+      campaignState: { worldFacts: { corridor_length: 'eight meters' } },
+      gameEvents: [
+        fakeGameEvent({
+          sequenceNumber: 3,
+          eventType: 'gm_response',
+          payload: {
+            playerText:
+              'The schematic shows a module marked RESTRICTED — VERIDIAN INTERNAL.',
+          },
+        }),
+      ],
+      pendingCanon: [],
+    });
+
+    const verdict = checkMissingCanonCapture(result, quotedFixture);
+    expect(verdict.outcome).toBe('FAILED');
+    expect(verdict.actual).toMatch(/unchanged/);
+  });
+
   it('throws when the fixture check text has no "expects:" marker', () => {
     const badFixture = fakeFixture({
       tag: 'MISSING-CANON-CAPTURE',
