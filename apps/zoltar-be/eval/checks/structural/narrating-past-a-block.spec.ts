@@ -272,4 +272,57 @@ describe('checkNarratingPastABlock', () => {
 
     expect(checkNarratingPastABlock(result).outcome).toBe('PASSED');
   });
+
+  // Verified-clean corpus (this entry is a verified *violation*, the
+  // complementary half): a real turn manually confirmed to be a genuine
+  // false negative before the null-target signal above was added — the
+  // checker returned NOT_APPLICABLE on this exact data until that fix.
+  it('[verified-violation, baseline run 97f804b2-c077-4ec0-ad11-d68a7d19192b, fixture turn16-narrating-past-a-block, adventure 9dcbdbf9-82cf-485c-a5b6-9864c3d6945a] the Warden self-rules on a missing Instinct score and narrates a fully resolved outcome, never obtaining the stat the roll depended on', () => {
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({
+          sequenceNumber: 4,
+          eventType: 'gm_response',
+          payload: {
+            playerText:
+              "Alvarez's Instinct stat — I'm treating this as a reflexive judgment call, rolling under the stat to succeed. You haven't given me your Instinct score directly, but I'm ruling on the fiction: 62 is a middling result, and the situation has a clear better and worse answer that a trained boarding officer would recognise under pressure.\n\n" +
+              'You hold position.\n\n' +
+              "It's the right call. Closing the door makes noise. Moving makes noise and puts you in motion if they look. Holding is the only option that gives the contractor nothing new to react to.\n\n" +
+              "You press flat against the wall. Control your breathing. The rifle is across your chest, muzzle down, because if it catches the edge of the door frame while the contractor is looking this direction it's over.\n\n" +
+              "The boot in the gap doesn't move for four full seconds.\n\n" +
+              'Then the contractor turns — you hear it, the shift of weight, the quarter-pivot — and through the door crack you see the tactical vest rotating away from you, toward the ladder shaft. Checking up. Making sure nobody came down and doubled back.\n\n' +
+              'Satisfied, apparently, with nothing.\n\n' +
+              '*"Clear."* Flat, professional, carrying just enough to reach the hub.\n\n' +
+              'The footsteps move away. Back toward the hub. Back toward the other voices, which resume their low clipped exchange a moment later. Someone laughs once — short, humourless, the kind of laugh that means *I knew it was nothing.*\n\n' +
+              "You let out a breath you didn't know you were holding.\n\n" +
+              '---\n\n' +
+              'The equipment bay is yours. You have maybe sixty seconds before they wonder why their sweep took that long, or before the one watching the hub primary panel decides to reposition.\n\n' +
+              "The connecting door to the environmental hub's secondary panel is on the starboard wall — eight metres across the bay, between two EVA suit storage lockers. The door has a standard lever handle. No lock indicator visible from here.\n\n" +
+              'The secondary airlock corridor branches off the far end of the bay behind you — and through it, distantly, you can hear the low hum of an external power coupling. Their courier. Still docked. Still powered.\n\n' +
+              'You need to move. The quarantine seal command is waiting at that secondary panel — environmental isolation, cargo hold, engage lockdown. In that order. UNIT-7\'s voice in your memory, precise and unhurried.\n\n' +
+              'You push off the wall and cross the bay.',
+          },
+        }),
+      ],
+      diceRequests: [
+        {
+          id: 'c05c2d52-6764-4be8-8041-90e2759c285b',
+          adventureId: '9dcbdbf9-82cf-485c-a5b6-9864c3d6945a',
+          issuedAtSequence: 67,
+          notation: '1d100',
+          purpose:
+            'Instinct roll — snap decision under pressure: do you close the door, hold position, or move to the secondary panel before the contractor completes their sweep',
+          target: null,
+          status: 'resolved',
+          resolvedAtSequence: 1,
+          resolvedAt: new Date('2026-07-24T14:08:26.187787Z'),
+          createdAt: new Date('2026-07-14T12:16:25.279Z'),
+        },
+      ],
+    });
+
+    const verdict = checkNarratingPastABlock(result);
+    expect(verdict.outcome).toBe('FAILED');
+    expect(verdict.actual).toMatch(/no target ever set/);
+  });
 });
