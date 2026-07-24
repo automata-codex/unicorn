@@ -46,3 +46,19 @@ tasks:
     dir: apps/zoltar-be
     cmds:
       - npx tsx --env-file=.env scripts/load-synthesis.ts {{.CLI_ARGS}}
+
+  eval:capture-fixture:
+    desc: Capture a turn's seeded state into an EvalFixture JSON file (M7.4). Usage — task eval:capture-fixture -- <adventure-id> <target-sequence-number> --tag <tag> --id <fixture-id> --output <path> [--force]
+    dir: apps/zoltar-be
+    cmds:
+      - npx tsx --env-file=.env scripts/capture-fixture.ts {{.CLI_ARGS}}
+
+  eval:harness:
+    desc: Replay eval fixtures through the real turn pipeline under a Warden prompt variant (M7.4). Hits a real DB and makes real, token-costing Anthropic calls — not CI-safe. Usage — task eval:harness -- --fixtures eval/fixtures/ [--tag <tag1,tag2>] [--prompt-variant <filename>] [--output <path>] [--keep-scratch] (paths are relative to apps/zoltar-be)
+    dir: apps/zoltar-be
+    cmds:
+      # Not tsx, unlike the other scripts here — this one bootstraps a real
+      # NestJS DI container, and tsx (esbuild) doesn't emit the decorator
+      # metadata that requires; @swc-node/register does. See the header
+      # comment in scripts/eval-harness.ts.
+      - node -r @swc-node/register -r reflect-metadata --env-file=.env scripts/eval-harness.ts {{.CLI_ARGS}}
