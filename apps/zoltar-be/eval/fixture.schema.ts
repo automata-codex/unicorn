@@ -1,12 +1,13 @@
 import { z } from 'zod';
 
 /**
- * The eight Warden failure modes this milestone builds scripted regression
- * coverage for (M7.4 spec, "Two Assertion Modes"). `STATUS-FIELD-OVERLOAD`
- * and `SNAPSHOT-GAP` are deliberately absent — both are direct-fix tickets
- * with no eval coverage, and leaving them out of this enum (rather than
- * including them and simply never implementing a checker) means a fixture
- * can't be authored against a tag nothing will ever check.
+ * The Warden failure modes this milestone builds scripted regression
+ * coverage for (M7.4 spec, "Two Assertion Modes", plus `SCENE-JUMP` added
+ * afterward — see its own doc comment below). `STATUS-FIELD-OVERLOAD` and
+ * `SNAPSHOT-GAP` are deliberately absent — both are direct-fix tickets with
+ * no eval coverage, and leaving them out of this enum (rather than including
+ * them and simply never implementing a checker) means a fixture can't be
+ * authored against a tag nothing will ever check.
  */
 export const failureModeTagSchema = z.enum([
   'OUT-OF-ORDER-RESOLUTION',
@@ -17,6 +18,7 @@ export const failureModeTagSchema = z.enum([
   'UNSURFACED-CHECK',
   'HIDDEN-INFO-LEAK',
   'OVER-RESOLUTION',
+  'SCENE-JUMP',
 ]);
 
 export type FailureModeTag = z.infer<typeof failureModeTagSchema>;
@@ -31,18 +33,31 @@ export const structuralFailureModeTags = [
 ] as const satisfies readonly FailureModeTag[];
 
 /**
- * The three tags graded by a single Claude Sonnet 5 judge call per fixture.
+ * The four tags graded by a single Claude Sonnet 5 judge call per fixture.
  * UNSURFACED-CHECK moved here from `structuralFailureModeTags` after a
  * real-run false pass: its regex classifier ("does this roll's purpose text
  * contain a perception-flavored keyword") missed a stakes-gating roll
  * phrased as "Does anything react to Alvarez moving..." — no fixed keyword
  * list can keep pace with arbitrarily-phrased LLM narration of the same
  * underlying question, which a judge call answers directly instead.
+ *
+ * SCENE-JUMP was added new (not migrated) as a judged-only tag: "did the
+ * turn advance the story — new location, new NPC encounter, subsequent plot
+ * beats — beyond what the player's stated action justified" is a narrative-
+ * causality judgment with no deterministic signal available, the same kind
+ * of question UNSURFACED-CHECK's keyword classifier already proved
+ * unreliable at. Deliberately kept distinct from OVER-RESOLUTION, which
+ * asks a different question (roll granularity/count for content that should
+ * stay off-screen) — conflating the two under one tag would blur the
+ * per-tag pass-rate summary between two different failure shapes, and
+ * violate "one rubric per tag" by making the same tag's fact silently mean
+ * different things fixture-to-fixture.
  */
 export const judgedFailureModeTags = [
   'HIDDEN-INFO-LEAK',
   'OVER-RESOLUTION',
   'UNSURFACED-CHECK',
+  'SCENE-JUMP',
 ] as const satisfies readonly FailureModeTag[];
 
 /**
@@ -140,8 +155,8 @@ export const evalFixtureSchema = z
     {
       message:
         "assertion.mode must match the fixture's tag — judged tags " +
-        '(HIDDEN-INFO-LEAK, OVER-RESOLUTION, UNSURFACED-CHECK) require a ' +
-        'judged assertion, every other tag requires a structural assertion',
+        '(HIDDEN-INFO-LEAK, OVER-RESOLUTION, UNSURFACED-CHECK, SCENE-JUMP) ' +
+        'require a judged assertion, every other tag requires a structural assertion',
       path: ['assertion', 'mode'],
     },
   );

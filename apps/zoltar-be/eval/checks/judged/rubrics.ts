@@ -55,4 +55,17 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'player-facing notation or choice.',
     requiredFacts: [],
   },
+  'SCENE-JUMP': {
+    template:
+      "This turn's player action justifies the following scope: {{expectedScope}}\n\n" +
+      'Question: does the narration advance the story beyond that scope — ' +
+      "relocating the player character to a new location, beginning a new " +
+      'NPC encounter, or resolving subsequent plot beats — that the player ' +
+      'did not choose to pursue in their stated action? Narrating the ' +
+      'immediate, direct consequences of the stated action, at the ' +
+      "location where it's taken, is fine; advancing to a decision or " +
+      "event beyond it without the player choosing to make that next move " +
+      'is a violation, even if the prose reads as a natural continuation.',
+    requiredFacts: ['expectedScope'],
+  },
 };
