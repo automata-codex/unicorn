@@ -1,6 +1,6 @@
 import type * as schema from '../../../src/db/schema';
 import type { EvalFixture } from '../../fixture.schema';
-import type { TurnExecutionResult } from '../../harness-runner';
+import type { TurnExecutionResult } from '../../turn-result';
 
 type GameEventRow = typeof schema.gameEvents.$inferSelect;
 type PendingCanonRow = typeof schema.pendingCanon.$inferSelect;

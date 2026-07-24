@@ -1,14 +1,14 @@
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
-import { getWinningResponseEvent } from '../../harness-runner';
+import { getWinningResponseEvent } from '../../turn-result';
 
 import { judgeRubrics } from './rubrics';
 
 import type Anthropic from '@anthropic-ai/sdk';
 import type { AnthropicService } from '../../../src/anthropic/anthropic.service';
 import type { EvalFixture } from '../../fixture.schema';
-import type { TurnExecutionResult } from '../../harness-runner';
+import type { TurnExecutionResult } from '../../turn-result';
 
 /**
  * Deliberate, known asymmetry (spec "Judge model" section): the Warden runs

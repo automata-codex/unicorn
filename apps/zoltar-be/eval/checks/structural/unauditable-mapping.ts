@@ -1,5 +1,5 @@
 import type { DiceRollEventPayload } from '../../../src/session/session.events';
-import type { TurnExecutionResult } from '../../harness-runner';
+import type { TurnExecutionResult } from '../../turn-result';
 import type { StructuralVerdict } from './types';
 
 /**

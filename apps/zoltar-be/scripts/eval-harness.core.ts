@@ -12,8 +12,8 @@ import {
 import { renderReport } from '../eval/report';
 
 import type { EvalFixture, FailureModeTag } from '../eval/fixture.schema';
-import type { TurnExecutionResult } from '../eval/harness-runner';
 import type { FixtureResult } from '../eval/report';
+import type { TurnExecutionResult } from '../eval/turn-result';
 import type { AnthropicService } from '../src/anthropic/anthropic.service';
 
 /** Emitted around each fixture's run so a long invocation (a full 14-fixture

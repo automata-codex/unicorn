@@ -1,6 +1,6 @@
-import { getWinningResponseEvent } from '../../harness-runner';
+import { getWinningResponseEvent } from '../../turn-result';
 
-import type { TurnExecutionResult } from '../../harness-runner';
+import type { TurnExecutionResult } from '../../turn-result';
 import type { StructuralVerdict } from './types';
 
 interface GmResponsePayload {
