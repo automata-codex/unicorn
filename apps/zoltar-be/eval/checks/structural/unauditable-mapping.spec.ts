@@ -15,7 +15,7 @@ describe('checkUnauditableMapping', () => {
       ],
     });
 
-    expect(checkUnauditableMapping(result).passed).toBe(true);
+    expect(checkUnauditableMapping(result).outcome).toBe('PASSED');
   });
 
   it('fails when a narrative-selection roll fires with no stated mapping (deliberately-broken counterexample)', () => {
@@ -29,7 +29,7 @@ describe('checkUnauditableMapping', () => {
     });
 
     const verdict = checkUnauditableMapping(result);
-    expect(verdict.passed).toBe(false);
+    expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(
       /does not state a result-to-meaning mapping/,
     );
@@ -46,7 +46,7 @@ describe('checkUnauditableMapping', () => {
       ],
     });
 
-    expect(checkUnauditableMapping(result).passed).toBe(false);
+    expect(checkUnauditableMapping(result).outcome).toBe('FAILED');
   });
 
   it('fails on GM-improvisation phrasing with no "which/select/decide" keyword at all, from real replayed output (deliberately-broken counterexample)', () => {
@@ -61,7 +61,7 @@ describe('checkUnauditableMapping', () => {
     });
 
     const verdict = checkUnauditableMapping(result);
-    expect(verdict.passed).toBe(false);
+    expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(/sequence 1/);
   });
 
@@ -79,10 +79,10 @@ describe('checkUnauditableMapping', () => {
       ],
     });
 
-    expect(checkUnauditableMapping(result).passed).toBe(false);
+    expect(checkUnauditableMapping(result).outcome).toBe('FAILED');
   });
 
-  it('passes when the only rolls are pure mechanical resolution (boundary)', () => {
+  it('is not applicable when the only rolls are pure mechanical resolution (boundary)', () => {
     const result = fakeTurnExecutionResult({
       gameEvents: [
         fakeDiceRoll({ sequenceNumber: 1, purpose: 'to-hit vs dr_chen' }),
@@ -90,12 +90,14 @@ describe('checkUnauditableMapping', () => {
       ],
     });
 
-    expect(checkUnauditableMapping(result).passed).toBe(true);
+    const verdict = checkUnauditableMapping(result);
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
+    expect(verdict.actual).toMatch(/no narrative-selection-flavored/);
   });
 
-  it('passes when there are no dice_roll events at all (boundary)', () => {
-    expect(checkUnauditableMapping(fakeTurnExecutionResult()).passed).toBe(
-      true,
-    );
+  it('is not applicable when there are no dice_roll events at all (boundary)', () => {
+    expect(
+      checkUnauditableMapping(fakeTurnExecutionResult()).outcome,
+    ).toBe('NOT_APPLICABLE');
   });
 });

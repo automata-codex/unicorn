@@ -64,7 +64,7 @@ export function checkNarratingPastABlock(
 
   if (BLOCK_ACKNOWLEDGING_CONTINUATION_PATTERN.test(playerText)) {
     return {
-      passed: false,
+      outcome: 'FAILED',
       actual:
         'playerText explicitly acknowledges an unresolved decision/roll and ' +
         `narrates onward anyway: "${playerText}"`,
@@ -74,7 +74,7 @@ export function checkNarratingPastABlock(
   const isBlocked = result.diceRequests.some((r) => r.status === 'pending');
   if (!isBlocked) {
     return {
-      passed: true,
+      outcome: 'NOT_APPLICABLE',
       actual:
         'no pending dice_request after this turn and no block-acknowledging ' +
         'language in playerText — nothing blocked',
@@ -83,7 +83,7 @@ export function checkNarratingPastABlock(
 
   if (!winningResponse) {
     return {
-      passed: true,
+      outcome: 'NOT_APPLICABLE',
       actual:
         'a dice_request is pending, but no gm_response/correction event exists to check',
     };
@@ -91,7 +91,7 @@ export function checkNarratingPastABlock(
 
   if (RESOLUTION_LANGUAGE_PATTERN.test(playerText)) {
     return {
-      passed: false,
+      outcome: 'FAILED',
       actual:
         'a dice_request is pending, but playerText contains resolution ' +
         `language suggesting the blocked action was narrated anyway: "${playerText}"`,
@@ -99,7 +99,7 @@ export function checkNarratingPastABlock(
   }
 
   return {
-    passed: true,
+    outcome: 'PASSED',
     actual:
       'a dice_request is pending and playerText contains no resolution-implying language',
   };

@@ -65,10 +65,22 @@ function isPlayerAttributed(
 export function checkSystemRolledPlayerAction(
   result: TurnExecutionResult,
 ): StructuralVerdict {
-  const candidateNames = candidatePlayerEntityNames(result.campaignState);
   const diceRolls = result.gameEvents.filter(
     (e) => e.eventType === 'dice_roll',
   );
+
+  if (diceRolls.length === 0) {
+    return { outcome: 'NOT_APPLICABLE', actual: 'no dice_roll events this turn' };
+  }
+
+  const candidateNames = candidatePlayerEntityNames(result.campaignState);
+  if (candidateNames.length === 0) {
+    return {
+      outcome: 'NOT_APPLICABLE',
+      actual:
+        'no player entity could be identified from campaignState.resourcePools — nothing to check',
+    };
+  }
 
   const violations = diceRolls.filter((roll) => {
     const purpose = (roll.payload as DiceRollEventPayload).purpose ?? '';
@@ -80,16 +92,13 @@ export function checkSystemRolledPlayerAction(
 
   if (violations.length === 0) {
     return {
-      passed: true,
-      actual:
-        candidateNames.length === 0
-          ? 'no player entity could be identified from campaignState.resourcePools — nothing to check'
-          : 'no player-attributed consequence roll was resolved system-side this turn',
+      outcome: 'PASSED',
+      actual: 'no player-attributed consequence roll was resolved system-side this turn',
     };
   }
 
   return {
-    passed: false,
+    outcome: 'FAILED',
     actual: violations
       .map(
         (r) =>

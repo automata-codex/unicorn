@@ -199,7 +199,7 @@ async function main(): Promise<number> {
     };
 
     const anthropicService = new AnthropicService(envOnlyConfigService());
-    const { passed, expected, actual } = await evaluateFixture(
+    const { outcome, expected, actual } = await evaluateFixture(
       fixture,
       turnResult,
       anthropicService,
@@ -213,7 +213,7 @@ async function main(): Promise<number> {
           mode: fixture.assertion.mode,
           campaignId,
           adventureId: cli.adventureId,
-          passed,
+          outcome,
           expected,
           actual,
         },
@@ -222,7 +222,7 @@ async function main(): Promise<number> {
       )}\n`,
     );
 
-    return passed ? 0 : 1;
+    return outcome === 'FAILED' ? 1 : 0;
   } finally {
     await pool.end();
   }

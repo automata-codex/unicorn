@@ -36,7 +36,7 @@ describe('checkMissingCanonCapture', () => {
     });
 
     const verdict = checkMissingCanonCapture(result, FIXTURE);
-    expect(verdict.passed).toBe(true);
+    expect(verdict.outcome).toBe('PASSED');
     expect(verdict.actual).toMatch(/brig_location/);
   });
 
@@ -56,7 +56,7 @@ describe('checkMissingCanonCapture', () => {
     });
 
     const verdict = checkMissingCanonCapture(result, FIXTURE);
-    expect(verdict.passed).toBe(true);
+    expect(verdict.outcome).toBe('PASSED');
     expect(verdict.actual).toMatch(/Brig is on deck 2/);
   });
 
@@ -70,7 +70,7 @@ describe('checkMissingCanonCapture', () => {
     });
 
     const verdict = checkMissingCanonCapture(result, FIXTURE);
-    expect(verdict.passed).toBe(false);
+    expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(/unchanged/);
   });
 
@@ -89,7 +89,7 @@ describe('checkMissingCanonCapture', () => {
       ],
     });
 
-    expect(checkMissingCanonCapture(result, FIXTURE).passed).toBe(false);
+    expect(checkMissingCanonCapture(result, FIXTURE).outcome).toBe('FAILED');
   });
 
   it('throws when the fixture check text has no "expects:" marker', () => {

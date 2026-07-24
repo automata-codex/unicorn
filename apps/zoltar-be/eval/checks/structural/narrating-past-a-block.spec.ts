@@ -8,7 +8,7 @@ import {
 } from './test-helpers';
 
 describe('checkNarratingPastABlock', () => {
-  it('passes when nothing is blocked (no pending dice_request) — boundary', () => {
+  it('is not applicable when nothing is blocked (no pending dice_request) — boundary', () => {
     const result = fakeTurnExecutionResult({
       gameEvents: [
         fakeGameEvent({
@@ -19,7 +19,20 @@ describe('checkNarratingPastABlock', () => {
       ],
     });
 
-    expect(checkNarratingPastABlock(result).passed).toBe(true);
+    const verdict = checkNarratingPastABlock(result);
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
+    expect(verdict.actual).toMatch(/nothing blocked/);
+  });
+
+  it('is not applicable when a dice_request is pending but no gm_response/correction event exists yet (boundary)', () => {
+    const result = fakeTurnExecutionResult({
+      gameEvents: [],
+      diceRequests: [fakeDiceRequest({ notation: '1d10', purpose: 'to-hit' })],
+    });
+
+    const verdict = checkNarratingPastABlock(result);
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
+    expect(verdict.actual).toMatch(/no gm_response\/correction event exists/);
   });
 
   it('fails when a dice_request is pending but playerText narrates the outcome anyway (deliberately-broken counterexample)', () => {
@@ -37,7 +50,7 @@ describe('checkNarratingPastABlock', () => {
     });
 
     const verdict = checkNarratingPastABlock(result);
-    expect(verdict.passed).toBe(false);
+    expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(/resolution language/);
   });
 
@@ -53,7 +66,7 @@ describe('checkNarratingPastABlock', () => {
       diceRequests: [fakeDiceRequest({ notation: '1d10', purpose: 'to-hit' })],
     });
 
-    expect(checkNarratingPastABlock(result).passed).toBe(true);
+    expect(checkNarratingPastABlock(result).outcome).toBe('PASSED');
   });
 
   it('fails on block-acknowledging language even with no pending dice_request (missing-data block, deliberately-broken counterexample)', () => {
@@ -77,7 +90,7 @@ describe('checkNarratingPastABlock', () => {
     });
 
     const verdict = checkNarratingPastABlock(result);
-    expect(verdict.passed).toBe(false);
+    expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(/acknowledges an unresolved decision/);
   });
 
@@ -97,7 +110,7 @@ describe('checkNarratingPastABlock', () => {
       diceRequests: [],
     });
 
-    expect(checkNarratingPastABlock(result).passed).toBe(true);
+    expect(checkNarratingPastABlock(result).outcome).toBe('NOT_APPLICABLE');
   });
 
   it('fails on bare "regardless:" continuation language with no "while" or "regardless of", from real replayed output (deliberately-broken counterexample)', () => {
@@ -118,7 +131,7 @@ describe('checkNarratingPastABlock', () => {
     });
 
     const verdict = checkNarratingPastABlock(result);
-    expect(verdict.passed).toBe(false);
+    expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(/acknowledges an unresolved decision/);
   });
 
@@ -139,11 +152,11 @@ describe('checkNarratingPastABlock', () => {
     });
 
     const verdict = checkNarratingPastABlock(result);
-    expect(verdict.passed).toBe(false);
+    expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(/resolution language/);
   });
 
-  it('does not false-positive on unrelated "regardless of X" phrasing lacking a number/score/result anchor (boundary)', () => {
+  it('is not applicable for unrelated "regardless of X" phrasing lacking a number/score/result anchor, with nothing else blocked (boundary)', () => {
     const result = fakeTurnExecutionResult({
       gameEvents: [
         fakeGameEvent({
@@ -159,7 +172,7 @@ describe('checkNarratingPastABlock', () => {
       diceRequests: [],
     });
 
-    expect(checkNarratingPastABlock(result).passed).toBe(true);
+    expect(checkNarratingPastABlock(result).outcome).toBe('NOT_APPLICABLE');
   });
 
   it('prefers the correction event over the original gm_response when both exist', () => {
@@ -179,6 +192,6 @@ describe('checkNarratingPastABlock', () => {
       diceRequests: [fakeDiceRequest({ notation: '1d10', purpose: 'to-hit' })],
     });
 
-    expect(checkNarratingPastABlock(result).passed).toBe(true);
+    expect(checkNarratingPastABlock(result).outcome).toBe('PASSED');
   });
 });

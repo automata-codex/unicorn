@@ -175,9 +175,9 @@ describe('runHarness (integration)', () => {
 
     expect(results).toHaveLength(3);
     const byId = Object.fromEntries(results.map((r) => [r.fixture.id, r]));
-    expect(byId['pass-fixture'].passed).toBe(true);
-    expect(byId['fail-fixture'].passed).toBe(false);
-    expect(byId['other-tag-fixture'].passed).toBe(true);
+    expect(byId['pass-fixture'].outcome).toBe('PASSED');
+    expect(byId['fail-fixture'].outcome).toBe('FAILED');
+    expect(byId['other-tag-fixture'].outcome).toBe('PASSED');
 
     expect(report).toContain('Fixtures: 3  |  Passed: 2  |  Failed: 1');
     expect(report).toContain('SYSTEM-ROLLED-PLAYER-ACTION: 1/2 passed');
@@ -242,8 +242,8 @@ describe('runHarness (integration)', () => {
 
     expect(results).toHaveLength(2);
     const byId = Object.fromEntries(results.map((r) => [r.fixture.id, r]));
-    expect(byId['pass-fixture'].passed).toBe(true);
-    expect(byId['error-fixture'].passed).toBe(false);
+    expect(byId['pass-fixture'].outcome).toBe('PASSED');
+    expect(byId['error-fixture'].outcome).toBe('FAILED');
     expect(byId['error-fixture'].actual).toMatch(
       /ERRORED before an assertion could run/,
     );

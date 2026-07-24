@@ -99,7 +99,7 @@ export async function evaluateFixture(
     const verdict = checker(turnResult, fixture);
     return {
       fixture,
-      passed: verdict.passed,
+      outcome: verdict.outcome,
       expected: fixture.assertion.check,
       actual: verdict.actual,
     };
@@ -109,7 +109,10 @@ export async function evaluateFixture(
   const verdict = await runJudgeCall(anthropic, fixture, turnResult);
   return {
     fixture,
-    passed: verdict.passed,
+    // Judged rubrics have no NOT_APPLICABLE concept — a judge can always
+    // answer its rubric's question, even trivially — so this is always a
+    // genuine PASSED/FAILED, never a "nothing to check" result.
+    outcome: verdict.passed ? 'PASSED' : 'FAILED',
     expected,
     actual: verdict.rationale,
   };
@@ -191,7 +194,7 @@ export async function runHarness(
         }
         result = {
           fixture,
-          passed: false,
+          outcome: 'FAILED',
           expected,
           actual: `ERRORED before an assertion could run: ${message}`,
           campaignId: seeded.campaignId,

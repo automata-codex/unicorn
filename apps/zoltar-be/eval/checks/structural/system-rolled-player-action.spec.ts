@@ -23,7 +23,7 @@ describe('checkSystemRolledPlayerAction', () => {
       ],
     });
 
-    expect(checkSystemRolledPlayerAction(result).passed).toBe(true);
+    expect(checkSystemRolledPlayerAction(result).outcome).toBe('PASSED');
   });
 
   it('fails when the player-attributed damage roll appears system-side (deliberately-broken counterexample, from real replayed output)', () => {
@@ -42,7 +42,7 @@ describe('checkSystemRolledPlayerAction', () => {
     });
 
     const verdict = checkSystemRolledPlayerAction(result);
-    expect(verdict.passed).toBe(false);
+    expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(/sequence 2/);
   });
 
@@ -57,7 +57,7 @@ describe('checkSystemRolledPlayerAction', () => {
       ],
     });
 
-    expect(checkSystemRolledPlayerAction(result).passed).toBe(true);
+    expect(checkSystemRolledPlayerAction(result).outcome).toBe('PASSED');
   });
 
   it('is not fooled by an unrelated pending dice_request into ignoring a system-rolled player consequence', () => {
@@ -89,10 +89,21 @@ describe('checkSystemRolledPlayerAction', () => {
       ],
     });
 
-    expect(checkSystemRolledPlayerAction(result).passed).toBe(false);
+    expect(checkSystemRolledPlayerAction(result).outcome).toBe('FAILED');
   });
 
-  it('passes when no player entity can be identified from campaignState (boundary)', () => {
+  it('is not applicable when there are no dice_roll events at all (boundary)', () => {
+    const result = fakeTurnExecutionResult({
+      campaignState: CAMPAIGN_STATE_WITH_PLAYER,
+      gameEvents: [],
+    });
+
+    const verdict = checkSystemRolledPlayerAction(result);
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
+    expect(verdict.actual).toMatch(/no dice_roll events/);
+  });
+
+  it('is not applicable when no player entity can be identified from campaignState (boundary)', () => {
     const result = fakeTurnExecutionResult({
       campaignState: {},
       gameEvents: [
@@ -104,7 +115,7 @@ describe('checkSystemRolledPlayerAction', () => {
     });
 
     const verdict = checkSystemRolledPlayerAction(result);
-    expect(verdict.passed).toBe(true);
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
     expect(verdict.actual).toMatch(/no player entity could be identified/);
   });
 });

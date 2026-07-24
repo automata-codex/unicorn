@@ -57,7 +57,7 @@ export function checkMissingCanonCapture(
 
   if (newWorldFactKeys.length > 0) {
     return {
-      passed: true,
+      outcome: 'PASSED',
       actual: `campaignState.worldFacts gained new key(s): ${newWorldFactKeys.join(', ')}`,
     };
   }
@@ -73,13 +73,13 @@ export function checkMissingCanonCapture(
 
   if (newCanon.length > 0) {
     return {
-      passed: true,
+      outcome: 'PASSED',
       actual: `${newCanon.length} new pending_canon row(s) proposed this turn (sequence ${gmResponseEvent!.sequenceNumber}): ${newCanon.map((c) => c.summary).join('; ')}`,
     };
   }
 
   return {
-    passed: false,
+    outcome: 'FAILED',
     actual:
       `expected new detail ("${expectedNewDetail}") but campaignState.worldFacts ` +
       'is unchanged and no new pending_canon row was proposed this turn',

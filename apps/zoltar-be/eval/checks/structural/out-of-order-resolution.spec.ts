@@ -23,7 +23,7 @@ describe('checkOutOfOrderResolution', () => {
       ],
     });
 
-    expect(checkOutOfOrderResolution(result).passed).toBe(true);
+    expect(checkOutOfOrderResolution(result).outcome).toBe('PASSED');
   });
 
   it('fails when a damage roll is phrased conditionally on an unconfirmed hit (deliberately-broken counterexample, from real replayed output)', () => {
@@ -38,7 +38,7 @@ describe('checkOutOfOrderResolution', () => {
     });
 
     const verdict = checkOutOfOrderResolution(result);
-    expect(verdict.passed).toBe(false);
+    expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(/sequence 2/);
     expect(verdict.actual).toMatch(/not been confirmed yet/);
   });
@@ -73,7 +73,7 @@ describe('checkOutOfOrderResolution', () => {
     });
 
     const verdict = checkOutOfOrderResolution(result);
-    expect(verdict.passed).toBe(false);
+    expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(/sequence 2/);
   });
 
@@ -86,18 +86,20 @@ describe('checkOutOfOrderResolution', () => {
     });
 
     const verdict = checkOutOfOrderResolution(result);
-    expect(verdict.passed).toBe(false);
+    expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(/before this turn's player_action/);
   });
 
-  it('passes when there are no dice_roll events at all (boundary)', () => {
+  it('is not applicable when there are no dice_roll events at all (boundary)', () => {
     const result = fakeTurnExecutionResult({
       gameEvents: [
         fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
       ],
     });
 
-    expect(checkOutOfOrderResolution(result).passed).toBe(true);
+    const verdict = checkOutOfOrderResolution(result);
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
+    expect(verdict.actual).toMatch(/no dice_roll events/);
   });
 
   it('does not false-positive on a damage roll with no conditional phrasing (boundary)', () => {
@@ -115,6 +117,6 @@ describe('checkOutOfOrderResolution', () => {
       ],
     });
 
-    expect(checkOutOfOrderResolution(result).passed).toBe(true);
+    expect(checkOutOfOrderResolution(result).outcome).toBe('PASSED');
   });
 });
