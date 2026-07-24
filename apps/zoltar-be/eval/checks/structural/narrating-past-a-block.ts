@@ -18,7 +18,41 @@ interface GmResponsePayload {
  * flagged explicitly, not silently accepted as solved.
  */
 const RESOLUTION_LANGUAGE_PATTERN =
-  /\b(succeeds?|fails?|you (hit|deal|take|put)|damage is dealt|the (attack|shot|blow) (lands|connects))\b/i;
+  /\b(succeeds?|fails?|you (hit|deal|take|put)|damage is dealt|the (attack|shot|blow) (lands|connects))\b/gi;
+
+/**
+ * A bare substring match against `RESOLUTION_LANGUAGE_PATTERN` isn't enough
+ * on its own: "If you hit, you deal 10 damage" is the Warden's standard (and
+ * correct) way to state a pending roll's stakes before it resolves — not
+ * evidence the roll already resolved. Confirmed against real replayed
+ * output (turn21-narrating-past-a-block): the pattern matched "you hit"/
+ * "you deal" inside exactly that conditional framing and produced a false
+ * FAILED, even though the roll it referred to was still an open,
+ * re-prompted dice_request at the end of the same turn.
+ *
+ * A match only counts as genuine resolution language if nothing earlier in
+ * its own sentence conditions it — scoped to the sentence (back to the
+ * previous `.`/`!`/`?`/blank line), not the whole turn, so an unrelated
+ * "if" earlier in the response doesn't suppress a real violation later on.
+ */
+function hasUnconditionalResolutionLanguage(playerText: string): boolean {
+  const pattern = new RegExp(RESOLUTION_LANGUAGE_PATTERN.source, 'gi');
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(playerText)) !== null) {
+    const sentenceStart =
+      Math.max(
+        playerText.lastIndexOf('.', match.index),
+        playerText.lastIndexOf('!', match.index),
+        playerText.lastIndexOf('?', match.index),
+        playerText.lastIndexOf('\n\n', match.index),
+      ) + 1;
+    const clause = playerText.slice(sentenceStart, match.index);
+    if (!/\bif\b/i.test(clause)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /**
  * The spec names two distinct blocking mechanisms for this tag: "blocked on
@@ -48,11 +82,36 @@ const BLOCK_ACKNOWLEDGING_CONTINUATION_PATTERN =
   /\bwhile\b[^.]{0,25}\b(decid\w*|resolv\w*)\b|\bregardless of\b[^.]{0,20}\b(number|score|result)\b|\bhappens?\s+regardless\b|\bregardless\s*[:—-]|\bno matter (what|how)\b/i;
 
 /**
+ * `target` is set once when a dice_request is issued and never updated
+ * (confirmed against `session.repository.ts` — no code path writes it after
+ * insert), so a `resolved` request whose `target` is still `null` is a hard,
+ * non-lexical fact: the stat value this roll's success threshold depended on
+ * was never obtained from the player, yet the roll got resolved anyway. This
+ * catches the case `BLOCK_ACKNOWLEDGING_CONTINUATION_PATTERN` structurally
+ * can't: a Warden that resolves the missing-data block by self-ruling
+ * ("you haven't given me your Instinct score, but I'm ruling on the
+ * fiction...") rather than by narrating "regardless of the number" while
+ * still claiming to wait — the request goes straight from pending to
+ * resolved with no target ever set, and `isBlocked` below no longer sees
+ * anything blocked by the time this turn's response is checked.
+ *
+ * Restricted to requests whose `purpose` names a stat/save this system
+ * actually has (Mothership's fixed, small vocabulary — not free narration
+ * text), so a legitimate narrative-selection roll with no target at all
+ * (e.g. "1d6 to determine which of six things happens") isn't misread as a
+ * missing-data block — that roll never had a target concept to begin with.
+ */
+const STAT_CHECK_PATTERN =
+  /\b(strength|speed|intellect|combat|sanity|fear|body|instinct)\b[^.]{0,20}\b(roll|check|save)\b/i;
+
+/**
  * NARRATING-PAST-A-BLOCK: the response's narration should stop at the block
  * point rather than continue narrating the blocked action's outcome or
  * escalating the scene regardless of it — whether the block is a pending
- * `dice_request` (mechanically checkable) or missing player-supplied data
- * (only checkable via the Warden's own block-acknowledging language).
+ * `dice_request` (mechanically checkable), missing player-supplied data
+ * resolved by self-ruling instead of waiting (mechanically checkable via
+ * `target`), or missing player-supplied data narrated past outright (only
+ * checkable via the Warden's own block-acknowledging language).
  */
 export function checkNarratingPastABlock(
   result: TurnExecutionResult,
@@ -64,34 +123,54 @@ export function checkNarratingPastABlock(
 
   if (BLOCK_ACKNOWLEDGING_CONTINUATION_PATTERN.test(playerText)) {
     return {
-      passed: false,
+      outcome: 'FAILED',
       actual:
         'playerText explicitly acknowledges an unresolved decision/roll and ' +
         `narrates onward anyway: "${playerText}"`,
     };
   }
 
+  const unresolvedTargetRolls = result.diceRequests.filter(
+    (r) =>
+      r.status === 'resolved' &&
+      r.target === null &&
+      STAT_CHECK_PATTERN.test(r.purpose),
+  );
+  if (unresolvedTargetRolls.length > 0) {
+    return {
+      outcome: 'FAILED',
+      actual: unresolvedTargetRolls
+        .map(
+          (r) =>
+            `dice_request "${r.purpose}" (${r.notation}) resolved this turn with no target ever ` +
+            'set — the stat value it depended on was never obtained from the player before the ' +
+            'turn narrated a resolved outcome',
+        )
+        .join('; '),
+    };
+  }
+
   const isBlocked = result.diceRequests.some((r) => r.status === 'pending');
   if (!isBlocked) {
     return {
-      passed: true,
+      outcome: 'NOT_APPLICABLE',
       actual:
-        'no pending dice_request after this turn and no block-acknowledging ' +
-        'language in playerText — nothing blocked',
+        'no pending dice_request after this turn, no resolved dice_request with a missing ' +
+        'target, and no block-acknowledging language in playerText — nothing blocked',
     };
   }
 
   if (!winningResponse) {
     return {
-      passed: true,
+      outcome: 'NOT_APPLICABLE',
       actual:
         'a dice_request is pending, but no gm_response/correction event exists to check',
     };
   }
 
-  if (RESOLUTION_LANGUAGE_PATTERN.test(playerText)) {
+  if (hasUnconditionalResolutionLanguage(playerText)) {
     return {
-      passed: false,
+      outcome: 'FAILED',
       actual:
         'a dice_request is pending, but playerText contains resolution ' +
         `language suggesting the blocked action was narrated anyway: "${playerText}"`,
@@ -99,7 +178,7 @@ export function checkNarratingPastABlock(
   }
 
   return {
-    passed: true,
+    outcome: 'PASSED',
     actual:
       'a dice_request is pending and playerText contains no resolution-implying language',
   };

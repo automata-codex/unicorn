@@ -142,7 +142,7 @@ async function main(): Promise<number> {
         process.stderr.write(`${label} — running...\n`);
         return;
       }
-      const verdict = event.result.passed ? 'PASSED' : 'FAILED';
+      const verdict = event.result.outcome;
       const seconds = (event.durationMs / 1000).toFixed(1);
       process.stderr.write(`${label} — ${verdict} (${seconds}s)\n`);
     },
@@ -160,7 +160,10 @@ async function main(): Promise<number> {
     process.stdout.write(report);
   }
 
-  const anyFailed = results.some((r) => !r.passed);
+  // NOT_APPLICABLE doesn't fail the run — it means this run's live model
+  // output never reached the condition the fixture checks, not that
+  // anything regressed.
+  const anyFailed = results.some((r) => r.outcome === 'FAILED');
   const anyLoadErrors = loadErrors.length > 0;
   return anyFailed || anyLoadErrors ? 1 : 0;
 }

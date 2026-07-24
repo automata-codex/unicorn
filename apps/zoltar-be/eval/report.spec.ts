@@ -25,25 +25,31 @@ function fixture(id: string, tag: FailureModeTag): EvalFixture {
 }
 
 function result(
-  overrides: Partial<FixtureResult> & Pick<FixtureResult, 'fixture' | 'passed'>,
+  overrides: Partial<FixtureResult> & Pick<FixtureResult, 'fixture' | 'outcome'>,
 ): FixtureResult {
   return {
     expected: 'no damage roll before to-hit roll resolves',
     actual: 'clean',
+    campaignId: '00000000-0000-0000-0000-0000000000c1',
+    adventureId: '00000000-0000-0000-0000-0000000000a1',
     ...overrides,
   };
 }
 
+const META = { runId: 'a1b2c3d4-0000-0000-0000-000000000000', keptScratch: false };
+
 describe('renderReport', () => {
   it('renders a valid, non-crashing report for an empty result set', () => {
-    expect(renderReport('mothership-m7.txt', [])).toBe(
-      '# Eval Run: mothership-m7.txt\n' +
+    expect(renderReport('mothership-m7.txt', [], META)).toBe(
+      '# Eval Run: mothership-m7.txt  |  runId: a1b2c3d4-0000-0000-0000-000000000000  |  scratch: torn down\n' +
         '\n' +
-        'Fixtures: 0  |  Passed: 0  |  Failed: 0\n' +
+        'Fixtures: 0  |  Passed: 0  |  Failed: 0  |  N/A: 0\n' +
         '\n' +
         '## Summary by tag\n' +
         '\n' +
         '## Failures\n' +
+        '\n' +
+        '## Not Applicable\n' +
         '\n' +
         '## Passes\n',
     );
@@ -53,33 +59,37 @@ describe('renderReport', () => {
     const results: FixtureResult[] = [
       result({
         fixture: fixture('turn19', 'OUT-OF-ORDER-RESOLUTION'),
-        passed: true,
+        outcome: 'PASSED',
         actual: 'no violation found',
       }),
       result({
         fixture: fixture('turn21', 'OUT-OF-ORDER-RESOLUTION'),
-        passed: true,
+        outcome: 'PASSED',
         actual: 'no violation found',
       }),
     ];
 
-    expect(renderReport('baseline', results)).toBe(
-      '# Eval Run: baseline\n' +
+    expect(renderReport('baseline', results, META)).toBe(
+      '# Eval Run: baseline  |  runId: a1b2c3d4-0000-0000-0000-000000000000  |  scratch: torn down\n' +
         '\n' +
-        'Fixtures: 2  |  Passed: 2  |  Failed: 0\n' +
+        'Fixtures: 2  |  Passed: 2  |  Failed: 0  |  N/A: 0\n' +
         '\n' +
         '## Summary by tag\n' +
         '- OUT-OF-ORDER-RESOLUTION: 2/2 passed\n' +
         '\n' +
         '## Failures\n' +
         '\n' +
+        '## Not Applicable\n' +
+        '\n' +
         '## Passes\n' +
         '\n' +
         '### turn19 — PASSED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
         'Actual: no violation found\n' +
         '\n' +
         '### turn21 — PASSED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
         'Actual: no violation found\n',
     );
@@ -89,16 +99,16 @@ describe('renderReport', () => {
     const results: FixtureResult[] = [
       result({
         fixture: fixture('turn19', 'OUT-OF-ORDER-RESOLUTION'),
-        passed: false,
+        outcome: 'FAILED',
         expected: 'no damage roll before to-hit roll resolves',
         actual: 'damage roll at sequence 2 preceded to-hit roll at sequence 3',
       }),
     ];
 
-    expect(renderReport('baseline', results)).toBe(
-      '# Eval Run: baseline\n' +
+    expect(renderReport('baseline', results, META)).toBe(
+      '# Eval Run: baseline  |  runId: a1b2c3d4-0000-0000-0000-000000000000  |  scratch: torn down\n' +
         '\n' +
-        'Fixtures: 1  |  Passed: 0  |  Failed: 1\n' +
+        'Fixtures: 1  |  Passed: 0  |  Failed: 1  |  N/A: 0\n' +
         '\n' +
         '## Summary by tag\n' +
         '- OUT-OF-ORDER-RESOLUTION: 0/1 passed\n' +
@@ -106,8 +116,11 @@ describe('renderReport', () => {
         '## Failures\n' +
         '\n' +
         '### turn19 — FAILED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
         'Actual: damage roll at sequence 2 preceded to-hit roll at sequence 3\n' +
+        '\n' +
+        '## Not Applicable\n' +
         '\n' +
         '## Passes\n',
     );
@@ -117,21 +130,21 @@ describe('renderReport', () => {
     const results: FixtureResult[] = [
       result({
         fixture: fixture('turn19', 'OUT-OF-ORDER-RESOLUTION'),
-        passed: true,
+        outcome: 'PASSED',
         actual: 'no violation found',
       }),
       result({
         fixture: fixture('turn28', 'OUT-OF-ORDER-RESOLUTION'),
-        passed: false,
+        outcome: 'FAILED',
         expected: 'no damage roll before to-hit roll resolves',
         actual: 'damage roll at sequence 5 preceded to-hit roll at sequence 6',
       }),
     ];
 
-    expect(renderReport('baseline', results)).toBe(
-      '# Eval Run: baseline\n' +
+    expect(renderReport('baseline', results, META)).toBe(
+      '# Eval Run: baseline  |  runId: a1b2c3d4-0000-0000-0000-000000000000  |  scratch: torn down\n' +
         '\n' +
-        'Fixtures: 2  |  Passed: 1  |  Failed: 1\n' +
+        'Fixtures: 2  |  Passed: 1  |  Failed: 1  |  N/A: 0\n' +
         '\n' +
         '## Summary by tag\n' +
         '- OUT-OF-ORDER-RESOLUTION: 1/2 passed\n' +
@@ -139,12 +152,56 @@ describe('renderReport', () => {
         '## Failures\n' +
         '\n' +
         '### turn28 — FAILED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
         'Actual: damage roll at sequence 5 preceded to-hit roll at sequence 6\n' +
+        '\n' +
+        '## Not Applicable\n' +
         '\n' +
         '## Passes\n' +
         '\n' +
         '### turn19 — PASSED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
+        'Expected: no damage roll before to-hit roll resolves\n' +
+        'Actual: no violation found\n',
+    );
+  });
+
+  it('renders NOT_APPLICABLE results in their own section, excluded from the pass ratio', () => {
+    const results: FixtureResult[] = [
+      result({
+        fixture: fixture('turn19', 'OUT-OF-ORDER-RESOLUTION'),
+        outcome: 'PASSED',
+        actual: 'no violation found',
+      }),
+      result({
+        fixture: fixture('turn14', 'OUT-OF-ORDER-RESOLUTION'),
+        outcome: 'NOT_APPLICABLE',
+        actual: 'no dice_roll events this turn',
+      }),
+    ];
+
+    expect(renderReport('baseline', results, META)).toBe(
+      '# Eval Run: baseline  |  runId: a1b2c3d4-0000-0000-0000-000000000000  |  scratch: torn down\n' +
+        '\n' +
+        'Fixtures: 2  |  Passed: 1  |  Failed: 0  |  N/A: 1\n' +
+        '\n' +
+        '## Summary by tag\n' +
+        '- OUT-OF-ORDER-RESOLUTION: 1/1 passed (1 n/a)\n' +
+        '\n' +
+        '## Failures\n' +
+        '\n' +
+        '## Not Applicable\n' +
+        '\n' +
+        '### turn14 — NOT_APPLICABLE\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
+        'Expected: no damage roll before to-hit roll resolves\n' +
+        'Actual: no dice_roll events this turn\n' +
+        '\n' +
+        '## Passes\n' +
+        '\n' +
+        '### turn19 — PASSED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
         'Actual: no violation found\n',
     );
@@ -154,26 +211,26 @@ describe('renderReport', () => {
     const results: FixtureResult[] = [
       result({
         fixture: fixture('turn24', 'OVER-RESOLUTION'),
-        passed: true,
+        outcome: 'PASSED',
         actual: 'resolution level matches',
       }),
       result({
         fixture: fixture('turn19', 'OUT-OF-ORDER-RESOLUTION'),
-        passed: true,
+        outcome: 'PASSED',
         actual: 'no violation found',
       }),
       result({
         fixture: fixture('turn24b', 'HIDDEN-INFO-LEAK'),
-        passed: false,
+        outcome: 'FAILED',
         expected: 'no leak beyond perception boundary',
         actual: 'reveals a roll value beyond the boundary',
       }),
     ];
 
-    expect(renderReport('baseline', results)).toBe(
-      '# Eval Run: baseline\n' +
+    expect(renderReport('baseline', results, META)).toBe(
+      '# Eval Run: baseline  |  runId: a1b2c3d4-0000-0000-0000-000000000000  |  scratch: torn down\n' +
         '\n' +
-        'Fixtures: 3  |  Passed: 2  |  Failed: 1\n' +
+        'Fixtures: 3  |  Passed: 2  |  Failed: 1  |  N/A: 0\n' +
         '\n' +
         '## Summary by tag\n' +
         '- HIDDEN-INFO-LEAK: 0/1 passed\n' +
@@ -183,18 +240,29 @@ describe('renderReport', () => {
         '## Failures\n' +
         '\n' +
         '### turn24b — FAILED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no leak beyond perception boundary\n' +
         'Actual: reveals a roll value beyond the boundary\n' +
+        '\n' +
+        '## Not Applicable\n' +
         '\n' +
         '## Passes\n' +
         '\n' +
         '### turn24 — PASSED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
         'Actual: resolution level matches\n' +
         '\n' +
         '### turn19 — PASSED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
         'Actual: no violation found\n',
     );
+  });
+
+  it('reflects keptScratch: true in the header', () => {
+    expect(
+      renderReport('baseline', [], { runId: 'r-1', keptScratch: true }),
+    ).toContain('runId: r-1  |  scratch: kept');
   });
 });

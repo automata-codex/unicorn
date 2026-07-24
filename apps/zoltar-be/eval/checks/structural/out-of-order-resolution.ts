@@ -25,7 +25,7 @@ import type { StructuralVerdict } from './types';
  * The conditional-language signal catches both shapes directly.
  */
 const CONDITIONAL_DAMAGE_PATTERN =
-  /\b(damage|dmg)\b[^.]{0,40}\bif\b[^.]{0,30}\b(hit|succeeds?|lands?|connects?)\b/i;
+  /\b(damage|dmg)\b[^.]{0,40}\bif\b[^.]{0,30}\b(hits?|succeeds?|lands?|connects?)\b/i;
 
 /**
  * OUT-OF-ORDER-RESOLUTION: a damage roll must not fire before the to-hit
@@ -39,6 +39,13 @@ export function checkOutOfOrderResolution(
     .filter((e) => e.eventType === 'dice_roll')
     .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
 
+  if (diceRolls.length === 0) {
+    return {
+      outcome: 'NOT_APPLICABLE',
+      actual: 'no dice_roll events this turn',
+    };
+  }
+
   const playerAction = result.gameEvents.find(
     (e) => e.eventType === 'player_action',
   );
@@ -48,7 +55,7 @@ export function checkOutOfOrderResolution(
     );
     if (precedingRolls.length > 0) {
       return {
-        passed: false,
+        outcome: 'FAILED',
         actual:
           `${precedingRolls.length} dice_roll event(s) occurred before this ` +
           `turn's player_action (sequence ${playerAction.sequenceNumber}): ` +
@@ -71,11 +78,11 @@ export function checkOutOfOrderResolution(
     );
 
   if (violations.length > 0) {
-    return { passed: false, actual: violations.join('; ') };
+    return { outcome: 'FAILED', actual: violations.join('; ') };
   }
 
   return {
-    passed: true,
+    outcome: 'PASSED',
     actual: `${diceRolls.length} dice_roll event(s) this turn, no damage-before-to-hit ordering violation found`,
   };
 }

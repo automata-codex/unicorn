@@ -59,6 +59,11 @@ export interface RunHarnessResult {
    * dropped. The CLI decides how loudly to surface these and folds them
    * into its exit-code policy. */
   loadErrors: FixtureLoadError[];
+  /** This invocation's id, embedded in every scratch campaign's name
+   * (`__eval__<fixture.id>__<runId>`) and in the rendered report's header —
+   * exposed here too so a caller can correlate without re-parsing the
+   * report string. */
+  runId: string;
 }
 
 /** The fixture's own "what we expected" text — the `check` string as-is
@@ -71,11 +76,18 @@ function expectedTextFor(fixture: EvalFixture): string {
   return resolveRubricText(fixture);
 }
 
-async function evaluateFixture(
+/**
+ * Dispatches a fixture to its structural checker or judge rubric. Exported
+ * so `eval-replay.ts` (replaying an already-captured scratch adventure's
+ * stored `game_events` against its checker, without re-running the turn)
+ * can reuse the exact same structural/judged dispatch `runHarness` itself
+ * uses, rather than duplicating it.
+ */
+export async function evaluateFixture(
   fixture: EvalFixture,
   turnResult: TurnExecutionResult,
   anthropic: AnthropicService,
-): Promise<FixtureResult> {
+): Promise<Omit<FixtureResult, 'campaignId' | 'adventureId'>> {
   if (fixture.assertion.mode === 'structural') {
     const checker =
       structuralCheckers[fixture.tag as keyof typeof structuralCheckers];
@@ -87,7 +99,7 @@ async function evaluateFixture(
     const verdict = checker(turnResult, fixture);
     return {
       fixture,
-      passed: verdict.passed,
+      outcome: verdict.outcome,
       expected: fixture.assertion.check,
       actual: verdict.actual,
     };
@@ -97,7 +109,10 @@ async function evaluateFixture(
   const verdict = await runJudgeCall(anthropic, fixture, turnResult);
   return {
     fixture,
-    passed: verdict.passed,
+    // Judged rubrics have no NOT_APPLICABLE concept — a judge can always
+    // answer its rubric's question, even trivially — so this is always a
+    // genuine PASSED/FAILED, never a "nothing to check" result.
+    outcome: verdict.passed ? 'PASSED' : 'FAILED',
     expected,
     actual: verdict.rationale,
   };
@@ -163,11 +178,11 @@ export async function runHarness(
           fixture,
           seeded,
         );
-        result = await evaluateFixture(
-          fixture,
-          turnResult,
-          harness.anthropicService,
-        );
+        result = {
+          ...(await evaluateFixture(fixture, turnResult, harness.anthropicService)),
+          campaignId: seeded.campaignId,
+          adventureId: seeded.adventureId,
+        };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         let expected: string;
@@ -179,9 +194,11 @@ export async function runHarness(
         }
         result = {
           fixture,
-          passed: false,
+          outcome: 'FAILED',
           expected,
           actual: `ERRORED before an assertion could run: ${message}`,
+          campaignId: seeded.campaignId,
+          adventureId: seeded.adventureId,
         };
       } finally {
         if (!args.keepScratch) {
@@ -204,7 +221,10 @@ export async function runHarness(
   }
 
   const runLabel = args.promptVariant ?? 'baseline';
-  const report = renderReport(runLabel, results);
+  const report = renderReport(runLabel, results, {
+    runId,
+    keptScratch: args.keepScratch ?? false,
+  });
 
-  return { report, results, loadErrors };
+  return { report, results, loadErrors, runId };
 }

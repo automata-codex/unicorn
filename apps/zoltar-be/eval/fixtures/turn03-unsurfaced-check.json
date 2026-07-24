@@ -470,7 +470,8 @@
     "content": "Ok, with my rifle at the ready, I want to push past the emergency bulkhead and enter the hub junction (assuming I understand the layout correctly). Are there others with me, or is this a solo op?"
   },
   "assertion": {
-    "mode": "structural",
-    "check": "Rolls that gate player-visible content (e.g. a perception/notice check) must be surfaced to the player as a dice_request, not resolved silently server-side. Original turn's 1d10 hub-junction notice roll functioned as a hidden perception check (\"what a lower roll might have missed\") that was never presented to the player as a check \u2014 no notation shown, no choice to roll manually or use \"roll for me.\""
+    "mode": "judged",
+    "rubric": "UNSURFACED-CHECK",
+    "facts": {}
   }
 }

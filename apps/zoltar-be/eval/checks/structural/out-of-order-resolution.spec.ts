@@ -23,7 +23,7 @@ describe('checkOutOfOrderResolution', () => {
       ],
     });
 
-    expect(checkOutOfOrderResolution(result).passed).toBe(true);
+    expect(checkOutOfOrderResolution(result).outcome).toBe('PASSED');
   });
 
   it('fails when a damage roll is phrased conditionally on an unconfirmed hit (deliberately-broken counterexample, from real replayed output)', () => {
@@ -38,9 +38,38 @@ describe('checkOutOfOrderResolution', () => {
     });
 
     const verdict = checkOutOfOrderResolution(result);
-    expect(verdict.passed).toBe(false);
+    expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(/sequence 2/);
     expect(verdict.actual).toMatch(/not been confirmed yet/);
+  });
+
+  it('fails on "if player hits" (conjugated/plural form), from real replayed output (deliberately-broken counterexample)', () => {
+    // Real case, turn19-out-of-order-resolution: CONDITIONAL_DAMAGE_PATTERN
+    // used a bare `hit` alternative instead of `hits?` — `\bhit\b` never
+    // matches inside "hits" (no word boundary between "t" and "s"), so this
+    // roll's damage was silently missed even though its sibling roll on the
+    // same turn ("Contractor rifle damage if hit") was correctly flagged.
+    // This is the more severe of the two: Alvarez's own rifle damage,
+    // pre-rolled and stated as "already rolled" while her own Combat/to-hit
+    // roll is still an open, unresolved dice_request.
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
+        fakeDiceRoll({
+          sequenceNumber: 3,
+          purpose: 'Contractor rifle damage if hit',
+        }),
+        fakeDiceRoll({
+          sequenceNumber: 4,
+          purpose: 'Alvarez rifle damage if player hits',
+        }),
+      ],
+    });
+
+    const verdict = checkOutOfOrderResolution(result);
+    expect(verdict.outcome).toBe('FAILED');
+    expect(verdict.actual).toMatch(/sequence 3/);
+    expect(verdict.actual).toMatch(/sequence 4/);
   });
 
   it('fails on conditional damage language even with no separate to-hit roll present in the turn (the to-hit is deferred to the player)', () => {
@@ -73,7 +102,7 @@ describe('checkOutOfOrderResolution', () => {
     });
 
     const verdict = checkOutOfOrderResolution(result);
-    expect(verdict.passed).toBe(false);
+    expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(/sequence 2/);
   });
 
@@ -86,18 +115,20 @@ describe('checkOutOfOrderResolution', () => {
     });
 
     const verdict = checkOutOfOrderResolution(result);
-    expect(verdict.passed).toBe(false);
+    expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(/before this turn's player_action/);
   });
 
-  it('passes when there are no dice_roll events at all (boundary)', () => {
+  it('is not applicable when there are no dice_roll events at all (boundary)', () => {
     const result = fakeTurnExecutionResult({
       gameEvents: [
         fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
       ],
     });
 
-    expect(checkOutOfOrderResolution(result).passed).toBe(true);
+    const verdict = checkOutOfOrderResolution(result);
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
+    expect(verdict.actual).toMatch(/no dice_roll events/);
   });
 
   it('does not false-positive on a damage roll with no conditional phrasing (boundary)', () => {
@@ -115,6 +146,6 @@ describe('checkOutOfOrderResolution', () => {
       ],
     });
 
-    expect(checkOutOfOrderResolution(result).passed).toBe(true);
+    expect(checkOutOfOrderResolution(result).outcome).toBe('PASSED');
   });
 });

@@ -62,3 +62,12 @@ tasks:
       # metadata that requires; @swc-node/register does. See the header
       # comment in scripts/eval-harness.ts.
       - node -r @swc-node/register -r reflect-metadata --env-file=.env scripts/eval-harness.ts {{.CLI_ARGS}}
+
+  eval:replay:
+    desc: Re-evaluate one already-captured scratch adventure (left behind by eval:harness --keep-scratch) against its fixture's checker/rubric, without re-running the turn. A judged-mode fixture still makes one real Anthropic call (the judge itself). Usage — task eval:replay -- --fixture <id|path> --adventure-id <uuid>
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx is fine here, unlike eval:harness — this script never goes
+      # through Nest's DI container (AnthropicService is constructed
+      # directly), so there's no decorator-metadata requirement to satisfy.
+      - npx tsx --env-file=.env scripts/eval-replay.ts {{.CLI_ARGS}}

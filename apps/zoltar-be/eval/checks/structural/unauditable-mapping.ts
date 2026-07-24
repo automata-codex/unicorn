@@ -64,7 +64,7 @@ export function checkUnauditableMapping(
 
   if (narrativeRolls.length === 0) {
     return {
-      passed: true,
+      outcome: 'NOT_APPLICABLE',
       actual: 'no narrative-selection-flavored dice_roll events this turn',
     };
   }
@@ -83,11 +83,11 @@ export function checkUnauditableMapping(
     );
 
   if (violations.length > 0) {
-    return { passed: false, actual: violations.join('; ') };
+    return { outcome: 'FAILED', actual: violations.join('; ') };
   }
 
   return {
-    passed: true,
+    outcome: 'PASSED',
     actual: `${narrativeRolls.length} narrative-selection dice_roll event(s), each states its mapping up front`,
   };
 }

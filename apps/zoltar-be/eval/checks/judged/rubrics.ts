@@ -42,4 +42,30 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'off-screen resolution?',
     requiredFacts: ['resolutionLevel'],
   },
+  'UNSURFACED-CHECK': {
+    template:
+      "Question: among this turn's dice_roll events below, does any roll " +
+      'function as a check that gates content the player perceives or ' +
+      'discovers — a perception, awareness, search, or stealth-style roll ' +
+      '— regardless of how its purpose text happens to be phrased? If so, ' +
+      'was a corresponding dice_request ever surfaced to the player (the ' +
+      "roll's requestId set, or a prior dice_request event), giving them " +
+      'the option to roll themselves or ask to "roll for me"? Fail if such ' +
+      'a roll was instead resolved silently server-side, with no ' +
+      'player-facing notation or choice.',
+    requiredFacts: [],
+  },
+  'SCENE-JUMP': {
+    template:
+      "This turn's player action justifies the following scope: {{expectedScope}}\n\n" +
+      'Question: does the narration advance the story beyond that scope — ' +
+      "relocating the player character to a new location, beginning a new " +
+      'NPC encounter, or resolving subsequent plot beats — that the player ' +
+      'did not choose to pursue in their stated action? Narrating the ' +
+      'immediate, direct consequences of the stated action, at the ' +
+      "location where it's taken, is fine; advancing to a decision or " +
+      "event beyond it without the player choosing to make that next move " +
+      'is a violation, even if the prose reads as a natural continuation.',
+    requiredFacts: ['expectedScope'],
+  },
 };
