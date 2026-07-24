@@ -30,14 +30,18 @@ function result(
   return {
     expected: 'no damage roll before to-hit roll resolves',
     actual: 'clean',
+    campaignId: '00000000-0000-0000-0000-0000000000c1',
+    adventureId: '00000000-0000-0000-0000-0000000000a1',
     ...overrides,
   };
 }
 
+const META = { runId: 'a1b2c3d4-0000-0000-0000-000000000000', keptScratch: false };
+
 describe('renderReport', () => {
   it('renders a valid, non-crashing report for an empty result set', () => {
-    expect(renderReport('mothership-m7.txt', [])).toBe(
-      '# Eval Run: mothership-m7.txt\n' +
+    expect(renderReport('mothership-m7.txt', [], META)).toBe(
+      '# Eval Run: mothership-m7.txt  |  runId: a1b2c3d4-0000-0000-0000-000000000000  |  scratch: torn down\n' +
         '\n' +
         'Fixtures: 0  |  Passed: 0  |  Failed: 0\n' +
         '\n' +
@@ -63,8 +67,8 @@ describe('renderReport', () => {
       }),
     ];
 
-    expect(renderReport('baseline', results)).toBe(
-      '# Eval Run: baseline\n' +
+    expect(renderReport('baseline', results, META)).toBe(
+      '# Eval Run: baseline  |  runId: a1b2c3d4-0000-0000-0000-000000000000  |  scratch: torn down\n' +
         '\n' +
         'Fixtures: 2  |  Passed: 2  |  Failed: 0\n' +
         '\n' +
@@ -76,10 +80,12 @@ describe('renderReport', () => {
         '## Passes\n' +
         '\n' +
         '### turn19 — PASSED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
         'Actual: no violation found\n' +
         '\n' +
         '### turn21 — PASSED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
         'Actual: no violation found\n',
     );
@@ -95,8 +101,8 @@ describe('renderReport', () => {
       }),
     ];
 
-    expect(renderReport('baseline', results)).toBe(
-      '# Eval Run: baseline\n' +
+    expect(renderReport('baseline', results, META)).toBe(
+      '# Eval Run: baseline  |  runId: a1b2c3d4-0000-0000-0000-000000000000  |  scratch: torn down\n' +
         '\n' +
         'Fixtures: 1  |  Passed: 0  |  Failed: 1\n' +
         '\n' +
@@ -106,6 +112,7 @@ describe('renderReport', () => {
         '## Failures\n' +
         '\n' +
         '### turn19 — FAILED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
         'Actual: damage roll at sequence 2 preceded to-hit roll at sequence 3\n' +
         '\n' +
@@ -128,8 +135,8 @@ describe('renderReport', () => {
       }),
     ];
 
-    expect(renderReport('baseline', results)).toBe(
-      '# Eval Run: baseline\n' +
+    expect(renderReport('baseline', results, META)).toBe(
+      '# Eval Run: baseline  |  runId: a1b2c3d4-0000-0000-0000-000000000000  |  scratch: torn down\n' +
         '\n' +
         'Fixtures: 2  |  Passed: 1  |  Failed: 1\n' +
         '\n' +
@@ -139,12 +146,14 @@ describe('renderReport', () => {
         '## Failures\n' +
         '\n' +
         '### turn28 — FAILED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
         'Actual: damage roll at sequence 5 preceded to-hit roll at sequence 6\n' +
         '\n' +
         '## Passes\n' +
         '\n' +
         '### turn19 — PASSED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
         'Actual: no violation found\n',
     );
@@ -170,8 +179,8 @@ describe('renderReport', () => {
       }),
     ];
 
-    expect(renderReport('baseline', results)).toBe(
-      '# Eval Run: baseline\n' +
+    expect(renderReport('baseline', results, META)).toBe(
+      '# Eval Run: baseline  |  runId: a1b2c3d4-0000-0000-0000-000000000000  |  scratch: torn down\n' +
         '\n' +
         'Fixtures: 3  |  Passed: 2  |  Failed: 1\n' +
         '\n' +
@@ -183,18 +192,27 @@ describe('renderReport', () => {
         '## Failures\n' +
         '\n' +
         '### turn24b — FAILED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no leak beyond perception boundary\n' +
         'Actual: reveals a roll value beyond the boundary\n' +
         '\n' +
         '## Passes\n' +
         '\n' +
         '### turn24 — PASSED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
         'Actual: resolution level matches\n' +
         '\n' +
         '### turn19 — PASSED\n' +
+        'Campaign: 00000000-0000-0000-0000-0000000000c1  |  Adventure: 00000000-0000-0000-0000-0000000000a1\n' +
         'Expected: no damage roll before to-hit roll resolves\n' +
         'Actual: no violation found\n',
     );
+  });
+
+  it('reflects keptScratch: true in the header', () => {
+    expect(
+      renderReport('baseline', [], { runId: 'r-1', keptScratch: true }),
+    ).toContain('runId: r-1  |  scratch: kept');
   });
 });

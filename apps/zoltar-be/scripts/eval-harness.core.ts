@@ -59,6 +59,11 @@ export interface RunHarnessResult {
    * dropped. The CLI decides how loudly to surface these and folds them
    * into its exit-code policy. */
   loadErrors: FixtureLoadError[];
+  /** This invocation's id, embedded in every scratch campaign's name
+   * (`__eval__<fixture.id>__<runId>`) and in the rendered report's header —
+   * exposed here too so a caller can correlate without re-parsing the
+   * report string. */
+  runId: string;
 }
 
 /** The fixture's own "what we expected" text — the `check` string as-is
@@ -75,7 +80,7 @@ async function evaluateFixture(
   fixture: EvalFixture,
   turnResult: TurnExecutionResult,
   anthropic: AnthropicService,
-): Promise<FixtureResult> {
+): Promise<Omit<FixtureResult, 'campaignId' | 'adventureId'>> {
   if (fixture.assertion.mode === 'structural') {
     const checker =
       structuralCheckers[fixture.tag as keyof typeof structuralCheckers];
@@ -163,11 +168,11 @@ export async function runHarness(
           fixture,
           seeded,
         );
-        result = await evaluateFixture(
-          fixture,
-          turnResult,
-          harness.anthropicService,
-        );
+        result = {
+          ...(await evaluateFixture(fixture, turnResult, harness.anthropicService)),
+          campaignId: seeded.campaignId,
+          adventureId: seeded.adventureId,
+        };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         let expected: string;
@@ -182,6 +187,8 @@ export async function runHarness(
           passed: false,
           expected,
           actual: `ERRORED before an assertion could run: ${message}`,
+          campaignId: seeded.campaignId,
+          adventureId: seeded.adventureId,
         };
       } finally {
         if (!args.keepScratch) {
@@ -204,7 +211,10 @@ export async function runHarness(
   }
 
   const runLabel = args.promptVariant ?? 'baseline';
-  const report = renderReport(runLabel, results);
+  const report = renderReport(runLabel, results, {
+    runId,
+    keptScratch: args.keepScratch ?? false,
+  });
 
-  return { report, results, loadErrors };
+  return { report, results, loadErrors, runId };
 }

@@ -12,6 +12,12 @@ export interface FixtureResult {
   passed: boolean;
   expected: string;
   actual: string;
+  /** The scratch `campaign`/`adventure` row ids this fixture ran against —
+   * always populated (even when `--keep-scratch` wasn't passed and the rows
+   * are already deleted by the time the report is read), so a report entry
+   * can be traced back to its DB rows without a name-pattern guess. */
+  campaignId: string;
+  adventureId: string;
 }
 
 function summaryByTag(results: FixtureResult[]): string[] {
@@ -34,6 +40,7 @@ function resultBlocks(results: FixtureResult[], passed: boolean): string[] {
     .map(
       (result) =>
         `### ${result.fixture.id} — ${passed ? 'PASSED' : 'FAILED'}\n` +
+        `Campaign: ${result.campaignId}  |  Adventure: ${result.adventureId}\n` +
         `Expected: ${result.expected}\n` +
         `Actual: ${result.actual}`,
     );
@@ -54,16 +61,25 @@ function resultBlocks(results: FixtureResult[], passed: boolean): string[] {
  * explicitly allows tags with fewer than 2 (or 0) confirmed instances while
  * coverage fills in, and a harness run over a sparse or as-yet-empty
  * fixture set shouldn't be a special case the renderer chokes on.
+ *
+ * `meta.runId` is the harness invocation's id (embedded in every scratch
+ * campaign's name as `__eval__<fixture.id>__<runId>`) — printed once in the
+ * header so a report can be traced back to its exact scratch rows even
+ * after repeated `--keep-scratch` reruns leave multiple same-fixture
+ * campaigns behind. `meta.keptScratch` reflects whether this run passed
+ * `--keep-scratch`, so a reader knows up front whether the ids below are
+ * still queryable or already torn down.
  */
 export function renderReport(
   runLabel: string,
   results: FixtureResult[],
+  meta: { runId: string; keptScratch: boolean },
 ): string {
   const passedCount = results.filter((r) => r.passed).length;
   const failedCount = results.length - passedCount;
 
   const sections = [
-    `# Eval Run: ${runLabel}`,
+    `# Eval Run: ${runLabel}  |  runId: ${meta.runId}  |  scratch: ${meta.keptScratch ? 'kept' : 'torn down'}`,
     `Fixtures: ${results.length}  |  Passed: ${passedCount}  |  Failed: ${failedCount}`,
     ['## Summary by tag', ...summaryByTag(results)].join('\n'),
     ['## Failures', ...resultBlocks(results, false)].join('\n\n'),
