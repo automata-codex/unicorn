@@ -18,7 +18,41 @@ interface GmResponsePayload {
  * flagged explicitly, not silently accepted as solved.
  */
 const RESOLUTION_LANGUAGE_PATTERN =
-  /\b(succeeds?|fails?|you (hit|deal|take|put)|damage is dealt|the (attack|shot|blow) (lands|connects))\b/i;
+  /\b(succeeds?|fails?|you (hit|deal|take|put)|damage is dealt|the (attack|shot|blow) (lands|connects))\b/gi;
+
+/**
+ * A bare substring match against `RESOLUTION_LANGUAGE_PATTERN` isn't enough
+ * on its own: "If you hit, you deal 10 damage" is the Warden's standard (and
+ * correct) way to state a pending roll's stakes before it resolves — not
+ * evidence the roll already resolved. Confirmed against real replayed
+ * output (turn21-narrating-past-a-block): the pattern matched "you hit"/
+ * "you deal" inside exactly that conditional framing and produced a false
+ * FAILED, even though the roll it referred to was still an open,
+ * re-prompted dice_request at the end of the same turn.
+ *
+ * A match only counts as genuine resolution language if nothing earlier in
+ * its own sentence conditions it — scoped to the sentence (back to the
+ * previous `.`/`!`/`?`/blank line), not the whole turn, so an unrelated
+ * "if" earlier in the response doesn't suppress a real violation later on.
+ */
+function hasUnconditionalResolutionLanguage(playerText: string): boolean {
+  const pattern = new RegExp(RESOLUTION_LANGUAGE_PATTERN.source, 'gi');
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(playerText)) !== null) {
+    const sentenceStart =
+      Math.max(
+        playerText.lastIndexOf('.', match.index),
+        playerText.lastIndexOf('!', match.index),
+        playerText.lastIndexOf('?', match.index),
+        playerText.lastIndexOf('\n\n', match.index),
+      ) + 1;
+    const clause = playerText.slice(sentenceStart, match.index);
+    if (!/\bif\b/i.test(clause)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /**
  * The spec names two distinct blocking mechanisms for this tag: "blocked on
@@ -134,7 +168,7 @@ export function checkNarratingPastABlock(
     };
   }
 
-  if (RESOLUTION_LANGUAGE_PATTERN.test(playerText)) {
+  if (hasUnconditionalResolutionLanguage(playerText)) {
     return {
       outcome: 'FAILED',
       actual:

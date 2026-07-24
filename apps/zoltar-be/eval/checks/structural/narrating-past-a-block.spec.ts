@@ -135,7 +135,14 @@ describe('checkNarratingPastABlock', () => {
     expect(verdict.actual).toMatch(/acknowledges an unresolved decision/);
   });
 
-  it('fails on "you put X damage" resolution language, from real replayed output (deliberately-broken counterexample)', () => {
+  it('passes on "if X, you put Y damage" — reclassified: conditional stakes framing is the Warden\'s standard, correct way to present a pending roll, not resolution language', () => {
+    // Previously treated as a violation (RESOLUTION_LANGUAGE_PATTERN matched
+    // bare "you put"), until real replayed output (turn21-narrating-past-a-block)
+    // showed this exact conditional shape — "If you hit, you deal 10 damage"
+    // — used correctly on an unresolved dice_request that stayed pending
+    // through the rest of the same turn. The "if" governing "you put" here
+    // means this was never a genuine violation; the original test's
+    // assumption was itself the bug.
     const result = fakeTurnExecutionResult({
       gameEvents: [
         fakeGameEvent({
@@ -145,6 +152,44 @@ describe('checkNarratingPastABlock', () => {
             playerText:
               'If your Combat roll lands under 30, you put 4 damage into ' +
               'Contractor Alpha.',
+          },
+        }),
+      ],
+      diceRequests: [fakeDiceRequest({ notation: '1d100', purpose: 'combat' })],
+    });
+
+    expect(checkNarratingPastABlock(result).outcome).toBe('PASSED');
+  });
+
+  it('still fails on genuinely declarative "you put X damage" with no conditional framing in its own sentence (deliberately-broken counterexample)', () => {
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({
+          sequenceNumber: 3,
+          eventType: 'gm_response',
+          payload: {
+            playerText:
+              'Your Combat roll lands under 30. You put 4 damage into Contractor Alpha.',
+          },
+        }),
+      ],
+      diceRequests: [fakeDiceRequest({ notation: '1d100', purpose: 'combat' })],
+    });
+
+    const verdict = checkNarratingPastABlock(result);
+    expect(verdict.outcome).toBe('FAILED');
+    expect(verdict.actual).toMatch(/resolution language/);
+  });
+
+  it('does not let an unrelated "if" in an earlier sentence suppress a genuine violation later in the same response (boundary)', () => {
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({
+          sequenceNumber: 3,
+          eventType: 'gm_response',
+          payload: {
+            playerText:
+              'If anything else happens, note it for later. You put 4 damage into Contractor Alpha.',
           },
         }),
       ],
@@ -324,5 +369,51 @@ describe('checkNarratingPastABlock', () => {
     const verdict = checkNarratingPastABlock(result);
     expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(/no target ever set/);
+  });
+
+  // Verified-clean corpus: the real turn that surfaced the false-positive
+  // fixed above. Before the fix, RESOLUTION_LANGUAGE_PATTERN matched "you
+  // hit"/"you deal" inside "If you hit, you deal 10 damage" — a standard,
+  // correct pending-roll prompt, not resolution language — and produced a
+  // spurious FAILED. This locks in that the fix holds against the exact
+  // real text. Whether this turn deserves a *different* FAILED (concurrent
+  // NPC actions resolve with real narrated consequences — Beta's shot
+  // "connects," Alvarez takes 7 armour damage — while her own roll stays
+  // pending) is a separate, open question this checker doesn't attempt to
+  // answer yet.
+  it('[verified-clean, baseline run 97f804b2-c077-4ec0-ad11-d68a7d19192b, fixture turn21-narrating-past-a-block, adventure 423f92cc-a5c3-4e69-b3a5-d651de31fbfc] conditional "if you hit, you deal X" framing on a still-pending roll is not resolution language', () => {
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({
+          sequenceNumber: 3,
+          eventType: 'gm_response',
+          payload: {
+            playerText:
+              'You stay committed. The rack is your world right now — the gap between those two shelving units, the angle, the contractor\'s centre mass on the other side of it. You adjust your position slightly left, open the sight picture, and fire.\n\n' +
+              '**Roll your Combat — 1d100, under 30. If you hit, you deal 10 damage.**\n\n' +
+              '---\n\n' +
+              "While you're rolling — the world doesn't wait.\n\n" +
+              'Contractor Alpha, still inside the bay with you, gets their weapon properly braced against the rack frame and fires a controlled burst. 68 against their Combat of 40 — too high, another miss. Rounds punch into the composite wall behind you, punching coin-sized craters in the panelling. Close. Getting closer.\n\n' +
+              "Contractor Beta at the doorway is smarter — they don't push into the bay, they post up at the frame and fire from cover. 24 against Combat 40 — that one *connects.*\n\n" +
+              'A round clips your left shoulder, not clean — it catches the edge of your armour plate and transfers instead of penetrating, the impact spinning you a quarter turn and slamming you back against the rack. The blow rings through your whole left arm like a struck bell. Your armour plate takes the damage — **7 points off your armour, down to 23/30** — but the force of it is real, and in low gravity the knockback is worse than it should be, your feet lifting slightly before you catch the rack and haul yourself back into position.\n\n' +
+              'The rack is moving. That last burst from Alpha walked rounds into the base struts. The whole unit is tilting, grinding slowly against the composite floor in the low gravity, the shelving above you beginning to lean.\n\n' +
+              'You have one good shot before it goes over.\n\n' +
+              'Alpha is still behind the rack frame. Beta is at the door. Gamma and Delta are stacking — you can hear them, boots and breathing, someone issuing hand signals in silence.\n\n' +
+              'The fourth contractor — the quiet one — is still unaccounted for.\n\n' +
+              '**Your Combat roll — 1d100, under 30. 10 damage if it lands.**',
+          },
+        }),
+      ],
+      diceRequests: [
+        fakeDiceRequest({
+          notation: '1d100',
+          purpose: 'Alvarez attacks Contractor Alpha — roll under Combat 30 to hit',
+          target: 30,
+          status: 'pending',
+        }),
+      ],
+    });
+
+    expect(checkNarratingPastABlock(result).outcome).toBe('PASSED');
   });
 });
