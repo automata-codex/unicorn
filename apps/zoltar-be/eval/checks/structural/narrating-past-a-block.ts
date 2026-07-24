@@ -48,11 +48,36 @@ const BLOCK_ACKNOWLEDGING_CONTINUATION_PATTERN =
   /\bwhile\b[^.]{0,25}\b(decid\w*|resolv\w*)\b|\bregardless of\b[^.]{0,20}\b(number|score|result)\b|\bhappens?\s+regardless\b|\bregardless\s*[:—-]|\bno matter (what|how)\b/i;
 
 /**
+ * `target` is set once when a dice_request is issued and never updated
+ * (confirmed against `session.repository.ts` — no code path writes it after
+ * insert), so a `resolved` request whose `target` is still `null` is a hard,
+ * non-lexical fact: the stat value this roll's success threshold depended on
+ * was never obtained from the player, yet the roll got resolved anyway. This
+ * catches the case `BLOCK_ACKNOWLEDGING_CONTINUATION_PATTERN` structurally
+ * can't: a Warden that resolves the missing-data block by self-ruling
+ * ("you haven't given me your Instinct score, but I'm ruling on the
+ * fiction...") rather than by narrating "regardless of the number" while
+ * still claiming to wait — the request goes straight from pending to
+ * resolved with no target ever set, and `isBlocked` below no longer sees
+ * anything blocked by the time this turn's response is checked.
+ *
+ * Restricted to requests whose `purpose` names a stat/save this system
+ * actually has (Mothership's fixed, small vocabulary — not free narration
+ * text), so a legitimate narrative-selection roll with no target at all
+ * (e.g. "1d6 to determine which of six things happens") isn't misread as a
+ * missing-data block — that roll never had a target concept to begin with.
+ */
+const STAT_CHECK_PATTERN =
+  /\b(strength|speed|intellect|combat|sanity|fear|body|instinct)\b[^.]{0,20}\b(roll|check|save)\b/i;
+
+/**
  * NARRATING-PAST-A-BLOCK: the response's narration should stop at the block
  * point rather than continue narrating the blocked action's outcome or
  * escalating the scene regardless of it — whether the block is a pending
- * `dice_request` (mechanically checkable) or missing player-supplied data
- * (only checkable via the Warden's own block-acknowledging language).
+ * `dice_request` (mechanically checkable), missing player-supplied data
+ * resolved by self-ruling instead of waiting (mechanically checkable via
+ * `target`), or missing player-supplied data narrated past outright (only
+ * checkable via the Warden's own block-acknowledging language).
  */
 export function checkNarratingPastABlock(
   result: TurnExecutionResult,
@@ -71,13 +96,33 @@ export function checkNarratingPastABlock(
     };
   }
 
+  const unresolvedTargetRolls = result.diceRequests.filter(
+    (r) =>
+      r.status === 'resolved' &&
+      r.target === null &&
+      STAT_CHECK_PATTERN.test(r.purpose),
+  );
+  if (unresolvedTargetRolls.length > 0) {
+    return {
+      outcome: 'FAILED',
+      actual: unresolvedTargetRolls
+        .map(
+          (r) =>
+            `dice_request "${r.purpose}" (${r.notation}) resolved this turn with no target ever ` +
+            'set — the stat value it depended on was never obtained from the player before the ' +
+            'turn narrated a resolved outcome',
+        )
+        .join('; '),
+    };
+  }
+
   const isBlocked = result.diceRequests.some((r) => r.status === 'pending');
   if (!isBlocked) {
     return {
       outcome: 'NOT_APPLICABLE',
       actual:
-        'no pending dice_request after this turn and no block-acknowledging ' +
-        'language in playerText — nothing blocked',
+        'no pending dice_request after this turn, no resolved dice_request with a missing ' +
+        'target, and no block-acknowledging language in playerText — nothing blocked',
     };
   }
 

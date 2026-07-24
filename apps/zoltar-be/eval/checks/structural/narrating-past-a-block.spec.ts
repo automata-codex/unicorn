@@ -175,6 +175,84 @@ describe('checkNarratingPastABlock', () => {
     expect(checkNarratingPastABlock(result).outcome).toBe('NOT_APPLICABLE');
   });
 
+  it('fails when a resolved dice_request never had its target set, from real replayed output (deliberately-broken counterexample)', () => {
+    // Real case: a pending "Instinct roll" dice_request seeded with
+    // target: null (the player's Instinct score was never on file), resolved
+    // via a diceResult submission. The Warden's response never claims to be
+    // "waiting" (no BLOCK_ACKNOWLEDGING_CONTINUATION_PATTERN match) — it
+    // openly rules on the fiction instead — so only the target-null signal
+    // catches this, not the language heuristic.
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({
+          sequenceNumber: 4,
+          eventType: 'gm_response',
+          payload: {
+            playerText:
+              "You haven't given me your Instinct score directly, but I'm " +
+              'ruling on the fiction: 62 is a middling result. You hold position.',
+          },
+        }),
+      ],
+      diceRequests: [
+        fakeDiceRequest({
+          notation: '1d100',
+          purpose: 'Instinct roll — snap decision under pressure',
+          status: 'resolved',
+          target: null,
+        }),
+      ],
+    });
+
+    const verdict = checkNarratingPastABlock(result);
+    expect(verdict.outcome).toBe('FAILED');
+    expect(verdict.actual).toMatch(/no target ever set/);
+  });
+
+  it('does not flag a resolved dice_request that had a real target (boundary)', () => {
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({
+          sequenceNumber: 4,
+          eventType: 'gm_response',
+          payload: { playerText: 'The corridor is quiet.' },
+        }),
+      ],
+      diceRequests: [
+        fakeDiceRequest({
+          notation: '1d100',
+          purpose: 'Combat roll to hit',
+          status: 'resolved',
+          target: 30,
+        }),
+      ],
+    });
+
+    expect(checkNarratingPastABlock(result).outcome).toBe('NOT_APPLICABLE');
+  });
+
+  it('does not flag a resolved null-target roll that is a narrative-selection table, not a stat check (boundary)', () => {
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({
+          sequenceNumber: 4,
+          eventType: 'gm_response',
+          payload: { playerText: 'The corridor is quiet.' },
+        }),
+      ],
+      diceRequests: [
+        fakeDiceRequest({
+          notation: '1d6',
+          purpose: 'determine which of six ambient events occurs',
+          status: 'resolved',
+          target: null,
+        }),
+      ],
+    });
+
+    expect(checkNarratingPastABlock(result).outcome).toBe('NOT_APPLICABLE');
+  });
+
   it('prefers the correction event over the original gm_response when both exist', () => {
     const result = fakeTurnExecutionResult({
       gameEvents: [
