@@ -43,6 +43,35 @@ describe('checkOutOfOrderResolution', () => {
     expect(verdict.actual).toMatch(/not been confirmed yet/);
   });
 
+  it('fails on "if player hits" (conjugated/plural form), from real replayed output (deliberately-broken counterexample)', () => {
+    // Real case, turn19-out-of-order-resolution: CONDITIONAL_DAMAGE_PATTERN
+    // used a bare `hit` alternative instead of `hits?` — `\bhit\b` never
+    // matches inside "hits" (no word boundary between "t" and "s"), so this
+    // roll's damage was silently missed even though its sibling roll on the
+    // same turn ("Contractor rifle damage if hit") was correctly flagged.
+    // This is the more severe of the two: Alvarez's own rifle damage,
+    // pre-rolled and stated as "already rolled" while her own Combat/to-hit
+    // roll is still an open, unresolved dice_request.
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
+        fakeDiceRoll({
+          sequenceNumber: 3,
+          purpose: 'Contractor rifle damage if hit',
+        }),
+        fakeDiceRoll({
+          sequenceNumber: 4,
+          purpose: 'Alvarez rifle damage if player hits',
+        }),
+      ],
+    });
+
+    const verdict = checkOutOfOrderResolution(result);
+    expect(verdict.outcome).toBe('FAILED');
+    expect(verdict.actual).toMatch(/sequence 3/);
+    expect(verdict.actual).toMatch(/sequence 4/);
+  });
+
   it('fails on conditional damage language even with no separate to-hit roll present in the turn (the to-hit is deferred to the player)', () => {
     // Confirmed against real replayed output: the Warden sometimes pre-rolls
     // damage "if combat roll succeeds" while leaving the actual to-hit roll

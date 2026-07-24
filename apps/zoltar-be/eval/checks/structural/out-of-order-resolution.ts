@@ -25,7 +25,7 @@ import type { StructuralVerdict } from './types';
  * The conditional-language signal catches both shapes directly.
  */
 const CONDITIONAL_DAMAGE_PATTERN =
-  /\b(damage|dmg)\b[^.]{0,40}\bif\b[^.]{0,30}\b(hit|succeeds?|lands?|connects?)\b/i;
+  /\b(damage|dmg)\b[^.]{0,40}\bif\b[^.]{0,30}\b(hits?|succeeds?|lands?|connects?)\b/i;
 
 /**
  * OUT-OF-ORDER-RESOLUTION: a damage roll must not fire before the to-hit
