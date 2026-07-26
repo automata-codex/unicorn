@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { FIXTURE_SCHEMA_VERSION } from './fixture.schema';
 import { renderReport } from './report';
 
 import type { EvalFixture, FailureModeTag } from './fixture.schema';
@@ -11,6 +12,7 @@ function fixture(id: string, tag: FailureModeTag): EvalFixture {
     tag,
     sourceAdventureId: '00000000-0000-0000-0000-000000000001',
     sourceSequenceNumber: 1,
+    fixtureSchemaVersion: FIXTURE_SCHEMA_VERSION,
     seededState: {
       campaignState: {},
       gmContextBlob: {},

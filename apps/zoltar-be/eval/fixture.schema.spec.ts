@@ -95,4 +95,62 @@ describe('evalFixtureSchema', () => {
     const result = evalFixtureSchema.safeParse(mismatched);
     expect(result.success).toBe(false);
   });
+
+  describe('fixtureSchemaVersion', () => {
+    it('defaults to 1 when absent, for fixtures captured before the field existed', () => {
+      const result = evalFixtureSchema.safeParse(VALID_STRUCTURAL_FIXTURE);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.fixtureSchemaVersion).toBe(1);
+      }
+    });
+
+    it('accepts an explicit value greater than 1', () => {
+      const result = evalFixtureSchema.safeParse({
+        ...VALID_STRUCTURAL_FIXTURE,
+        fixtureSchemaVersion: 2,
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.fixtureSchemaVersion).toBe(2);
+      }
+    });
+
+    it.each([0, -1, 1.5])('rejects %s', (value) => {
+      const result = evalFixtureSchema.safeParse({
+        ...VALID_STRUCTURAL_FIXTURE,
+        fixtureSchemaVersion: value,
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('repOverride', () => {
+    it('is optional', () => {
+      const result = evalFixtureSchema.safeParse(VALID_STRUCTURAL_FIXTURE);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.repOverride).toBeUndefined();
+      }
+    });
+
+    it('accepts a positive integer', () => {
+      const result = evalFixtureSchema.safeParse({
+        ...VALID_STRUCTURAL_FIXTURE,
+        repOverride: 1,
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.repOverride).toBe(1);
+      }
+    });
+
+    it.each([0, -1, 1.5])('rejects %s', (value) => {
+      const result = evalFixtureSchema.safeParse({
+        ...VALID_STRUCTURAL_FIXTURE,
+        repOverride: value,
+      });
+      expect(result.success).toBe(false);
+    });
+  });
 });

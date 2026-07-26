@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { loadFixtures } from './fixture-loader';
+import { FIXTURE_SCHEMA_VERSION } from './fixture.schema';
 
 import type { EvalFixture } from './fixture.schema';
 
@@ -22,6 +23,7 @@ function fixture(overrides: Partial<EvalFixture> = {}): EvalFixture {
     tag: 'OUT-OF-ORDER-RESOLUTION',
     sourceAdventureId: '00000000-0000-0000-0000-000000000001',
     sourceSequenceNumber: 19,
+    fixtureSchemaVersion: FIXTURE_SCHEMA_VERSION,
     seededState: SEEDED_STATE,
     playerInput: { type: 'message', content: 'I fire at the xenomorph.' },
     assertion: {
