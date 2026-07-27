@@ -16,6 +16,8 @@ import {
   runDirName,
   runDirPath,
   scoresPath,
+  wardenOutputPath,
+  wardenRequestPath,
 } from './paths';
 
 describe('resolveEvalRoot', () => {
@@ -101,6 +103,24 @@ describe('path builders', () => {
         '001',
         'turn24-hidden-info-leak',
         'judge-hidden-info-leak.json',
+      ),
+    );
+    expect(wardenRequestPath(runDir, 1, 'turn19-out-of-order-resolution')).toBe(
+      join(
+        runDir,
+        'reps',
+        '001',
+        'turn19-out-of-order-resolution',
+        'warden-request.json',
+      ),
+    );
+    expect(wardenOutputPath(runDir, 1, 'turn19-out-of-order-resolution')).toBe(
+      join(
+        runDir,
+        'reps',
+        '001',
+        'turn19-out-of-order-resolution',
+        'warden-output.json',
       ),
     );
   });

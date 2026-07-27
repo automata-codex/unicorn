@@ -109,6 +109,22 @@ export function judgeArtifactPath(
   );
 }
 
+export function wardenRequestPath(
+  runDir: string,
+  index: number,
+  fixtureId: string,
+): string {
+  return join(fixtureArtifactDir(runDir, index, fixtureId), 'warden-request.json');
+}
+
+export function wardenOutputPath(
+  runDir: string,
+  index: number,
+  fixtureId: string,
+): string {
+  return join(fixtureArtifactDir(runDir, index, fixtureId), 'warden-output.json');
+}
+
 /**
  * The independent cross-check the spec calls for: rep directories that
  * exist on disk, regardless of what `manifest.json` vouches for. A crashed
