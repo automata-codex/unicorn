@@ -71,7 +71,40 @@ export interface RunJudgeVarianceArgs {
   reps: number;
   /** Fixture ids to include. Omitted = every vouched fixture. */
   fixtureIds?: string[];
+  onProgress?: (event: RunJudgeVarianceProgressEvent) => void;
 }
+
+/** Fired per candidate `(fixtureId, checkId, sourceRepIndex)` and per trial
+ * — a judge call can take several seconds, and `--reps` multiplies that
+ * across every frozen input, so a long invocation needs visible progress to
+ * not look stuck. Omitted by tests/callers that don't care. */
+export type RunJudgeVarianceProgressEvent =
+  | {
+      type: 'input-start';
+      fixtureId: string;
+      checkId: string;
+      sourceRepIndex: number;
+      candidateIndex: number;
+      totalCandidates: number;
+    }
+  | {
+      type: 'trial-done';
+      fixtureId: string;
+      checkId: string;
+      sourceRepIndex: number;
+      trialIndex: number;
+      totalTrials: number;
+      verdict: Verdict;
+      durationMs: number;
+    }
+  | {
+      type: 'skipped';
+      fixtureId: string;
+      checkId: string;
+      candidateIndex: number;
+      totalCandidates: number;
+      reason: string;
+    };
 
 export interface RunJudgeVarianceDeps {
   anthropicService: AnthropicServiceType;
@@ -92,6 +125,12 @@ interface FrozenInput {
   fixtureId: string;
   repIndex: number;
   checkIds: Set<string>;
+}
+
+interface Candidate {
+  fixtureId: string;
+  repIndex: number;
+  checkId: string;
 }
 
 function flipped(verdicts: Verdict[]): boolean {
@@ -135,74 +174,116 @@ export async function runJudgeVariance(
     input.checkIds.add(row.checkId);
   }
 
-  const rows: JudgeVarianceRow[] = [];
-  const skippedByKey = new Map<string, SkippedTarget>();
-  const skip = (fixtureId: string, checkId: string, reason: string): void => {
-    skippedByKey.set(`${fixtureId}::${checkId}`, { fixtureId, checkId, reason });
-  };
-
+  const candidates: Candidate[] = [];
   for (const input of inputs.values()) {
     for (const checkId of input.checkIds) {
-      const check = evalChecks[checkId];
-      if (!check) {
-        skip(input.fixtureId, checkId, `"${checkId}" is not a registered check`);
-        continue;
-      }
-      if (check.mode !== 'judged') {
-        skip(
-          input.fixtureId,
-          checkId,
-          'structural checks are deterministic over fixed input — re-running measures nothing',
-        );
-        continue;
-      }
-      const fixture = fixturesById.get(input.fixtureId);
-      if (!fixture) {
-        skip(
-          input.fixtureId,
-          checkId,
-          `fixture "${input.fixtureId}" not found under ${args.fixturesDir}`,
-        );
-        continue;
-      }
+      candidates.push({
+        fixtureId: input.fixtureId,
+        repIndex: input.repIndex,
+        checkId,
+      });
+    }
+  }
 
-      let turnResult;
-      try {
-        turnResult = readTurnResultArtifact(
-          args.runDir,
-          input.repIndex,
-          input.fixtureId,
-        );
-      } catch (err) {
-        skip(
-          input.fixtureId,
-          checkId,
-          `no warden-output.json artifact for rep ${input.repIndex} (original turn likely errored): ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-        continue;
-      }
+  const rows: JudgeVarianceRow[] = [];
+  const skippedByKey = new Map<string, SkippedTarget>();
+  const skip = (
+    candidateIndex: number,
+    fixtureId: string,
+    checkId: string,
+    reason: string,
+  ): void => {
+    skippedByKey.set(`${fixtureId}::${checkId}`, { fixtureId, checkId, reason });
+    args.onProgress?.({
+      type: 'skipped',
+      fixtureId,
+      checkId,
+      candidateIndex: candidateIndex + 1,
+      totalCandidates: candidates.length,
+      reason,
+    });
+  };
 
-      for (let trialIndex = 1; trialIndex <= args.reps; trialIndex++) {
-        const observation = await runCheck(
-          check,
-          fixture,
-          turnResult,
-          deps.anthropicService,
-        );
-        rows.push(
-          judgeVarianceRowSchema.parse({
-            fixtureId: input.fixtureId,
-            checkId,
-            rubricHash: observation.rubricHash ?? check.rubricHash?.() ?? '',
-            sourceRepIndex: input.repIndex,
-            trialIndex,
-            verdict: observation.verdict,
-            durationMs: observation.durationMs,
-          }),
-        );
-      }
+  for (const [candidateIndex, candidate] of candidates.entries()) {
+    const { fixtureId, repIndex: sourceRepIndex, checkId } = candidate;
+
+    const check = evalChecks[checkId];
+    if (!check) {
+      skip(candidateIndex, fixtureId, checkId, `"${checkId}" is not a registered check`);
+      continue;
+    }
+    if (check.mode !== 'judged') {
+      skip(
+        candidateIndex,
+        fixtureId,
+        checkId,
+        'structural checks are deterministic over fixed input — re-running measures nothing',
+      );
+      continue;
+    }
+    const fixture = fixturesById.get(fixtureId);
+    if (!fixture) {
+      skip(
+        candidateIndex,
+        fixtureId,
+        checkId,
+        `fixture "${fixtureId}" not found under ${args.fixturesDir}`,
+      );
+      continue;
+    }
+
+    let turnResult;
+    try {
+      turnResult = readTurnResultArtifact(args.runDir, sourceRepIndex, fixtureId);
+    } catch (err) {
+      skip(
+        candidateIndex,
+        fixtureId,
+        checkId,
+        `no warden-output.json artifact for rep ${sourceRepIndex} (original turn likely errored): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      continue;
+    }
+
+    args.onProgress?.({
+      type: 'input-start',
+      fixtureId,
+      checkId,
+      sourceRepIndex,
+      candidateIndex: candidateIndex + 1,
+      totalCandidates: candidates.length,
+    });
+
+    for (let trialIndex = 1; trialIndex <= args.reps; trialIndex++) {
+      const observation = await runCheck(
+        check,
+        fixture,
+        turnResult,
+        deps.anthropicService,
+      );
+      rows.push(
+        judgeVarianceRowSchema.parse({
+          fixtureId,
+          checkId,
+          rubricHash: observation.rubricHash ?? check.rubricHash?.() ?? '',
+          sourceRepIndex,
+          trialIndex,
+          verdict: observation.verdict,
+          durationMs: observation.durationMs,
+        }),
+      );
+      args.onProgress?.({
+        type: 'trial-done',
+        fixtureId,
+        checkId,
+        sourceRepIndex,
+        trialIndex,
+        totalTrials: args.reps,
+        verdict: observation.verdict,
+        durationMs: observation.durationMs,
+      });
     }
   }
 

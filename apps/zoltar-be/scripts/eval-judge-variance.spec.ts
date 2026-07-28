@@ -259,6 +259,41 @@ describe('runJudgeVariance', () => {
     const repFilesAfter = new Set(readdirSync(join(runDir, 'reps', '001')));
     expect(repFilesAfter).toEqual(repFilesBefore);
   });
+
+  it('emits input-start, one trial-done per trial, and a skipped event for the structural fixture', async () => {
+    const callMessages = vi
+      .fn()
+      .mockResolvedValue(toolUseMessage({ passed: true, rationale: 'fine' }));
+
+    const events: string[] = [];
+    await runJudgeVariance(
+      {
+        runDir,
+        fixturesDir,
+        reps: 2,
+        onProgress: (event) => {
+          if (event.type === 'input-start') {
+            events.push(`input-start:${event.fixtureId}`);
+          } else if (event.type === 'trial-done') {
+            events.push(`trial-done:${event.fixtureId}:${event.trialIndex}/${event.totalTrials}:${event.verdict}`);
+          } else {
+            events.push(`skipped:${event.fixtureId}`);
+          }
+        },
+      },
+      { anthropicService: fakeAnthropic(callMessages), clock: () => new Date('2026-07-26T15:00:00.000Z') },
+    );
+
+    expect(events).toContain(`skipped:${STRUCTURAL_FIXTURE_ID}`);
+    expect(events).toContain(`input-start:${JUDGED_FIXTURE_ID}`);
+    expect(events).toContain(`trial-done:${JUDGED_FIXTURE_ID}:1/2:pass`);
+    expect(events).toContain(`trial-done:${JUDGED_FIXTURE_ID}:2/2:pass`);
+    // input-start precedes both of the judged fixture's trials.
+    const inputStartIndex = events.indexOf(`input-start:${JUDGED_FIXTURE_ID}`);
+    expect(inputStartIndex).toBeLessThan(
+      events.indexOf(`trial-done:${JUDGED_FIXTURE_ID}:1/2:pass`),
+    );
+  });
 });
 
 const RUN_LIVE = process.env.RUN_LIVE_EVAL_TESTS === '1';

@@ -165,7 +165,13 @@ async function evaluateAndPrint(
   const checks = selectChecksForFixture(fixture);
   const results: CheckReplayResult[] = [];
   for (const check of checks) {
+    // A judged check makes a real Anthropic call that can take several
+    // seconds — print before/after so this never looks stuck.
+    process.stderr.write(`[${check.id}] running (${check.mode})...\n`);
     const observation = await runCheck(check, fixture, turnResult, anthropicService);
+    process.stderr.write(
+      `[${check.id}] ${observation.verdict} (${(observation.durationMs / 1000).toFixed(1)}s)\n`,
+    );
     results.push({
       checkId: check.id,
       tag: check.tag,

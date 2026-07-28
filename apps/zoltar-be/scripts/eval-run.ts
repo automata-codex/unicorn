@@ -65,6 +65,8 @@ import { parseArgs } from 'node:util';
 
 import { defaultRunEvalDeps, runEval } from './eval-run.core';
 
+import type { RunEvalProgressEvent } from './eval-run.core';
+
 const DEFAULT_FIXTURES_DIR = join(__dirname, '../eval/fixtures');
 
 const USAGE =
@@ -162,6 +164,40 @@ function parseCliArgs(argv: string[]): CliArgs {
   };
 }
 
+function seconds(ms: number): string {
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+/** Prints to stderr so stdout stays just the final summary — every event
+ * lands the moment it happens, no buffering, so a long run never looks
+ * stuck even between fixtures that take a while (a judged check's Anthropic
+ * call, an off-screen-combat turn's inner tool loop). */
+function printProgress(event: RunEvalProgressEvent): void {
+  switch (event.type) {
+    case 'rep-start':
+      process.stderr.write(
+        `[rep ${event.repNumber}/${event.totalReps}] starting (index ${event.repIndex})\n`,
+      );
+      break;
+    case 'rep-done':
+      process.stderr.write(
+        `[rep ${event.repNumber}/${event.totalReps}] done (${seconds(event.durationMs)})\n`,
+      );
+      break;
+    case 'fixture-start':
+      process.stderr.write(
+        `  [${event.fixtureIndex}/${event.totalFixtures}] ${event.fixtureId} — running...\n`,
+      );
+      break;
+    case 'fixture-done':
+      process.stderr.write(
+        `  [${event.fixtureIndex}/${event.totalFixtures}] ${event.fixtureId} — ` +
+          `${event.verdicts.join(', ')} (${seconds(event.durationMs)})\n`,
+      );
+      break;
+  }
+}
+
 async function main(): Promise<number> {
   let cli: CliArgs;
   try {
@@ -185,6 +221,7 @@ async function main(): Promise<number> {
       temperature: cli.temperature,
       decisionRule: cli.decisionRule,
       keepScratch: cli.keepScratch,
+      onProgress: printProgress,
     },
     defaultRunEvalDeps(),
   );

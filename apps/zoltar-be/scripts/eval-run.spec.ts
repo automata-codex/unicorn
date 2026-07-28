@@ -312,6 +312,93 @@ describe('runEval', () => {
     const manifest = readManifest(first.runDir);
     expect(manifest.completedReps).toHaveLength(2);
   });
+
+  it('emits rep-start/fixture-start/fixture-done/rep-done in order for every rep and fixture', async () => {
+    writeFixtureFile(fixturesDir, {
+      id: 'fixture-a',
+      tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
+    });
+    writeFixtureFile(fixturesDir, { id: 'fixture-b', tag: 'UNAUDITABLE-MAPPING' });
+
+    const events: string[] = [];
+    await runEval(
+      baseArgs({
+        reps: 2,
+        onProgress: (event) => {
+          events.push(
+            event.type === 'fixture-start' || event.type === 'fixture-done'
+              ? `${event.type}:${event.repIndex}:${event.fixtureId}`
+              : `${event.type}:${event.repIndex}`,
+          );
+        },
+      }),
+      stubDeps(),
+    );
+
+    expect(events).toEqual([
+      'rep-start:1',
+      'fixture-start:1:fixture-a',
+      'fixture-done:1:fixture-a',
+      'fixture-start:1:fixture-b',
+      'fixture-done:1:fixture-b',
+      'rep-done:1',
+      'rep-start:2',
+      'fixture-start:2:fixture-a',
+      'fixture-done:2:fixture-a',
+      'fixture-start:2:fixture-b',
+      'fixture-done:2:fixture-b',
+      'rep-done:2',
+    ]);
+  });
+
+  it('fixture-done carries the verdicts recorded for that fixture', async () => {
+    writeFixtureFile(fixturesDir, {
+      id: 'fixture-a',
+      tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
+    });
+
+    const doneEvents: Array<{ fixtureId: string; verdicts: string[] }> = [];
+    await runEval(
+      baseArgs({
+        reps: 1,
+        onProgress: (event) => {
+          if (event.type === 'fixture-done') {
+            doneEvents.push({ fixtureId: event.fixtureId, verdicts: event.verdicts });
+          }
+        },
+      }),
+      stubDeps(),
+    );
+
+    expect(doneEvents).toHaveLength(1);
+    expect(doneEvents[0].fixtureId).toBe('fixture-a');
+    expect(doneEvents[0].verdicts.length).toBeGreaterThan(0);
+  });
+
+  it('a thrown turn still reports fixture-done, with an error verdict', async () => {
+    writeFixtureFile(fixturesDir, {
+      id: 'fixture-a',
+      tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
+    });
+    const deps = stubDeps({
+      runTurn: vi.fn(async () => {
+        throw new Error('boom');
+      }),
+    });
+
+    const doneEvents: Array<{ verdicts: string[] }> = [];
+    await runEval(
+      baseArgs({
+        reps: 1,
+        onProgress: (event) => {
+          if (event.type === 'fixture-done') doneEvents.push({ verdicts: event.verdicts });
+        },
+      }),
+      deps,
+    );
+
+    expect(doneEvents).toEqual([{ verdicts: ['error'] }]);
+  });
 });
 
 describe('guard: no reconstructStateAsOfTurn import', () => {

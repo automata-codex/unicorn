@@ -91,6 +91,7 @@ export interface RunEvalArgs {
   temperature: number;
   decisionRule?: string;
   keepScratch: boolean;
+  onProgress?: (event: RunEvalProgressEvent) => void;
 }
 
 export interface RunEvalSummary {
@@ -99,6 +100,36 @@ export interface RunEvalSummary {
   rowCounts: Record<Verdict, number>;
   warnings: string[];
 }
+
+/** Fired around each rep and each fixture so a long invocation — a full
+ * corpus at `--reps 10` can take a long time, most fixtures making a real,
+ * possibly-slow Anthropic call — can report progress instead of appearing
+ * to hang. Omitted by tests/callers that don't care. */
+export type RunEvalProgressEvent =
+  | { type: 'rep-start'; repIndex: number; repNumber: number; totalReps: number }
+  | {
+      type: 'rep-done';
+      repIndex: number;
+      repNumber: number;
+      totalReps: number;
+      durationMs: number;
+    }
+  | {
+      type: 'fixture-start';
+      repIndex: number;
+      fixtureId: string;
+      fixtureIndex: number;
+      totalFixtures: number;
+    }
+  | {
+      type: 'fixture-done';
+      repIndex: number;
+      fixtureId: string;
+      fixtureIndex: number;
+      totalFixtures: number;
+      durationMs: number;
+      verdicts: Verdict[];
+    };
 
 /**
  * `git rev-parse --short HEAD` plus a `-dirty` suffix from `git status
@@ -268,7 +299,15 @@ export async function runEval(
   });
 
   try {
-    for (const repIndex of repIndices) {
+    for (const [repNumber, repIndex] of repIndices.entries()) {
+      const repStartedAt = deps.clock().getTime();
+      args.onProgress?.({
+        type: 'rep-start',
+        repIndex,
+        repNumber: repNumber + 1,
+        totalReps: repIndices.length,
+      });
+
       const relativeRepNumber = repIndex - startIndex + 1;
       const fixturesForThisRep = selectedFixtures.filter(
         (fixture) => relativeRepNumber <= (repsForFixture.get(fixture.id) ?? args.reps),
@@ -282,17 +321,27 @@ export async function runEval(
       const attemptedFixtureIds: string[] = [];
       const rubricHashesThisRep: Record<string, string> = {};
 
-      for (const fixture of fixturesForThisRep) {
+      for (const [fixtureIndex, fixture] of fixturesForThisRep.entries()) {
         attemptedFixtureIds.push(fixture.id);
         const checks = selectChecksForFixture(fixture);
         session.recorder?.beginFixture();
+
+        const fixtureStartedAt = deps.clock().getTime();
+        args.onProgress?.({
+          type: 'fixture-start',
+          repIndex,
+          fixtureId: fixture.id,
+          fixtureIndex: fixtureIndex + 1,
+          totalFixtures: fixturesForThisRep.length,
+        });
 
         const seeded = await deps.turnExecutor.seed(session.db, fixture, {
           runId: manifest.runId,
         });
 
+        let verdicts: Verdict[];
         try {
-          await runFixtureAndScore({
+          verdicts = await runFixtureAndScore({
             runDir,
             repIndex,
             fixture,
@@ -314,6 +363,16 @@ export async function runEval(
             await deps.turnExecutor.teardown(session.db, seeded.campaignId);
           }
         }
+
+        args.onProgress?.({
+          type: 'fixture-done',
+          repIndex,
+          fixtureId: fixture.id,
+          fixtureIndex: fixtureIndex + 1,
+          totalFixtures: fixturesForThisRep.length,
+          durationMs: deps.clock().getTime() - fixtureStartedAt,
+          verdicts,
+        });
       }
 
       await writer.close();
@@ -331,6 +390,14 @@ export async function runEval(
         completedAt: deps.clock().toISOString(),
       });
       if (warning) warnings.push(warning);
+
+      args.onProgress?.({
+        type: 'rep-done',
+        repIndex,
+        repNumber: repNumber + 1,
+        totalReps: repIndices.length,
+        durationMs: deps.clock().getTime() - repStartedAt,
+      });
     }
   } finally {
     await session.close();
@@ -372,7 +439,9 @@ interface RunFixtureAndScoreInput {
  * indistinguishable from a regression (see pre-flight: this supersedes
  * `runHarness`'s old "map a thrown turn to FAILED" behavior).
  */
-async function runFixtureAndScore(input: RunFixtureAndScoreInput): Promise<void> {
+async function runFixtureAndScore(
+  input: RunFixtureAndScoreInput,
+): Promise<Verdict[]> {
   const {
     runDir,
     repIndex,
@@ -429,7 +498,7 @@ async function runFixtureAndScore(input: RunFixtureAndScoreInput): Promise<void>
       });
       rowCounts.error += 1;
     }
-    return;
+    return checks.map(() => 'error' as const);
   }
 
   const wardenRequests = session.recorder?.takeCaptured() ?? [];
@@ -438,6 +507,7 @@ async function runFixtureAndScore(input: RunFixtureAndScoreInput): Promise<void>
     turnResult,
   });
 
+  const verdicts: Verdict[] = [];
   for (const check of checks) {
     const observation = await runCheck(
       check,
@@ -491,5 +561,8 @@ async function runFixtureAndScore(input: RunFixtureAndScoreInput): Promise<void>
       durationMs: observation.durationMs,
       recordedAt: deps.clock().toISOString(),
     });
+    verdicts.push(observation.verdict);
   }
+
+  return verdicts;
 }

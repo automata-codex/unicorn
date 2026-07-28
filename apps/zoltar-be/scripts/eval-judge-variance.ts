@@ -38,7 +38,10 @@ import { resolveEvalRoot, resolveRunDirArg } from '../eval/runs/paths';
 
 import { defaultRunJudgeVarianceDeps, runJudgeVariance } from './eval-judge-variance.core';
 
-import type { RunJudgeVarianceSummary } from './eval-judge-variance.core';
+import type {
+  RunJudgeVarianceProgressEvent,
+  RunJudgeVarianceSummary,
+} from './eval-judge-variance.core';
 
 const DEFAULT_FIXTURES_DIR = join(__dirname, '../eval/fixtures');
 const DEFAULT_REPS = 3;
@@ -152,6 +155,32 @@ function renderSummary(summary: RunJudgeVarianceSummary): string {
   return lines.join('\n');
 }
 
+/** Prints to stderr, one line per candidate/trial, so a long invocation —
+ * each judge call can take several seconds, multiplied by `--reps` across
+ * every frozen input — never looks stuck. Stdout stays just the summary. */
+function printProgress(event: RunJudgeVarianceProgressEvent): void {
+  switch (event.type) {
+    case 'input-start':
+      process.stderr.write(
+        `[${event.candidateIndex}/${event.totalCandidates}] ${event.fixtureId} / ${event.checkId} ` +
+          `(rep ${event.sourceRepIndex}) — running...\n`,
+      );
+      break;
+    case 'trial-done':
+      process.stderr.write(
+        `  trial ${event.trialIndex}/${event.totalTrials}: ${event.verdict} ` +
+          `(${(event.durationMs / 1000).toFixed(1)}s)\n`,
+      );
+      break;
+    case 'skipped':
+      process.stderr.write(
+        `[${event.candidateIndex}/${event.totalCandidates}] ${event.fixtureId} / ${event.checkId} ` +
+          `— skipped: ${event.reason}\n`,
+      );
+      break;
+  }
+}
+
 async function main(): Promise<number> {
   let cli: CliArgs;
   try {
@@ -173,6 +202,7 @@ async function main(): Promise<number> {
       fixturesDir: cli.fixturesDir,
       reps: cli.reps,
       fixtureIds: cli.fixtureIds,
+      onProgress: printProgress,
     },
     defaultRunJudgeVarianceDeps(),
   );
