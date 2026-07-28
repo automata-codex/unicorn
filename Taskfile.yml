@@ -93,3 +93,11 @@ tasks:
     cmds:
       # Plain tsx is fine here, unlike eval:run — no Nest DI container.
       - npx tsx --env-file=.env scripts/eval-compare.ts {{.CLI_ARGS}}
+
+  eval:judge-variance:
+    desc: 'Re-run judged checks N times against frozen warden-output.json artifacts already on disk — no Warden calls, no DB (M7.4.1). Makes real, token-costing Anthropic calls (judged fixtures x vouched reps x --reps). Requires ANTHROPIC_API_KEY and ZOLTAR_EVAL_ROOT. Usage — task eval:judge-variance -- <run-dir> [--reps 3] [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx is fine here — no Nest DI container, AnthropicService is
+      # constructed directly.
+      - npx tsx --env-file=.env scripts/eval-judge-variance.ts {{.CLI_ARGS}}

@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   fixtureArtifactDir,
   judgeArtifactPath,
+  judgeVarianceDir,
+  judgeVarianceOutputPath,
   listRepDirsOnDisk,
   manifestPath,
   promptTextPath,
@@ -123,6 +125,10 @@ describe('path builders', () => {
         'turn19-out-of-order-resolution',
         'warden-output.json',
       ),
+    );
+    expect(judgeVarianceDir(runDir)).toBe(join(runDir, 'judge-variance'));
+    expect(judgeVarianceOutputPath(runDir, createdAt)).toBe(
+      join(runDir, 'judge-variance', '2026-07-26T14-32-10Z.jsonl'),
     );
   });
 });

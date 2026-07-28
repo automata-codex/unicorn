@@ -37,10 +37,12 @@ export function resolveEvalRoot(): string {
  * `<createdAt>` in the directory-name format: filename-safe ISO8601, second
  * precision. Colons are legal on APFS/ext4 but not on Windows and are
  * miserable to quote in a shell, so they're replaced with hyphens;
- * milliseconds are dropped as noise no one reads at this grain.
+ * milliseconds are dropped as noise no one reads at this grain. Shared by
+ * `runDirName` and `judgeVarianceOutputPath` — anywhere a timestamp needs
+ * to be part of a filename.
  */
-function formatCreatedAt(createdAt: Date): string {
-  return createdAt.toISOString().replace(/\.\d{3}Z$/, 'Z').replace(/:/g, '-');
+export function filenameSafeTimestamp(date: Date): string {
+  return date.toISOString().replace(/\.\d{3}Z$/, 'Z').replace(/:/g, '-');
 }
 
 /**
@@ -55,7 +57,7 @@ export function runDirName(
   promptHash: string,
   createdAt: Date,
 ): string {
-  return `${model}__${promptHash}__${formatCreatedAt(createdAt)}`;
+  return `${model}__${promptHash}__${filenameSafeTimestamp(createdAt)}`;
 }
 
 /** `$ZOLTAR_EVAL_ROOT/eval-runs/<dirName>`. */
@@ -135,6 +137,17 @@ export function wardenOutputPath(
   fixtureId: string,
 ): string {
   return join(fixtureArtifactDir(runDir, index, fixtureId), 'warden-output.json');
+}
+
+/** `eval:judge-variance` writes here, never into `reps/` — a grader-only
+ * re-run is a different measurement than a `scores.jsonl` row and would
+ * corrupt every pass-rate denominator if appended there. */
+export function judgeVarianceDir(runDir: string): string {
+  return join(runDir, 'judge-variance');
+}
+
+export function judgeVarianceOutputPath(runDir: string, createdAt: Date): string {
+  return join(judgeVarianceDir(runDir), `${filenameSafeTimestamp(createdAt)}.jsonl`);
 }
 
 /**

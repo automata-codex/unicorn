@@ -44,10 +44,10 @@ import { Pool } from 'pg';
 import { AnthropicService } from '../src/anthropic/anthropic.service';
 import * as schema from '../src/db/schema';
 import { evalFixtureSchema } from '../eval/fixture.schema';
+import { envOnlyConfigService } from '../eval/runs/env-config-service';
 
 import { evaluateFixture } from './eval-harness.core';
 
-import type { ConfigService } from '@nestjs/config';
 import type { TurnExecutionResult } from '../eval/turn-result';
 
 const FIXTURES_DIR = join(__dirname, '../eval/fixtures');
@@ -101,21 +101,6 @@ function resolveFixturePath(fixtureArg: string): string {
     `no fixture file found for "${fixtureArg}" — tried it as a literal ` +
       `path and as ${byId}`,
   );
-}
-
-/** `AnthropicService` only calls `config.getOrThrow('ANTHROPIC_API_KEY')` —
- * a full `ConfigService`/DI container is unnecessary just to read one env
- * var, so this stubs the one method it actually uses. */
-function envOnlyConfigService(): ConfigService {
-  return {
-    getOrThrow: (key: string) => {
-      const value = process.env[key];
-      if (!value) {
-        throw new Error(`eval-replay requires ${key} in the environment`);
-      }
-      return value;
-    },
-  } as unknown as ConfigService;
 }
 
 async function main(): Promise<number> {
