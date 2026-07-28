@@ -54,3 +54,32 @@ a thing the config says. The number really means "enough reps for the noisiest f
 care about." Adding fixtures or switching models doesn't automatically invalidate it, but
 it was estimated under conditions that no longer hold, so it warrants a re-check rather
 than an assumption.
+
+---
+
+## Running a comparison
+
+The commands exist now, so the order they're meant to run in is worth naming rather than
+leaving implicit:
+
+1. **`eval:judge-variance`** against a small frozen run, once per judged rubric in play.
+   Run this *before* trusting any prompt comparison. If a rubric flips against fixed
+   input, the instability is in the grader, and no `eval:compare` output built on top of
+   it means anything until the rubric is fixed. It's cheap — no Warden calls, frozen
+   input — so skipping it is never the right call.
+2. **Baseline run** — `eval:run` against the current production prompt, uniform N, full
+   corpus, `--decision-rule` written down before looking at any numbers.
+3. **Candidate run** — `eval:run` against the prompt variant under test, same N, same
+   corpus, its own `--decision-rule`.
+4. **`eval:compare`** the two run directories. It pairs on `(fixtureId, checkId)`, puts
+   regressions first, and echoes both `--decision-rule`s in the header next to the numbers
+   they govern — it does not evaluate the rule for you.
+
+**A code change that alters what reaches the Warden warrants a full-suite run, even with
+an untouched prompt hash.** `promptHash` only fingerprints the prompt text; it says
+nothing about the snapshot builder, the tool schemas, the validator, or anything else
+that shapes the request Claude actually sees. A run directory's identity is `(model,
+promptHash)`, so two runs against an unchanged prompt but a changed snapshot builder look
+identical by name — the only way to catch the regression is to have actually run the
+suite. Treat "the prompt didn't change" as informative about the prompt, not as a reason
+to skip the run.

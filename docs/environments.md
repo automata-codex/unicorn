@@ -22,6 +22,8 @@ The Anthropic API key is a personal key for development use. The Voyage AI key (
 
 `PLAYTEST_LOAD_USER_ID` (optional, development only) is read by the `task playtest:load-synthesis` script to decide which user owns the new campaign that gets created when a synthesis JSON file is loaded. If set, must match an existing user id. If unset, the loader falls back to the first user row and prints a warning naming the chosen user (fine for single-developer dev loops; surface the fallback when the dev DB carries multiple imported users). If the `user` table is empty, the load exits non-zero. Not consulted by the backend itself — only by the CLI.
 
+`ZOLTAR_EVAL_ROOT` (required for the `eval:run`/`eval:report`/`eval:compare`/`eval:judge-variance` family) is an absolute path to the parent of `eval-runs/` — the multi-run eval harness's on-disk store — in the private `automata-codex` artifacts repo, not this one. It belongs in the repo-root `.env`, alongside `PLAYTEST_REPORTS_DIR`/`DB_BACKUP_DIR`, and is picked up via `--env-file=.env` by both the `npm run eval:*` scripts and their `task eval:*` wrappers. Do not `export` it in your shell: Node's `--env-file` does not override a variable already present in the environment, so a stale shell export silently wins over whatever `.env` says, and the failure mode (a run's directory name says one model/prompt while the reader assumes another) is exactly what the spec's naming scheme exists to prevent. Deliberately absent from `src/config/env.schema.ts` — that schema validates the server's boot-time environment, where every entry is required; this is a CLI-only variable read at the eval-script boundary, and the server never touches it.
+
 ### Workflow A — Full stack in Docker (first run, sanity checks, CI)
 
 ```sh
