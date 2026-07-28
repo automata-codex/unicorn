@@ -5,7 +5,9 @@ import { rollupByTag } from './rates';
 import type { Manifest } from './manifest';
 import type { ExclusionsSummary, RateEntry } from './rates';
 
-function formatRate(rate: number | null): string {
+/** Shared with `compare-report.ts` — an undefined rate must never render as
+ * `0.00`. */
+export function formatRate(rate: number | null): string {
   return rate === null ? 'n/a' : rate.toFixed(2);
 }
 
