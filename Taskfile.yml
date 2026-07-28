@@ -79,3 +79,10 @@ tasks:
       # Not tsx, same reason as eval:harness — this bootstraps a real NestJS
       # DI container. See the header comment in scripts/eval-run.ts.
       - node -r @swc-node/register -r reflect-metadata --env-file=.env scripts/eval-run.ts {{.CLI_ARGS}}
+
+  eval:report:
+    desc: 'Render a markdown report from a run directory written by eval:run (M7.4.1). Pure rendering — no DB, no Anthropic. Requires ZOLTAR_EVAL_ROOT only. Usage — task eval:report -- <run-dir> [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx is fine here, unlike eval:run — no Nest DI container.
+      - npx tsx --env-file=.env scripts/eval-report.ts {{.CLI_ARGS}}
