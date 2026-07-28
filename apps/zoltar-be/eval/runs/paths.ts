@@ -63,6 +63,18 @@ export function runDirPath(root: string, dirName: string): string {
   return join(root, 'eval-runs', dirName);
 }
 
+/**
+ * Resolves a `--run-dir`-style CLI argument: an absolute path is used as
+ * given, anything else is resolved against `$ZOLTAR_EVAL_ROOT/eval-runs/` —
+ * so `--run-dir claude-sonnet-4-6__ab12cd34__2026-07-26T14-32-10Z` works
+ * without the caller typing the full path. Shared by every command that
+ * takes a run directory argument (`eval:run --run-dir`, `eval:report`,
+ * `eval:compare`, `eval:judge-variance`) so they resolve it identically.
+ */
+export function resolveRunDirArg(root: string, runDirArg: string): string {
+  return isAbsolute(runDirArg) ? runDirArg : join(root, 'eval-runs', runDirArg);
+}
+
 export function manifestPath(runDir: string): string {
   return join(runDir, 'manifest.json');
 }

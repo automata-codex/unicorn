@@ -72,9 +72,33 @@ export interface WriteFixtureArtifactsInput {
 }
 
 /**
- * Writes `warden-request.json` (the ordered array of captured
- * `CallSessionParams` + raw response — several per turn, one per
- * inner-tool-loop iteration plus a correction round if one fired) and
+ * Writes just `warden-request.json` — the ordered array of captured
+ * `CallSessionParams` + raw response, several per turn (one per
+ * inner-tool-loop iteration plus a correction round if one fired). Exported
+ * on its own, not just as half of `writeFixtureArtifacts`, so a turn that
+ * throws before producing a `TurnExecutionResult` can still persist
+ * whatever the Warden was asked before the failure — an `error` row's
+ * `artifactPath` should point at something real, not a `warden-output.json`
+ * that was never written.
+ */
+export function writeWardenRequestArtifact(
+  runDir: string,
+  repIndex: number,
+  fixtureId: string,
+  wardenRequests: CapturedWardenCall[],
+): void {
+  mkdirSync(fixtureArtifactDir(runDir, repIndex, fixtureId), {
+    recursive: true,
+  });
+  writeFileSync(
+    wardenRequestPath(runDir, repIndex, fixtureId),
+    JSON.stringify(wardenRequests, null, 2) + '\n',
+    'utf-8',
+  );
+}
+
+/**
+ * Writes `warden-request.json` (see `writeWardenRequestArtifact`) and
  * `warden-output.json` (the full serialized `TurnExecutionResult` — a
  * strict superset of `submit_gm_response`'s payload, since
  * `eval:judge-variance` re-runs judged checks against this artifact with no
@@ -87,14 +111,11 @@ export function writeFixtureArtifacts(
   fixtureId: string,
   input: WriteFixtureArtifactsInput,
 ): void {
-  mkdirSync(fixtureArtifactDir(runDir, repIndex, fixtureId), {
-    recursive: true,
-  });
-
-  writeFileSync(
-    wardenRequestPath(runDir, repIndex, fixtureId),
-    JSON.stringify(input.wardenRequests, null, 2) + '\n',
-    'utf-8',
+  writeWardenRequestArtifact(
+    runDir,
+    repIndex,
+    fixtureId,
+    input.wardenRequests,
   );
   writeFileSync(
     wardenOutputPath(runDir, repIndex, fixtureId),

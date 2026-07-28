@@ -71,3 +71,11 @@ tasks:
       # through Nest's DI container (AnthropicService is constructed
       # directly), so there's no decorator-metadata requirement to satisfy.
       - npx tsx --env-file=.env scripts/eval-replay.ts {{.CLI_ARGS}}
+
+  eval:run:
+    desc: 'Run the eval corpus N times under a named model/temperature, writing machine-readable score rows (M7.4.1). Hits a real DB and makes real, token-costing Anthropic calls — N times the cost of eval:harness. Requires ZOLTAR_EVAL_ROOT. Usage — task eval:run -- --prompt <path> --model <id> --reps <n> [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--run-dir <existing>] [--temperature <t>] [--decision-rule <text>] [--keep-scratch] (paths are relative to apps/zoltar-be)'
+    dir: apps/zoltar-be
+    cmds:
+      # Not tsx, same reason as eval:harness — this bootstraps a real NestJS
+      # DI container. See the header comment in scripts/eval-run.ts.
+      - node -r @swc-node/register -r reflect-metadata --env-file=.env scripts/eval-run.ts {{.CLI_ARGS}}

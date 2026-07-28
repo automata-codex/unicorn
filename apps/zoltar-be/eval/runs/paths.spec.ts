@@ -12,6 +12,7 @@ import {
   repDir,
   repDirName,
   resolveEvalRoot,
+  resolveRunDirArg,
   rubricPath,
   runDirName,
   runDirPath,
@@ -122,6 +123,20 @@ describe('path builders', () => {
         'turn19-out-of-order-resolution',
         'warden-output.json',
       ),
+    );
+  });
+});
+
+describe('resolveRunDirArg', () => {
+  it('uses an absolute path as given', () => {
+    expect(resolveRunDirArg('/evalroot', '/elsewhere/some-run')).toBe(
+      '/elsewhere/some-run',
+    );
+  });
+
+  it('resolves a bare name against $ZOLTAR_EVAL_ROOT/eval-runs/', () => {
+    expect(resolveRunDirArg('/evalroot', 'claude-sonnet-4-6__ab12cd34__x')).toBe(
+      join('/evalroot', 'eval-runs', 'claude-sonnet-4-6__ab12cd34__x'),
     );
   });
 });
