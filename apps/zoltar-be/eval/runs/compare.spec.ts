@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   applyFilters,
   comparePairs,
+  describeFilterImpact,
   detectHeterogeneity,
   orderForDisplay,
+  parseRubricFilters,
 } from './compare';
 
 import type { RateEntry } from './rates';
@@ -42,7 +44,8 @@ function scoreRow(overrides: Partial<ScoreRow> = {}): ScoreRow {
     tag: 'HIDDEN-INFO-LEAK',
     checkMode: 'judged',
     verdict: 'pass',
-    artifactPath: 'reps/001/turn24-hidden-info-leak/judge-hidden-info-leak.json',
+    artifactPath:
+      'reps/001/turn24-hidden-info-leak/judge-hidden-info-leak.json',
     durationMs: 1,
     recordedAt: '2026-07-26T14:33:00.000Z',
     ...overrides,
@@ -80,18 +83,12 @@ describe('comparePairs', () => {
   });
 
   it('marks a fixture present on only one side as a-only / b-only', () => {
-    const aOnly = comparePairs(
-      [rate({ fixtureId: 'only-a' })],
-      [],
-    );
+    const aOnly = comparePairs([rate({ fixtureId: 'only-a' })], []);
     expect(aOnly[0].status).toBe('a-only');
     expect(aOnly[0].rateB).toBeNull();
     expect(aOnly[0].delta).toBeNull();
 
-    const bOnly = comparePairs(
-      [],
-      [rate({ fixtureId: 'only-b' })],
-    );
+    const bOnly = comparePairs([], [rate({ fixtureId: 'only-b' })]);
     expect(bOnly[0].status).toBe('b-only');
     expect(bOnly[0].rateA).toBeNull();
     expect(bOnly[0].delta).toBeNull();
@@ -172,28 +169,93 @@ describe('orderForDisplay', () => {
 });
 
 describe('detectHeterogeneity', () => {
-  it('warns and prints a runnable filter when rows span two rubric hashes', () => {
+  it('does not warn when a run spans two checks with one rubric hash each', () => {
+    // The normal case: one rubric template per judged check, so a run
+    // covering several judged checks spans several hashes by design.
     const rows = [
-      scoreRow({ rubricHash: 'aaaaaaaa' }),
-      scoreRow({ rubricHash: 'bbbbbbbb' }),
+      scoreRow({
+        checkId: 'hidden-info-leak',
+        tag: 'HIDDEN-INFO-LEAK',
+        rubricHash: 'aaaaaaaa',
+      }),
+      scoreRow({
+        checkId: 'over-resolution',
+        tag: 'OVER-RESOLUTION',
+        rubricHash: 'bbbbbbbb',
+      }),
     ];
 
     const info = detectHeterogeneity(rows, 'run A');
-    expect(info.rubricHashes).toEqual(['aaaaaaaa', 'bbbbbbbb']);
-    expect(info.warnings).toHaveLength(1);
-    expect(info.warnings[0]).toContain('run A');
-    expect(info.warnings[0]).toMatch(/--filter-rubric aaaaaaaa/);
+    expect(info.mixedRubricChecks).toEqual([]);
+    expect(info.warnings).toEqual([]);
   });
 
-  it('applying the printed filter yields a consistent subset', () => {
+  it('warns and prints a runnable filter naming only the drifting check', () => {
     const rows = [
-      scoreRow({ rubricHash: 'aaaaaaaa' }),
-      scoreRow({ rubricHash: 'bbbbbbbb' }),
+      // hidden-info-leak drifted mid-run.
+      scoreRow({
+        checkId: 'hidden-info-leak',
+        tag: 'HIDDEN-INFO-LEAK',
+        rubricHash: 'aaaaaaaa',
+      }),
+      scoreRow({
+        checkId: 'hidden-info-leak',
+        tag: 'HIDDEN-INFO-LEAK',
+        rubricHash: 'bbbbbbbb',
+      }),
+      // over-resolution is clean and must not be named.
+      scoreRow({
+        checkId: 'over-resolution',
+        tag: 'OVER-RESOLUTION',
+        rubricHash: 'cccccccc',
+      }),
     ];
-    const filtered = applyFilters(rows, { rubricHash: 'aaaaaaaa' });
+
+    const info = detectHeterogeneity(rows, 'run A');
+    expect(info.mixedRubricChecks).toEqual([
+      {
+        checkId: 'hidden-info-leak',
+        tag: 'HIDDEN-INFO-LEAK',
+        hashes: ['aaaaaaaa', 'bbbbbbbb'],
+      },
+    ]);
+    expect(info.warnings).toHaveLength(1);
+    expect(info.warnings[0]).toContain('run A');
+    expect(info.warnings[0]).toContain('hidden-info-leak');
+    expect(info.warnings[0]).not.toContain('over-resolution');
+    expect(info.warnings[0]).toMatch(
+      /--filter-rubric hidden-info-leak=aaaaaaaa/,
+    );
+  });
+
+  it('applying the printed filter yields a consistent subset without touching other checks', () => {
+    const rows = [
+      scoreRow({
+        checkId: 'hidden-info-leak',
+        tag: 'HIDDEN-INFO-LEAK',
+        rubricHash: 'aaaaaaaa',
+      }),
+      scoreRow({
+        checkId: 'hidden-info-leak',
+        tag: 'HIDDEN-INFO-LEAK',
+        rubricHash: 'bbbbbbbb',
+      }),
+      scoreRow({
+        checkId: 'over-resolution',
+        tag: 'OVER-RESOLUTION',
+        rubricHash: 'cccccccc',
+      }),
+    ];
+    const filtered = applyFilters(rows, {
+      rubricHashByCheckId: { 'hidden-info-leak': 'aaaaaaaa' },
+    });
     const info = detectHeterogeneity(filtered, 'run A');
-    expect(info.rubricHashes).toEqual(['aaaaaaaa']);
+    expect(info.mixedRubricChecks).toEqual([]);
     expect(info.warnings).toEqual([]);
+    expect(filtered.some((r) => r.checkId === 'over-resolution')).toBe(true);
+    expect(
+      filtered.filter((r) => r.checkId === 'hidden-info-leak'),
+    ).toHaveLength(1);
   });
 
   it('warns when rows span two harness versions', () => {
@@ -207,7 +269,10 @@ describe('detectHeterogeneity', () => {
   });
 
   it('is silent when a side is already consistent', () => {
-    const rows = [scoreRow({ rubricHash: 'aaaaaaaa' }), scoreRow({ rubricHash: 'aaaaaaaa' })];
+    const rows = [
+      scoreRow({ rubricHash: 'aaaaaaaa' }),
+      scoreRow({ rubricHash: 'aaaaaaaa' }),
+    ];
     const info = detectHeterogeneity(rows, 'run A');
     expect(info.warnings).toEqual([]);
   });
@@ -220,10 +285,25 @@ describe('applyFilters', () => {
       scoreRow({ checkMode: 'judged', rubricHash: 'aaaaaaaa' }),
       scoreRow({ checkMode: 'judged', rubricHash: 'bbbbbbbb' }),
     ];
-    const filtered = applyFilters(rows, { rubricHash: 'aaaaaaaa' });
+    const filtered = applyFilters(rows, {
+      rubricHashByCheckId: { [rows[1].checkId]: 'aaaaaaaa' },
+    });
     expect(filtered).toHaveLength(2);
     expect(filtered.some((r) => r.checkMode === 'structural')).toBe(true);
     expect(filtered.every((r) => r.rubricHash !== 'bbbbbbbb')).toBe(true);
+  });
+
+  it('leaves other checks untouched when --filter-rubric targets one check', () => {
+    const rows = [
+      scoreRow({ checkId: 'hidden-info-leak', rubricHash: 'aaaaaaaa' }),
+      scoreRow({ checkId: 'hidden-info-leak', rubricHash: 'bbbbbbbb' }),
+      scoreRow({ checkId: 'over-resolution', rubricHash: 'cccccccc' }),
+    ];
+    const filtered = applyFilters(rows, {
+      rubricHashByCheckId: { 'hidden-info-leak': 'aaaaaaaa' },
+    });
+    expect(filtered).toHaveLength(2);
+    expect(filtered.some((r) => r.checkId === 'over-resolution')).toBe(true);
   });
 
   it('filters every row by harnessVersion when --filter-harness is set', () => {
@@ -234,5 +314,84 @@ describe('applyFilters', () => {
     const filtered = applyFilters(rows, { harnessVersion: 'abc1111' });
     expect(filtered).toHaveLength(1);
     expect(filtered[0].harnessVersion).toBe('abc1111');
+  });
+});
+
+describe('parseRubricFilters', () => {
+  it('parses a single CHECK=HASH value', () => {
+    expect(parseRubricFilters(['hidden-info-leak=4cf7fda1'])).toEqual({
+      'hidden-info-leak': '4cf7fda1',
+    });
+  });
+
+  it('parses repeated values into one map', () => {
+    expect(
+      parseRubricFilters(['hidden-info-leak=4cf7fda1', 'scene-jump=ba1cff52']),
+    ).toEqual({
+      'hidden-info-leak': '4cf7fda1',
+      'scene-jump': 'ba1cff52',
+    });
+  });
+
+  it('throws on the legacy bare-hash form', () => {
+    expect(() => parseRubricFilters(['4cf7fda1'])).toThrow(/CHECK=HASH/);
+  });
+
+  it('throws when the same check is named twice', () => {
+    expect(() =>
+      parseRubricFilters([
+        'hidden-info-leak=4cf7fda1',
+        'hidden-info-leak=deadbeef',
+      ]),
+    ).toThrow(/more than once/);
+  });
+});
+
+describe('describeFilterImpact', () => {
+  it('reports a fixture whose denominator a filter zeroed out', () => {
+    const before = [
+      scoreRow({
+        fixtureId: 'turn24-hidden-info-leak',
+        checkId: 'hidden-info-leak',
+        rubricHash: 'deadbeef',
+        verdict: 'pass',
+      }),
+    ];
+    const after = applyFilters(before, {
+      rubricHashByCheckId: { 'hidden-info-leak': 'ffffffff' },
+    });
+    const messages = describeFilterImpact(before, after, {
+      'hidden-info-leak': 'ffffffff',
+    });
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('turn24-hidden-info-leak');
+    expect(messages[0]).toContain('hidden-info-leak');
+  });
+
+  it('is silent when the filter costs nothing', () => {
+    const before = [
+      scoreRow({
+        fixtureId: 'turn24-hidden-info-leak',
+        checkId: 'hidden-info-leak',
+        rubricHash: 'aaaaaaaa',
+        verdict: 'pass',
+      }),
+    ];
+    const after = applyFilters(before, {
+      rubricHashByCheckId: { 'hidden-info-leak': 'aaaaaaaa' },
+    });
+    expect(
+      describeFilterImpact(before, after, { 'hidden-info-leak': 'aaaaaaaa' }),
+    ).toEqual([]);
+  });
+
+  it('reports a filter key naming a check with no rows in the run', () => {
+    const before = [scoreRow({ checkId: 'hidden-info-leak' })];
+    const after = before;
+    const messages = describeFilterImpact(before, after, {
+      'nonexistent-check': 'aaaaaaaa',
+    });
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('nonexistent-check');
   });
 });

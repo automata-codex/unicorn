@@ -123,6 +123,16 @@ leaving implicit:
    regressions first, and echoes both `--decision-rule`s in the header next to the numbers
    they govern — it does not evaluate the rule for you.
 
+**Mixed-rubric warnings.** A run covering several judged checks spans several rubric
+hashes as a matter of course — one hash per check's rubric template — and `eval:compare`
+does not warn about that. It warns only when a *single* check's own rows span more than
+one hash, meaning that check's rubric template was edited partway through the run, so its
+reps aren't graded by the same criteria. The warning names that one check; every other
+check's rates in the report are unaffected and can still be trusted. It also prints the
+exact fix: `--filter-rubric CHECK=HASH`, scoped to the named check, repeatable if more than
+one check drifted. Don't reach for a bare hash — the flag requires the check id so it can
+never accidentally drop an unrelated check's results.
+
 **A code change that alters what reaches the Warden warrants a full-suite run, even with
 an untouched prompt hash.** `promptHash` only fingerprints the prompt text; it says
 nothing about the snapshot builder, the tool schemas, the validator, or anything else

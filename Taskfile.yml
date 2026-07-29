@@ -79,7 +79,7 @@ tasks:
       - npx tsx --env-file=.env scripts/eval-report.ts {{.CLI_ARGS}}
 
   eval:compare:
-    desc: 'Paired comparison of two eval:run directories, pairing on (fixtureId, checkId) (M7.4.1). Pure rendering — no DB, no Anthropic. Requires ZOLTAR_EVAL_ROOT only. Usage — task eval:compare -- <run-dir-a> <run-dir-b> [--filter-rubric <hash>] [--filter-harness <version>] [--output <path>]'
+    desc: 'Paired comparison of two eval:run directories, pairing on (fixtureId, checkId) (M7.4.1). Pure rendering — no DB, no Anthropic. Requires ZOLTAR_EVAL_ROOT only. Usage — task eval:compare -- <run-dir-a> <run-dir-b> [--filter-rubric CHECK=HASH]... [--filter-harness <version>] [--output <path>]'
     dir: apps/zoltar-be
     cmds:
       # Plain tsx is fine here, unlike eval:run — no Nest DI container.

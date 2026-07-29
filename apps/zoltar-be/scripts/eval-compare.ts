@@ -4,19 +4,26 @@
  *
  * Usage:
  *   npx tsx --env-file=.env scripts/eval-compare.ts <run-dir-a> <run-dir-b> \
- *     [--filter-rubric <hash>] [--filter-harness <version>] [--output <path>]
+ *     [--filter-rubric CHECK=HASH]... [--filter-harness <version>] [--output <path>]
  *
  * Or via the task wrapper:
- *   task eval:compare -- <run-dir-a> <run-dir-b> [--filter-rubric <hash>] [--filter-harness <version>] [--output <path>]
+ *   task eval:compare -- <run-dir-a> <run-dir-b> [--filter-rubric CHECK=HASH]... [--filter-harness <version>] [--output <path>]
  *
  * Each `<run-dir>` is a bare run directory name (resolved against
  * `$ZOLTAR_EVAL_ROOT/eval-runs/`) or an absolute path.
  *
  * Pairs on `(fixtureId, checkId)` — never compares aggregate rates alone.
- * If either side's rows span more than one `rubricHash`/`harnessVersion`,
- * the report warns and names the exact `--filter-rubric`/`--filter-harness`
- * value that would reduce it to a consistent subset; it never discards a
- * side on its own.
+ * If a judged check's rows within one side span more than one rubric hash
+ * (the rubric template was edited mid-run), the report warns and names the
+ * exact `--filter-rubric CHECK=HASH` that would reduce that check to a
+ * consistent subset — scoped to that one check, so it never touches other
+ * checks' rows. A run covering several judged checks normally spans several
+ * hashes (one template per check) and does not warn.
+ *
+ * `--filter-rubric` is repeatable, one per affected check. Passing a bare
+ * hash (the old global-filter form) is a usage error. If a filter would
+ * zero out a fixture's denominator, that is reported on stderr rather than
+ * silently rendered as an empty row.
  *
  * Needs only `ZOLTAR_EVAL_ROOT` from the environment — never `DATABASE_URL`,
  * `ANTHROPIC_API_KEY`, or anything else `.env` carries for the server. Plain
@@ -30,8 +37,10 @@ import { parseArgs } from 'node:util';
 import {
   applyFilters,
   comparePairs,
+  describeFilterImpact,
   detectHeterogeneity,
   orderForDisplay,
+  parseRubricFilters,
 } from '../eval/runs/compare';
 import { renderCompareReport } from '../eval/runs/compare-report';
 import { readManifest } from '../eval/runs/manifest';
@@ -47,13 +56,13 @@ class UsageError extends Error {
 }
 
 const USAGE =
-  'Usage: eval-compare <run-dir-a> <run-dir-b> [--filter-rubric <hash>] ' +
+  'Usage: eval-compare <run-dir-a> <run-dir-b> [--filter-rubric CHECK=HASH]... ' +
   '[--filter-harness <version>] [--output <path>]';
 
 interface CliArgs {
   runDirA: string;
   runDirB: string;
-  filterRubric?: string;
+  rubricFilters: Record<string, string>;
   filterHarness?: string;
   output?: string;
 }
@@ -63,7 +72,7 @@ function parseCliArgs(argv: string[]): CliArgs {
     args: argv,
     allowPositionals: true,
     options: {
-      'filter-rubric': { type: 'string' },
+      'filter-rubric': { type: 'string', multiple: true },
       'filter-harness': { type: 'string' },
       output: { type: 'string' },
     },
@@ -75,13 +84,19 @@ function parseCliArgs(argv: string[]): CliArgs {
     );
   }
 
+  let rubricFilters: Record<string, string>;
+  try {
+    rubricFilters = parseRubricFilters(values['filter-rubric'] ?? []);
+  } catch (err) {
+    throw new UsageError(
+      `${err instanceof Error ? err.message : String(err)}. ${USAGE}`,
+    );
+  }
+
   return {
     runDirA: positionals[0],
     runDirB: positionals[1],
-    filterRubric:
-      typeof values['filter-rubric'] === 'string'
-        ? values['filter-rubric']
-        : undefined,
+    rubricFilters,
     filterHarness:
       typeof values['filter-harness'] === 'string'
         ? values['filter-harness']
@@ -110,11 +125,28 @@ async function main(): Promise<number> {
   const manifestB = readManifest(runDirB);
 
   const filters = {
-    rubricHash: cli.filterRubric,
+    rubricHashByCheckId: cli.rubricFilters,
     harnessVersion: cli.filterHarness,
   };
-  const rowsA = applyFilters(readVouchedRows(runDirA).rows, filters);
-  const rowsB = applyFilters(readVouchedRows(runDirB).rows, filters);
+  const rawRowsA = readVouchedRows(runDirA).rows;
+  const rawRowsB = readVouchedRows(runDirB).rows;
+  const rowsA = applyFilters(rawRowsA, filters);
+  const rowsB = applyFilters(rawRowsB, filters);
+
+  for (const message of describeFilterImpact(
+    rawRowsA,
+    rowsA,
+    cli.rubricFilters,
+  )) {
+    process.stderr.write(`run A (${cli.runDirA}): ${message}\n`);
+  }
+  for (const message of describeFilterImpact(
+    rawRowsB,
+    rowsB,
+    cli.rubricFilters,
+  )) {
+    process.stderr.write(`run B (${cli.runDirB}): ${message}\n`);
+  }
 
   const heterogeneityA = detectHeterogeneity(rowsA, `run A (${cli.runDirA})`);
   const heterogeneityB = detectHeterogeneity(rowsB, `run B (${cli.runDirB})`);
