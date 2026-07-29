@@ -63,7 +63,8 @@
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { defaultRunEvalDeps, runEval } from './eval-run.core';
+import { defaultRunEvalDeps } from './eval-run.default-deps';
+import { runEval } from './eval-run.core';
 
 import type { RunEvalProgressEvent } from './eval-run.core';
 
@@ -223,7 +224,7 @@ async function main(): Promise<number> {
       keepScratch: cli.keepScratch,
       onProgress: printProgress,
     },
-    await defaultRunEvalDeps(),
+    defaultRunEvalDeps(),
   );
 
   process.stdout.write(`run directory: ${summary.runDir}\n`);

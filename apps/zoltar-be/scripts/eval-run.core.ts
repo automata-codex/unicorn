@@ -38,16 +38,16 @@ import type { EvalFixture } from '../eval/fixture.schema';
 // `@Module()` decorator eagerly runs `ConfigModule.forRoot()`'s env
 // validation the moment the file is loaded (see `turn-result.ts`'s doc
 // comment for the same hazard, hit once already in this codebase). A plain
-// value import here would mean any file importing `runEval` for its stub-
-// deps unit tests — which never touches the real harness session — drags
-// in that validation anyway and throws in any environment without real
-// DATABASE_URL/ANTHROPIC_API_KEY/VOYAGE_API_KEY, e.g. CI's unit-test job.
-// `defaultRunEvalDeps` below loads the real values lazily instead.
+// value import here would mean any file importing `runEval` for its
+// stub-deps unit tests — which never touches the real harness session —
+// drags in that validation anyway and throws in any environment without
+// real DATABASE_URL/ANTHROPIC_API_KEY/VOYAGE_API_KEY, e.g. CI's unit-test
+// job. The real wiring lives in `eval-run.default-deps.ts` instead, a
+// separate file loaded only by the CLI and the integration test.
 import type {
   CreateHarnessSessionOptions,
   HarnessSession,
   ScratchAdventure,
-  createHarnessSession,
   runFixtureTurn,
   seedScratchAdventure,
   teardownScratchAdventure,
@@ -66,28 +66,6 @@ export interface RunEvalDeps {
     opts: CreateHarnessSessionOptions,
   ) => Promise<HarnessSession>;
   clock: () => Date;
-}
-
-/** The real wiring — `runEval` never constructs these itself, so a test can
- * swap in a stub executor with no DB and no API key. Loads `harness-runner.ts`
- * lazily (see the import comment above) so merely importing this module —
- * as every `eval-run.spec.ts` test does, via `runEval` — never touches it. */
-export async function defaultRunEvalDeps(): Promise<RunEvalDeps> {
-  const {
-    createHarnessSession,
-    runFixtureTurn,
-    seedScratchAdventure,
-    teardownScratchAdventure,
-  } = await import('../eval/harness-runner.js');
-  return {
-    turnExecutor: {
-      seed: seedScratchAdventure,
-      runTurn: runFixtureTurn,
-      teardown: teardownScratchAdventure,
-    },
-    harnessSessionFactory: createHarnessSession,
-    clock: () => new Date(),
-  };
 }
 
 export interface RunEvalArgs {
