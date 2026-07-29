@@ -57,6 +57,54 @@ than an assumption.
 
 ---
 
+## Current baseline N
+
+**N = 10**, for the standing regression suite / full-corpus baseline runs. Calibrated
+2026-07-29 against:
+
+- Model: `claude-sonnet-4-6`
+- Prompt: `mothership-m7.txt`, hash `97feadbd`
+- Corpus version: `8071500a4952...` (short form; full hash in the run's `manifest.json`)
+- Run directory: `claude-sonnet-4-6__97feadbd__2026-07-29T10-51-26Z`
+
+**Basis.** Binomial variance is worst at p=0.5, and several fixtures in this corpus sit
+near there. At N=10, the 95% CI half-width at p=0.5 is ~±31pp; tightening that to ±15pp
+would need N≈40+, which isn't affordable for routine comparisons (a two-sided comparison
+at N=10 over the full 15-fixture corpus cost ~$30/side in the calibration run; N=40 would
+run ~$120/side, ~$240 for one comparison). N=10 is a deliberate precision-for-cost
+tradeoff, not an oversight — the fixtures sitting near 0.5 (mostly the `turn24-*` judged
+checks) carry real uncertainty at this N and should be read as "unsettled," not as a
+precise estimate, until/unless the budget for a higher N is revisited.
+
+**Observed at N=10, candidates for `repOverride` during supervised iteration** (rate 0.0
+across all reps, confidently — n large enough that the result isn't just small-sample
+noise):
+
+- `turn01-unauditable-mapping` (0/6)
+- `turn03-unauditable-mapping` (0/9)
+- `turn03-unsurfaced-check` (0/10)
+- `turn16-narrating-past-a-block` (0/10)
+- `turn19-out-of-order-resolution` (0/9)
+- `turn21-out-of-order-resolution` (0/9)
+
+`turn14-unauditable-mapping` also read 0.0 but at n=2 (7 of its 10 reps were
+`not_applicable`) — too small a sample to call it settled; it's a low-applicability
+fixture, not a confidently-zero one, and needs disproportionately more reps than the rest
+of the corpus to reach the same confidence, not fewer.
+
+None of the above may take a permanent `repOverride` in the standing regression suite —
+per the hazard above, a fixture settled today is exactly the one a future prompt edit
+might destabilize, and a standing low-N override is deciding in advance not to notice.
+`repOverride` is for deliberate, temporary use during a specific supervised-iteration
+session only.
+
+**Re-check trigger.** This N was estimated under the conditions listed above. A model
+change, a meaningfully different corpus (fixture count or content), or a prompt rewrite
+substantial enough to shift where fixtures sit relative to 0.5 all warrant revisiting this
+number rather than assuming it still holds.
+
+---
+
 ## Running a comparison
 
 The commands exist now, so the order they're meant to run in is worth naming rather than
