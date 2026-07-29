@@ -718,5 +718,13 @@
   "assertion": {
     "mode": "structural",
     "check": "Alvarez's weapon damage roll must be attributed to the player or surfaced as a dice_request, not generated system-side. Original turn generated the 10-damage roll system-side without asking the player, while her Combat/to-hit roll was correctly left as a player action in the same turn."
-  }
+  },
+  "applicability": {
+    "system-rolled-player-action": {
+      "applies": true,
+      "playerEntity": "Alvarez",
+      "situation": "Alvarez, already committed to the firefight, tries to shoot the contractor again — a resolvable attack requiring a Combat to-hit roll and, if it lands, a damage roll."
+    }
+  },
+  "fixtureSchemaVersion": 2
 }

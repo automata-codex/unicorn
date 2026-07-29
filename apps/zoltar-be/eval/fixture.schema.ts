@@ -135,16 +135,66 @@ const assertionSchema = z.discriminatedUnion('mode', [
 export type Assertion = z.infer<typeof assertionSchema>;
 
 /**
+ * Whether a check's failure mode is even in play for this fixture's
+ * scenario — authored once at fixture-capture time, never inferred at
+ * eval-run time from what the model happened to produce (the bug this
+ * schema exists to prevent: gating on a `dice_roll` event's presence
+ * selects on the model's own choice, not the situation). Keyed by check id
+ * (`eval/checks/registry.ts`'s `toCheckId(tag)`, e.g.
+ * `'system-rolled-player-action'`), not nested under `assertion`, because a
+ * fixture can in principle carry more than one check with different
+ * applicability — `selectChecksForFixture` already returns an array for
+ * this reason, even though the corpus is 1:1 with `tag` today.
+ *
+ * `situation` does double duty: for `applies: true` it documents why the
+ * checker should engage (audit trail, not read by any checker); for
+ * `applies: false` it's the check's `NOT_APPLICABLE` reason, so it must
+ * describe the *scenario* not calling for the check, never a model-produced
+ * artifact ("no dice_roll events this turn" is exactly the phrasing this
+ * field replaces).
+ */
+const applicabilityEntrySchema = z.discriminatedUnion('applies', [
+  z.object({
+    applies: z.literal(true),
+    /** The fixture's own name for the player entity this check should
+     * attribute rolls/requests to — replaces the harness's old
+     * `campaignState.resourcePools`-key-guessing heuristic. */
+    playerEntity: z.string().min(1),
+    situation: z.string().min(1),
+  }),
+  z.object({
+    applies: z.literal(false),
+    situation: z.string().min(1),
+  }),
+]);
+
+export type ApplicabilityEntry = z.infer<typeof applicabilityEntrySchema>;
+
+const applicabilitySchema = z.record(z.string(), applicabilityEntrySchema);
+
+export type Applicability = z.infer<typeof applicabilitySchema>;
+
+/**
  * Describes *what was captured*, not the current checker logic. Bumped only
- * when `capture-fixture` starts recording a field it didn't before (the
- * anticipated case, per spec Part 6, is `rollType` / `gatedByRollId` /
- * `actingEntityId` on `roll_dice`) — never when a checker's interpretation
+ * when `capture-fixture` starts recording a field it didn't before — v2
+ * added `applicability` (see above) — never when a checker's interpretation
  * of existing fields changes. A check that needs a field newer fixtures
  * don't yet have declares `requiresFixtureSchema`, and the runner reports
  * `not_applicable` rather than a false regression (see
  * `eval/checks/registry.ts`).
  */
-export const FIXTURE_SCHEMA_VERSION = 1;
+export const FIXTURE_SCHEMA_VERSION = 2;
+
+/**
+ * The version every fixture predating this field is deemed to be — frozen
+ * at `1` forever, deliberately NOT `FIXTURE_SCHEMA_VERSION`. A fixture file
+ * with the field literally absent from its JSON never had ANY version
+ * stamped on it, v1 or otherwise; a default that tracked the current
+ * constant would make every future bump retroactively (and silently) claim
+ * those fixtures carry whatever the new version's fields are, defeating the
+ * exact purpose `requiresFixtureSchema`'s gate exists for.
+ */
+const LEGACY_FIXTURE_SCHEMA_VERSION = 1;
 
 export const evalFixtureSchema = z
   .object({
@@ -156,13 +206,18 @@ export const evalFixtureSchema = z
     seededState: seededStateSchema,
     playerInput: playerInputSchema,
     assertion: assertionSchema,
+    /** Fixture-authored per check id — absent (or an entry missing for a
+     * given check id) means that check's situation was never assessed for
+     * this fixture, which `requiresFixtureSchema`'s gate treats as
+     * `not_applicable` rather than assuming either way. */
+    applicability: applicabilitySchema.optional(),
     /** Defaults to `1` so every fixture captured before this field existed
      * still parses unchanged. */
     fixtureSchemaVersion: z
       .number()
       .int()
       .positive()
-      .default(FIXTURE_SCHEMA_VERSION),
+      .default(LEGACY_FIXTURE_SCHEMA_VERSION),
     /**
      * Per-fixture override of the run's uniform `--reps`, read once at run
      * start and never adjusted mid-run — see `docs/eval-methodology.md`'s

@@ -718,5 +718,13 @@
   "assertion": {
     "mode": "structural",
     "check": "Alvarez's rifle damage (1d10) must not be rolled before her Combat to-hit roll resolves. Original turn rolled the damage (10) before the to-hit roll: \"Roll your Combat... If you hit, it's 10 damage.\""
-  }
+  },
+  "applicability": {
+    "out-of-order-resolution": {
+      "applies": true,
+      "playerEntity": "Alvarez",
+      "situation": "Alvarez, already committed to the firefight, tries to shoot the contractor again — her Combat to-hit roll must resolve before any damage roll."
+    }
+  },
+  "fixtureSchemaVersion": 2
 }

@@ -1,6 +1,7 @@
 import { emptyMothershipState } from '@uv/game-systems';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { evalFixtureSchema } from '../eval/fixture.schema';
 import { CanonRepository } from '../src/canon/canon.repository';
 import * as schema from '../src/db/schema';
 import {
@@ -164,6 +165,15 @@ describe('captureFixture (integration)', () => {
     // the written fixture must already pass `loadFixtures` validation.
     expect(fixture.assertion.mode).toBe('structural');
     expect(fixture.playerInput.type).toBe('message');
+
+    // Placeholder applicability defaults fail-closed (applies: false) —
+    // a check reading it via `requiresFixtureSchema` must never assume the
+    // situation applies just because the fixture was captured after v2.
+    expect(fixture.applicability?.['out-of-order-resolution']).toEqual({
+      applies: false,
+      situation: expect.stringContaining('TODO'),
+    });
+    expect(evalFixtureSchema.safeParse(fixture).success).toBe(true);
   });
 
   it('fills in a judged-mode placeholder for a judged tag', async () => {

@@ -1,3 +1,5 @@
+import type { ApplicabilityEntry, EvalFixture } from '../../fixture.schema';
+
 /**
  * `NOT_APPLICABLE` is distinct from `PASSED`: it means the turn never
  * produced the event(s) this checker looks for at all (no dice_roll this
@@ -19,4 +21,30 @@ export type StructuralOutcome = 'PASSED' | 'FAILED' | 'NOT_APPLICABLE';
 export interface StructuralVerdict {
   outcome: StructuralOutcome;
   actual: string;
+}
+
+/**
+ * Fetches a fixture's fixture-authored applicability entry for one check id
+ * (`eval/fixture.schema.ts`). Throws rather than falling back silently: a
+ * check declaring `requiresFixtureSchema` only ever reaches its checker once
+ * `runCheck`'s gate has confirmed the fixture's `fixtureSchemaVersion` meets
+ * that minimum (`run-check.ts`), so a missing entry at that point means the
+ * fixture author bumped the version without actually authoring the field —
+ * a fixture-authoring bug worth a loud `error` row, not a silent guess.
+ */
+export function requireApplicability(
+  fixture: EvalFixture,
+  checkId: string,
+): ApplicabilityEntry {
+  const entry = fixture.applicability?.[checkId];
+  if (!entry) {
+    throw new Error(
+      `fixture "${fixture.id}" has no applicability entry for check "${checkId}" ` +
+        `(fixtureSchemaVersion ${fixture.fixtureSchemaVersion}) — a fixture at schema ` +
+        'version 2+ carrying this check must author fixture.applicability["' +
+        checkId +
+        '"]',
+    );
+  }
+  return entry;
 }

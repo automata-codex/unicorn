@@ -44,12 +44,28 @@ function toCheckId(tag: FailureModeTag): string {
   return tag.toLowerCase();
 }
 
+/**
+ * The first two checks to read fixture-authored `applicability`
+ * (`eval/fixture.schema.ts`) — a fixture below this version never had the
+ * field authored, and `runCheck`'s fixture-schema gate (`run-check.ts`)
+ * reports `not_applicable` rather than letting the checker guess.
+ */
+const REQUIRES_FIXTURE_SCHEMA: Partial<Record<string, number>> = {
+  'system-rolled-player-action': 2,
+  'out-of-order-resolution': 2,
+};
+
 function buildChecks(): Record<string, EvalCheck> {
   const checks: Record<string, EvalCheck> = {};
 
   for (const tag of structuralFailureModeTags) {
     const id = toCheckId(tag);
-    checks[id] = { id, tag, mode: 'structural' };
+    checks[id] = {
+      id,
+      tag,
+      mode: 'structural',
+      requiresFixtureSchema: REQUIRES_FIXTURE_SCHEMA[id],
+    };
   }
   for (const tag of judgedFailureModeTags) {
     const id = toCheckId(tag);

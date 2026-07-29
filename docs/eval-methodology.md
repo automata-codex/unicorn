@@ -64,8 +64,33 @@ than an assumption.
 
 - Model: `claude-sonnet-4-6`
 - Prompt: `mothership-m7.txt`, hash `97feadbd`
-- Corpus version: `8071500a4952...` (short form; full hash in the run's `manifest.json`)
+- Corpus version at calibration: `8071500a4952...` (short form; full hash in the run's
+  `manifest.json`)
 - Run directory: `claude-sonnet-4-6__97feadbd__2026-07-29T10-51-26Z`
+
+**Corpus version updated 2026-07-29 to `4c9f2e73efd7...` — a grader fix, not a re-run.**
+`turn{19,21}-{system-rolled-player-action,out-of-order-resolution}.json` gained a
+fixture-authored `applicability` field so those two checks stop inferring applicability from
+whether the model happened to produce a `dice_roll` event (see `decisions.md`). The Warden
+outputs already on disk for both `claude-sonnet-4-6__97feadbd__2026-07-29T10-51-26Z` and
+`claude-sonnet-5__97feadbd__2026-07-29T15-40-17Z` are byte-identical to before — only the
+grading of `system-rolled-player-action` / `out-of-order-resolution` against them changed.
+`eval:compare` will (correctly) warn on any pairing against a run scored under
+`8071500a4952...`; re-score under the new corpus version rather than suppressing the warning.
+Re-grading the two runs above against the fix:
+
+- `system-rolled-player-action`: `claude-sonnet-4-6` — `turn19` 1/8 (2 excluded as
+  `not_applicable`) → 3/10 (0 excluded); `turn21` unchanged at 2/9. `claude-sonnet-5` —
+  `turn19` 0/0 (10 excluded) → 10/10; `turn21` 2/2 (8 excluded) → 8/10 — the 2 prior passes
+  were the exact violation this check exists to catch (a system-rolled to-hit roll with no
+  damage-conditional phrasing, which the pre-fix pattern-only rule missed) and now correctly
+  read `FAILED`.
+- `out-of-order-resolution`: unchanged for both runs — `claude-sonnet-4-6` stays 0/9 on both
+  fixtures (the entries below are still accurate), `claude-sonnet-5` stays fully
+  `not_applicable` on both. The situation now gates correctly, but the ordering evidence this
+  check needs genuinely isn't in these fixtures under a model that splits the to-hit request
+  and its resolution across a turn boundary — see the "Out of scope" note on extending
+  turn19/21 through the follow-up turn.
 
 **Basis.** Binomial variance is worst at p=0.5, and several fixtures in this corpus sit
 near there. At N=10, the 95% CI half-width at p=0.5 is ~±31pp; tightening that to ±15pp

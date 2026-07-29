@@ -24,9 +24,10 @@ export const structuralCheckers: Record<
   StructuralTag,
   (result: TurnExecutionResult, fixture: EvalFixture) => StructuralVerdict
 > = {
-  'OUT-OF-ORDER-RESOLUTION': (result) => checkOutOfOrderResolution(result),
-  'SYSTEM-ROLLED-PLAYER-ACTION': (result) =>
-    checkSystemRolledPlayerAction(result),
+  'OUT-OF-ORDER-RESOLUTION': (result, fixture) =>
+    checkOutOfOrderResolution(result, fixture),
+  'SYSTEM-ROLLED-PLAYER-ACTION': (result, fixture) =>
+    checkSystemRolledPlayerAction(result, fixture),
   'UNAUDITABLE-MAPPING': (result) => checkUnauditableMapping(result),
   'MISSING-CANON-CAPTURE': (result, fixture) =>
     checkMissingCanonCapture(result, fixture),

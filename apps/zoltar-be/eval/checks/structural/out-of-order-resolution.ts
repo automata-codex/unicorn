@@ -1,6 +1,11 @@
+import { requireApplicability } from './types';
+
 import type { DiceRollEventPayload } from '../../../src/session/session.events';
+import type { EvalFixture } from '../../fixture.schema';
 import type { TurnExecutionResult } from '../../turn-result';
 import type { StructuralVerdict } from './types';
+
+const CHECK_ID = 'out-of-order-resolution';
 
 /**
  * A damage/consequence roll phrased as conditional on an outcome that
@@ -27,22 +32,60 @@ import type { StructuralVerdict } from './types';
 const CONDITIONAL_DAMAGE_PATTERN =
   /\b(damage|dmg)\b[^.]{0,40}\bif\b[^.]{0,30}\b(hits?|succeeds?|lands?|connects?)\b/i;
 
+/** Same leading-name convention `system-rolled-player-action.ts` relies on
+ * — see that file's `isAttributedTo` for why `startsWith`, not `includes`. */
+function isAttributedTo(purpose: string, playerEntity: string): boolean {
+  return purpose.toLowerCase().startsWith(playerEntity.toLowerCase());
+}
+
 /**
  * OUT-OF-ORDER-RESOLUTION: a damage roll must not fire before the to-hit
  * roll it depends on has resolved, and no dice_roll may precede the turn's
  * own player_action.
+ *
+ * Situation gating (`fixture.applicability`) only partly repairs this check.
+ * Under a model that compresses request and resolution into a single turn,
+ * every `dice_roll` this check needs was already in `result.gameEvents`.
+ * Under a model that splits them across a turn boundary — issuing a
+ * `dice_request` in this turn, resolving it in the next — the ordering
+ * behaviour this check exists to catch happens on a turn this fixture
+ * doesn't contain. That can't be fixed by better gating; it needs the
+ * fixture extended through the follow-up turn (separate task). Until then,
+ * a split-turn situation reports `NOT_APPLICABLE` with a reason naming the
+ * missing evidence, not the old "no dice_roll events this turn" — honest
+ * about *why* nothing was checked, rather than implying the model did
+ * something wrong by not rolling.
  */
 export function checkOutOfOrderResolution(
   result: TurnExecutionResult,
+  fixture: EvalFixture,
 ): StructuralVerdict {
+  const applicability = requireApplicability(fixture, CHECK_ID);
+  if (!applicability.applies) {
+    return { outcome: 'NOT_APPLICABLE', actual: applicability.situation };
+  }
+  const { playerEntity } = applicability;
+
   const diceRolls = result.gameEvents
     .filter((e) => e.eventType === 'dice_roll')
     .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
 
   if (diceRolls.length === 0) {
+    const deferredRequest = result.diceRequests.find(
+      (r) => r.status === 'pending' && isAttributedTo(r.purpose, playerEntity),
+    );
+    if (deferredRequest) {
+      return {
+        outcome: 'NOT_APPLICABLE',
+        actual:
+          `the turn deferred ${playerEntity}'s gating roll to a pending dice_request ` +
+          `("${deferredRequest.purpose}") rather than resolving it this turn — the ordering ` +
+          "evidence this check needs appears on the following turn, which this fixture doesn't contain",
+      };
+    }
     return {
       outcome: 'NOT_APPLICABLE',
-      actual: 'no dice_roll events this turn',
+      actual: `the turn produced no dice_roll and no pending dice_request for ${playerEntity} — nothing to order`,
     };
   }
 

@@ -38,10 +38,27 @@ const NO_ANTHROPIC_CALLS_EXPECTED = fakeAnthropic(vi.fn());
 
 describe('runCheck — structural verdict mapping', () => {
   const check = evalChecks['system-rolled-player-action'];
-  const playerPool = { resourcePools: { alvarez_hp: { current: 10, max: 10 } } };
+  const applicableFixture = fakeFixture({
+    tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
+    applicability: {
+      'system-rolled-player-action': {
+        applies: true,
+        playerEntity: 'alvarez',
+        situation: 'test fixture',
+      },
+    },
+  });
 
   it('maps NOT_APPLICABLE when the checker finds nothing to evaluate', async () => {
-    const fixture = fakeFixture({ tag: 'SYSTEM-ROLLED-PLAYER-ACTION' });
+    const fixture = fakeFixture({
+      tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
+      applicability: {
+        'system-rolled-player-action': {
+          applies: false,
+          situation: 'no player action this turn',
+        },
+      },
+    });
     const result = fakeTurnExecutionResult({ gameEvents: [] });
 
     const observation = await runCheck(
@@ -52,13 +69,11 @@ describe('runCheck — structural verdict mapping', () => {
     );
 
     expect(observation.verdict).toBe('not_applicable');
-    expect(observation.notApplicableReason).toMatch(/no dice_roll events/);
+    expect(observation.notApplicableReason).toMatch(/no player action this turn/);
   });
 
   it('maps PASSED to pass', async () => {
-    const fixture = fakeFixture({ tag: 'SYSTEM-ROLLED-PLAYER-ACTION' });
     const result = fakeTurnExecutionResult({
-      campaignState: playerPool,
       gameEvents: [
         fakeDiceRoll({ sequenceNumber: 1, purpose: 'guard damage if hits' }),
       ],
@@ -66,7 +81,7 @@ describe('runCheck — structural verdict mapping', () => {
 
     const observation = await runCheck(
       check,
-      fixture,
+      applicableFixture,
       result,
       NO_ANTHROPIC_CALLS_EXPECTED,
     );
@@ -75,9 +90,7 @@ describe('runCheck — structural verdict mapping', () => {
   });
 
   it('maps FAILED to fail', async () => {
-    const fixture = fakeFixture({ tag: 'SYSTEM-ROLLED-PLAYER-ACTION' });
     const result = fakeTurnExecutionResult({
-      campaignState: playerPool,
       gameEvents: [
         fakeDiceRoll({ sequenceNumber: 1, purpose: 'alvarez damage if hits' }),
       ],
@@ -85,7 +98,7 @@ describe('runCheck — structural verdict mapping', () => {
 
     const observation = await runCheck(
       check,
-      fixture,
+      applicableFixture,
       result,
       NO_ANTHROPIC_CALLS_EXPECTED,
     );
@@ -104,7 +117,10 @@ describe('runCheck — fixture-schema gate', () => {
       mode: 'structural',
       requiresFixtureSchema: 2,
     };
-    const fixture = fakeFixture({ tag: 'SYSTEM-ROLLED-PLAYER-ACTION' });
+    const fixture = fakeFixture({
+      tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
+      fixtureSchemaVersion: 1,
+    });
     expect(fixture.fixtureSchemaVersion).toBe(1);
 
     const observation = await runCheck(
