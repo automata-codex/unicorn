@@ -137,7 +137,7 @@ describe.skipIf(!RUN_LIVE)(
             temperature: 1.0,
             keepScratch: false,
           },
-          defaultRunEvalDeps(),
+          await defaultRunEvalDeps(),
         );
 
         expect(listRepDirsOnDisk(summary.runDir)).toEqual([1, 2]);

@@ -223,7 +223,7 @@ async function main(): Promise<number> {
       keepScratch: cli.keepScratch,
       onProgress: printProgress,
     },
-    defaultRunEvalDeps(),
+    await defaultRunEvalDeps(),
   );
 
   process.stdout.write(`run directory: ${summary.runDir}\n`);

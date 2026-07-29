@@ -7,12 +7,6 @@ import { runCheck } from '../eval/checks/run-check';
 import { computeCorpusVersion } from '../eval/corpus-version';
 import { loadFixtures } from '../eval/fixture-loader';
 import {
-  createHarnessSession,
-  runFixtureTurn,
-  seedScratchAdventure,
-  teardownScratchAdventure,
-} from '../eval/harness-runner';
-import {
   relativeArtifactPath,
   writeFixtureArtifacts,
   writeJudgeArtifact,
@@ -40,10 +34,23 @@ import { hashPromptText, promptsDir } from '../src/wardens/prompt-paths';
 
 import type { EvalCheck } from '../eval/checks/registry';
 import type { EvalFixture } from '../eval/fixture.schema';
+// Type-only, deliberately — `harness-runner.ts` imports `AppModule`, whose
+// `@Module()` decorator eagerly runs `ConfigModule.forRoot()`'s env
+// validation the moment the file is loaded (see `turn-result.ts`'s doc
+// comment for the same hazard, hit once already in this codebase). A plain
+// value import here would mean any file importing `runEval` for its stub-
+// deps unit tests — which never touches the real harness session — drags
+// in that validation anyway and throws in any environment without real
+// DATABASE_URL/ANTHROPIC_API_KEY/VOYAGE_API_KEY, e.g. CI's unit-test job.
+// `defaultRunEvalDeps` below loads the real values lazily instead.
 import type {
   CreateHarnessSessionOptions,
   HarnessSession,
   ScratchAdventure,
+  createHarnessSession,
+  runFixtureTurn,
+  seedScratchAdventure,
+  teardownScratchAdventure,
 } from '../eval/harness-runner';
 import type { Verdict } from '../eval/runs/scores';
 
@@ -62,8 +69,16 @@ export interface RunEvalDeps {
 }
 
 /** The real wiring — `runEval` never constructs these itself, so a test can
- * swap in a stub executor with no DB and no API key. */
-export function defaultRunEvalDeps(): RunEvalDeps {
+ * swap in a stub executor with no DB and no API key. Loads `harness-runner.ts`
+ * lazily (see the import comment above) so merely importing this module —
+ * as every `eval-run.spec.ts` test does, via `runEval` — never touches it. */
+export async function defaultRunEvalDeps(): Promise<RunEvalDeps> {
+  const {
+    createHarnessSession,
+    runFixtureTurn,
+    seedScratchAdventure,
+    teardownScratchAdventure,
+  } = await import('../eval/harness-runner.js');
   return {
     turnExecutor: {
       seed: seedScratchAdventure,
