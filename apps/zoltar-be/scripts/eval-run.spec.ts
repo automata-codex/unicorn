@@ -442,3 +442,63 @@ describe('guard: no reconstructStateAsOfTurn import', () => {
     expect(violations).toEqual([]);
   });
 });
+
+describe('guard: only eval-run.default-deps.ts value-imports harness-runner.ts', () => {
+  // `harness-runner.ts` imports `AppModule`, whose `@Module()` decorator
+  // eagerly calls `ConfigModule.forRoot()` — an *async* method, so a
+  // synchronous `validate()` throw inside it becomes a rejected promise,
+  // not a direct exception. Nothing in a plain `.spec.ts` unit test ever
+  // awaits that promise (it never bootstraps the real Nest DI container),
+  // so the rejection is genuinely unhandled — and *when* Vitest reports an
+  // unhandled rejection relative to "which test is currently running" is a
+  // timing race, not something a single local re-run reliably reproduces.
+  // This is a *static* guard instead: it doesn't matter whether the race
+  // happens to fire on any given run, because the only way to eliminate
+  // the hazard entirely is to never call `ConfigModule.forRoot()` from a
+  // file a `.spec.ts` test can reach in the first place. This regression
+  // (`eval-run.core.ts` had exactly this value import once already) is
+  // exactly what this test exists to catch, deterministically, every time.
+  //
+  // `eval-run.default-deps.ts` is the one deliberate exception — see its
+  // own doc comment — and `*.spec-int.ts` files are excluded from the
+  // default Vitest config already, so a value import there is fine too.
+  const ALLOWED_VALUE_IMPORTERS = new Set(['eval-run.default-deps.ts']);
+
+  function isSpecIntFile(filename: string): boolean {
+    return /\.spec-int\.ts$/.test(filename);
+  }
+
+  function collectTsFiles(dir: string): string[] {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === 'node_modules' || entry.name === 'dist') continue;
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        out.push(...collectTsFiles(full));
+      } else if (entry.name.endsWith('.ts') && !isSpecIntFile(entry.name)) {
+        out.push(full);
+      }
+    }
+    return out;
+  }
+
+  it('no other scripts/ or eval/ file does', () => {
+    const evalDir = join(__dirname, '..', 'eval');
+    const scriptsDir = join(__dirname, '..', 'scripts');
+    // Anchored to line-start (real import statements in this codebase's
+    // style always start at column 0) so a comment that happens to contain
+    // the word "import" can never produce a false positive.
+    const valueImportPattern =
+      /^import\s+(?!type\b)[^;]*?\bfrom\s+['"](\.\.\/)*(eval\/)?harness-runner['"]/m;
+
+    const files = [...collectTsFiles(evalDir), ...collectTsFiles(scriptsDir)].filter(
+      (f) => f.endsWith('harness-runner.ts') === false,
+    );
+
+    const violations = files.filter((f) => {
+      if (ALLOWED_VALUE_IMPORTERS.has(basename(f))) return false;
+      return valueImportPattern.test(readFileSync(f, 'utf-8'));
+    });
+    expect(violations).toEqual([]);
+  });
+});

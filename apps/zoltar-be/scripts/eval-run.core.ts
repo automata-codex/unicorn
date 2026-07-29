@@ -43,7 +43,7 @@ import type { EvalFixture } from '../eval/fixture.schema';
 // drags in that validation anyway and throws in any environment without
 // real DATABASE_URL/ANTHROPIC_API_KEY/VOYAGE_API_KEY, e.g. CI's unit-test
 // job. The real wiring lives in `eval-run.default-deps.ts` instead, a
-// separate file only the CLI and the integration test import.
+// separate file loaded only by the CLI and the integration test.
 import type {
   CreateHarnessSessionOptions,
   HarnessSession,
