@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { and, asc, eq } from 'drizzle-orm';
 
@@ -6,6 +7,8 @@ import { AppModule } from '../src/app.module';
 import { DB_TOKEN } from '../src/db/db.provider';
 import * as schema from '../src/db/schema';
 import { SessionService } from '../src/session/session.service';
+
+import { RecordingAnthropicService } from './runs/recording-anthropic';
 
 import type { Db } from '../src/db/db.provider';
 import type { EvalFixture } from './fixture.schema';
@@ -56,20 +59,63 @@ export interface HarnessSession {
   db: Db;
   sessionService: SessionService;
   /** Same DI-wired instance `SessionService` itself uses — Part 5's judge
-   * call reuses this rather than constructing a second Anthropic client. */
+   * call reuses this rather than constructing a second Anthropic client.
+   * When `createHarnessSession` was called with `{model, temperature}`,
+   * this is actually the `RecordingAnthropicService` below, typed as
+   * `AnthropicService` because that's the token every consumer (including
+   * `SessionService` itself) resolves it through. */
   anthropicService: AnthropicService;
+  /** Set only when `createHarnessSession` was called with `{model,
+   * temperature}` — the same instance as `anthropicService`, narrowed to
+   * the type that exposes `beginFixture()`/`takeCaptured()`. The runner
+   * drains this per fixture. */
+  recorder?: RecordingAnthropicService;
   close: () => Promise<void>;
 }
 
-export async function createHarnessSession(): Promise<HarnessSession> {
-  const moduleRef = await Test.createTestingModule({
-    imports: [AppModule],
-  }).compile();
+export interface CreateHarnessSessionOptions {
+  model: string;
+  temperature: number;
+}
+
+/**
+ * With no options, behaves exactly as before this milestone: a plain
+ * `SessionService` backed by the real `AnthropicService`, model/temperature
+ * left at the API defaults. With `{model, temperature}`, the `AnthropicService`
+ * provider is overridden with a `RecordingAnthropicService` — constructed
+ * from a fresh real `AnthropicService` via the module's own `ConfigService`,
+ * not by wrapping the about-to-be-replaced provider, since that would be
+ * circular — so every Warden call in this session is forced onto that
+ * model/temperature and recorded for `eval:run` to write to disk.
+ */
+export async function createHarnessSession(
+  options?: CreateHarnessSessionOptions,
+): Promise<HarnessSession> {
+  let builder = Test.createTestingModule({ imports: [AppModule] });
+
+  if (options) {
+    builder = builder.overrideProvider(AnthropicService).useFactory({
+      factory: (config: ConfigService) =>
+        new RecordingAnthropicService(
+          new AnthropicService(config),
+          options.model,
+          options.temperature,
+        ),
+      inject: [ConfigService],
+    });
+  }
+
+  const moduleRef = await builder.compile();
   await moduleRef.init();
+
+  const anthropicService = moduleRef.get(AnthropicService);
   return {
     db: moduleRef.get<Db>(DB_TOKEN),
     sessionService: moduleRef.get(SessionService),
-    anthropicService: moduleRef.get(AnthropicService),
+    anthropicService,
+    recorder: options
+      ? (anthropicService as unknown as RecordingAnthropicService)
+      : undefined,
     close: () => moduleRef.close(),
   };
 }

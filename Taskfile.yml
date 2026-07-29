@@ -53,21 +53,42 @@ tasks:
     cmds:
       - npx tsx --env-file=.env scripts/capture-fixture.ts {{.CLI_ARGS}}
 
-  eval:harness:
-    desc: Replay eval fixtures through the real turn pipeline under a Warden prompt variant (M7.4). Hits a real DB and makes real, token-costing Anthropic calls — not CI-safe. Usage — task eval:harness -- --fixtures eval/fixtures/ [--tag <tag1,tag2>] [--prompt-variant <filename>] [--output <path>] [--keep-scratch] (paths are relative to apps/zoltar-be)
-    dir: apps/zoltar-be
-    cmds:
-      # Not tsx, unlike the other scripts here — this one bootstraps a real
-      # NestJS DI container, and tsx (esbuild) doesn't emit the decorator
-      # metadata that requires; @swc-node/register does. See the header
-      # comment in scripts/eval-harness.ts.
-      - node -r @swc-node/register -r reflect-metadata --env-file=.env scripts/eval-harness.ts {{.CLI_ARGS}}
-
   eval:replay:
-    desc: Re-evaluate one already-captured scratch adventure (left behind by eval:harness --keep-scratch) against its fixture's checker/rubric, without re-running the turn. A judged-mode fixture still makes one real Anthropic call (the judge itself). Usage — task eval:replay -- --fixture <id|path> --adventure-id <uuid>
+    desc: Re-evaluate one already-captured turn against a fixture's checks, without re-running the turn (M7.4.1). Artifact mode reads a frozen warden-output.json from an eval:run directory, no DB at all; database mode re-evaluates a scratch adventure left behind by eval:run --keep-scratch. A judged-mode fixture still makes one real Anthropic call (the judge itself) in either mode. Usage — task eval:replay -- --fixture <id|path> (--run-dir <dir> --rep <n> | --adventure-id <uuid>)
     dir: apps/zoltar-be
     cmds:
-      # Plain tsx is fine here, unlike eval:harness — this script never goes
+      # Plain tsx is fine here, unlike eval:run — this script never goes
       # through Nest's DI container (AnthropicService is constructed
       # directly), so there's no decorator-metadata requirement to satisfy.
       - npx tsx --env-file=.env scripts/eval-replay.ts {{.CLI_ARGS}}
+
+  eval:run:
+    desc: 'Run the eval corpus N times under a named model/temperature, writing machine-readable score rows (M7.4.1). Hits a real DB and makes real, token-costing Anthropic calls — N times the cost of a single-pass run. Requires ZOLTAR_EVAL_ROOT. Usage — task eval:run -- --prompt <path> --model <id> --reps <n> [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--run-dir <existing>] [--temperature <t>] [--decision-rule <text>] [--keep-scratch] (paths are relative to apps/zoltar-be)'
+    dir: apps/zoltar-be
+    cmds:
+      # Not tsx — this bootstraps a real NestJS DI container, and tsx
+      # (esbuild) doesn't emit the decorator metadata that requires;
+      # @swc-node/register does. See the header comment in scripts/eval-run.ts.
+      - node -r @swc-node/register -r reflect-metadata --env-file=.env scripts/eval-run.ts {{.CLI_ARGS}}
+
+  eval:report:
+    desc: 'Render a markdown report from a run directory written by eval:run (M7.4.1). Pure rendering — no DB, no Anthropic. Requires ZOLTAR_EVAL_ROOT only. Usage — task eval:report -- <run-dir> [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx is fine here, unlike eval:run — no Nest DI container.
+      - npx tsx --env-file=.env scripts/eval-report.ts {{.CLI_ARGS}}
+
+  eval:compare:
+    desc: 'Paired comparison of two eval:run directories, pairing on (fixtureId, checkId) (M7.4.1). Pure rendering — no DB, no Anthropic. Requires ZOLTAR_EVAL_ROOT only. Usage — task eval:compare -- <run-dir-a> <run-dir-b> [--filter-rubric <hash>] [--filter-harness <version>] [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx is fine here, unlike eval:run — no Nest DI container.
+      - npx tsx --env-file=.env scripts/eval-compare.ts {{.CLI_ARGS}}
+
+  eval:judge-variance:
+    desc: 'Re-run judged checks N times against frozen warden-output.json artifacts already on disk — no Warden calls, no DB (M7.4.1). Makes real, token-costing Anthropic calls (judged fixtures x vouched reps x --reps). Requires ANTHROPIC_API_KEY and ZOLTAR_EVAL_ROOT. Usage — task eval:judge-variance -- <run-dir> [--reps 3] [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx is fine here — no Nest DI container, AnthropicService is
+      # constructed directly.
+      - npx tsx --env-file=.env scripts/eval-judge-variance.ts {{.CLI_ARGS}}

@@ -13,6 +13,9 @@ export interface CallMessagesParams {
   toolChoice: Anthropic.ToolChoiceAny;
   model?: string;
   maxTokens?: number;
+  /** Omitted when undefined, so the API default (1.0) applies — same as
+   * every caller before this field existed. */
+  temperature?: number;
 }
 
 export interface CallSessionParams {
@@ -26,6 +29,9 @@ export interface CallSessionParams {
   toolChoice: Anthropic.ToolChoice;
   model?: string;
   maxTokens?: number;
+  /** Omitted when undefined, so the API default (1.0) applies — same as
+   * every caller before this field existed. */
+  temperature?: number;
 }
 
 @Injectable()
@@ -46,6 +52,9 @@ export class AnthropicService {
       messages: params.messages,
       tools: params.tools,
       tool_choice: params.toolChoice,
+      ...(params.temperature !== undefined
+        ? { temperature: params.temperature }
+        : {}),
     });
   }
 
@@ -57,6 +66,9 @@ export class AnthropicService {
       messages: params.messages,
       tools: params.tools,
       tool_choice: params.toolChoice,
+      ...(params.temperature !== undefined
+        ? { temperature: params.temperature }
+        : {}),
     });
   }
 }

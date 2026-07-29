@@ -1,4 +1,5 @@
 import type * as schema from '../../../src/db/schema';
+import { FIXTURE_SCHEMA_VERSION } from '../../fixture.schema';
 import type { EvalFixture } from '../../fixture.schema';
 import type { TurnExecutionResult } from '../../turn-result';
 
@@ -126,6 +127,7 @@ export function fakeFixture(overrides: Partial<EvalFixture> = {}): EvalFixture {
     tag: 'OUT-OF-ORDER-RESOLUTION',
     sourceAdventureId: '00000000-0000-0000-0000-000000000099',
     sourceSequenceNumber: 1,
+    fixtureSchemaVersion: FIXTURE_SCHEMA_VERSION,
     seededState: {
       campaignState: {},
       gmContextBlob: {},

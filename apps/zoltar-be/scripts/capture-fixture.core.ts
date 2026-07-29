@@ -1,6 +1,7 @@
 import { and, asc, eq, gte, isNull, lt, or } from 'drizzle-orm';
 
 import {
+  FIXTURE_SCHEMA_VERSION,
   type EvalFixture,
   type FailureModeTag,
   judgedFailureModeTags,
@@ -91,6 +92,7 @@ export async function captureFixture(
     tag: args.tag,
     sourceAdventureId: args.adventureId,
     sourceSequenceNumber: args.targetSequenceNumber,
+    fixtureSchemaVersion: FIXTURE_SCHEMA_VERSION,
     seededState: {
       campaignState: reconstructed.campaignState as unknown as Record<
         string,

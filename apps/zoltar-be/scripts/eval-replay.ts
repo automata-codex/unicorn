@@ -1,35 +1,46 @@
 /**
- * eval:replay — evaluates one already-captured scratch adventure against
- * its fixture's checker/rubric, without re-running the fixture's turn.
+ * eval:replay — evaluates one already-captured turn against a fixture's
+ * checks, without re-running the turn itself. Two independent modes:
  *
- * `eval:harness --keep-scratch` leaves `__eval__`-tagged campaign/adventure
- * rows behind (their ids are printed per-fixture in the rendered report,
- * see `eval/report.ts`). Point this at one of those rows to re-evaluate the
- * turn that's already sitting in the database — no new Anthropic call to
- * *generate* narration (non-deterministic, and this repo's own eval fixtures
- * exist precisely because replaying the same turn twice can produce
- * different prose), no new scratch rows, no `--keep-scratch` bookkeeping to
- * track. This is the tool for "I just changed a checker/rubric — does it
- * now correctly judge this exact, already-known-bad turn?"
+ * **Artifact mode** (`--run-dir --rep`) — re-evaluates a frozen
+ * `warden-output.json` written by `eval:run`, with **no database at all**.
+ * This is the primary checker-iteration surface: "I just changed a
+ * checker/rubric — does it now correctly judge this exact, already-known
+ * turn?" needs no scratch campaign, no `--keep-scratch` bookkeeping, and
+ * works even after the run directory's scratch rows were torn down (the
+ * default).
  *
- * *** For a `judged`-mode fixture this still makes one real, token-costing
- * Anthropic call — the judge grading itself. Only the turn-generation call
- * is skipped, not the whole pipeline. Structural fixtures make no API call
- * at all. ***
+ * **Database mode** (`--adventure-id`) — re-evaluates a scratch adventure
+ * still sitting in the database, left behind by `eval:run --keep-scratch`.
+ * Still useful when you want to inspect the live rows directly (`psql`,
+ * `eval:replay` output, whatever) rather than just the frozen artifact.
+ *
+ * *** For a `judged`-mode fixture, either mode still makes one real,
+ * token-costing Anthropic call — the judge grading itself. Only the
+ * turn-generation call is skipped, not the whole pipeline. Structural
+ * fixtures make no API call at all. ***
  *
  * Usage:
- *   node -r @swc-node/register -r reflect-metadata --env-file=.env \
- *     scripts/eval-replay.ts \
+ *   npx tsx --env-file=.env scripts/eval-replay.ts \
+ *     --fixture turn24-scene-jump --run-dir <run-dir> --rep 1
+ *
+ *   npx tsx --env-file=.env scripts/eval-replay.ts \
  *     --fixture turn03-unsurfaced-check \
  *     --adventure-id 87d8487e-75c2-4e8b-bf01-2c3a58b5ae17
  *
  * --fixture accepts either a bare fixture id (resolved against
  * `apps/zoltar-be/eval/fixtures/<id>.json`) or an explicit path to a
- * fixture JSON file.
+ * fixture JSON file — needed in both modes for `assertion.facts` (judged
+ * checks) and to select the right check via the Part 3 registry.
  *
- * --adventure-id is the scratch adventure's row id (from the report's
- * "Adventure: ..." line). Its campaign_id is looked up from the `adventure`
- * row itself, so there's no separate --campaign-id to pass.
+ * --run-dir is a bare run directory name (resolved against
+ * `$ZOLTAR_EVAL_ROOT/eval-runs/`) or an absolute path; --rep is the rep
+ * index whose artifact to read. --adventure-id is the scratch adventure's
+ * row id; its campaign_id is looked up from the `adventure` row itself.
+ * --adventure-id and --run-dir/--rep are mutually exclusive.
+ *
+ * Exit code is 1 if any check's verdict is `fail` or `error`, 0 otherwise
+ * (`pass`/`not_applicable`).
  */
 
 import { existsSync } from 'node:fs';
@@ -41,16 +52,30 @@ import { asc, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 
+import { selectChecksForFixture } from '../eval/checks/registry';
+import { runCheck } from '../eval/checks/run-check';
+import { evalFixtureSchema } from '../eval/fixture.schema';
+import { readTurnResultArtifact } from '../eval/runs/artifacts';
+import { envOnlyConfigService } from '../eval/runs/env-config-service';
+import { resolveEvalRoot, resolveRunDirArg } from '../eval/runs/paths';
 import { AnthropicService } from '../src/anthropic/anthropic.service';
 import * as schema from '../src/db/schema';
-import { evalFixtureSchema } from '../eval/fixture.schema';
 
-import { evaluateFixture } from './eval-harness.core';
-
-import type { ConfigService } from '@nestjs/config';
+import type { CheckObservation } from '../eval/checks/run-check';
+import type { EvalFixture } from '../eval/fixture.schema';
 import type { TurnExecutionResult } from '../eval/turn-result';
 
+interface CheckReplayResult extends CheckObservation {
+  checkId: string;
+  tag: string;
+  checkMode: 'structural' | 'judged';
+}
+
 const FIXTURES_DIR = join(__dirname, '../eval/fixtures');
+
+const USAGE =
+  'Usage: eval-replay --fixture <id|path> ' +
+  '(--run-dir <dir> --rep <n> | --adventure-id <uuid>)';
 
 class UsageError extends Error {
   constructor(message: string) {
@@ -61,7 +86,9 @@ class UsageError extends Error {
 
 interface CliArgs {
   fixture: string;
-  adventureId: string;
+  adventureId?: string;
+  runDir?: string;
+  rep?: number;
 }
 
 function parseCliArgs(argv: string[]): CliArgs {
@@ -71,26 +98,49 @@ function parseCliArgs(argv: string[]): CliArgs {
     options: {
       fixture: { type: 'string' },
       'adventure-id': { type: 'string' },
+      'run-dir': { type: 'string' },
+      rep: { type: 'string' },
     },
   });
 
   if (typeof values.fixture !== 'string' || values.fixture.length === 0) {
+    throw new UsageError(`missing --fixture <id|path>. ${USAGE}`);
+  }
+
+  const hasAdventureId =
+    typeof values['adventure-id'] === 'string' && values['adventure-id'].length > 0;
+  const hasRunDir =
+    typeof values['run-dir'] === 'string' && values['run-dir'].length > 0;
+  const hasRep = typeof values.rep === 'string' && values.rep.length > 0;
+
+  if (hasAdventureId && (hasRunDir || hasRep)) {
     throw new UsageError(
-      'missing --fixture <id|path>. Usage: eval-replay --fixture <id|path> ' +
-        '--adventure-id <uuid>',
+      `--adventure-id and --run-dir/--rep are mutually exclusive. ${USAGE}`,
     );
   }
-  if (
-    typeof values['adventure-id'] !== 'string' ||
-    values['adventure-id'].length === 0
-  ) {
+  if (hasRunDir !== hasRep) {
+    throw new UsageError(`--run-dir and --rep must be given together. ${USAGE}`);
+  }
+  if (!hasAdventureId && !hasRunDir) {
     throw new UsageError(
-      'missing --adventure-id <uuid>. Usage: eval-replay --fixture ' +
-        '<id|path> --adventure-id <uuid>',
+      `give either --adventure-id <uuid> or --run-dir <dir> --rep <n>. ${USAGE}`,
     );
   }
 
-  return { fixture: values.fixture, adventureId: values['adventure-id'] };
+  let rep: number | undefined;
+  if (hasRep) {
+    rep = Number(values.rep);
+    if (!Number.isInteger(rep) || rep <= 0) {
+      throw new UsageError(`--rep must be a positive integer, got "${values.rep}"`);
+    }
+  }
+
+  return {
+    fixture: values.fixture,
+    adventureId: hasAdventureId ? (values['adventure-id'] as string) : undefined,
+    runDir: hasRunDir ? (values['run-dir'] as string) : undefined,
+    rep,
+  };
 }
 
 function resolveFixturePath(fixtureArg: string): string {
@@ -103,19 +153,128 @@ function resolveFixturePath(fixtureArg: string): string {
   );
 }
 
-/** `AnthropicService` only calls `config.getOrThrow('ANTHROPIC_API_KEY')` —
- * a full `ConfigService`/DI container is unnecessary just to read one env
- * var, so this stubs the one method it actually uses. */
-function envOnlyConfigService(): ConfigService {
-  return {
-    getOrThrow: (key: string) => {
-      const value = process.env[key];
-      if (!value) {
-        throw new Error(`eval-replay requires ${key} in the environment`);
-      }
-      return value;
-    },
-  } as unknown as ConfigService;
+/** Runs every check the Part 3 registry selects for this fixture (today,
+ * always exactly one) and prints the results. Shared by both modes so
+ * neither duplicates the dispatch/exit-code logic. */
+async function evaluateAndPrint(
+  fixture: EvalFixture,
+  turnResult: TurnExecutionResult,
+  anthropicService: AnthropicService,
+  context: Record<string, unknown>,
+): Promise<number> {
+  const checks = selectChecksForFixture(fixture);
+  const results: CheckReplayResult[] = [];
+  for (const check of checks) {
+    // A judged check makes a real Anthropic call that can take several
+    // seconds — print before/after so this never looks stuck.
+    process.stderr.write(`[${check.id}] running (${check.mode})...\n`);
+    const observation = await runCheck(check, fixture, turnResult, anthropicService);
+    process.stderr.write(
+      `[${check.id}] ${observation.verdict} (${(observation.durationMs / 1000).toFixed(1)}s)\n`,
+    );
+    results.push({
+      checkId: check.id,
+      tag: check.tag,
+      checkMode: check.mode,
+      ...observation,
+    });
+  }
+
+  process.stdout.write(
+    `${JSON.stringify({ fixtureId: fixture.id, ...context, results }, null, 2)}\n`,
+  );
+
+  return results.some((r) => r.verdict === 'fail' || r.verdict === 'error') ? 1 : 0;
+}
+
+async function runArtifactMode(
+  fixture: EvalFixture,
+  runDirArg: string,
+  rep: number,
+): Promise<number> {
+  const root = resolveEvalRoot();
+  const runDir = resolveRunDirArg(root, runDirArg);
+  const turnResult = readTurnResultArtifact(runDir, rep, fixture.id);
+  const anthropicService = new AnthropicService(envOnlyConfigService());
+
+  return evaluateAndPrint(fixture, turnResult, anthropicService, { runDir, rep });
+}
+
+async function runDatabaseMode(
+  fixture: EvalFixture,
+  adventureId: string,
+): Promise<number> {
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const db = drizzle(pool, { schema });
+
+  try {
+    const [adventureRow] = await db
+      .select({ campaignId: schema.adventures.campaignId })
+      .from(schema.adventures)
+      .where(eq(schema.adventures.id, adventureId))
+      .limit(1);
+
+    if (!adventureRow) {
+      throw new Error(`no adventure row found for id "${adventureId}"`);
+    }
+    const campaignId = adventureRow.campaignId;
+
+    const [
+      gameEvents,
+      telemetryRows,
+      pendingCanonRows,
+      campaignStateRow,
+      diceRequestRows,
+    ] = await Promise.all([
+      db
+        .select()
+        .from(schema.gameEvents)
+        .where(eq(schema.gameEvents.adventureId, adventureId))
+        .orderBy(asc(schema.gameEvents.sequenceNumber)),
+      db
+        .select()
+        .from(schema.adventureTelemetry)
+        .where(eq(schema.adventureTelemetry.adventureId, adventureId))
+        .orderBy(asc(schema.adventureTelemetry.sequenceNumber)),
+      db
+        .select()
+        .from(schema.pendingCanon)
+        .where(eq(schema.pendingCanon.adventureId, adventureId)),
+      db
+        .select({ data: schema.campaignStates.data })
+        .from(schema.campaignStates)
+        .where(eq(schema.campaignStates.campaignId, campaignId))
+        .limit(1),
+      db
+        .select()
+        .from(schema.diceRequests)
+        .where(eq(schema.diceRequests.adventureId, adventureId)),
+    ]);
+
+    const turnResult: TurnExecutionResult = {
+      gameEvents,
+      telemetry: telemetryRows.at(-1) ?? null,
+      pendingCanon: pendingCanonRows,
+      campaignState: (campaignStateRow[0]?.data ?? {}) as Record<
+        string,
+        unknown
+      >,
+      diceRequests: diceRequestRows,
+      // No turn is re-run here, so there's no live SessionService result to
+      // carry — no checker or judge rubric reads this field (see
+      // turn-result.ts), and this script prints raw check results, not a
+      // report.
+      serviceResult: { kind: 'message', result: {} as never },
+    };
+
+    const anthropicService = new AnthropicService(envOnlyConfigService());
+    return await evaluateAndPrint(fixture, turnResult, anthropicService, {
+      campaignId,
+      adventureId,
+    });
+  } finally {
+    await pool.end();
+  }
 }
 
 async function main(): Promise<number> {
@@ -135,97 +294,10 @@ async function main(): Promise<number> {
     JSON.parse(await readFile(fixturePath, 'utf-8')),
   );
 
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  const db = drizzle(pool, { schema });
-
-  try {
-    const [adventureRow] = await db
-      .select({ campaignId: schema.adventures.campaignId })
-      .from(schema.adventures)
-      .where(eq(schema.adventures.id, cli.adventureId))
-      .limit(1);
-
-    if (!adventureRow) {
-      throw new Error(`no adventure row found for id "${cli.adventureId}"`);
-    }
-    const campaignId = adventureRow.campaignId;
-
-    const [
-      gameEvents,
-      telemetryRows,
-      pendingCanonRows,
-      campaignStateRow,
-      diceRequestRows,
-    ] = await Promise.all([
-      db
-        .select()
-        .from(schema.gameEvents)
-        .where(eq(schema.gameEvents.adventureId, cli.adventureId))
-        .orderBy(asc(schema.gameEvents.sequenceNumber)),
-      db
-        .select()
-        .from(schema.adventureTelemetry)
-        .where(eq(schema.adventureTelemetry.adventureId, cli.adventureId))
-        .orderBy(asc(schema.adventureTelemetry.sequenceNumber)),
-      db
-        .select()
-        .from(schema.pendingCanon)
-        .where(eq(schema.pendingCanon.adventureId, cli.adventureId)),
-      db
-        .select({ data: schema.campaignStates.data })
-        .from(schema.campaignStates)
-        .where(eq(schema.campaignStates.campaignId, campaignId))
-        .limit(1),
-      db
-        .select()
-        .from(schema.diceRequests)
-        .where(eq(schema.diceRequests.adventureId, cli.adventureId)),
-    ]);
-
-    const turnResult: TurnExecutionResult = {
-      gameEvents,
-      telemetry: telemetryRows.at(-1) ?? null,
-      pendingCanon: pendingCanonRows,
-      campaignState: (campaignStateRow[0]?.data ?? {}) as Record<
-        string,
-        unknown
-      >,
-      diceRequests: diceRequestRows,
-      // No turn is re-run here, so there's no live SessionService result to
-      // carry — no checker or judge rubric reads this field (see
-      // turn-result.ts), only `renderReport`'s debug detail would, and this
-      // script doesn't render a report.
-      serviceResult: { kind: 'message', result: {} as never },
-    };
-
-    const anthropicService = new AnthropicService(envOnlyConfigService());
-    const { outcome, expected, actual } = await evaluateFixture(
-      fixture,
-      turnResult,
-      anthropicService,
-    );
-
-    process.stdout.write(
-      `${JSON.stringify(
-        {
-          fixtureId: fixture.id,
-          tag: fixture.tag,
-          mode: fixture.assertion.mode,
-          campaignId,
-          adventureId: cli.adventureId,
-          outcome,
-          expected,
-          actual,
-        },
-        null,
-        2,
-      )}\n`,
-    );
-
-    return outcome === 'FAILED' ? 1 : 0;
-  } finally {
-    await pool.end();
+  if (cli.runDir !== undefined) {
+    return runArtifactMode(fixture, cli.runDir, cli.rep!);
   }
+  return runDatabaseMode(fixture, cli.adventureId!);
 }
 
 main().then(

@@ -134,6 +134,18 @@ const assertionSchema = z.discriminatedUnion('mode', [
 
 export type Assertion = z.infer<typeof assertionSchema>;
 
+/**
+ * Describes *what was captured*, not the current checker logic. Bumped only
+ * when `capture-fixture` starts recording a field it didn't before (the
+ * anticipated case, per spec Part 6, is `rollType` / `gatedByRollId` /
+ * `actingEntityId` on `roll_dice`) — never when a checker's interpretation
+ * of existing fields changes. A check that needs a field newer fixtures
+ * don't yet have declares `requiresFixtureSchema`, and the runner reports
+ * `not_applicable` rather than a false regression (see
+ * `eval/checks/registry.ts`).
+ */
+export const FIXTURE_SCHEMA_VERSION = 1;
+
 export const evalFixtureSchema = z
   .object({
     id: z.string().min(1),
@@ -144,6 +156,20 @@ export const evalFixtureSchema = z
     seededState: seededStateSchema,
     playerInput: playerInputSchema,
     assertion: assertionSchema,
+    /** Defaults to `1` so every fixture captured before this field existed
+     * still parses unchanged. */
+    fixtureSchemaVersion: z
+      .number()
+      .int()
+      .positive()
+      .default(FIXTURE_SCHEMA_VERSION),
+    /**
+     * Per-fixture override of the run's uniform `--reps`, read once at run
+     * start and never adjusted mid-run — see `docs/eval-methodology.md`'s
+     * adaptive-N hazard. Nothing in this milestone writes this field at
+     * runtime; it is hand-authored, the same way `tag` and `assertion` are.
+     */
+    repOverride: z.number().int().positive().optional(),
   })
   .refine(
     (fixture) =>
