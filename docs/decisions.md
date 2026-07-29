@@ -142,6 +142,20 @@ Instead, `rulesLookups: RulesLookupRecord[]` lives in `adventure_telemetry.paylo
 
 The record carries `query`, `limit`, `resultCount`, `topSimilarity`, and `sources` (citation strings). Full chunk text is deliberately omitted: re-running the query at review time reproduces the chunks deterministically until the index is re-ingested, and storing them inline would bloat the telemetry JSONB without marginal benefit. If Phase 2 review surfaces a need for full-text capture, a `texts: string[]` field can be added.
 
+### Agentic graph decomposition stays deferred; dice-arbitration evidence weakens the case without closing it
+
+The standing deferral on a LangGraph-style decomposition of the turn loop carried a falsifiable criterion: harness results should first show which failure categories resist prompt-level fixes. Dice arbitration reliability was the lead candidate for a category that would, on the theory that reliable sequencing of request → resolution → narration is a control-flow problem a single prompt can't be made to solve.
+
+The 4.6 → Sonnet 5 baseline is evidence against that theory for at least half the category. Under corrected applicability gating, `SYSTEM-ROLLED-PLAYER-ACTION` moved from 5/19 (0.26) to 18/20 (0.90) — with an unchanged prompt (`97feadbd`), unchanged fixture content, and no orchestration work of any kind. A category that responds that strongly to a model swap is not a category that resists non-structural fixes, and rebuilding the turn loop to solve something a model upgrade largely solved would have been the expensive answer to the wrong question.
+
+Three reasons this doesn't close the question:
+
+- **The residual is not cosmetic.** 2/20 means the Warden takes a player's declared action out of their hands roughly one combat turn in ten. In solo play, where the player has no table to appeal to, that's an agency violation rather than a polish item. "Mostly fixed" is a weaker result here than the rate suggests.
+- **The measurement predates M7.2.** Both runs executed against an empty `rules_chunk` index, and the runaway-lookup errors show a Warden repeatedly unable to resolve what it was looking for. Rules availability plausibly affects when and how it reaches for dice. Re-measure after ingestion before treating 0.90 as the model's actual ceiling.
+- **The sequencing half is unmeasured.** `OUT-OF-ORDER-RESOLUTION` reports `not_applicable` across the whole Sonnet 5 run because its fixtures can't observe ordering under a model that splits request from resolution across a turn boundary. The category that most directly motivated the graph — ordering, not attribution — currently has no evidence either way under the model we'd be building against.
+
+Revised criterion for revisiting: extend the turn19/21 fixtures through the follow-up turn, re-baseline after M7.2, and try the cheaper structural option first — the deferred `rollType` / `gatedByRollId` / `actingEntityId` fields on `roll_dice`, which enforce sequencing at the tool schema without decomposing the loop. A graph becomes the right answer only if a measured residual survives all three.
+
 ---
 
 ## Claude Integration — Continuity & Spatial

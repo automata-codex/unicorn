@@ -117,6 +117,13 @@ noise):
 fixture, not a confidently-zero one, and needs disproportionately more reps than the rest
 of the corpus to reach the same confidence, not fewer.
 
+**This list is model-specific, and the Sonnet 5 run already invalidated part of it.**
+`turn03-unsurfaced-check` read 0/10 under `claude-sonnet-4-6` — as confidently zero as
+anything here — and 7/10 under `claude-sonnet-5` against the same prompt and the same
+fixture. "Confidently zero" means confidently zero *for the model it was measured under*,
+which is a weaker claim than it looks on a list that doesn't name the model in every row.
+Re-derive the list per model rather than carrying it across a swap.
+
 None of the above may take a permanent `repOverride` in the standing regression suite —
 per the hazard above, a fixture settled today is exactly the one a future prompt edit
 might destabilize, and a standing low-N override is deciding in advance not to notice.
@@ -166,3 +173,66 @@ promptHash)`, so two runs against an unchanged prompt but a changed snapshot bui
 identical by name — the only way to catch the regression is to have actually run the
 suite. Treat "the prompt didn't change" as informative about the prompt, not as a reason
 to skip the run.
+
+---
+
+## Two kinds of corpus bump
+
+`corpusVersion` is a content hash over the fixture files, which is the right property for
+detecting that *something* changed and the wrong one for deciding what to do about it. Two
+materially different edits produce the same kind of hash change:
+
+**Input-affecting.** The edit changes what reaches the Warden — `playerInput`, the captured
+state snapshot, anything the turn is executed against. Every `warden-output.json` on disk
+was produced under different conditions and is no longer evidence about the current corpus.
+The only valid response is a fresh run.
+
+**Scoring-only.** The edit changes how existing output is graded — the `applicability`
+field, `assertion.facts` a checker reads, a checker's own logic. Frozen artifacts remain
+exactly as valid as they were; re-scoring them in place is a real measurement, not an
+approximation of one.
+
+The `8071500a4952...` → `4c9f2e73efd7...` bump was scoring-only, which is why re-grading
+the two existing runs off disk produced genuine corrected rates with no API spend and no
+re-run. That distinction was obvious to the person who made the edit and will not be
+obvious to anyone reading the hash six months later.
+
+**Convention: name the kind in the bump note**, next to the hash, in the same place the
+change is described. The two mistakes this prevents are not symmetric — re-running after a
+scoring-only bump wastes money and nothing else, while reusing artifacts after an
+input-affecting bump silently produces numbers that look fine and mean nothing. Default to
+re-running when the note is missing or the kind is unclear.
+
+---
+
+## A model swap audits the harness as much as the model
+
+The first full-corpus run against a new model is two experiments wearing one coat. It
+measures the model, and it measures whether the corpus was quietly encoding assumptions
+about the *previous* model's behaviour. Budget for the second one — the 4.6 → Sonnet 5
+baseline surfaced two harness defects, and neither was visible from any number of runs
+against 4.6 alone.
+
+**Fixtures can encode a model's failure profile.** `turn19`/`turn21` capture a single turn,
+which was sufficient to observe `out-of-order-resolution` under 4.6 because 4.6 compressed
+a to-hit request and its resolution into one turn — itself the OVER-RESOLUTION failure.
+Sonnet 5 splits them across a turn boundary, so the ordering evidence now lands on a turn
+the fixture doesn't contain. The fixture wasn't wrong; it was calibrated, without anyone
+deciding to calibrate it, to a failure mode the new model doesn't have.
+
+**Heuristic classifiers standing in front of structural checks are the highest-risk
+surface.** `system-rolled-player-action` matched on damage-roll phrasing, which reliably
+caught 4.6 because 4.6 over-rolls and produces damage rolls constantly. Sonnet 5 rolls
+to-hit and stops, so the matcher saw nothing and returned PASS on turns containing the
+exact violation the check exists to catch — a false pass, not merely a false
+`not_applicable`. This is the same defect class that already forced `UNSURFACED-CHECK` from
+a regex classifier to a judge call after a real-run false pass (see `decisions.md`); that
+one didn't need a model swap to surface, but a model swap is what makes the rest of them
+visible at once.
+
+**Practical rule: on a new model's first run, treat large applicability shifts and large
+rate jumps as harness suspects before recording them as model findings.** Both defects
+above announced themselves as suspiciously good news — a category going to 1.00, a pile of
+turns becoming non-applicable. Neither read as a bug at first glance. The check is cheap:
+for any check whose denominator moved sharply, hand-construct output that *should* produce
+each verdict and confirm the checker agrees.
