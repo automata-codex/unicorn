@@ -25,7 +25,8 @@ import {
   truncateAll,
 } from '../test/db-test-helper';
 
-import { defaultRunEvalDeps, runEval } from './eval-run.core';
+import { defaultRunEvalDeps } from './eval-run.default-deps';
+import { runEval } from './eval-run.core';
 
 import { readManifest } from '../eval/runs/manifest';
 import { listRepDirsOnDisk, repDirName } from '../eval/runs/paths';
@@ -137,7 +138,7 @@ describe.skipIf(!RUN_LIVE)(
             temperature: 1.0,
             keepScratch: false,
           },
-          await defaultRunEvalDeps(),
+          defaultRunEvalDeps(),
         );
 
         expect(listRepDirsOnDisk(summary.runDir)).toEqual([1, 2]);
