@@ -26,6 +26,7 @@ const EMPTY_EXCLUSIONS: ExclusionsSummary = {
   unvouchedReps: [],
   rawExclusions: [],
   notApplicableByReason: [],
+  notApplicableByFixture: [],
   errorsByMessage: [],
 };
 
@@ -85,6 +86,14 @@ describe('renderRunReport', () => {
         'rep 003 exists on disk but is not vouched for in manifest.json (crashed or in-progress run) — excluded',
       ],
       notApplicableByReason: [{ reason: 'no dice_roll this turn', count: 2 }],
+      notApplicableByFixture: [
+        {
+          fixtureId: 'turn24-scene-jump',
+          checkId: 'scene-jump',
+          reason: 'no dice_roll this turn',
+          count: 2,
+        },
+      ],
       errorsByMessage: [
         {
           message: 'Inner tool loop did not terminate within 20 iterations',
@@ -129,6 +138,12 @@ describe('renderRunReport', () => {
         '- Unvouched reps on disk (not in manifest.json): 3',
         '- (2x) not_applicable: no dice_roll this turn',
         '- rep 003 exists on disk but is not vouched for in manifest.json (crashed or in-progress run) — excluded',
+        '',
+        '### Not-applicable, by fixture',
+        '',
+        '| Fixture | Check | Count | Reason |',
+        '| --- | --- | --- | --- |',
+        '| turn24-scene-jump | scene-jump | 2 | no dice_roll this turn |',
       ].join('\n'),
     );
   });
@@ -162,6 +177,10 @@ describe('renderRunReport', () => {
         '(none)',
         '',
         '## Exclusions',
+        '',
+        '(none)',
+        '',
+        '### Not-applicable, by fixture',
         '',
         '(none)',
       ].join('\n'),
@@ -202,6 +221,10 @@ describe('renderRunReport', () => {
         '(none)',
         '',
         '## Exclusions',
+        '',
+        '(none)',
+        '',
+        '### Not-applicable, by fixture',
         '',
         '(none)',
       ].join('\n'),

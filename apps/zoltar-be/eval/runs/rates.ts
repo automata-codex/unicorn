@@ -114,8 +114,33 @@ export interface ExclusionsSummary {
    * covers both unvouched reps and individually dropped rows, so nothing
    * it already named is silently re-derived or dropped here. */
   rawExclusions: string[];
+  /** Global aggregate across every fixture and check — what first made the
+   * roll-suppression pattern visible. Grouped by `notApplicableReasonCode`
+   * (falling back to `notApplicableReason` when a reason has no per-rep-
+   * variable content, which is the common case), so a reason that's
+   * identical for every rep of every fixture rolls up here exactly as
+   * before. Kept alongside `notApplicableByFixture`, not replaced by it —
+   * the two are independent cross-checks on the same underlying rows. */
   notApplicableByReason: Array<{ reason: string; count: number }>;
+  /** Same grouping, broken out per `(fixtureId, checkId)` — the trace-level
+   * view the aggregate alone can't provide. */
+  notApplicableByFixture: Array<{
+    fixtureId: string;
+    checkId: string;
+    reason: string;
+    count: number;
+  }>;
   errorsByMessage: Array<{ message: string; count: number }>;
+}
+
+interface NotApplicableGroup {
+  fixtureId: string;
+  checkId: string;
+  /** First-seen full reason text for this group — the representative
+   * example shown alongside the count, since `code` itself may omit
+   * per-rep-variable detail that was in the original text. */
+  reason: string;
+  count: number;
 }
 
 /**
@@ -134,12 +159,29 @@ export function summarizeExclusions(
     .filter((index) => !vouchedIndices.has(index))
     .sort((a, b) => a - b);
 
-  const notApplicableCounts = new Map<string, number>();
+  const byFixture = new Map<string, NotApplicableGroup>();
+  const byReasonOnly = new Map<string, NotApplicableGroup>();
   const errorCounts = new Map<string, number>();
   for (const row of rows) {
     if (row.verdict === 'not_applicable') {
       const reason = row.notApplicableReason ?? '(no reason given)';
-      notApplicableCounts.set(reason, (notApplicableCounts.get(reason) ?? 0) + 1);
+      const code = row.notApplicableReasonCode ?? reason;
+
+      const fixtureKey = `${row.fixtureId}::${row.checkId}::${code}`;
+      const fixtureGroup = byFixture.get(fixtureKey);
+      if (fixtureGroup) fixtureGroup.count += 1;
+      else {
+        byFixture.set(fixtureKey, {
+          fixtureId: row.fixtureId,
+          checkId: row.checkId,
+          reason,
+          count: 1,
+        });
+      }
+
+      const reasonGroup = byReasonOnly.get(code);
+      if (reasonGroup) reasonGroup.count += 1;
+      else byReasonOnly.set(code, { fixtureId: '', checkId: '', reason, count: 1 });
     } else if (row.verdict === 'error') {
       const message = row.errorMessage ?? '(no message given)';
       errorCounts.set(message, (errorCounts.get(message) ?? 0) + 1);
@@ -150,8 +192,15 @@ export function summarizeExclusions(
     unvouchedReps,
     rawExclusions: exclusions,
     notApplicableByReason: byCountThenText(
-      [...notApplicableCounts.entries()],
+      [...byReasonOnly.values()].map((g) => [g.reason, g.count]),
       (reason, count) => ({ reason, count }),
+    ),
+    notApplicableByFixture: [...byFixture.values()].sort(
+      (a, b) =>
+        a.fixtureId.localeCompare(b.fixtureId) ||
+        a.checkId.localeCompare(b.checkId) ||
+        b.count - a.count ||
+        a.reason.localeCompare(b.reason),
     ),
     errorsByMessage: byCountThenText(
       [...errorCounts.entries()],

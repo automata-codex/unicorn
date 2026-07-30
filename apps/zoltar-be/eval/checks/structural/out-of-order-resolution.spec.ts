@@ -193,6 +193,15 @@ describe('checkOutOfOrderResolution', () => {
     expect(verdict.outcome).toBe('NOT_APPLICABLE');
     expect(verdict.actual).toMatch(/following turn/);
     expect(verdict.actual).not.toMatch(/no dice_roll events this turn/);
+    // `actual` still quotes the rep's own dice_request purpose text (useful
+    // as a representative example), but `actualCode` — the exclusions
+    // grouping key — must not, since that purpose varies rep to rep for the
+    // same fixture and would otherwise fragment the count.
+    expect(verdict.actual).toContain('Alvarez Combat roll to hit veridian_contractor_alpha');
+    expect(verdict.actualCode).toBe(
+      "deferred Alvarez's gating roll to a pending dice_request",
+    );
+    expect(verdict.actualCode).not.toContain('veridian_contractor_alpha');
   });
 
   it('is not applicable when the turn has no dice_roll and no pending dice_request at all (boundary)', () => {

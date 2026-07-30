@@ -189,6 +189,114 @@ describe('summarizeExclusions', () => {
     ]);
   });
 
+  it('groups not_applicable rows by notApplicableReasonCode when the full reason text varies per rep', () => {
+    // Regression case: two reps of the same fixture/check hit the same
+    // failure mode, but the reason text embeds a per-rep model-generated
+    // purpose string that differs between them. Without a stable code these
+    // would fragment into two one-off groups instead of aggregating to 2.
+    const rows = [
+      scoreRow({
+        repIndex: 1,
+        fixtureId: 'turn19-out-of-order-resolution',
+        checkId: 'out-of-order-resolution',
+        verdict: 'not_applicable',
+        notApplicableReason:
+          'the turn deferred Alvarez\'s gating roll to a pending dice_request ' +
+          '("Alvarez combat roll to hit") rather than resolving it this turn',
+        notApplicableReasonCode:
+          "deferred Alvarez's gating roll to a pending dice_request",
+      }),
+      scoreRow({
+        repIndex: 2,
+        fixtureId: 'turn19-out-of-order-resolution',
+        checkId: 'out-of-order-resolution',
+        verdict: 'not_applicable',
+        notApplicableReason:
+          'the turn deferred Alvarez\'s gating roll to a pending dice_request ' +
+          '("roll under Combat to hit the contractor") rather than resolving it this turn',
+        notApplicableReasonCode:
+          "deferred Alvarez's gating roll to a pending dice_request",
+      }),
+    ];
+
+    const summary = summarizeExclusions(rows, [], []);
+
+    expect(summary.notApplicableByReason).toHaveLength(1);
+    expect(summary.notApplicableByReason[0].count).toBe(2);
+    // The representative text is the first-seen row's full reason, kept for
+    // human readability even though grouping ignored the variable part.
+    expect(summary.notApplicableByReason[0].reason).toContain(
+      'Alvarez combat roll to hit',
+    );
+  });
+
+  it('falls back to the full reason text as the grouping key when notApplicableReasonCode is absent', () => {
+    const rows = [
+      scoreRow({
+        repIndex: 1,
+        verdict: 'not_applicable',
+        notApplicableReason: 'no dice_roll this turn',
+      }),
+      scoreRow({
+        repIndex: 2,
+        verdict: 'not_applicable',
+        notApplicableReason: 'no dice_roll this turn',
+      }),
+    ];
+
+    const summary = summarizeExclusions(rows, [], []);
+
+    expect(summary.notApplicableByReason).toEqual([
+      { reason: 'no dice_roll this turn', count: 2 },
+    ]);
+  });
+
+  it('breaks not_applicable rows out per (fixtureId, checkId, reason) without dropping the global rollup', () => {
+    const rows = [
+      scoreRow({
+        repIndex: 1,
+        fixtureId: 'a',
+        checkId: 'out-of-order-resolution',
+        verdict: 'not_applicable',
+        notApplicableReason: 'no dice_roll events this turn',
+      }),
+      scoreRow({
+        repIndex: 2,
+        fixtureId: 'a',
+        checkId: 'out-of-order-resolution',
+        verdict: 'not_applicable',
+        notApplicableReason: 'no dice_roll events this turn',
+      }),
+      scoreRow({
+        repIndex: 3,
+        fixtureId: 'b',
+        checkId: 'system-rolled-player-action',
+        verdict: 'not_applicable',
+        notApplicableReason: 'no dice_roll events this turn',
+      }),
+    ];
+
+    const summary = summarizeExclusions(rows, [], []);
+
+    expect(summary.notApplicableByReason).toEqual([
+      { reason: 'no dice_roll events this turn', count: 3 },
+    ]);
+    expect(summary.notApplicableByFixture).toEqual([
+      {
+        fixtureId: 'a',
+        checkId: 'out-of-order-resolution',
+        reason: 'no dice_roll events this turn',
+        count: 2,
+      },
+      {
+        fixtureId: 'b',
+        checkId: 'system-rolled-player-action',
+        reason: 'no dice_roll events this turn',
+        count: 1,
+      },
+    ]);
+  });
+
   it('groups error rows by message with counts', () => {
     const rows = [
       scoreRow({ repIndex: 1, verdict: 'error', errorMessage: 'timeout' }),

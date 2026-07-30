@@ -105,6 +105,22 @@ export function renderRunReport(
       lines.push(`- ${raw}`);
     }
   }
+  lines.push('');
+
+  lines.push('### Not-applicable, by fixture', '');
+  if (exclusions.notApplicableByFixture.length === 0) {
+    lines.push('(none)');
+  } else {
+    lines.push(
+      '| Fixture | Check | Count | Reason |',
+      '| --- | --- | --- | --- |',
+    );
+    for (const na of exclusions.notApplicableByFixture) {
+      lines.push(
+        `| ${na.fixtureId} | ${na.checkId} | ${na.count} | ${na.reason} |`,
+      );
+    }
+  }
 
   return lines.join('\n');
 }

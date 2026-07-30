@@ -14,6 +14,11 @@ export interface CheckObservation {
   detail: string;
   rubricHash?: string;
   notApplicableReason?: string;
+  /** Stable grouping key for `notApplicableReason` when the latter
+   * interpolates per-rep-variable text — see `StructuralVerdict.actualCode`.
+   * Absent means `notApplicableReason` is itself stable and doubles as its
+   * own key. */
+  notApplicableReasonCode?: string;
   errorMessage?: string;
   durationMs: number;
 }
@@ -81,6 +86,8 @@ export async function runCheck(
         detail: verdict.actual,
         notApplicableReason:
           verdict.outcome === 'NOT_APPLICABLE' ? verdict.actual : undefined,
+        notApplicableReasonCode:
+          verdict.outcome === 'NOT_APPLICABLE' ? verdict.actualCode : undefined,
         durationMs: Date.now() - start,
       };
     }

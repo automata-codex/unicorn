@@ -67,6 +67,21 @@ describe('scoreRowSchema', () => {
     ).not.toThrow();
   });
 
+  it('accepts not_applicable with a notApplicableReasonCode alongside the reason', () => {
+    expect(() =>
+      scoreRowSchema.parse(
+        scoreRow({
+          verdict: 'not_applicable',
+          notApplicableReason:
+            'the turn deferred Alvarez\'s gating roll to a pending dice_request ' +
+            '("Alvarez combat roll to hit") rather than resolving it this turn',
+          notApplicableReasonCode:
+            "deferred Alvarez's gating roll to a pending dice_request",
+        }),
+      ),
+    ).not.toThrow();
+  });
+
   it('rejects error without errorMessage', () => {
     expect(() =>
       scoreRowSchema.parse(scoreRow({ verdict: 'error' })),

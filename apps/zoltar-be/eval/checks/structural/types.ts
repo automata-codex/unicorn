@@ -17,10 +17,19 @@ export type StructuralOutcome = 'PASSED' | 'FAILED' | 'NOT_APPLICABLE';
  * `actual` is the report's "Actual: ..." line — the fixture's own `check`
  * text (free text, authored per-fixture) supplies "Expected: ...", so a
  * checker never needs to restate what was expected, only what it found.
+ *
+ * `actualCode` is only needed on `NOT_APPLICABLE` verdicts whose `actual`
+ * text interpolates per-rep-variable content (e.g. a model-generated dice
+ * request `purpose`) rather than fixture-authored constants — grouping
+ * exclusions by the raw `actual` text would otherwise fragment identical
+ * failure modes into one group per rep. When set, it must be stable across
+ * reps of the same fixture; exclusion aggregation groups on it in place of
+ * `actual`, falling back to `actual` when absent.
  */
 export interface StructuralVerdict {
   outcome: StructuralOutcome;
   actual: string;
+  actualCode?: string;
 }
 
 /**

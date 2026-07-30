@@ -81,6 +81,10 @@ export function checkOutOfOrderResolution(
           `the turn deferred ${playerEntity}'s gating roll to a pending dice_request ` +
           `("${deferredRequest.purpose}") rather than resolving it this turn — the ordering ` +
           "evidence this check needs appears on the following turn, which this fixture doesn't contain",
+        // `deferredRequest.purpose` is the Warden's freeform, per-rep-generated
+        // text — it can differ rep to rep for the same fixture, so the
+        // grouping key omits it and names only the fixture-constant entity.
+        actualCode: `deferred ${playerEntity}'s gating roll to a pending dice_request`,
       };
     }
     return {

@@ -35,6 +35,11 @@ const baseScoreRowSchema = z.object({
 
   rubricHash: z.string().optional(),
   notApplicableReason: z.string().optional(),
+  /** Stable grouping key for `notApplicableReason` — see
+   * `CheckObservation.notApplicableReasonCode`. Absent on older rows and on
+   * any row whose reason has no per-rep-variable content; both cases group
+   * on `notApplicableReason` itself. */
+  notApplicableReasonCode: z.string().optional(),
   errorMessage: z.string().optional(),
 
   artifactPath: z.string().min(1),
