@@ -323,6 +323,48 @@ Checks that need this declare `requiresFixtureSchema: 2` (the field existed, unu
 
 `out-of-order-resolution` is only half-migrated: situation gating is real, but the ordering evidence it needs can land on a turn *after* the one a fixture captures, under a model that splits a to-hit request and its resolution across a turn boundary. Extending turn19/21 through the follow-up turn is separate work; until then this check reports `not_applicable` with a reason naming the missing evidence, never the old model-artifact phrasing.
 
+### A structural check may read event and state structure; it may not classify prose
+
+Structural checkers began as regexes over `purpose` and `playerText` because the alternative
+looked like an API call per rep for questions that seemed mechanically answerable. Every
+structural check that has ever produced a verdict has since been found to misreport, in all
+three possible directions: `system-rolled-player-action` returned false PASS on a
+system-rolled to-hit its damage-only matcher didn't recognize; `unauditable-mapping`'s
+`MAPPING_STATED_PATTERN` is content-blind enough that any `digit + (:|=|means|indicates)`
+satisfies it, while `NARRATIVE_SELECTION_PATTERN` returned false NOT_APPLICABLE on twelve
+turns of `"Ambient station event check"` — the model's own dominant phrasing for exactly the
+roll type the check exists to grade; `narrating-past-a-block` returns false FAIL on
+commitment language (`"you put two rounds into..."` before the roll is issued), which its
+own doc comment already flags as the class the `\bif\b` guard was added to fix. Patching
+does not converge: `NARRATIVE_SELECTION_PATTERN` and `narrating-past-a-block` have each been
+widened once after a real-run miss and failed again the same way, and `UNSURFACED-CHECK`
+gave up and migrated to a judge call after its own false pass. The 4.6 → Sonnet 5 swap
+quantified why: `NARRATIVE_SELECTION_PATTERN` reached a verdict on 15 of 20 reps under 4.6
+and 4 of 20 under Sonnet 5, against an unchanged prompt. A regex over prose encodes the idiom
+of whichever model was current when it was written, and silently stops matching when that
+changes.
+
+The dividing line is what the checker reads, not how hard the question sounds. Event and
+state structure — does a pending `dice_request` exist, in what sequence did events land,
+what changed in `resourcePools`, does a roll resolve an antecedent request — are facts the
+backend produced, identical in shape across models and across prompt revisions. Narrative
+prose is where model idiom lives. So structural remains the default wherever the question
+can be answered from structure, since it is deterministic, free, and carries no judge
+variance; it is simply not available for questions whose answer lives in wording. A single
+check may span both: `unauditable-mapping` keeps a structural pre-filter on the shape of a
+spontaneous GM-side roll (single die, no modifier, no `target`, resolving no pending
+request) and sends only the remaining semantic question — does `purpose` enumerate outcomes
+covering the notation's range — to the judge.
+
+Applying the line: `out-of-order-resolution` and the re-gated `system-rolled-player-action`
+read only structure and stay structural. `unauditable-mapping` and `narrating-past-a-block`
+migrate. `missing-canon-capture` is unverified and needs the same review — a marker-phrase
+match is a prose dependency even though a fixed substring is more robust than a regex, and
+the check has produced zero verdicts across both runs, so nothing about it has been tested
+in practice. Migration is cheap by construction: `checkId` deliberately does not encode
+`checkMode` (see above), so a check changes mode without un-pairing its own comparison
+history — which is the history that would show whether the migration helped.
+
 ---
 
 ## Monorepo, Tooling & Deployment
