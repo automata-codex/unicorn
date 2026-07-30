@@ -151,6 +151,29 @@ export function judgeVarianceOutputPath(runDir: string, createdAt: Date): string
 }
 
 /**
+ * `eval:rescore` writes here, never into `reps/` — same argument as
+ * `judgeVarianceDir`: a `reps/<nnn>/scores.jsonl` row means "one observation of
+ * generator and grader together," and a re-grade of frozen output under
+ * changed checker code is a different measurement that would corrupt every
+ * pass-rate denominator if appended there.
+ */
+export function rescoreDir(runDir: string): string {
+  return join(runDir, 'rescore');
+}
+
+/**
+ * Keyed by timestamp, deliberately NOT by `corpusVersion`. A checker change
+ * doesn't touch any fixture file, so it doesn't move the corpus hash — two
+ * successive re-scores under different checker code would collide on a
+ * `<corpusVersion>.jsonl` name and the second would silently overwrite the
+ * first. The corpus and harness versions that actually governed each
+ * re-score go on the rows instead, where they can differ row to row.
+ */
+export function rescoreOutputPath(runDir: string, createdAt: Date): string {
+  return join(rescoreDir(runDir), `${filenameSafeTimestamp(createdAt)}.jsonl`);
+}
+
+/**
  * The independent cross-check the spec calls for: rep directories that
  * exist on disk, regardless of what `manifest.json` vouches for. A crashed
  * rep leaves a directory here that `nextRepIndex` and `readVouchedRows`

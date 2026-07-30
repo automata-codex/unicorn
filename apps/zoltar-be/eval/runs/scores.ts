@@ -16,6 +16,28 @@ export type Verdict = z.infer<typeof verdictSchema>;
 export const checkModeSchema = z.enum(['structural', 'judged']);
 export type CheckMode = z.infer<typeof checkModeSchema>;
 
+/**
+ * Which writer produced a row. `run` rows come from `eval:run` — one
+ * observation of generator and grader together. `rescore` rows come from
+ * `eval:rescore` — the same frozen generator output re-graded under later
+ * checker code, which is a different measurement with a different meaning
+ * for half the columns (see `rescoreRowSchema`).
+ *
+ * Optional (not defaulted) on the run side, so `eval:run`'s on-disk format
+ * stays byte-identical to every row already written — this command exists
+ * to reproduce historical numbers, and a gratuitous format change in the
+ * same commit would be one more thing to rule out when a rate moves. The
+ * absence of the field *is* the run marker.
+ *
+ * Discrimination still works in both directions, which is the point:
+ * `readScoreRows` rejects a rescore file (`'rescore'` doesn't match the
+ * `'run'` literal) and `readRescoreRows` rejects a scores file (a missing
+ * field doesn't match the required `'rescore'` literal). Neither can
+ * quietly fold the other's verdicts into a pass-rate denominator.
+ */
+export const rowKindSchema = z.enum(['run', 'rescore']);
+export type RowKind = z.infer<typeof rowKindSchema>;
+
 const baseScoreRowSchema = z.object({
   // --- run identity, denormalized onto every row ---
   runId: z.string().min(1),
@@ -48,13 +70,14 @@ const baseScoreRowSchema = z.object({
 });
 
 /**
- * `judgeConfidence` is deliberately absent — no rubric emits one (an
- * earlier, undocumented design decision; self-reported LLM confidence was
- * rejected), and a permanently-empty optional column reads as an invitation
- * to fill it. JSONL rows are append-friendly, so adding it later if a
- * rubric ever does emit one is non-breaking.
+ * The verdict/detail pairing every row must satisfy, shared by both row
+ * kinds rather than restated — a rescore row is under exactly the same
+ * obligation to name why something was `not_applicable` or what errored.
  */
-export const scoreRowSchema = baseScoreRowSchema.superRefine((row, ctx) => {
+function refineVerdictDetail(
+  row: { verdict: Verdict; notApplicableReason?: string; errorMessage?: string },
+  ctx: z.RefinementCtx,
+): void {
   if (row.verdict === 'not_applicable' && !row.notApplicableReason) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -70,9 +93,78 @@ export const scoreRowSchema = baseScoreRowSchema.superRefine((row, ctx) => {
       path: ['errorMessage'],
     });
   }
-});
+}
+
+/**
+ * `judgeConfidence` is deliberately absent — no rubric emits one (an
+ * earlier, undocumented design decision; self-reported LLM confidence was
+ * rejected), and a permanently-empty optional column reads as an invitation
+ * to fill it. JSONL rows are append-friendly, so adding it later if a
+ * rubric ever does emit one is non-breaking.
+ */
+export const scoreRowSchema = baseScoreRowSchema
+  .extend({ rowKind: z.literal('run').optional() })
+  .superRefine(refineVerdictDetail);
 
 export type ScoreRow = z.infer<typeof scoreRowSchema>;
+
+/**
+ * The columns a rate reads — everything `computeRates`, `rollupByTag` and
+ * `summarizeExclusions` touch, and nothing about which writer produced the
+ * row. Both `ScoreRow` and `RescoreRow` are assignable to it, which is what
+ * lets one set of aggregation functions serve a run and a re-score of that
+ * run without a second implementation to keep in step.
+ */
+export type ScoredRow = z.infer<typeof baseScoreRowSchema>;
+
+/**
+ * A re-graded row: same frozen `warden-output.json`, same generator, later
+ * checker code.
+ *
+ * **The inherited columns change tense, and that is the one thing to know
+ * about this schema.** `model`, `promptHash`, `temperature` and `runId` still
+ * describe *generation* — they're copied from the source run's manifest and
+ * are as true as they ever were. `corpusVersion` and `harnessVersion` now
+ * describe *scoring*: they are recomputed at re-score time and record the
+ * fixtures and checker code that produced this verdict, not the ones the
+ * turn was generated under. Same column names, different moment. The
+ * `source*` columns below keep the originals so a row says what moved
+ * without needing the run it came from.
+ *
+ * `repIndex` is deliberately not renamed to something like `sourceRepIndex`:
+ * it is the same rep, and keeping the name is what lets `computeRates`,
+ * `rollupByTag` and `summarizeExclusions` consume these rows unchanged —
+ * regenerating a run's rates under new checkers is the entire point.
+ */
+export const rescoreRowSchema = baseScoreRowSchema
+  .extend({
+    rowKind: z.literal('rescore'),
+    /** When this re-score pass ran — the same value on every row of one
+     * pass, matching the `<timestamp>.jsonl` filename. */
+    rescoredAt: z.string(),
+    /** `corpusVersion` / `harnessVersion` as the *source row* carried them.
+     * Equal to the re-score-time values when nothing moved, which is the
+     * normal case for `corpusVersion` on a checker-only change. */
+    sourceCorpusVersion: z.string().min(1),
+    sourceHarnessVersion: z.string().min(1),
+    /** The source row's verdict, kept so a diff never needs both files
+     * open. */
+    sourceVerdict: verdictSchema,
+    /**
+     * True when the verdict was copied from the source row rather than
+     * recomputed, because no `warden-output.json` exists for this
+     * `(repIndex, fixtureId)` — the original turn errored before producing
+     * one, so there is nothing to re-grade and never will be. Copied rather
+     * than dropped so a re-score file is a complete replacement for the
+     * run's rows: omitting them would silently shrink the error accounting
+     * `eval:report` renders, and make a re-scored report look cleaner than
+     * the run it describes.
+     */
+    carriedForward: z.boolean().default(false),
+  })
+  .superRefine(refineVerdictDetail);
+
+export type RescoreRow = z.infer<typeof rescoreRowSchema>;
 
 export class ScoreRowError extends Error {
   constructor(
@@ -86,23 +178,29 @@ export class ScoreRowError extends Error {
 }
 
 /**
- * Append-only writer for one rep's `scores.jsonl`. `close()` awaits the
- * underlying stream's `finish` event so "flush and close, *then* vouch via
- * `appendCompletedRep`" is a real ordering guarantee — this is the whole
- * commit protocol, not an incidental detail.
+ * Append-only JSONL writer, validating every row against a schema before it
+ * reaches the file. `close()` awaits the underlying stream's `finish` event
+ * so "flush and close, *then* vouch via `appendCompletedRep`" is a real
+ * ordering guarantee — that is the whole commit protocol on the `eval:run`
+ * side, not an incidental detail.
  */
-export class ScoreWriter {
+class JsonlRowWriter<TIn, TOut> {
   private stream: WriteStream | null = null;
+
+  constructor(
+    private readonly schema: { parse: (input: TIn) => TOut },
+    private readonly label: string,
+  ) {}
 
   open(path: string): void {
     this.stream = createWriteStream(path, { flags: 'a' });
   }
 
-  append(row: ScoreRow): void {
+  append(row: TIn): void {
     if (!this.stream) {
-      throw new Error('ScoreWriter.append called before open()');
+      throw new Error(`${this.label}.append called before open()`);
     }
-    const validated = scoreRowSchema.parse(row);
+    const validated = this.schema.parse(row);
     this.stream.write(JSON.stringify(validated) + '\n');
   }
 
@@ -118,7 +216,36 @@ export class ScoreWriter {
   }
 }
 
-export function readScoreRows(path: string): ScoreRow[] {
+/** Writer for one rep's `reps/<nnn>/scores.jsonl`. */
+export class ScoreWriter extends JsonlRowWriter<
+  z.input<typeof scoreRowSchema>,
+  ScoreRow
+> {
+  constructor() {
+    super(scoreRowSchema, 'ScoreWriter');
+  }
+}
+
+/**
+ * Writer for one re-score pass's `rescore/<timestamp>.jsonl`. Streamed
+ * rather than accumulated and written once at the end: a full-corpus
+ * re-score makes a judge call per judged fixture-rep and takes long enough
+ * that losing the whole file to a crash at 90% would mean paying for those
+ * calls twice.
+ */
+export class RescoreWriter extends JsonlRowWriter<
+  z.input<typeof rescoreRowSchema>,
+  RescoreRow
+> {
+  constructor() {
+    super(rescoreRowSchema, 'RescoreWriter');
+  }
+}
+
+function readJsonlRows<T>(
+  path: string,
+  schema: { safeParse: (input: unknown) => z.SafeParseReturnType<unknown, T> },
+): T[] {
   const raw = readFileSync(path, 'utf-8');
   const lines = raw.split('\n').filter((line) => line.trim().length > 0);
 
@@ -135,7 +262,7 @@ export function readScoreRows(path: string): ScoreRow[] {
       );
     }
 
-    const result = scoreRowSchema.safeParse(parsed);
+    const result = schema.safeParse(parsed);
     if (!result.success) {
       throw new ScoreRowError(
         path,
@@ -147,6 +274,19 @@ export function readScoreRows(path: string): ScoreRow[] {
     }
     return result.data;
   });
+}
+
+export function readScoreRows(path: string): ScoreRow[] {
+  return readJsonlRows(path, scoreRowSchema);
+}
+
+/**
+ * Rejects a `reps/<nnn>/scores.jsonl` file outright, via `rowKind`'s literal —
+ * the two files are the same shape and mixing them up would produce a
+ * plausible-looking, meaningless rate.
+ */
+export function readRescoreRows(path: string): RescoreRow[] {
+  return readJsonlRows(path, rescoreRowSchema);
 }
 
 export interface VouchedRowsResult {

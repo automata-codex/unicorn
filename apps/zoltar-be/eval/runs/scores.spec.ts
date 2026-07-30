@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -6,15 +12,18 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { appendCompletedRep, createRunDirectory } from './manifest';
 import { repDir, scoresPath } from './paths';
 import {
+  RescoreWriter,
   ScoreRowError,
   ScoreWriter,
+  readRescoreRows,
   readScoreRows,
   readVouchedRows,
+  rescoreRowSchema,
   scoreRowSchema,
 } from './scores';
 
 import type { CompletedRep } from './manifest';
-import type { ScoreRow } from './scores';
+import type { RescoreRow, ScoreRow } from './scores';
 
 const CREATED_AT = new Date('2026-07-26T14:32:10.000Z');
 
@@ -94,6 +103,103 @@ describe('scoreRowSchema', () => {
         scoreRow({ verdict: 'error', errorMessage: 'API timeout' }),
       ),
     ).not.toThrow();
+  });
+});
+
+function rescoreRow(overrides: Partial<RescoreRow> = {}): RescoreRow {
+  return {
+    ...scoreRow(),
+    rowKind: 'rescore',
+    rescoredAt: '2026-07-30T09:00:00.000Z',
+    sourceCorpusVersion: 'abc',
+    sourceHarnessVersion: 'abc1234',
+    sourceVerdict: 'pass',
+    carriedForward: false,
+    ...overrides,
+  };
+}
+
+describe('rescoreRowSchema', () => {
+  it('accepts a re-scored row', () => {
+    expect(() => rescoreRowSchema.parse(rescoreRow())).not.toThrow();
+  });
+
+  it('carries the same verdict/detail obligations as a run row', () => {
+    expect(() =>
+      rescoreRowSchema.parse(rescoreRow({ verdict: 'not_applicable' })),
+    ).toThrow(/notApplicableReason is required/);
+    expect(() =>
+      rescoreRowSchema.parse(rescoreRow({ verdict: 'error' })),
+    ).toThrow(/errorMessage is required/);
+  });
+
+  it('records the source verdict independently of the re-scored one', () => {
+    const parsed = rescoreRowSchema.parse(
+      rescoreRow({ verdict: 'fail', sourceVerdict: 'pass' }),
+    );
+    expect(parsed.sourceVerdict).toBe('pass');
+    expect(parsed.verdict).toBe('fail');
+  });
+
+  it('defaults carriedForward to false', () => {
+    const { carriedForward: _omitted, ...withoutFlag } = rescoreRow();
+    expect(rescoreRowSchema.parse(withoutFlag).carriedForward).toBe(false);
+  });
+});
+
+describe('the two row kinds never read as each other', () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'rescore-rows-'));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('readScoreRows rejects a re-score file rather than folding it into a rate', () => {
+    const path = join(dir, 'rescore.jsonl');
+    writeFileSync(path, JSON.stringify(rescoreRow()) + '\n');
+
+    expect(() => readScoreRows(path)).toThrow(ScoreRowError);
+  });
+
+  it('readRescoreRows rejects a run scores file', () => {
+    const path = join(dir, 'scores.jsonl');
+    writeFileSync(path, JSON.stringify(scoreRow()) + '\n');
+
+    expect(() => readRescoreRows(path)).toThrow(ScoreRowError);
+  });
+
+  it('a run row keeps the on-disk format it always had — no rowKind written', async () => {
+    // Deliberate: `eval:rescore` exists to reproduce historical numbers, so
+    // the run writer's output must not change shape in the same commit.
+    const path = join(dir, 'scores.jsonl');
+    const writer = new ScoreWriter();
+    writer.open(path);
+    writer.append(scoreRow());
+    await writer.close();
+
+    const written = JSON.parse(
+      readFileSync(path, 'utf-8').trim(),
+    ) as Record<string, unknown>;
+    expect('rowKind' in written).toBe(false);
+  });
+
+  it('RescoreWriter round-trips through readRescoreRows', async () => {
+    const path = join(dir, 'rescore.jsonl');
+    const writer = new RescoreWriter();
+    writer.open(path);
+    writer.append(rescoreRow({ verdict: 'fail', sourceVerdict: 'pass' }));
+    writer.append(rescoreRow({ repIndex: 2, carriedForward: true }));
+    await writer.close();
+
+    const rows = readRescoreRows(path);
+    expect(rows).toHaveLength(2);
+    expect(rows[0].verdict).toBe('fail');
+    expect(rows[0].sourceVerdict).toBe('pass');
+    expect(rows[1].carriedForward).toBe(true);
   });
 });
 

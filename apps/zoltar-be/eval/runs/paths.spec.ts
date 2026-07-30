@@ -13,6 +13,8 @@ import {
   promptTextPath,
   repDir,
   repDirName,
+  rescoreDir,
+  rescoreOutputPath,
   resolveEvalRoot,
   resolveRunDirArg,
   rubricPath,
@@ -130,6 +132,23 @@ describe('path builders', () => {
     expect(judgeVarianceOutputPath(runDir, createdAt)).toBe(
       join(runDir, 'judge-variance', '2026-07-26T14-32-10Z.jsonl'),
     );
+    expect(rescoreDir(runDir)).toBe(join(runDir, 'rescore'));
+    expect(rescoreOutputPath(runDir, createdAt)).toBe(
+      join(runDir, 'rescore', '2026-07-26T14-32-10Z.jsonl'),
+    );
+  });
+
+  it('keys a re-score by timestamp, so two re-scores of one corpus never collide', () => {
+    // The whole reason this isn't `<corpusVersion>.jsonl`: a checker change
+    // moves no fixture bytes, so both passes below would land on the same
+    // name and the second would silently overwrite the first.
+    const runDir = '/evalroot/eval-runs/some-run';
+    const first = rescoreOutputPath(runDir, new Date('2026-07-30T09:00:00.000Z'));
+    const second = rescoreOutputPath(runDir, new Date('2026-07-30T11:15:42.000Z'));
+
+    expect(first).not.toBe(second);
+    expect(first).toBe(join(runDir, 'rescore', '2026-07-30T09-00-00Z.jsonl'));
+    expect(second).toBe(join(runDir, 'rescore', '2026-07-30T11-15-42Z.jsonl'));
   });
 });
 

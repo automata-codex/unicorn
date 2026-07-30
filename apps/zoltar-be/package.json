@@ -21,7 +21,8 @@
     "eval:run": "node -r @swc-node/register -r reflect-metadata --env-file=.env scripts/eval-run.ts",
     "eval:report": "tsx --env-file=.env scripts/eval-report.ts",
     "eval:compare": "tsx --env-file=.env scripts/eval-compare.ts",
-    "eval:judge-variance": "tsx --env-file=.env scripts/eval-judge-variance.ts"
+    "eval:judge-variance": "tsx --env-file=.env scripts/eval-judge-variance.ts",
+    "eval:rescore": "tsx --env-file=.env scripts/eval-rescore.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.89.0",

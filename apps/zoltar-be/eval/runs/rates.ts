@@ -1,4 +1,4 @@
-import type { CheckMode, ScoreRow } from './scores';
+import type { CheckMode, ScoredRow } from './scores';
 
 export interface RateEntry {
   fixtureId: string;
@@ -19,7 +19,7 @@ export interface RateEntry {
 
 /** Per `(fixtureId, checkId)`, sorted by `fixtureId` then `checkId` so two
  * reports diff cleanly. */
-export function computeRates(rows: ScoreRow[]): RateEntry[] {
+export function computeRates(rows: ScoredRow[]): RateEntry[] {
   const groups = new Map<string, RateEntry>();
 
   for (const row of rows) {
@@ -150,7 +150,7 @@ interface NotApplicableGroup {
  * call's other two outputs (the latter via `listRepDirsOnDisk`).
  */
 export function summarizeExclusions(
-  rows: ScoreRow[],
+  rows: ScoredRow[],
   exclusions: string[],
   repDirsOnDisk: number[],
 ): ExclusionsSummary {
