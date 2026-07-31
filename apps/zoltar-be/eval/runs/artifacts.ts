@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { relative } from 'node:path';
+import { dirname, relative } from 'node:path';
 
 import {
   fixtureArtifactDir,
@@ -8,8 +8,8 @@ import {
   wardenRequestPath,
 } from './paths';
 
-import type { CapturedWardenCall } from './recording-anthropic';
 import type { TurnExecutionResult } from '../turn-result';
+import type { CapturedWardenCall } from './recording-anthropic';
 
 /**
  * `JSON.stringify` as-is, pretty-printed for the "inspect the run directory
@@ -111,12 +111,7 @@ export function writeFixtureArtifacts(
   fixtureId: string,
   input: WriteFixtureArtifactsInput,
 ): void {
-  writeWardenRequestArtifact(
-    runDir,
-    repIndex,
-    fixtureId,
-    input.wardenRequests,
-  );
+  writeWardenRequestArtifact(runDir, repIndex, fixtureId, input.wardenRequests);
   writeFileSync(
     wardenOutputPath(runDir, repIndex, fixtureId),
     serializeTurnResult(input.turnResult) + '\n',
@@ -128,6 +123,14 @@ export interface JudgeArtifactInput {
   verdict: 'pass' | 'fail';
   rationale: string;
   rubricHash: string;
+  /**
+   * The check's `judgeContext` output, when it has one — the events the
+   * structural half narrowed the question to. Without it, a rationale about
+   * "the rolls under review" can't be tied back to which rolls those were,
+   * which is most of what makes a verdict investigable for a check like
+   * `unauditable-mapping`.
+   */
+  judgeContext?: string;
 }
 
 /** Judge reasoning text — bulky, read only during investigation — lives
@@ -139,15 +142,20 @@ export function writeJudgeArtifact(
   checkId: string,
   input: JudgeArtifactInput,
 ): void {
-  mkdirSync(fixtureArtifactDir(runDir, repIndex, fixtureId), {
-    recursive: true,
-  });
-
-  writeFileSync(
+  writeJudgeArtifactAt(
     judgeArtifactPath(runDir, repIndex, fixtureId, checkId),
-    JSON.stringify(input, null, 2) + '\n',
-    'utf-8',
+    input,
   );
+}
+
+/** The same write against a caller-chosen path, for `eval:rescore`, whose
+ * rationales must not land on (or be confused with) the original run's. */
+export function writeJudgeArtifactAt(
+  absolutePath: string,
+  input: JudgeArtifactInput,
+): void {
+  mkdirSync(dirname(absolutePath), { recursive: true });
+  writeFileSync(absolutePath, JSON.stringify(input, null, 2) + '\n', 'utf-8');
 }
 
 /** The inverse of `writeFixtureArtifacts`'s `warden-output.json` half —
@@ -158,7 +166,10 @@ export function readTurnResultArtifact(
   repIndex: number,
   fixtureId: string,
 ): TurnExecutionResult {
-  const raw = readFileSync(wardenOutputPath(runDir, repIndex, fixtureId), 'utf-8');
+  const raw = readFileSync(
+    wardenOutputPath(runDir, repIndex, fixtureId),
+    'utf-8',
+  );
   return deserializeTurnResult(raw);
 }
 

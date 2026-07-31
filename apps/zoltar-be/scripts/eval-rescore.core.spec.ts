@@ -302,3 +302,130 @@ describe('runRescore', () => {
     expect(anthropic.callMessages).not.toHaveBeenCalled();
   });
 });
+
+describe('runRescore — judged rows keep their reasoning', () => {
+  let root: string;
+  let runDir: string;
+  let fixturesDir: string;
+  const JUDGED_ID = 'turn24-scene-jump';
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'rescore-judged-'));
+    runDir = join(root, 'run');
+    fixturesDir = join(root, 'fixtures');
+    mkdirSync(join(runDir, 'reps', '001', JUDGED_ID), { recursive: true });
+    mkdirSync(fixturesDir, { recursive: true });
+
+    writeFileSync(
+      join(fixturesDir, `${JUDGED_ID}.json`),
+      JSON.stringify(
+        fakeFixture({
+          id: JUDGED_ID,
+          tag: 'SCENE-JUMP',
+          assertion: {
+            mode: 'judged',
+            rubric: 'SCENE-JUMP',
+            facts: { expectedScope: 'the airlock, this moment' },
+          },
+        }),
+      ),
+    );
+    writeFileSync(
+      join(runDir, 'manifest.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        runId: 'r',
+        model: 'claude-sonnet-4-6',
+        promptHash: 'ab12cd34',
+        temperature: 1,
+        corpusVersion: 'sourcecorpus',
+        createdAt: '2026-07-29T10:51:26.000Z',
+        plannedReps: 1,
+        completedReps: [
+          {
+            index: 1,
+            harnessVersion: 'source01',
+            rubricHashes: {},
+            fixtureIds: [JUDGED_ID],
+            startedAt: 'x',
+            completedAt: 'y',
+          },
+        ],
+      }),
+    );
+    writeFileSync(
+      scoresPath(runDir, 1),
+      `${JSON.stringify(
+        scoreRow({
+          fixtureId: JUDGED_ID,
+          checkId: 'scene-jump',
+          tag: 'SCENE-JUMP',
+          checkMode: 'judged',
+          verdict: 'pass',
+          // What the ORIGINAL run recorded: a judge artifact holding the
+          // rationale of whatever rubric was current then.
+          artifactPath: `reps/001/${JUDGED_ID}/judge-scene-jump.json`,
+        }),
+      )}\n`,
+    );
+    writeFileSync(
+      join(runDir, 'reps', '001', JUDGED_ID, 'warden-output.json'),
+      `${serializeTurnResult(fakeTurnExecutionResult())}\n`,
+    );
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('writes the new rationale beside the pass and points the row at it', async () => {
+    const anthropic = {
+      callMessages: vi.fn().mockResolvedValue({
+        content: [
+          {
+            type: 'tool_use',
+            id: 't',
+            name: 'judge_verdict',
+            input: { passed: false, rationale: 'relocated the PC to the bay' },
+          },
+        ],
+      }),
+    } as unknown as AnthropicService;
+
+    const summary = await runRescore(
+      { runDir, fixturesDir },
+      { anthropicService: anthropic, clock: () => RESCORED_AT },
+    );
+
+    const row = summary.rows[0];
+    expect(row.verdict).toBe('fail');
+
+    // Not the source row's path. That file holds the original rubric's
+    // reasoning for a different verdict; citing it would attribute one
+    // rubric's rationale to another's conclusion.
+    expect(row.artifactPath).not.toMatch(/^reps\//);
+    expect(row.artifactPath).toBe(
+      join(
+        'rescore',
+        '2026-07-30T09-00-00Z',
+        '001',
+        JUDGED_ID,
+        'judge-scene-jump.json',
+      ),
+    );
+
+    const written = JSON.parse(
+      readFileSync(join(runDir, row.artifactPath), 'utf-8'),
+    ) as { verdict: string; rationale: string };
+    expect(written.verdict).toBe('fail');
+    expect(written.rationale).toBe('relocated the PC to the bay');
+
+    // The original run's artifact is untouched — it is the record of what
+    // that run was scored against.
+    expect(
+      existsSync(
+        join(runDir, 'reps', '001', JUDGED_ID, 'judge-scene-jump.json'),
+      ),
+    ).toBe(false);
+  });
+});

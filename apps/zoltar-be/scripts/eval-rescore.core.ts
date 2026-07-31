@@ -4,14 +4,20 @@ import { selectChecksForFixture } from '../eval/checks/registry';
 import { runCheck } from '../eval/checks/run-check';
 import { computeCorpusVersion } from '../eval/corpus-version';
 import { loadFixtures } from '../eval/fixture-loader';
-import { readTurnResultArtifact } from '../eval/runs/artifacts';
+import {
+  readTurnResultArtifact,
+  relativeArtifactPath,
+  writeJudgeArtifactAt,
+} from '../eval/runs/artifacts';
 import { envOnlyConfigService } from '../eval/runs/env-config-service';
 import { readManifest } from '../eval/runs/manifest';
 import {
   listRepDirsOnDisk,
   repDirName,
   rescoreDir,
+  rescoreJudgeArtifactPath,
   rescoreOutputPath,
+  wardenOutputPath,
 } from '../eval/runs/paths';
 import { computeRates, summarizeExclusions } from '../eval/runs/rates';
 import { RescoreWriter, readVouchedRows } from '../eval/runs/scores';
@@ -266,12 +272,48 @@ export async function runRescore(
           deps.anthropicService,
         );
 
+        // A judged verdict is only investigable if its reasoning is kept.
+        // `eval:run` writes one of these per judged rep; a re-score that
+        // didn't would leave 169 verdicts with no recoverable "why", and the
+        // only way to ask would be to pay for the calls again.
+        let artifactPath: string;
+        if (
+          observation.judgeInvoked &&
+          (observation.verdict === 'pass' || observation.verdict === 'fail')
+        ) {
+          const path = rescoreJudgeArtifactPath(
+            args.runDir,
+            startedAt,
+            repIndex,
+            fixtureId,
+            check.id,
+          );
+          writeJudgeArtifactAt(path, {
+            verdict: observation.verdict,
+            rationale: observation.detail,
+            rubricHash: observation.rubricHash ?? '',
+            judgeContext: check.judgeContext?.(turnResult, fixture),
+          });
+          artifactPath = relativeArtifactPath(args.runDir, path);
+        } else {
+          // Structural verdicts, and judged ones the gate settled, are
+          // derived from the frozen turn output. Deliberately not inherited
+          // from the source row: for a check that was already judged, that
+          // path names the *original* rubric's rationale, so a re-scored row
+          // would cite reasoning that produced a different verdict.
+          artifactPath = relativeArtifactPath(
+            args.runDir,
+            wardenOutputPath(args.runDir, repIndex, fixtureId),
+          );
+        }
+
         emit(
           buildRescoreRow({
             manifest,
             fixture,
             check,
             observation,
+            artifactPath,
             repIndex,
             sourceRow,
             corpusVersion,
@@ -337,6 +379,9 @@ interface BuildRescoreRowInput {
   fixture: EvalFixture;
   check: EvalCheck;
   observation: Awaited<ReturnType<typeof runCheck>>;
+  /** Where this row's verdict came from — computed by the caller, never
+   * inherited from the source row. */
+  artifactPath: string;
   repIndex: number;
   sourceRow: ScoreRow | undefined;
   corpusVersion: string;
@@ -374,9 +419,7 @@ function buildRescoreRow(input: BuildRescoreRowInput): RescoreRow {
     notApplicableReason: observation.notApplicableReason,
     notApplicableReasonCode: observation.notApplicableReasonCode,
     errorMessage: observation.errorMessage,
-    // The frozen artifact this verdict was derived from — unchanged by the
-    // re-score, and the thing to open when a delta looks wrong.
-    artifactPath: sourceRow?.artifactPath ?? '(unknown)',
+    artifactPath: input.artifactPath,
     durationMs: observation.durationMs,
     recordedAt: input.rescoredAt,
   };
