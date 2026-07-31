@@ -20,6 +20,11 @@ export const judgeVarianceRowSchema = z.object({
   sourceRepIndex: z.number().int().positive(),
   trialIndex: z.number().int().positive(),
   verdict: verdictSchema,
+  /** Whether this trial actually reached the rubric — see
+   * `CheckObservation.judgeInvoked`. Persisted per trial, not just used and
+   * discarded, so a stored variance file can be re-read later and still show
+   * which rows were graded and which were gated. */
+  judgeInvoked: z.boolean().default(true),
   durationMs: z.number().nonnegative(),
 });
 
@@ -41,6 +46,9 @@ export interface FixtureCheckVariance {
   /** Fraction of frozen inputs whose trials didn't all agree. `null` when
    * no input was tested for this fixture/check. */
   flipRate: number | null;
+  /** Inputs excluded from `totalInputs` because a `judgeGate` settled them
+   * before the rubric was reached — see `gatedInputs` on `RubricVariance`. */
+  gatedInputs: number;
 }
 
 export interface RubricVariance {
@@ -49,6 +57,16 @@ export interface RubricVariance {
   totalInputs: number;
   flippedInputs: number;
   flipRate: number | null;
+  /**
+   * Frozen inputs a `judgeGate` settled structurally, excluded from
+   * `totalInputs` rather than counted as non-flips. A gated input is
+   * deterministic over fixed input, so including it would add a guaranteed
+   * agreement to the denominator and pull the measured flip rate toward
+   * zero — flattering exactly the rubric this command exists to be
+   * suspicious of. Reported rather than silently dropped, because "most of
+   * this check never reached the rubric" is itself worth seeing.
+   */
+  gatedInputs: number;
 }
 
 export interface RunJudgeVarianceSummary {
@@ -271,6 +289,7 @@ export async function runJudgeVariance(
           sourceRepIndex,
           trialIndex,
           verdict: observation.verdict,
+          judgeInvoked: observation.judgeInvoked,
           durationMs: observation.durationMs,
         }),
       );
@@ -320,6 +339,12 @@ function summarize(rows: JudgeVarianceRow[]): {
     checkId: string;
     rubricHash: string;
     verdicts: Verdict[];
+    /** An input is gated only if no trial of it reached the rubric. A
+     * partially-gated input would mean the gate itself is non-deterministic
+     * over fixed input, which it cannot be — but this reads the trials
+     * rather than assuming, so a future gate that consults something
+     * non-deterministic shows up as variance instead of being hidden. */
+    judgedTrials: number;
   }
 
   const inputGroups = new Map<string, InputGroup>();
@@ -332,10 +357,12 @@ function summarize(rows: JudgeVarianceRow[]): {
         checkId: row.checkId,
         rubricHash: row.rubricHash,
         verdicts: [],
+        judgedTrials: 0,
       };
       inputGroups.set(key, group);
     }
     group.verdicts.push(row.verdict);
+    if (row.judgeInvoked) group.judgedTrials += 1;
   }
   const groups = [...inputGroups.values()];
 
@@ -348,14 +375,23 @@ function summarize(rows: JudgeVarianceRow[]): {
       verdictCounts: Partial<Record<Verdict, number>>;
       totalInputs: number;
       flippedInputs: number;
+      gatedInputs: number;
     }
   >();
   const byRubricMap = new Map<
     string,
-    { checkId: string; rubricHash: string; totalInputs: number; flippedInputs: number }
+    {
+      checkId: string;
+      rubricHash: string;
+      totalInputs: number;
+      flippedInputs: number;
+      gatedInputs: number;
+    }
   >();
 
   for (const group of groups) {
+    const gated = group.judgedTrials === 0;
+
     const fcKey = `${group.fixtureId}::${group.checkId}`;
     let fc = byFixtureCheckMap.get(fcKey);
     if (!fc) {
@@ -366,13 +402,20 @@ function summarize(rows: JudgeVarianceRow[]): {
         verdictCounts: {},
         totalInputs: 0,
         flippedInputs: 0,
+        gatedInputs: 0,
       };
       byFixtureCheckMap.set(fcKey, fc);
     }
-    fc.totalInputs += 1;
-    if (flipped(group.verdicts)) fc.flippedInputs += 1;
+    // Verdict counts stay inclusive — they describe what the check did,
+    // which is worth seeing whole. Only the flip-rate denominator excludes
+    // gated inputs, since that number is a claim about the *rubric*.
     for (const v of group.verdicts) {
       fc.verdictCounts[v] = (fc.verdictCounts[v] ?? 0) + 1;
+    }
+    if (gated) fc.gatedInputs += 1;
+    else {
+      fc.totalInputs += 1;
+      if (flipped(group.verdicts)) fc.flippedInputs += 1;
     }
 
     let rubric = byRubricMap.get(group.checkId);
@@ -382,11 +425,15 @@ function summarize(rows: JudgeVarianceRow[]): {
         rubricHash: group.rubricHash,
         totalInputs: 0,
         flippedInputs: 0,
+        gatedInputs: 0,
       };
       byRubricMap.set(group.checkId, rubric);
     }
-    rubric.totalInputs += 1;
-    if (flipped(group.verdicts)) rubric.flippedInputs += 1;
+    if (gated) rubric.gatedInputs += 1;
+    else {
+      rubric.totalInputs += 1;
+      if (flipped(group.verdicts)) rubric.flippedInputs += 1;
+    }
   }
 
   const byFixtureCheck = [...byFixtureCheckMap.values()]
@@ -406,10 +453,15 @@ function summarize(rows: JudgeVarianceRow[]): {
     }))
     .sort((a, b) => a.checkId.localeCompare(b.checkId));
 
-  const headlines = byRubric.map(
-    (r) =>
-      `rubric ${r.checkId} (${r.rubricHash}) flipped on ${r.flippedInputs} of ${r.totalInputs} frozen inputs`,
-  );
+  const headlines = byRubric.map((r) => {
+    const base = `rubric ${r.checkId} (${r.rubricHash}) flipped on ${r.flippedInputs} of ${r.totalInputs} frozen inputs`;
+    // Named in the headline, not buried: a rubric validated on two inputs
+    // because a gate absorbed the other eighteen has not been validated,
+    // and the flip rate alone doesn't say so.
+    return r.gatedInputs > 0
+      ? `${base} (${r.gatedInputs} further input(s) settled by the structural gate, never reaching the rubric)`
+      : base;
+  });
 
   return { byFixtureCheck, byRubric, headlines };
 }

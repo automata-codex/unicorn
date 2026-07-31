@@ -26,6 +26,37 @@ describe('evalChecks', () => {
     expect(checksByTag).toHaveLength(tags.length);
   });
 
+  it('declares an applicabilitySource for every check', () => {
+    // Required, not optional, so adding a check forces the question to be
+    // answered rather than defaulted — the field exists precisely to make
+    // outcome-selected denominators visible, and a silent default would be
+    // a guess at the thing it records.
+    for (const check of Object.values(evalChecks)) {
+      expect(['fixture', 'artifact', 'none']).toContain(
+        check.applicabilitySource,
+      );
+    }
+  });
+
+  it('marks the two re-gated checks as fixture-sourced', () => {
+    // These are the checks moved off "did the model happen to roll?" onto
+    // fixture-authored applicability — the fix `decisions.md` records.
+    expect(evalChecks['system-rolled-player-action'].applicabilitySource).toBe(
+      'fixture',
+    );
+    expect(evalChecks['out-of-order-resolution'].applicabilitySource).toBe(
+      'fixture',
+    );
+  });
+
+  it('marks checks that never report not_applicable as gating on nothing', () => {
+    // A judged check reaches pass or fail on every rep, so labelling it
+    // 'artifact' would imply a selection hazard it does not have.
+    for (const tag of judgedFailureModeTags) {
+      expect(evalChecks[tag.toLowerCase()].applicabilitySource).toBe('none');
+    }
+  });
+
   it('has unique, lower-kebab ids that match their tag', () => {
     const ids = new Set<string>();
     for (const check of Object.values(evalChecks)) {

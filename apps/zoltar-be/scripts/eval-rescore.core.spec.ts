@@ -236,6 +236,18 @@ describe('runRescore', () => {
     expect(row.promptHash).toBe('ab12cd34');
   });
 
+  it('records where the check gets its applicability, and whether a judge ran', async () => {
+    buildRunDir();
+
+    const summary = await runRescore({ runDir, fixturesDir }, deps());
+    const row = summary.rows[0];
+
+    // `unauditable-mapping` gates on the turn's own output, which is the
+    // label that marks a denominator as outcome-selected.
+    expect(row.applicabilitySource).toBe('artifact');
+    expect(row.judgeInvoked).toBe(false);
+  });
+
   it('carries an un-regradable row forward instead of dropping it', async () => {
     // No `warden-output.json` — the original turn errored before writing
     // one, so there is nothing to re-grade and never will be. Dropping the

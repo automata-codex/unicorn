@@ -19,6 +19,7 @@ import { AnthropicService } from '../src/anthropic/anthropic.service';
 
 import { getHarnessVersion } from './harness-version';
 
+import type { EvalCheck } from '../eval/checks/registry';
 import type { EvalFixture } from '../eval/fixture.schema';
 import type { Manifest } from '../eval/runs/manifest';
 import type { ExclusionsSummary, RateEntry } from '../eval/runs/rates';
@@ -334,7 +335,7 @@ export async function runRescore(
 interface BuildRescoreRowInput {
   manifest: Manifest;
   fixture: EvalFixture;
-  check: { id: string; tag: string; mode: 'structural' | 'judged' };
+  check: EvalCheck;
   observation: Awaited<ReturnType<typeof runCheck>>;
   repIndex: number;
   sourceRow: ScoreRow | undefined;
@@ -366,6 +367,8 @@ function buildRescoreRow(input: BuildRescoreRowInput): RescoreRow {
     checkId: input.check.id,
     tag: input.check.tag,
     checkMode: input.check.mode,
+    applicabilitySource: input.check.applicabilitySource,
+    judgeInvoked: observation.judgeInvoked,
     verdict: observation.verdict,
     rubricHash: observation.rubricHash,
     notApplicableReason: observation.notApplicableReason,

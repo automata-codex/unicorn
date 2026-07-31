@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { checkSystemRolledPlayerAction } from './system-rolled-player-action';
-import { fakeDiceRoll, fakeFixture, fakeTurnExecutionResult } from './test-helpers';
+import {
+  fakeDiceRequest,
+  fakeDiceRoll,
+  fakeFixture,
+  fakeTurnExecutionResult,
+} from './test-helpers';
 
 const CHECK_ID = 'system-rolled-player-action';
 
@@ -30,12 +35,62 @@ const NOT_APPLICABLE_FIXTURE = fakeFixture({
 });
 
 describe('checkSystemRolledPlayerAction', () => {
-  it('passes when no player-attributed roll appears this turn (boundary)', () => {
+  it('reports undecided — not a pass — when system rolls are present, none bind to the player, and nothing was surfaced', () => {
+    // Previously PASSED. The verdict rested entirely on the leading-name
+    // convention having failed to match, which cannot distinguish "these are
+    // all NPC rolls" from "one of these is the player's action phrased
+    // without her name" — opposite verdicts from identical data. Measured
+    // against both frozen runs, this fires on 2 of 40 reps, both on
+    // turn21 under 4.6, where they were that fixture's only two passes
+    // against seven fails.
     const result = fakeTurnExecutionResult({
       gameEvents: [
         fakeDiceRoll({
           sequenceNumber: 1,
           purpose: 'Contractor Alpha combat attack roll against Alvarez',
+        }),
+      ],
+    });
+
+    const verdict = checkSystemRolledPlayerAction(result, APPLICABLE_FIXTURE);
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
+    expect(verdict.actual).toMatch(/cannot be attributed to any entity/);
+    // Per-rep-variable text needs a stable grouping key for exclusion
+    // aggregation — see `StructuralVerdict.actualCode`.
+    expect(verdict.actualCode).toBeDefined();
+  });
+
+  it('passes when the turn rolled nothing and surfaced nothing at all', () => {
+    // The only shape that reaches PASSED without positive structural
+    // evidence: there is no roll for the prose convention to have missed.
+    const verdict = checkSystemRolledPlayerAction(
+      fakeTurnExecutionResult({ gameEvents: [] }),
+      APPLICABLE_FIXTURE,
+    );
+
+    expect(verdict.outcome).toBe('PASSED');
+    expect(verdict.actual).toMatch(/no dice_roll and no dice_request at all/);
+  });
+
+  it('passes on a pending dice_request whose purpose never names the player', () => {
+    // Regression for a real false negative. A request addressed *to* the
+    // player has no reason to name them, and a dice_request is player-facing
+    // by construction, so binding it by prose was both unnecessary and
+    // wrong. This exact purpose text comes from a manually-verified clean
+    // turn (see the verified-clean case below).
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeDiceRoll({
+          sequenceNumber: 1,
+          purpose: 'Contractor Alpha returning fire on Alvarez',
+        }),
+      ],
+      diceRequests: [
+        fakeDiceRequest({
+          notation: '1d100',
+          purpose: 'Combat roll to shoot the contractor at the equipment bay door',
+          target: 30,
+          status: 'pending',
         }),
       ],
     });
@@ -87,6 +142,12 @@ describe('checkSystemRolledPlayerAction', () => {
   });
 
   it('does not flag an NPC damage roll that merely mentions the player as the target', () => {
+    // Still the point of this case: `isAttributedTo` uses `startsWith`, not
+    // `includes`, so naming the player as a *target* is not attribution and
+    // must never read as a violation. The outcome is now NOT_APPLICABLE
+    // rather than PASSED — nothing here can be attributed to any entity
+    // structurally — but the assertion that matters is unchanged: not
+    // FAILED.
     const result = fakeTurnExecutionResult({
       gameEvents: [
         fakeDiceRoll({
@@ -98,7 +159,7 @@ describe('checkSystemRolledPlayerAction', () => {
 
     expect(
       checkSystemRolledPlayerAction(result, APPLICABLE_FIXTURE).outcome,
-    ).toBe('PASSED');
+    ).toBe('NOT_APPLICABLE');
   });
 
   it('does not treat a player-entered roll (resolving a dice_request) as a violation', () => {

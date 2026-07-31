@@ -7,6 +7,8 @@ import {
 import { judgeRubrics } from './judged/rubrics';
 
 import type { EvalFixture, FailureModeTag } from '../fixture.schema';
+import type { TurnExecutionResult } from '../turn-result';
+import type { StructuralVerdict } from './structural/types';
 
 export interface EvalCheck {
   /**
@@ -20,6 +22,26 @@ export interface EvalCheck {
   id: string;
   tag: FailureModeTag;
   mode: 'structural' | 'judged';
+  /**
+   * Where this check's `not_applicable` verdicts come from — declared, not
+   * inferred, and required so a new check can't quietly omit the answer.
+   *
+   * - `'fixture'`: from the fixture-authored `applicability[checkId]` entry.
+   *   The scenario decides, so the denominator is fixed before the model
+   *   runs.
+   * - `'artifact'`: from the turn's own output. **This is the hazard label.**
+   *   Gating on what the model produced selects on the outcome variable, so
+   *   the denominator moves with the behaviour being measured — the exact
+   *   bug that made 38 of 40 reps read `not_applicable` across two checks
+   *   (see `decisions.md`). Sometimes unavoidable (a check about the shape
+   *   of a roll has nothing to gate on until a roll exists), but a rate
+   *   built on one should be read alongside its exclusion counts, never
+   *   alone.
+   * - `'none'`: the check reaches pass or fail on every rep and never
+   *   reports `not_applicable`, so there is no gate and no selection to
+   *   worry about.
+   */
+  applicabilitySource: 'fixture' | 'artifact' | 'none';
   /**
    * Minimum `fixtureSchemaVersion` this check needs. Nothing declares this
    * today — every check works against v1 fixtures — but the field exists so
@@ -38,6 +60,26 @@ export interface EvalCheck {
   requiredFixtureFields?: string[];
   /** Judged checks only: SHA-256 (8 hex chars) of the rubric template text. */
   rubricHash?: () => string;
+  /**
+   * Judged checks only: a structural pre-filter run *before* the judge call.
+   * Returns a verdict to settle the rep without asking the model, or `null`
+   * to mean "the remaining question is genuinely semantic — go ask."
+   *
+   * This is how a check spans both modes (`decisions.md`: "A single check
+   * may span both"): the structural half answers what structure can answer —
+   * deterministically, free, no judge variance — and only the residual
+   * reaches the rubric. `mode` stays `'judged'` because that's what
+   * `runCheck` dispatches on and what the row records; the gate is an
+   * implementation detail of the judged path, not a third mode.
+   *
+   * A gated verdict sets `judgeInvoked: false` and carries no `rubricHash`,
+   * which is what keeps `eval:judge-variance` honest — see
+   * `CheckObservation.judgeInvoked`.
+   */
+  judgeGate?: (
+    result: TurnExecutionResult,
+    fixture: EvalFixture,
+  ) => StructuralVerdict | null;
 }
 
 function toCheckId(tag: FailureModeTag): string {
@@ -55,6 +97,42 @@ const REQUIRES_FIXTURE_SCHEMA: Partial<Record<string, number>> = {
   'out-of-order-resolution': 2,
 };
 
+/**
+ * One entry per check id, hand-declared rather than derived — there is no
+ * property of a tag that implies where its applicability comes from, and a
+ * default would be a guess at exactly the thing this field exists to state.
+ * A check id missing from this map is a hard error at registry build time,
+ * so adding a check forces the question to be answered.
+ *
+ * The two `'fixture'` entries are the checks re-gated onto fixture-authored
+ * `applicability`; the `'artifact'` entries gate on the turn's own output
+ * and carry the selection hazard named on `EvalCheck.applicabilitySource`;
+ * the judged four reach a verdict on every rep and gate on nothing.
+ */
+const APPLICABILITY_SOURCE: Record<string, EvalCheck['applicabilitySource']> = {
+  'system-rolled-player-action': 'fixture',
+  'out-of-order-resolution': 'fixture',
+  'unauditable-mapping': 'artifact',
+  'narrating-past-a-block': 'artifact',
+  'missing-canon-capture': 'artifact',
+  'hidden-info-leak': 'none',
+  'over-resolution': 'none',
+  'unsurfaced-check': 'none',
+  'scene-jump': 'none',
+};
+
+function applicabilitySourceFor(id: string): EvalCheck['applicabilitySource'] {
+  const source = APPLICABILITY_SOURCE[id];
+  if (!source) {
+    throw new Error(
+      `check "${id}" has no applicabilitySource declared in registry.ts — ` +
+        "state where its not_applicable verdicts come from ('fixture', " +
+        "'artifact', or 'none') rather than leaving it to be inferred",
+    );
+  }
+  return source;
+}
+
 function buildChecks(): Record<string, EvalCheck> {
   const checks: Record<string, EvalCheck> = {};
 
@@ -64,12 +142,19 @@ function buildChecks(): Record<string, EvalCheck> {
       id,
       tag,
       mode: 'structural',
+      applicabilitySource: applicabilitySourceFor(id),
       requiresFixtureSchema: REQUIRES_FIXTURE_SCHEMA[id],
     };
   }
   for (const tag of judgedFailureModeTags) {
     const id = toCheckId(tag);
-    checks[id] = { id, tag, mode: 'judged', rubricHash: () => rubricHashFor(id) };
+    checks[id] = {
+      id,
+      tag,
+      mode: 'judged',
+      applicabilitySource: applicabilitySourceFor(id),
+      rubricHash: () => rubricHashFor(id),
+    };
   }
 
   return checks;

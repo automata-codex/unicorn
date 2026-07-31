@@ -73,11 +73,11 @@ describe('runCheck — structural verdict mapping', () => {
   });
 
   it('maps PASSED to pass', async () => {
-    const result = fakeTurnExecutionResult({
-      gameEvents: [
-        fakeDiceRoll({ sequenceNumber: 1, purpose: 'guard damage if hits' }),
-      ],
-    });
+    // A turn with nothing rolled and nothing pending — the one shape that
+    // reaches PASSED on purely structural grounds. An NPC-flavoured roll
+    // with no dice_request alongside it now reports undecided instead (see
+    // `attribution.ts`), so it no longer serves as a PASSED example.
+    const result = fakeTurnExecutionResult({ gameEvents: [] });
 
     const observation = await runCheck(
       check,
@@ -115,6 +115,7 @@ describe('runCheck — fixture-schema gate', () => {
       id: 'system-rolled-player-action',
       tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
       mode: 'structural',
+      applicabilitySource: 'fixture',
       requiresFixtureSchema: 2,
     };
     const fixture = fakeFixture({
@@ -223,5 +224,80 @@ describe('runCheck — judged checks', () => {
 
     expect(observation.verdict).toBe('error');
     expect(observation.errorMessage).toMatch(/did not call judge_verdict/);
+  });
+});
+
+describe('runCheck — judgeGate (structural pre-filter on a judged check)', () => {
+  const judgedCheck = evalChecks['scene-jump'];
+  const fixture = fakeFixture({
+    tag: 'SCENE-JUMP',
+    assertion: {
+      mode: 'judged',
+      rubric: 'SCENE-JUMP',
+      facts: { expectedScope: 'the airlock, this moment' },
+    },
+  });
+  const result = fakeTurnExecutionResult();
+
+  it('settles the rep without a judge call when the gate returns a verdict', async () => {
+    const anthropic = fakeAnthropic(vi.fn());
+    const gated: EvalCheck = {
+      ...judgedCheck,
+      judgeGate: () => ({
+        outcome: 'NOT_APPLICABLE',
+        actual: 'no narration to grade this turn',
+        actualCode: 'no narration',
+      }),
+    };
+
+    const observation = await runCheck(gated, fixture, result, anthropic);
+
+    expect(observation.verdict).toBe('not_applicable');
+    expect(observation.judgeInvoked).toBe(false);
+    // No rubric graded this rep, so stamping one on it would imply
+    // otherwise — and `eval:judge-variance` reads exactly this to decide
+    // what belongs in a flip-rate denominator.
+    expect(observation.rubricHash).toBeUndefined();
+    expect(observation.notApplicableReasonCode).toBe('no narration');
+    expect(anthropic.callMessages).not.toHaveBeenCalled();
+  });
+
+  it('falls through to the judge when the gate returns null', async () => {
+    const anthropic = fakeAnthropic(
+      vi.fn().mockResolvedValue(
+        toolUseMessage('judge_verdict', {
+          passed: true,
+          rationale: 'stayed in scope',
+        }),
+      ),
+    );
+    const gated: EvalCheck = { ...judgedCheck, judgeGate: () => null };
+
+    const observation = await runCheck(gated, fixture, result, anthropic);
+
+    expect(observation.verdict).toBe('pass');
+    expect(observation.judgeInvoked).toBe(true);
+    expect(observation.rubricHash).toBeDefined();
+    expect(anthropic.callMessages).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports judgeInvoked false for a plain structural check', async () => {
+    const observation = await runCheck(
+      evalChecks['system-rolled-player-action'],
+      fakeFixture({
+        tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
+        applicability: {
+          'system-rolled-player-action': {
+            applies: true,
+            playerEntity: 'Alvarez',
+            situation: 'Alvarez declares an attack.',
+          },
+        },
+      }),
+      fakeTurnExecutionResult(),
+      NO_ANTHROPIC_CALLS_EXPECTED,
+    );
+
+    expect(observation.judgeInvoked).toBe(false);
   });
 });

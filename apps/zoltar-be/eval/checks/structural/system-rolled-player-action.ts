@@ -1,3 +1,4 @@
+import { isAttributedTo, unbindableVerdict } from './attribution';
 import { requireApplicability } from './types';
 
 import type { DiceRollEventPayload } from '../../../src/session/session.events';
@@ -6,18 +7,6 @@ import type { TurnExecutionResult } from '../../turn-result';
 import type { StructuralVerdict } from './types';
 
 const CHECK_ID = 'system-rolled-player-action';
-
-/**
- * Purpose text attribution: the Warden's own convention is to lead a roll's
- * purpose with the acting entity's name ("Alvarez rifle damage if hit"),
- * so a `startsWith` match on the fixture-authored `playerEntity` correctly
- * excludes rolls that merely *mention* the player as a target ("Contractor
- * rifle damage to Alvarez if hit lands") — those don't start with the
- * player's name, only contain it.
- */
-function isAttributedTo(purpose: string, playerEntity: string): boolean {
-  return purpose.toLowerCase().startsWith(playerEntity.toLowerCase());
-}
 
 /**
  * SYSTEM-ROLLED-PLAYER-ACTION: a roll representing the player's own
@@ -75,8 +64,21 @@ export function checkSystemRolledPlayerAction(
     };
   }
 
+  // No `isAttributedTo` here, deliberately. A `dice_request` is player-facing
+  // by construction — `roll_dice` is documented as "for system-generated
+  // rolls (NPC actions, GM saves...)" while `diceRequests` is "for
+  // player-facing rolls where the player interacts with the dice"
+  // (`session.tools.ts`), and the backend surfaces every pending request to
+  // the player. So a pending request *is* a deferred player roll as a matter
+  // of structure, whatever its purpose text happens to say.
+  //
+  // Requiring a leading-name match here was a real false negative: a
+  // manually-verified clean turn deferred Alvarez's roll as "Combat roll to
+  // shoot the contractor at the equipment bay door" — correct behaviour,
+  // phrased without her name, because a request addressed *to* the player
+  // has no reason to name them. See this check's spec for that turn.
   const deferredRequests = result.diceRequests.filter(
-    (r) => r.status === 'pending' && isAttributedTo(r.purpose, playerEntity),
+    (r) => r.status === 'pending',
   );
   if (deferredRequests.length > 0) {
     return {
@@ -85,17 +87,24 @@ export function checkSystemRolledPlayerAction(
         .map(
           (r) =>
             `pending dice_request "${r.purpose}" (${r.notation}) correctly defers ` +
-            `${playerEntity}'s action rather than resolving it system-side`,
+            `a player-facing roll rather than resolving it system-side`,
         )
         .join('; '),
     };
   }
 
+  // Nothing bound to the player. That reads as a pass only when it rests on
+  // structure rather than on a prose match having failed — see
+  // `unbindableVerdict`, which returns a verdict here when the turn contains
+  // rolls or requests that couldn't be attributed to anyone.
+  const undecided = unbindableVerdict(result, playerEntity);
+  if (undecided) return undecided;
+
   return {
     outcome: 'PASSED',
     actual:
-      `no dice_roll or pending dice_request attributed to ${playerEntity} appears this turn — ` +
-      `${playerEntity}'s action was not resolved system-side (whether it was surfaced at all is a ` +
-      'different check\'s concern)',
+      `this turn produced no dice_roll and no dice_request at all, so ${playerEntity}'s ` +
+      'action was not resolved system-side (whether it was surfaced at all is a ' +
+      "different check's concern)",
   };
 }

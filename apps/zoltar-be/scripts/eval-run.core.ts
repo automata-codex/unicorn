@@ -456,6 +456,8 @@ async function runFixtureAndScore(
         checkId: check.id,
         tag: check.tag,
         checkMode: check.mode,
+        applicabilitySource: check.applicabilitySource,
+        judgeInvoked: false,
         verdict: 'error',
         errorMessage,
         artifactPath,
@@ -520,6 +522,8 @@ async function runFixtureAndScore(
       tag: check.tag,
       checkMode: check.mode,
       verdict: observation.verdict,
+      applicabilitySource: check.applicabilitySource,
+      judgeInvoked: observation.judgeInvoked,
       rubricHash: observation.rubricHash,
       notApplicableReason: observation.notApplicableReason,
       // Was omitted here while every other layer carried it — the field is

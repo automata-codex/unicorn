@@ -1,3 +1,4 @@
+import { isAttributedTo } from './attribution';
 import { requireApplicability } from './types';
 
 import type { DiceRollEventPayload } from '../../../src/session/session.events';
@@ -31,12 +32,6 @@ const CHECK_ID = 'out-of-order-resolution';
  */
 const CONDITIONAL_DAMAGE_PATTERN =
   /\b(damage|dmg)\b[^.]{0,40}\bif\b[^.]{0,30}\b(hits?|succeeds?|lands?|connects?)\b/i;
-
-/** Same leading-name convention `system-rolled-player-action.ts` relies on
- * — see that file's `isAttributedTo` for why `startsWith`, not `includes`. */
-function isAttributedTo(purpose: string, playerEntity: string): boolean {
-  return purpose.toLowerCase().startsWith(playerEntity.toLowerCase());
-}
 
 /**
  * OUT-OF-ORDER-RESOLUTION: a damage roll must not fire before the to-hit

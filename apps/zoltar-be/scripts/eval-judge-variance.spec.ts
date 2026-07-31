@@ -19,6 +19,7 @@ import { repDir, scoresPath } from '../eval/runs/paths';
 import { ScoreWriter } from '../eval/runs/scores';
 import { AnthropicService } from '../src/anthropic/anthropic.service';
 
+import { evalChecks } from '../eval/checks/registry';
 import { runJudgeVariance } from './eval-judge-variance.core';
 
 import type Anthropic from '@anthropic-ai/sdk';
@@ -211,6 +212,48 @@ describe('runJudgeVariance', () => {
     expect(fc.flipRate).toBe(1);
     expect(fc.verdictCounts).toEqual({ pass: 2, fail: 2 });
     expect(summary.headlines[0]).toMatch(/flipped on 1 of 1 frozen inputs/);
+  });
+
+  it('excludes gate-settled inputs from the flip-rate denominator, and names them', async () => {
+    // A `judgeGate` that settles a rep structurally produces a verdict that
+    // is deterministic over fixed input by construction. Counting it as a
+    // frozen input that "didn't flip" would pull the measured flip rate
+    // toward zero — flattering the very rubric this command exists to be
+    // suspicious of. No check ships a gate yet (the first arrives with
+    // `unauditable-mapping`), so one is installed here.
+    const check = evalChecks['hidden-info-leak'];
+    const originalGate = check.judgeGate;
+    check.judgeGate = () => ({
+      outcome: 'NOT_APPLICABLE',
+      actual: 'the structural pre-filter settled this rep',
+    });
+
+    try {
+      const callMessages = vi.fn();
+      const summary = await runJudgeVariance(
+        { runDir, fixturesDir, reps: 4 },
+        {
+          anthropicService: fakeAnthropic(callMessages),
+          clock: () => new Date('2026-07-26T15:00:00.000Z'),
+        },
+      );
+
+      expect(callMessages).not.toHaveBeenCalled();
+
+      const [fc] = summary.byFixtureCheck;
+      // Nothing reached the rubric, so there is no evidence about it at all
+      // — a 0.00 flip rate here would be a claim, not a measurement.
+      expect(fc.totalInputs).toBe(0);
+      expect(fc.gatedInputs).toBe(1);
+      expect(fc.flipRate).toBeNull();
+      // Verdict counts stay inclusive — they describe what the check did.
+      expect(fc.verdictCounts).toEqual({ not_applicable: 4 });
+      expect(summary.headlines[0]).toMatch(
+        /1 further input\(s\) settled by the structural gate, never reaching the rubric/,
+      );
+    } finally {
+      check.judgeGate = originalGate;
+    }
   });
 
   it('skips structural checks and reports them as skipped', async () => {

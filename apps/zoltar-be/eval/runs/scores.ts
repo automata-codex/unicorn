@@ -55,6 +55,18 @@ const baseScoreRowSchema = z.object({
   checkMode: checkModeSchema,
   verdict: verdictSchema,
 
+  /**
+   * Where this row's check gets its `not_applicable` verdicts, copied from
+   * the registry at scoring time — see `EvalCheck.applicabilitySource`. On
+   * the row rather than looked up from the check id at read time because it
+   * can change when a checker is migrated, and a row must keep describing
+   * the rules it was actually scored under. Optional for rows written
+   * before the field existed.
+   */
+  applicabilitySource: z.enum(['fixture', 'artifact', 'none']).optional(),
+  /** Whether a judge call produced this verdict — see
+   * `CheckObservation.judgeInvoked`. Absent on older rows. */
+  judgeInvoked: z.boolean().optional(),
   rubricHash: z.string().optional(),
   notApplicableReason: z.string().optional(),
   /** Stable grouping key for `notApplicableReason` — see
