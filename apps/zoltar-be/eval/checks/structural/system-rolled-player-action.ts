@@ -27,6 +27,34 @@ const CHECK_ID = 'system-rolled-player-action';
  * guessing the player entity from `campaignState.resourcePools` naming
  * conventions is exactly the kind of inference this check no longer needs
  * once the fixture states it directly.
+ *
+ * ---
+ *
+ * **Audit: what this check reads.** It was flagged for re-verification on
+ * the grounds that it hadn't been examined since the re-gating, and that the
+ * one check previously described as structure-only turned out not to be.
+ * The result, field by field:
+ *
+ * - `fixture.applicability[...]` — fixture-authored, not model output.
+ * - `rollSource` — a column the backend writes.
+ * - `dice_request.status` — a column the backend writes. Binding a request
+ *   to the player needs no prose at all; a request is player-facing by
+ *   construction. This was the audit's first real finding: the check had
+ *   been requiring a leading-name match here too, and rejecting correct
+ *   turns whose request simply didn't name the player.
+ * - `payload.purpose` via `isAttributedTo` — **prose**, and the one
+ *   remaining prose dependency in the structural checks. It is not
+ *   removable: nothing in `game_events` records who acted, and `actorType`
+ *   is `'gm'` for every Warden-side roll whether it represents an NPC or the
+ *   player, which is precisely the distinction being drawn. See
+ *   `attribution.ts` for the full argument and the `actingEntityId` fix it
+ *   waits on.
+ *
+ * So the answer to "does it read only structure" is no, and the honest
+ * response was not to claim otherwise but to stop the prose dependency
+ * failing silently — `unbindableVerdict` turns "the name didn't match" into
+ * an undecided verdict rather than a pass. Measured on the frozen runs, that
+ * costs 2 of 40 reps and leaves the model that behaves correctly untouched.
  */
 export function checkSystemRolledPlayerAction(
   result: TurnExecutionResult,

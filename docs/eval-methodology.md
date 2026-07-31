@@ -92,6 +92,15 @@ Re-grading the two runs above against the fix:
   and its resolution across a turn boundary — see the "Out of scope" note on extending
   turn19/21 through the follow-up turn.
 
+> **Superseded 2026-07-31 by the structural check migrations
+> (`4c9f2e73efd7...` → `88fa84bd8329...`).** The numbers immediately above were
+> the correct reading under the checkers as they stood on 2026-07-29 and are kept
+> because they are what the two runs were originally scored against. Four of them
+> have since moved, and one turned out to be an artifact. See "Structural check
+> migrations" below for the current figures. They are now reproducible on demand
+> via `eval:rescore` rather than existing only as prose here — which is what this
+> whole block was doing before, and the reason the command exists.
+
 **Basis.** Binomial variance is worst at p=0.5, and several fixtures in this corpus sit
 near there. At N=10, the 95% CI half-width at p=0.5 is ~±31pp; tightening that to ±15pp
 would need N≈40+, which isn't affordable for routine comparisons (a two-sided comparison
@@ -105,12 +114,26 @@ precise estimate, until/unless the budget for a higher N is revisited.
 across all reps, confidently — n large enough that the result isn't just small-sample
 noise):
 
-- `turn01-unauditable-mapping` (0/6)
-- `turn03-unauditable-mapping` (0/9)
+- `turn01-unauditable-mapping` (0/6) — **stale**, checker migrated
+- `turn03-unauditable-mapping` (0/9) — **stale**, checker migrated
 - `turn03-unsurfaced-check` (0/10)
-- `turn16-narrating-past-a-block` (0/10)
-- `turn19-out-of-order-resolution` (0/9)
-- `turn21-out-of-order-resolution` (0/9)
+- `turn16-narrating-past-a-block` (0/10) — **was an artifact**, see below
+- `turn19-out-of-order-resolution` (0/9) — **stale**, now 5/10
+- `turn21-out-of-order-resolution` (0/9) — **stale**, now 2/8
+
+**Four of these six were measuring the harness, not the Warden**, and the list's own
+framing is what made that hard to see: "confidently zero, n large enough that the result
+isn't just small-sample noise" describes a *statistical* confidence that was entirely real
+and completely beside the point. A large n does not make a checker correct. Every one of
+the entries above was a rate produced by a rule that has since been found to misreport —
+`turn16` most starkly, where all 10 reps failed on a `dice_request` the *fixture* seeded
+with a null target, so the check was grading fixture capture rather than model behaviour.
+
+The practical lesson is narrower than "distrust the list": a fixture sitting at exactly
+0.0 or 1.0 across every rep is more likely to indicate a checker that cannot move than a
+model that never varies, and should be treated as a harness suspect before it is recorded
+as a finding. That is the same rule the model-swap section below gives for large rate
+jumps; it applies just as well to rates that never move at all.
 
 `turn14-unauditable-mapping` also read 0.0 but at n=2 (7 of its 10 reps were
 `not_applicable`) — too small a sample to call it settled; it's a low-applicability
@@ -134,6 +157,109 @@ session only.
 change, a meaningfully different corpus (fixture count or content), or a prompt rewrite
 substantial enough to shift where fixtures sit relative to 0.5 all warrant revisiting this
 number rather than assuming it still holds.
+
+---
+
+## Structural check migrations (2026-07-31)
+
+**Corpus version `4c9f2e73efd7...` → `88fa84bd8329...`. Scoring-only** — no `playerInput`
+and no `seededState` was touched, so every `warden-output.json` on disk stays exactly as
+valid as it was and re-scoring in place is a real measurement. Naming the kind is the
+convention this file established; this is the first bump to follow it.
+
+Five fixtures' `assertion` blocks moved from `structural` to `judged`
+(`turn{01,03,14}-unauditable-mapping`, `turn{16,21}-narrating-past-a-block`) as part of
+migrating those two checks. Two new rubrics: `unauditable-mapping` `c97c75ba`,
+`narrating-past-a-block` `febc02d6`.
+
+### Current figures
+
+Structural checks, re-scored off the frozen artifacts with no API spend:
+
+| Fixture / check | was | now |
+| --- | --- | --- |
+| `turn19-system-rolled-player-action` (4.6) | 3/10 | 3/10 |
+| `turn21-system-rolled-player-action` (4.6) | 2/9 | **0/7**, 2 undecided |
+| `turn19-system-rolled-player-action` (S5) | 10/10 | 10/10 |
+| `turn21-system-rolled-player-action` (S5) | 8/10 | 8/10 |
+| `turn19-out-of-order-resolution` (4.6) | 0/9 | **5/10** |
+| `turn21-out-of-order-resolution` (4.6) | 0/9 | **2/8** |
+| `turn{19,21}-out-of-order-resolution` (S5) | all `not_applicable` | **1.00, 20/20** |
+
+The judged checks' figures are not here yet: they need `eval:judge-variance` against the
+two new rubrics first, and a rate read before that is not worth recording. See below.
+
+### What moved, and why it matters more than the numbers
+
+**Three of these rates were measuring the harness.** `turn16-narrating-past-a-block` read
+0/10 under *both* models because the check failed every rep on a `dice_request` the fixture
+itself seeded with `target: null` — a value fixed at capture time, before the Warden under
+test ever ran. `turn19-out-of-order-resolution` read 0/9 largely because its regex matched
+*NPC* damage rolls ("Contractor rifle damage if hit") that were never gated by the player's
+pending request. Neither was a fact about model behaviour.
+
+**A model-stability gap closed.** `unauditable-mapping`'s classifier reached a verdict on
+15 of 20 reps under 4.6 and 4 of 20 under Sonnet 5 against an unchanged prompt — the clearest
+demonstration in this corpus that a regex over prose encodes the idiom of whichever model
+was current when it was written. The structural replacement reaches one on 20 of 20 and 16
+of 20, and all four remaining exclusions are turns that rolled nothing at all.
+
+**Two checks now report undecided where they used to guess.** `system-rolled-player-action`
+returns `not_applicable` when nothing binds to the player by the leading-name convention
+*and* unattributable system-side rolls are present (2 of 40 reps, both on 4.6 turn21, where
+they were that fixture's only two passes). `out-of-order-resolution` returns it when the
+turn left no pending gate, naming the missing `gatedByRollId`. Both cost denominator on
+purpose: a rep whose verdict rests on a prose match having failed is not evidence.
+
+**One check was reviewed and deliberately left structural.** `missing-canon-capture` reports
+`not_applicable` on all 20 reps, and that is correct — the narration genuinely never
+introduces the detail `turn02` asks about, verified by normalised and loose matching alike.
+Migrating it to a judge would have converted an honest zero denominator into a spurious
+1.00, because a binary judge verdict cannot express "nothing to grade." The defect is in the
+fixture, which asks about a detail neither model reproduces and therefore grades nothing;
+that is fixture work, not a checker change.
+
+### Before trusting any judged rate from this corpus
+
+`eval:judge-variance` against both new rubrics, per step 1 of the comparison procedure
+above. New rubric, grader stability unverified, and the two structural halves changed what
+reaches them:
+
+```
+task eval:judge-variance -- <run-dir> --reps 3 \
+  --fixtures turn16-narrating-past-a-block,turn21-narrating-past-a-block,\
+turn01-unauditable-mapping,turn03-unauditable-mapping,turn14-unauditable-mapping
+```
+
+Note that `unauditable-mapping` carries a structural pre-filter, so some frozen inputs never
+reach its rubric. Those are excluded from the flip-rate denominator and reported separately
+as `gatedInputs` — a rubric validated on two inputs because a gate absorbed the other
+eighteen has not been validated, and the flip rate alone will not say so.
+
+---
+
+## Re-scoring frozen runs
+
+`eval:rescore` re-grades a run's `warden-output.json` artifacts under the current checker
+registry — no Warden calls, no database, structural checks free. It is the right tool after
+a scoring-only bump or a checker change, and the wrong one after an input-affecting bump,
+where the artifacts were produced under conditions that no longer hold.
+
+Rows land at `<run-dir>/rescore/<timestamp>.jsonl`, never under `reps/` — same argument as
+`judge-variance`. Keyed by timestamp rather than `corpusVersion` because a checker change
+moves no fixture bytes, so successive re-scores would collide on that name.
+
+**Read the column tenses carefully.** On a re-score row, `model` / `promptHash` describe
+*generation* and are copied from the manifest; `corpusVersion` / `harnessVersion` describe
+*scoring* and are recomputed. Same column names, different moment. `source*` columns keep
+the originals.
+
+Rows with no artifact to re-grade (the turn errored before writing one) are carried forward
+rather than dropped, so a re-score file is a complete replacement for a run's rows — omitting
+them would make a re-scored report look cleaner than the run it describes.
+
+**`eval:compare` does not read re-score rows**, only `reps/*/scores.jsonl`. A comparison
+across re-scored numbers has to be read from the `eval:rescore` report directly for now.
 
 ---
 
