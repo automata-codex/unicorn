@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { evalChecks } from '../eval/checks/registry';
 import { fakeTurnExecutionResult } from '../eval/checks/structural/test-helpers';
 import { writeFixtureArtifacts } from '../eval/runs/artifacts';
 import { envOnlyConfigService } from '../eval/runs/env-config-service';
@@ -19,7 +20,6 @@ import { repDir, scoresPath } from '../eval/runs/paths';
 import { ScoreWriter } from '../eval/runs/scores';
 import { AnthropicService } from '../src/anthropic/anthropic.service';
 
-import { evalChecks } from '../eval/checks/registry';
 import { runJudgeVariance } from './eval-judge-variance.core';
 
 import type Anthropic from '@anthropic-ai/sdk';
@@ -83,7 +83,9 @@ function toolUseMessage(input: unknown): Anthropic.Message {
   } as unknown as Anthropic.Message;
 }
 
-function fakeAnthropic(callMessages: ReturnType<typeof vi.fn>): AnthropicService {
+function fakeAnthropic(
+  callMessages: ReturnType<typeof vi.fn>,
+): AnthropicService {
   return { callMessages } as unknown as AnthropicService;
 }
 
@@ -183,8 +185,11 @@ describe('runJudgeVariance', () => {
       .mockResolvedValue(toolUseMessage({ passed: true, rationale: 'fine' }));
 
     const summary = await runJudgeVariance(
-      { runDir, fixturesDir, reps: 4 },
-      { anthropicService: fakeAnthropic(callMessages), clock: () => new Date('2026-07-26T15:00:00.000Z') },
+      { runDir, fixturesDir, trials: 4 },
+      {
+        anthropicService: fakeAnthropic(callMessages),
+        clock: () => new Date('2026-07-26T15:00:00.000Z'),
+      },
     );
 
     expect(callMessages).toHaveBeenCalledTimes(4);
@@ -204,8 +209,11 @@ describe('runJudgeVariance', () => {
       .mockResolvedValueOnce(toolUseMessage({ passed: false, rationale: 'd' }));
 
     const summary = await runJudgeVariance(
-      { runDir, fixturesDir, reps: 4 },
-      { anthropicService: fakeAnthropic(callMessages), clock: () => new Date('2026-07-26T15:00:00.000Z') },
+      { runDir, fixturesDir, trials: 4 },
+      {
+        anthropicService: fakeAnthropic(callMessages),
+        clock: () => new Date('2026-07-26T15:00:00.000Z'),
+      },
     );
 
     const [fc] = summary.byFixtureCheck;
@@ -231,7 +239,7 @@ describe('runJudgeVariance', () => {
     try {
       const callMessages = vi.fn();
       const summary = await runJudgeVariance(
-        { runDir, fixturesDir, reps: 4 },
+        { runDir, fixturesDir, trials: 4 },
         {
           anthropicService: fakeAnthropic(callMessages),
           clock: () => new Date('2026-07-26T15:00:00.000Z'),
@@ -262,8 +270,11 @@ describe('runJudgeVariance', () => {
       .mockResolvedValue(toolUseMessage({ passed: true, rationale: 'fine' }));
 
     const summary = await runJudgeVariance(
-      { runDir, fixturesDir, reps: 2 },
-      { anthropicService: fakeAnthropic(callMessages), clock: () => new Date('2026-07-26T15:00:00.000Z') },
+      { runDir, fixturesDir, trials: 2 },
+      {
+        anthropicService: fakeAnthropic(callMessages),
+        clock: () => new Date('2026-07-26T15:00:00.000Z'),
+      },
     );
 
     const skipped = summary.skipped.find(
@@ -272,9 +283,9 @@ describe('runJudgeVariance', () => {
     expect(skipped).toBeDefined();
     expect(skipped!.reason).toMatch(/deterministic over fixed input/);
     // No rows generated for the structural fixture.
-    expect(summary.rows.some((r) => r.fixtureId === STRUCTURAL_FIXTURE_ID)).toBe(
-      false,
-    );
+    expect(
+      summary.rows.some((r) => r.fixtureId === STRUCTURAL_FIXTURE_ID),
+    ).toBe(false);
   });
 
   it('writes output under judge-variance/, never reps/, and leaves scores.jsonl byte-unchanged', async () => {
@@ -287,8 +298,11 @@ describe('runJudgeVariance', () => {
       .mockResolvedValue(toolUseMessage({ passed: true, rationale: 'fine' }));
 
     const summary = await runJudgeVariance(
-      { runDir, fixturesDir, reps: 2 },
-      { anthropicService: fakeAnthropic(callMessages), clock: () => new Date('2026-07-26T15:00:00.000Z') },
+      { runDir, fixturesDir, trials: 2 },
+      {
+        anthropicService: fakeAnthropic(callMessages),
+        clock: () => new Date('2026-07-26T15:00:00.000Z'),
+      },
     );
 
     expect(summary.outputPath.startsWith(join(runDir, 'judge-variance'))).toBe(
@@ -313,18 +327,23 @@ describe('runJudgeVariance', () => {
       {
         runDir,
         fixturesDir,
-        reps: 2,
+        trials: 2,
         onProgress: (event) => {
           if (event.type === 'input-start') {
             events.push(`input-start:${event.fixtureId}`);
           } else if (event.type === 'trial-done') {
-            events.push(`trial-done:${event.fixtureId}:${event.trialIndex}/${event.totalTrials}:${event.verdict}`);
+            events.push(
+              `trial-done:${event.fixtureId}:${event.trialIndex}/${event.totalTrials}:${event.verdict}`,
+            );
           } else {
             events.push(`skipped:${event.fixtureId}`);
           }
         },
       },
-      { anthropicService: fakeAnthropic(callMessages), clock: () => new Date('2026-07-26T15:00:00.000Z') },
+      {
+        anthropicService: fakeAnthropic(callMessages),
+        clock: () => new Date('2026-07-26T15:00:00.000Z'),
+      },
     );
 
     expect(events).toContain(`skipped:${STRUCTURAL_FIXTURE_ID}`);
@@ -366,27 +385,23 @@ describe.skipIf(!RUN_LIVE)(
       rmSync(fixturesDir, { recursive: true, force: true });
     });
 
-    it(
-      'runs real judge calls against the HIDDEN-INFO-LEAK rubric and produces a coherent summary',
-      async () => {
-        const anthropicService = new AnthropicService(envOnlyConfigService());
+    it('runs real judge calls against the HIDDEN-INFO-LEAK rubric and produces a coherent summary', async () => {
+      const anthropicService = new AnthropicService(envOnlyConfigService());
 
-        const summary = await runJudgeVariance(
-          { runDir, fixturesDir, reps: 2 },
-          { anthropicService, clock: () => new Date() },
-        );
+      const summary = await runJudgeVariance(
+        { runDir, fixturesDir, trials: 2 },
+        { anthropicService, clock: () => new Date() },
+      );
 
-        expect(summary.rows).toHaveLength(2);
-        expect(summary.rows.every((r) => r.checkId === 'hidden-info-leak')).toBe(
-          true,
-        );
-        expect(summary.byFixtureCheck).toHaveLength(1);
-        expect(summary.byFixtureCheck[0].flipRate).not.toBeNull();
-        expect(summary.headlines[0]).toMatch(
-          /^rubric hidden-info-leak \(\w+\) flipped on \d+ of 1 frozen inputs$/,
-        );
-      },
-      60_000,
-    );
+      expect(summary.rows).toHaveLength(2);
+      expect(summary.rows.every((r) => r.checkId === 'hidden-info-leak')).toBe(
+        true,
+      );
+      expect(summary.byFixtureCheck).toHaveLength(1);
+      expect(summary.byFixtureCheck[0].flipRate).not.toBeNull();
+      expect(summary.headlines[0]).toMatch(
+        /^rubric hidden-info-leak \(\w+\) flipped on \d+ of 1 frozen inputs$/,
+      );
+    }, 60_000);
   },
 );

@@ -7,15 +7,24 @@
  * nothing downstream is meaningful until it's fixed.
  *
  * *** Makes real, token-costing Anthropic calls — judged fixtures ×
- * vouched reps × --reps judge calls. Structural fixtures are skipped
+ * vouched reps × --trials judge calls. Structural fixtures are skipped
  * (deterministic over fixed input; re-running one measures nothing). ***
+ *
+ * Note which axis `--trials` controls. Every vouched `(rep, fixture)` pair in
+ * the run is one *frozen input*, and that count comes from the run — nothing
+ * here subsamples it. `--trials` is how many times each of those inputs is
+ * re-graded, which is what makes a flip observable at all. So a 10-rep run
+ * over 5 fixtures at `--trials 3` is 50 inputs × 3 = 150 judge calls, and
+ * the progress output walks rep 1..10 per fixture regardless of the value.
+ * The flag was called `--reps` until it was mistaken for `eval:run --reps`,
+ * which controls the opposite axis.
  *
  * Usage:
  *   npx tsx --env-file=.env scripts/eval-judge-variance.ts <run-dir> \
- *     [--reps 3] [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--output <path>]
+ *     [--trials 3] [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--output <path>]
  *
  * Or via the task wrapper:
- *   task eval:judge-variance -- <run-dir> [--reps 3] [--fixtures <id1,id2>] [--output <path>]
+ *   task eval:judge-variance -- <run-dir> [--trials 3] [--fixtures <id1,id2>] [--output <path>]
  *
  * <run-dir> is a bare run directory name (resolved against
  * `$ZOLTAR_EVAL_ROOT/eval-runs/`) or an absolute path.
@@ -36,7 +45,10 @@ import { parseArgs } from 'node:util';
 
 import { resolveEvalRoot, resolveRunDirArg } from '../eval/runs/paths';
 
-import { defaultRunJudgeVarianceDeps, runJudgeVariance } from './eval-judge-variance.core';
+import {
+  defaultRunJudgeVarianceDeps,
+  runJudgeVariance,
+} from './eval-judge-variance.core';
 
 import type {
   RunJudgeVarianceProgressEvent,
@@ -44,7 +56,7 @@ import type {
 } from './eval-judge-variance.core';
 
 const DEFAULT_FIXTURES_DIR = join(__dirname, '../eval/fixtures');
-const DEFAULT_REPS = 3;
+const DEFAULT_TRIALS = 3;
 
 class UsageError extends Error {
   constructor(message: string) {
@@ -54,12 +66,14 @@ class UsageError extends Error {
 }
 
 const USAGE =
-  'Usage: eval-judge-variance <run-dir> [--reps <n>] [--fixtures <id1,id2>] ' +
+  'Usage: eval-judge-variance <run-dir> [--trials <n>] [--fixtures <id1,id2>] ' +
   '[--fixtures-dir <dir>] [--output <path>]';
 
 interface CliArgs {
   runDir: string;
-  reps: number;
+  /** Re-grades per frozen input — NOT a count of source reps, which the run
+   * fixes and nothing here subsamples. */
+  trials: number;
   fixtureIds?: string[];
   fixturesDir: string;
   output?: string;
@@ -70,6 +84,10 @@ function parseCliArgs(argv: string[]): CliArgs {
     args: argv,
     allowPositionals: true,
     options: {
+      trials: { type: 'string' },
+      // Recognised only to give the old name a pointed error instead of
+      // node's bare "Unknown option". Drop once nobody's shell history has
+      // it.
       reps: { type: 'string' },
       fixtures: { type: 'string' },
       'fixtures-dir': { type: 'string' },
@@ -83,12 +101,21 @@ function parseCliArgs(argv: string[]): CliArgs {
     );
   }
 
-  let reps = DEFAULT_REPS;
-  if (typeof values.reps === 'string') {
-    reps = Number(values.reps);
-    if (!Number.isInteger(reps) || reps <= 0) {
+  if (values.reps !== undefined) {
+    throw new UsageError(
+      '--reps was renamed to --trials, because it controls how many times ' +
+        'each frozen input is re-graded, not how many source reps are used ' +
+        '(the run fixes that, and nothing here subsamples it). Unlike ' +
+        'eval:run --reps, raising it does not run more of the corpus.',
+    );
+  }
+
+  let trials = DEFAULT_TRIALS;
+  if (typeof values.trials === 'string') {
+    trials = Number(values.trials);
+    if (!Number.isInteger(trials) || trials <= 0) {
       throw new UsageError(
-        `--reps must be a positive integer, got "${values.reps}"`,
+        `--trials must be a positive integer, got "${values.trials}"`,
       );
     }
   }
@@ -103,7 +130,7 @@ function parseCliArgs(argv: string[]): CliArgs {
 
   return {
     runDir: positionals[0],
-    reps,
+    trials,
     fixtureIds,
     fixturesDir:
       typeof values['fixtures-dir'] === 'string'
@@ -156,7 +183,7 @@ function renderSummary(summary: RunJudgeVarianceSummary): string {
 }
 
 /** Prints to stderr, one line per candidate/trial, so a long invocation —
- * each judge call can take several seconds, multiplied by `--reps` across
+ * each judge call can take several seconds, multiplied by `--trials` across
  * every frozen input — never looks stuck. Stdout stays just the summary. */
 function printProgress(event: RunJudgeVarianceProgressEvent): void {
   switch (event.type) {
@@ -200,7 +227,7 @@ async function main(): Promise<number> {
     {
       runDir,
       fixturesDir: cli.fixturesDir,
-      reps: cli.reps,
+      trials: cli.trials,
       fixtureIds: cli.fixtureIds,
       onProgress: printProgress,
     },

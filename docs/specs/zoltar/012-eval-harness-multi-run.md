@@ -247,7 +247,12 @@ to the numbers it governs; the tool does not evaluate it.
 - If a fixture is `not_applicable` on one side only, report it as such rather than
   computing a delta against a partial denominator.
 
-### `eval:judge-variance <run-dir> [--reps <n>]`
+### `eval:judge-variance <run-dir> [--trials <n>]`
+
+> Shipped as `--trials`, not `--reps` as specced. The flag sets how many times each frozen
+> input is re-graded; it does not select how many source reps are used, which the run fixes.
+> Under the specced name it was read as `eval:run --reps` — the opposite axis — so a
+> 10-rep run looked like it was ignoring the flag. See `docs/eval-methodology.md`.
 
 Re-runs judged checks N times against **frozen Warden outputs already on disk** — no
 Warden calls. Isolates grader variance from generator variance.

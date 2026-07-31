@@ -226,10 +226,16 @@ above. New rubric, grader stability unverified, and the two structural halves ch
 reaches them:
 
 ```
-task eval:judge-variance -- <run-dir> --reps 3 \
+task eval:judge-variance -- <run-dir> --trials 3 \
   --fixtures turn16-narrating-past-a-block,turn21-narrating-past-a-block,\
 turn01-unauditable-mapping,turn03-unauditable-mapping,turn14-unauditable-mapping
 ```
+
+`--trials` is re-grades **per frozen input**, not a count of source reps. Every vouched
+`(rep, fixture)` pair is one frozen input and the run fixes how many there are — nothing
+subsamples them. Five fixtures over a 10-rep run is 50 frozen inputs, so `--trials 3` is 150
+judge calls. This is the opposite axis from `eval:run --reps`, which is why the flag is not
+called `--reps`.
 
 Note that `unauditable-mapping` carries a structural pre-filter, so some frozen inputs never
 reach its rubric. Those are excluded from the flip-rate denominator and reported separately

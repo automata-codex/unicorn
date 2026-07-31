@@ -10,8 +10,8 @@ import { judgeVarianceDir, judgeVarianceOutputPath } from '../eval/runs/paths';
 import { readVouchedRows, verdictSchema } from '../eval/runs/scores';
 import { AnthropicService } from '../src/anthropic/anthropic.service';
 
-import type { AnthropicService as AnthropicServiceType } from '../src/anthropic/anthropic.service';
 import type { Verdict } from '../eval/runs/scores';
+import type { AnthropicService as AnthropicServiceType } from '../src/anthropic/anthropic.service';
 
 export const judgeVarianceRowSchema = z.object({
   fixtureId: z.string().min(1),
@@ -85,15 +85,19 @@ export interface RunJudgeVarianceArgs {
   /** Already resolved (absolute) run directory. */
   runDir: string;
   fixturesDir: string;
-  /** Trials per frozen input. */
-  reps: number;
+  /**
+   * Re-grades per frozen input. Every vouched `(repIndex, fixtureId)` pair
+   * is one frozen input and that count comes from the run — this does not
+   * subsample it. Total judge calls are `frozen inputs × trials`.
+   */
+  trials: number;
   /** Fixture ids to include. Omitted = every vouched fixture. */
   fixtureIds?: string[];
   onProgress?: (event: RunJudgeVarianceProgressEvent) => void;
 }
 
 /** Fired per candidate `(fixtureId, checkId, sourceRepIndex)` and per trial
- * — a judge call can take several seconds, and `--reps` multiplies that
+ * — a judge call can take several seconds, and `--trials` multiplies that
  * across every frozen input, so a long invocation needs visible progress to
  * not look stuck. Omitted by tests/callers that don't care. */
 export type RunJudgeVarianceProgressEvent =
@@ -211,7 +215,11 @@ export async function runJudgeVariance(
     checkId: string,
     reason: string,
   ): void => {
-    skippedByKey.set(`${fixtureId}::${checkId}`, { fixtureId, checkId, reason });
+    skippedByKey.set(`${fixtureId}::${checkId}`, {
+      fixtureId,
+      checkId,
+      reason,
+    });
     args.onProgress?.({
       type: 'skipped',
       fixtureId,
@@ -227,7 +235,12 @@ export async function runJudgeVariance(
 
     const check = evalChecks[checkId];
     if (!check) {
-      skip(candidateIndex, fixtureId, checkId, `"${checkId}" is not a registered check`);
+      skip(
+        candidateIndex,
+        fixtureId,
+        checkId,
+        `"${checkId}" is not a registered check`,
+      );
       continue;
     }
     if (check.mode !== 'judged') {
@@ -252,7 +265,11 @@ export async function runJudgeVariance(
 
     let turnResult;
     try {
-      turnResult = readTurnResultArtifact(args.runDir, sourceRepIndex, fixtureId);
+      turnResult = readTurnResultArtifact(
+        args.runDir,
+        sourceRepIndex,
+        fixtureId,
+      );
     } catch (err) {
       skip(
         candidateIndex,
@@ -274,7 +291,7 @@ export async function runJudgeVariance(
       totalCandidates: candidates.length,
     });
 
-    for (let trialIndex = 1; trialIndex <= args.reps; trialIndex++) {
+    for (let trialIndex = 1; trialIndex <= args.trials; trialIndex++) {
       const observation = await runCheck(
         check,
         fixture,
@@ -299,7 +316,7 @@ export async function runJudgeVariance(
         checkId,
         sourceRepIndex,
         trialIndex,
-        totalTrials: args.reps,
+        totalTrials: args.trials,
         verdict: observation.verdict,
         durationMs: observation.durationMs,
       });
@@ -310,7 +327,8 @@ export async function runJudgeVariance(
   const outputPath = judgeVarianceOutputPath(args.runDir, deps.clock());
   writeFileSync(
     outputPath,
-    rows.map((row) => JSON.stringify(row)).join('\n') + (rows.length > 0 ? '\n' : ''),
+    rows.map((row) => JSON.stringify(row)).join('\n') +
+      (rows.length > 0 ? '\n' : ''),
     'utf-8',
   );
 
@@ -321,7 +339,8 @@ export async function runJudgeVariance(
     rows,
     skipped: [...skippedByKey.values()].sort(
       (a, b) =>
-        a.fixtureId.localeCompare(b.fixtureId) || a.checkId.localeCompare(b.checkId),
+        a.fixtureId.localeCompare(b.fixtureId) ||
+        a.checkId.localeCompare(b.checkId),
     ),
     byFixtureCheck,
     byRubric,
@@ -443,7 +462,8 @@ function summarize(rows: JudgeVarianceRow[]): {
     }))
     .sort(
       (a, b) =>
-        a.fixtureId.localeCompare(b.fixtureId) || a.checkId.localeCompare(b.checkId),
+        a.fixtureId.localeCompare(b.fixtureId) ||
+        a.checkId.localeCompare(b.checkId),
     );
 
   const byRubric = [...byRubricMap.values()]
