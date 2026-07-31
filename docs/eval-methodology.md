@@ -117,7 +117,7 @@ noise):
 - `turn01-unauditable-mapping` (0/6) — **stale**, checker migrated
 - `turn03-unauditable-mapping` (0/9) — **stale**, checker migrated
 - `turn03-unsurfaced-check` (0/10)
-- `turn16-narrating-past-a-block` (0/10) — **was an artifact**, see below
+- `turn16-narrating-past-a-block` (0/10) — rule was invalid, **rate confirmed**, see below
 - `turn19-out-of-order-resolution` (0/9) — **stale**, now 5/10
 - `turn21-out-of-order-resolution` (0/9) — **stale**, now 2/8
 
@@ -186,15 +186,47 @@ Structural checks, re-scored off the frozen artifacts with no API spend:
 | `turn21-out-of-order-resolution` (4.6) | 0/9 | **2/8** |
 | `turn{19,21}-out-of-order-resolution` (S5) | all `not_applicable` | **1.00, 20/20** |
 
-The judged checks' figures are not here yet: they need `eval:judge-variance` against the
-two new rubrics first, and a rate read before that is not worth recording. See below.
+### Judged checks: grader stability confirmed 2026-07-31
+
+`eval:judge-variance --trials 3` against both new rubrics, both frozen runs: **0 flips on
+every frozen input** — 144 trials over 48 inputs on 4.6, 141 over 36 judged inputs on
+Sonnet 5, with no input disagreeing across its three trials. Zero flips over 48 inputs
+bounds the per-input flip rate at roughly ≤6% (95%); it is not a claim of determinism, and a
+fixture whose rate later looks implausible is worth more trials on that one input.
+
+The rubrics discriminate rather than answering the same way regardless of input, which a 0%
+flip rate alone would not establish: `turn21-narrating-past-a-block` passes on every rep of
+both models while `turn16-narrating-past-a-block` fails on every rep of both, under the same
+rubric.
+
+| Fixture (judged) | 4.6 | Sonnet 5 |
+| --- | --- | --- |
+| `turn01-unauditable-mapping` | 0/10 | 0/9 (1 gated) |
+| `turn03-unauditable-mapping` | 1/10 | 0/7 (3 gated) |
+| `turn14-unauditable-mapping` | 1/9 | n/a — all 7 gated |
+| `turn16-narrating-past-a-block` | 0/10 | 0/10 |
+| `turn21-narrating-past-a-block` | 9/9 | 10/10 |
+
+`unauditable-mapping` is the strongest signal in the corpus: 2 passes across 45 judged
+inputs spanning both models. The Warden essentially never states a result-to-meaning mapping
+before a spontaneous roll. Under the regex this read as 15 and 4 verdicts respectively, with
+the shortfall indistinguishable from the rule not recognising the phrasing; it is now 29 and
+16 verdicts with the remainder explicitly accounted for as turns that rolled nothing.
 
 ### What moved, and why it matters more than the numbers
 
 **Three of these rates were measuring the harness.** `turn16-narrating-past-a-block` read
 0/10 under *both* models because the check failed every rep on a `dice_request` the fixture
 itself seeded with `target: null` — a value fixed at capture time, before the Warden under
-test ever ran. `turn19-out-of-order-resolution` read 0/9 largely because its regex matched
+test ever ran.
+
+> **The rule was invalid; the number turned out to be right.** Judge-variance against the
+> migrated rubric fails `turn16` on 10 of 10 reps under *both* models, graded by a judge
+> that never sees the seeded request. So the old rate was correct by accident. This is worth
+> keeping straight: "the checker was measuring the wrong thing" and "the finding was wrong"
+> are separate claims, and only the first was established by finding the defect. The second
+> needed an independent measurement, which is what re-scoring under a different mechanism
+> provides. `turn19-out-of-order-resolution` read 0/9 largely because its regex matched
 *NPC* damage rolls ("Contractor rifle damage if hit") that were never gated by the player's
 pending request. Neither was a fact about model behaviour.
 

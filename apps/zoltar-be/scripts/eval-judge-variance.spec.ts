@@ -259,6 +259,11 @@ describe('runJudgeVariance', () => {
       expect(summary.headlines[0]).toMatch(
         /1 further input\(s\) settled by the structural gate, never reaching the rubric/,
       );
+      // A gated row asserts no rubric graded it. Back-filling the check's
+      // hash here would contradict `judgeInvoked: false` on the same row —
+      // found on 33 real rows before this was fixed.
+      expect(summary.rows.every((r) => r.rubricHash === '')).toBe(true);
+      expect(summary.rows.every((r) => r.judgeInvoked === false)).toBe(true);
     } finally {
       check.judgeGate = originalGate;
     }

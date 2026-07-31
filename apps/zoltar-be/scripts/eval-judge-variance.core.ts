@@ -302,7 +302,13 @@ export async function runJudgeVariance(
         judgeVarianceRowSchema.parse({
           fixtureId,
           checkId,
-          rubricHash: observation.rubricHash ?? check.rubricHash?.() ?? '',
+          // No fallback to `check.rubricHash()`. `runCheck` omits the hash
+          // precisely when the gate settled the rep, and filling it back in
+          // here would have the row assert that a rubric graded something it
+          // never saw — the contradiction `judgeInvoked` exists to prevent.
+          // Empty string means "no rubric graded this"; `summarize` recovers
+          // the hash for display from the check's judged rows.
+          rubricHash: observation.rubricHash ?? '',
           sourceRepIndex,
           trialIndex,
           verdict: observation.verdict,
@@ -418,6 +424,7 @@ function summarize(rows: JudgeVarianceRow[]): {
         fixtureId: group.fixtureId,
         checkId: group.checkId,
         rubricHash: group.rubricHash,
+
         verdictCounts: {},
         totalInputs: 0,
         flippedInputs: 0,
@@ -431,6 +438,12 @@ function summarize(rows: JudgeVarianceRow[]): {
     for (const v of group.verdicts) {
       fc.verdictCounts[v] = (fc.verdictCounts[v] ?? 0) + 1;
     }
+    // A gated group carries no rubric hash, correctly — but the check does
+    // have one, and a report that renders it blank because the first group
+    // happened to be gated is just harder to read. Take it from whichever
+    // group actually reached the rubric.
+    if (!fc.rubricHash && group.rubricHash) fc.rubricHash = group.rubricHash;
+
     if (gated) fc.gatedInputs += 1;
     else {
       fc.totalInputs += 1;
@@ -448,6 +461,10 @@ function summarize(rows: JudgeVarianceRow[]): {
       };
       byRubricMap.set(group.checkId, rubric);
     }
+    if (!rubric.rubricHash && group.rubricHash) {
+      rubric.rubricHash = group.rubricHash;
+    }
+
     if (gated) rubric.gatedInputs += 1;
     else {
       rubric.totalInputs += 1;
