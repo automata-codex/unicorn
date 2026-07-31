@@ -6,6 +6,10 @@ import {
 
 import { judgeRubrics } from './judged/rubrics';
 import { narratingPastABlockGate } from './structural/narrating-past-a-block';
+import {
+  unauditableMappingGate,
+  unauditableMappingJudgeContext,
+} from './structural/unauditable-mapping';
 
 import type { EvalFixture, FailureModeTag } from '../fixture.schema';
 import type { TurnExecutionResult } from '../turn-result';
@@ -89,6 +93,19 @@ export interface EvalCheck {
     result: TurnExecutionResult,
     fixture: EvalFixture,
   ) => StructuralVerdict | null;
+  /**
+   * Judged checks only: extra prompt text appended to the judge call,
+   * typically the subset of events the `judgeGate` already identified as
+   * this check's subject.
+   *
+   * The alternative is a rubric that describes the structural filter in
+   * words and asks the model to apply it — a second implementation of the
+   * same rule, free to drift from the first, in a check whose entire reason
+   * for being rebuilt was that prose descriptions of roll classification
+   * don't hold. One implementation selects; the judge grades what it hands
+   * over.
+   */
+  judgeContext?: (result: TurnExecutionResult, fixture: EvalFixture) => string;
 }
 
 function toCheckId(tag: FailureModeTag): string {
@@ -155,6 +172,12 @@ function applicabilitySourceFor(id: string): EvalCheck['applicabilitySource'] {
  */
 const JUDGE_GATES: Partial<Record<string, EvalCheck['judgeGate']>> = {
   'narrating-past-a-block': narratingPastABlockGate,
+  'unauditable-mapping': unauditableMappingGate,
+};
+
+/** Extra judge-prompt context by check id — see `EvalCheck.judgeContext`. */
+const JUDGE_CONTEXTS: Partial<Record<string, EvalCheck['judgeContext']>> = {
+  'unauditable-mapping': unauditableMappingJudgeContext,
 };
 
 function buildChecks(): Record<string, EvalCheck> {
@@ -179,6 +202,7 @@ function buildChecks(): Record<string, EvalCheck> {
       applicabilitySource: applicabilitySourceFor(id),
       rubricHash: () => rubricHashFor(id),
       judgeGate: JUDGE_GATES[id],
+      judgeContext: JUDGE_CONTEXTS[id],
     };
   }
 

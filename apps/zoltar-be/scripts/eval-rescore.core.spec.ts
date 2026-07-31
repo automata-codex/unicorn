@@ -49,35 +49,40 @@ function deps(anthropic: AnthropicService = refusingAnthropic()): RescoreDeps {
 }
 
 /**
- * `UNAUDITABLE-MAPPING` needs no fixture-authored applicability and no
- * judged facts, so it exercises the orchestration without dragging in the
- * fixture-schema gate — this file is about the re-score pass, not about any
- * one checker.
+ * A structural check, so the whole re-score pass runs without an Anthropic
+ * call — this file is about the orchestration, not about any one checker.
+ * `system-rolled-player-action` also carries fixture-authored applicability,
+ * which lets the `applicabilitySource` column be asserted meaningfully.
  */
-const FIXTURE_ID = 'turn01-unauditable-mapping';
+const FIXTURE_ID = 'turn19-system-rolled-player-action';
 
 function fixtureFile(): EvalFixture {
   return fakeFixture({
     id: FIXTURE_ID,
-    tag: 'UNAUDITABLE-MAPPING',
-    fixtureSchemaVersion: 1,
+    tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
+    applicability: {
+      'system-rolled-player-action': {
+        applies: true,
+        playerEntity: 'Alvarez',
+        situation: 'Alvarez declares an attack requiring a Combat roll.',
+      },
+    },
     assertion: {
       mode: 'structural',
-      check: 'a narrative-selection roll must state its mapping up front',
+      check: "Alvarez's damage roll must be deferred, not resolved system-side",
     },
   });
 }
 
-/** A turn whose only roll states no mapping — `checkUnauditableMapping`
- * reads this as FAILED. */
+/** A turn that resolves the player's own roll system-side — read as FAILED. */
 function failingTurn(): TurnExecutionResult {
   return fakeTurnExecutionResult({
     gameEvents: [
       fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
       fakeDiceRoll({
         sequenceNumber: 2,
-        purpose: 'rolling for environmental detail',
-        notation: '1d6',
+        purpose: 'Alvarez rifle damage if her attack hits',
+        notation: '1d10',
       }),
     ],
   });
@@ -101,8 +106,8 @@ function scoreRow(overrides: Partial<ScoreRow> = {}): ScoreRow {
     harnessVersion: 'source01',
     repIndex: 1,
     fixtureId: FIXTURE_ID,
-    checkId: 'unauditable-mapping',
-    tag: 'UNAUDITABLE-MAPPING',
+    checkId: 'system-rolled-player-action',
+    tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
     checkMode: 'structural',
     verdict: 'fail',
     artifactPath: `reps/001/${FIXTURE_ID}/warden-output.json`,
@@ -242,9 +247,9 @@ describe('runRescore', () => {
     const summary = await runRescore({ runDir, fixturesDir }, deps());
     const row = summary.rows[0];
 
-    // `unauditable-mapping` gates on the turn's own output, which is the
-    // label that marks a denominator as outcome-selected.
-    expect(row.applicabilitySource).toBe('artifact');
+    // `system-rolled-player-action` reads fixture-authored applicability, so
+    // its denominator is fixed before the model runs.
+    expect(row.applicabilitySource).toBe('fixture');
     expect(row.judgeInvoked).toBe(false);
   });
 

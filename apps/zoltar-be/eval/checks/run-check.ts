@@ -107,7 +107,12 @@ export async function runCheck(
     const gated = check.judgeGate?.(turnResult, fixture);
     if (gated) return fromStructuralVerdict(gated, start);
 
-    const judged = await runJudgeCall(anthropic, fixture, turnResult);
+    const judged = await runJudgeCall(
+      anthropic,
+      fixture,
+      turnResult,
+      check.judgeContext?.(turnResult, fixture),
+    );
     return {
       verdict: judged.passed ? 'pass' : 'fail',
       detail: judged.rationale,

@@ -1,7 +1,6 @@
 import { checkMissingCanonCapture } from './missing-canon-capture';
 import { checkOutOfOrderResolution } from './out-of-order-resolution';
 import { checkSystemRolledPlayerAction } from './system-rolled-player-action';
-import { checkUnauditableMapping } from './unauditable-mapping';
 
 import type {
   EvalFixture,
@@ -27,7 +26,6 @@ export const structuralCheckers: Record<
     checkOutOfOrderResolution(result, fixture),
   'SYSTEM-ROLLED-PLAYER-ACTION': (result, fixture) =>
     checkSystemRolledPlayerAction(result, fixture),
-  'UNAUDITABLE-MAPPING': (result) => checkUnauditableMapping(result),
   'MISSING-CANON-CAPTURE': (result, fixture) =>
     checkMissingCanonCapture(result, fixture),
 };

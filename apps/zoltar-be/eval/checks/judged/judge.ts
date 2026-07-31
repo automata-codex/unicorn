@@ -139,12 +139,14 @@ export async function runJudgeCall(
   anthropic: AnthropicService,
   fixture: EvalFixture,
   result: TurnExecutionResult,
+  extraContext?: string,
 ): Promise<JudgedVerdict> {
   const rubricText = resolveRubricText(fixture);
   const prompt =
     `${rubricText}\n\n` +
     `--- This turn's narration (playerText) ---\n${extractPlayerText(result)}\n\n` +
     `--- This turn's tool-call sequence ---\n${summarizeGameEvents(result)}\n\n` +
+    (extraContext ? `--- Scope of this check ---\n${extraContext}\n\n` : '') +
     'Call judge_verdict with your verdict and a brief rationale.';
 
   const message = await anthropic.callMessages({

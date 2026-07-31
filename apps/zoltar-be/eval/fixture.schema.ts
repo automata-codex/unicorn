@@ -27,7 +27,6 @@ export type FailureModeTag = z.infer<typeof failureModeTagSchema>;
 export const structuralFailureModeTags = [
   'OUT-OF-ORDER-RESOLUTION',
   'SYSTEM-ROLLED-PLAYER-ACTION',
-  'UNAUDITABLE-MAPPING',
   'MISSING-CANON-CAPTURE',
 ] as const satisfies readonly FailureModeTag[];
 
@@ -49,6 +48,16 @@ export const structuralFailureModeTags = [
  * It keeps a structural pre-filter (`judgeGate`, `eval/checks/registry.ts`)
  * for the one part of the question structure can answer — see
  * `narrating-past-a-block.ts`.
+ *
+ * UNAUDITABLE-MAPPING moved here for the same reason and is the clearest
+ * case of the hybrid shape: its structural half decides *which* rolls are
+ * spontaneous GM-side choices (a matter of `rollSource`, `requestId`,
+ * `modifier` and notation, entirely non-lexical), and only the semantic
+ * residual — does the roll's stated purpose enumerate outcomes covering the
+ * die's range — reaches the rubric. Its regex predecessor reached a verdict
+ * on 15 of 20 reps under 4.6 and 4 of 20 under Sonnet 5 against an
+ * unchanged prompt; the structural classifier reaches one on 20 of 20 and
+ * 16 of 20, and the remaining four are turns that rolled nothing at all.
  * UNSURFACED-CHECK moved here from `structuralFailureModeTags` after a
  * real-run false pass: its regex classifier ("does this roll's purpose text
  * contain a perception-flavored keyword") missed a stakes-gating roll
@@ -74,6 +83,7 @@ export const judgedFailureModeTags = [
   'UNSURFACED-CHECK',
   'SCENE-JUMP',
   'NARRATING-PAST-A-BLOCK',
+  'UNAUDITABLE-MAPPING',
 ] as const satisfies readonly FailureModeTag[];
 
 /**
@@ -253,8 +263,8 @@ export const evalFixtureSchema = z
       message:
         "assertion.mode must match the fixture's tag — judged tags " +
         '(HIDDEN-INFO-LEAK, OVER-RESOLUTION, UNSURFACED-CHECK, SCENE-JUMP, ' +
-        'NARRATING-PAST-A-BLOCK) require a judged assertion, every other tag ' +
-        'requires a structural assertion',
+        'NARRATING-PAST-A-BLOCK, UNAUDITABLE-MAPPING) require a judged ' +
+        'assertion, every other tag requires a structural assertion',
       path: ['assertion', 'mode'],
     },
   );

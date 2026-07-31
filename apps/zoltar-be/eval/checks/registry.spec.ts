@@ -5,7 +5,6 @@ import {
   judgedFailureModeTags,
   structuralFailureModeTags,
 } from '../fixture.schema';
-import { fakeFixture } from './structural/test-helpers';
 
 import {
   evalChecks,
@@ -13,6 +12,7 @@ import {
   rubricTextFor,
   selectChecksForFixture,
 } from './registry';
+import { fakeFixture } from './structural/test-helpers';
 
 describe('evalChecks', () => {
   it('has exactly one check per tag in failureModeTagSchema', () => {
@@ -50,19 +50,38 @@ describe('evalChecks', () => {
   });
 
   it('marks checks that never report not_applicable as ungated', () => {
-    // A judged check reaches pass or fail on every rep, so labelling it
-    // 'artifact' would imply a selection hazard it does not have.
-    //
-    // This holding for every judged tag is true *today* and is not the
-    // definition of `'ungated'` — `mode` and `applicabilitySource` are
-    // different axes that happen to line up while no check is hybrid. The
-    // first judged check with a structural gate (`narrating-past-a-block`,
-    // then `unauditable-mapping`) is artifact-sourced, and this assertion
-    // is expected to narrow to the checks that still gate on nothing rather
-    // than being read as a rule about judged checks.
-    for (const tag of judgedFailureModeTags) {
-      expect(evalChecks[tag.toLowerCase()].applicabilitySource).toBe('ungated');
+    // Narrowed from "every judged tag" once the first hybrid checks landed.
+    // `mode` and `applicabilitySource` are different axes: a judged check
+    // with a structural pre-filter can and does report not_applicable, and
+    // labelling it 'ungated' would put the hazard label on the wrong checks.
+    for (const id of [
+      'hidden-info-leak',
+      'over-resolution',
+      'unsurfaced-check',
+      'scene-jump',
+    ]) {
+      expect(evalChecks[id].applicabilitySource).toBe('ungated');
     }
+  });
+
+  it('marks a judged check whose gate can report not_applicable as artifact-sourced', () => {
+    // `unauditable-mapping` is judged, and its `judgeGate` decides
+    // applicability from the turn's own rolls — the outcome-selection hazard
+    // the label exists to flag. This pairing is the reason the enum value is
+    // 'ungated' rather than 'judged-check'.
+    const check = evalChecks['unauditable-mapping'];
+    expect(check.mode).toBe('judged');
+    expect(check.applicabilitySource).toBe('artifact');
+    expect(check.judgeGate).toBeDefined();
+  });
+
+  it('gives every judged check with a gate a matching judgeContext or a self-contained rubric', () => {
+    // A gate that narrows *which* events the rubric is about must hand that
+    // set to the judge, or the rubric has to restate the filter in prose and
+    // the two can drift. `narrating-past-a-block`'s gate narrows nothing
+    // (it only ever FAILs or falls through), so it needs no context.
+    expect(evalChecks['unauditable-mapping'].judgeContext).toBeDefined();
+    expect(evalChecks['narrating-past-a-block'].judgeContext).toBeUndefined();
   });
 
   it('has unique, lower-kebab ids that match their tag', () => {

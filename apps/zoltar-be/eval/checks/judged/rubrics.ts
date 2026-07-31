@@ -55,6 +55,28 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'player-facing notation or choice.',
     requiredFacts: [],
   },
+  'UNAUDITABLE-MAPPING': {
+    template:
+      'Each roll listed under "Scope of this check" below was made by the ' +
+      'Warden on its own initiative to decide something — it resolves no ' +
+      'player-facing dice_request and no fixed mechanic.\n\n' +
+      "Question: for each of those rolls, does the roll's own `purpose` text " +
+      'state what the possible results mean, across the range the notation ' +
+      'can produce, so that the number rolled could be checked against a ' +
+      'stated intent afterwards?\n\n' +
+      'A purpose that enumerates outcomes over the range is auditable — ' +
+      '"1d6 for what she notices: 1-2 nothing, 3-4 distant movement, 5-6 the ' +
+      'contractor" — and so is one that states a threshold ("1d10, 7+ and ' +
+      'the panel is unlocked"). It does not need to be exhaustive or evenly ' +
+      'divided; it needs to fix the meaning before the die is read.\n\n' +
+      'A purpose that names only the subject of the roll — "ambient station ' +
+      'event check", "atmosphere roll", "what does she find" — is a ' +
+      'violation, because the mapping from number to fiction is left ' +
+      'entirely to the Warden after it has seen the number, and nothing ' +
+      'about the outcome can be audited. Fail if any roll in scope is of ' +
+      'this kind.',
+    requiredFacts: [],
+  },
   'NARRATING-PAST-A-BLOCK': {
     template:
       'This turn is blocked, or may be blocked, on: {{blockDescription}}\n\n' +

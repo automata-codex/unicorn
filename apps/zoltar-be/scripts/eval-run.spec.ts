@@ -13,13 +13,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeTurnExecutionResult } from '../eval/checks/structural/test-helpers';
 import { readManifest } from '../eval/runs/manifest';
 import { listRepDirsOnDisk, repDir, scoresPath } from '../eval/runs/paths';
-import { ScoreWriter, readVouchedRows } from '../eval/runs/scores';
+import { readVouchedRows, ScoreWriter } from '../eval/runs/scores';
 
 import { runEval } from './eval-run.core';
 
-import type { RunEvalArgs, RunEvalDeps, TurnExecutor } from './eval-run.core';
 import type { HarnessSession } from '../eval/harness-runner';
 import type { ScoreRow } from '../eval/runs/scores';
+import type { RunEvalArgs, RunEvalDeps, TurnExecutor } from './eval-run.core';
 
 const SEEDED_STATE = {
   campaignState: {},
@@ -43,7 +43,7 @@ function writeFixtureFile(
       sourceSequenceNumber: 1,
       seededState: SEEDED_STATE,
       playerInput: { type: 'message', content: 'test' },
-      assertion: { mode: 'structural', check: 'test' },
+      assertion: { mode: 'structural', check: 'expects: a test detail' },
       ...(opts.repOverride !== undefined
         ? { repOverride: opts.repOverride }
         : {}),
@@ -91,7 +91,8 @@ describe('runEval', () => {
   const originalEnv = {
     ZOLTAR_EVAL_ROOT: process.env.ZOLTAR_EVAL_ROOT,
     WARDENS_PROMPTS_DIR: process.env.WARDENS_PROMPTS_DIR,
-    WARDEN_PROMPT_OVERRIDE_MOTHERSHIP: process.env.WARDEN_PROMPT_OVERRIDE_MOTHERSHIP,
+    WARDEN_PROMPT_OVERRIDE_MOTHERSHIP:
+      process.env.WARDEN_PROMPT_OVERRIDE_MOTHERSHIP,
   };
 
   beforeEach(() => {
@@ -133,7 +134,12 @@ describe('runEval', () => {
       id: 'fixture-a',
       tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
     });
-    writeFixtureFile(fixturesDir, { id: 'fixture-b', tag: 'UNAUDITABLE-MAPPING' });
+    // Any second structural tag; UNAUDITABLE-MAPPING moved to judged and a
+    // judged fixture here would mean a real Anthropic call from a stub test.
+    writeFixtureFile(fixturesDir, {
+      id: 'fixture-b',
+      tag: 'MISSING-CANON-CAPTURE',
+    });
 
     const summary = await runEval(baseArgs({ reps: 3 }), stubDeps());
 
@@ -216,7 +222,12 @@ describe('runEval', () => {
       id: 'fixture-a',
       tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
     });
-    writeFixtureFile(fixturesDir, { id: 'fixture-b', tag: 'UNAUDITABLE-MAPPING' });
+    // Any second structural tag; UNAUDITABLE-MAPPING moved to judged and a
+    // judged fixture here would mean a real Anthropic call from a stub test.
+    writeFixtureFile(fixturesDir, {
+      id: 'fixture-b',
+      tag: 'MISSING-CANON-CAPTURE',
+    });
 
     let call = 0;
     const deps = stubDeps({
@@ -236,7 +247,9 @@ describe('runEval', () => {
     ]);
 
     const { rows } = readVouchedRows(summary.runDir);
-    const verdictsByFixture = new Map(rows.map((r) => [r.fixtureId, r.verdict]));
+    const verdictsByFixture = new Map(
+      rows.map((r) => [r.fixtureId, r.verdict]),
+    );
     expect(verdictsByFixture.get('fixture-b')).toBe('error');
   });
 
@@ -275,9 +288,9 @@ describe('runEval', () => {
 
     const { rows, exclusions } = readVouchedRows(summary.runDir);
     expect(rows.every((r) => r.repIndex === 1)).toBe(true);
-    expect(exclusions.some((e) => e.includes('002') && e.includes('not vouched'))).toBe(
-      true,
-    );
+    expect(
+      exclusions.some((e) => e.includes('002') && e.includes('not vouched')),
+    ).toBe(true);
   });
 
   it('repOverride limits a fixture to its override while others run the full --reps', async () => {
@@ -286,7 +299,12 @@ describe('runEval', () => {
       tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
       repOverride: 1,
     });
-    writeFixtureFile(fixturesDir, { id: 'fixture-b', tag: 'UNAUDITABLE-MAPPING' });
+    // Any second structural tag; UNAUDITABLE-MAPPING moved to judged and a
+    // judged fixture here would mean a real Anthropic call from a stub test.
+    writeFixtureFile(fixturesDir, {
+      id: 'fixture-b',
+      tag: 'MISSING-CANON-CAPTURE',
+    });
 
     const summary = await runEval(baseArgs({ reps: 3 }), stubDeps());
 
@@ -318,7 +336,12 @@ describe('runEval', () => {
       id: 'fixture-a',
       tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
     });
-    writeFixtureFile(fixturesDir, { id: 'fixture-b', tag: 'UNAUDITABLE-MAPPING' });
+    // Any second structural tag; UNAUDITABLE-MAPPING moved to judged and a
+    // judged fixture here would mean a real Anthropic call from a stub test.
+    writeFixtureFile(fixturesDir, {
+      id: 'fixture-b',
+      tag: 'MISSING-CANON-CAPTURE',
+    });
 
     const events: string[] = [];
     await runEval(
@@ -363,7 +386,10 @@ describe('runEval', () => {
         reps: 1,
         onProgress: (event) => {
           if (event.type === 'fixture-done') {
-            doneEvents.push({ fixtureId: event.fixtureId, verdicts: event.verdicts });
+            doneEvents.push({
+              fixtureId: event.fixtureId,
+              verdicts: event.verdicts,
+            });
           }
         },
       }),
@@ -391,7 +417,8 @@ describe('runEval', () => {
       baseArgs({
         reps: 1,
         onProgress: (event) => {
-          if (event.type === 'fixture-done') doneEvents.push({ verdicts: event.verdicts });
+          if (event.type === 'fixture-done')
+            doneEvents.push({ verdicts: event.verdicts });
         },
       }),
       deps,
@@ -491,9 +518,10 @@ describe('guard: only eval-run.default-deps.ts value-imports harness-runner.ts',
     const valueImportPattern =
       /^import\s+(?!type\b)[^;]*?\bfrom\s+['"](\.\.\/)*(eval\/)?harness-runner['"]/m;
 
-    const files = [...collectTsFiles(evalDir), ...collectTsFiles(scriptsDir)].filter(
-      (f) => f.endsWith('harness-runner.ts') === false,
-    );
+    const files = [
+      ...collectTsFiles(evalDir),
+      ...collectTsFiles(scriptsDir),
+    ].filter((f) => f.endsWith('harness-runner.ts') === false);
 
     const violations = files.filter((f) => {
       if (ALLOWED_VALUE_IMPORTERS.has(basename(f))) return false;
