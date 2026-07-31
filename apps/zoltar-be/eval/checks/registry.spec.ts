@@ -32,7 +32,7 @@ describe('evalChecks', () => {
     // outcome-selected denominators visible, and a silent default would be
     // a guess at the thing it records.
     for (const check of Object.values(evalChecks)) {
-      expect(['fixture', 'artifact', 'none']).toContain(
+      expect(['fixture', 'artifact', 'ungated']).toContain(
         check.applicabilitySource,
       );
     }
@@ -49,11 +49,19 @@ describe('evalChecks', () => {
     );
   });
 
-  it('marks checks that never report not_applicable as gating on nothing', () => {
+  it('marks checks that never report not_applicable as ungated', () => {
     // A judged check reaches pass or fail on every rep, so labelling it
     // 'artifact' would imply a selection hazard it does not have.
+    //
+    // This holding for every judged tag is true *today* and is not the
+    // definition of `'ungated'` — `mode` and `applicabilitySource` are
+    // different axes that happen to line up while no check is hybrid. The
+    // first judged check with a structural gate (`narrating-past-a-block`,
+    // then `unauditable-mapping`) is artifact-sourced, and this assertion
+    // is expected to narrow to the checks that still gate on nothing rather
+    // than being read as a rule about judged checks.
     for (const tag of judgedFailureModeTags) {
-      expect(evalChecks[tag.toLowerCase()].applicabilitySource).toBe('none');
+      expect(evalChecks[tag.toLowerCase()].applicabilitySource).toBe('ungated');
     }
   });
 

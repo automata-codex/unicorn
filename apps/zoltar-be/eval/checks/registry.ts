@@ -37,11 +37,19 @@ export interface EvalCheck {
    *   of a roll has nothing to gate on until a roll exists), but a rate
    *   built on one should be read alongside its exclusion counts, never
    *   alone.
-   * - `'none'`: the check reaches pass or fail on every rep and never
+   * - `'ungated'`: the check reaches pass or fail on every rep and never
    *   reports `not_applicable`, so there is no gate and no selection to
    *   worry about.
+   *
+   * `'ungated'` rather than `'none'` because an absence-shaped value reads
+   * as "not declared yet," which is exactly the ambiguity the required
+   * field and its throwing lookup exist to eliminate. And deliberately not
+   * `'judged-check'`, which would be a `mode` value on an applicability
+   * axis: the two coincide today only by accident, and stop coinciding as
+   * soon as `narrating-past-a-block` and `unauditable-mapping` become
+   * judged checks that keep an artifact-sourced structural gate.
    */
-  applicabilitySource: 'fixture' | 'artifact' | 'none';
+  applicabilitySource: 'fixture' | 'artifact' | 'ungated';
   /**
    * Minimum `fixtureSchemaVersion` this check needs. Nothing declares this
    * today — every check works against v1 fixtures — but the field exists so
@@ -107,7 +115,9 @@ const REQUIRES_FIXTURE_SCHEMA: Partial<Record<string, number>> = {
  * The two `'fixture'` entries are the checks re-gated onto fixture-authored
  * `applicability`; the `'artifact'` entries gate on the turn's own output
  * and carry the selection hazard named on `EvalCheck.applicabilitySource`;
- * the judged four reach a verdict on every rep and gate on nothing.
+ * the judged four reach a verdict on every rep and gate on nothing. That
+ * last group is `'ungated'`, not "judged" — the overlap with `mode` is
+ * coincidental and ends with the first hybrid check.
  */
 const APPLICABILITY_SOURCE: Record<string, EvalCheck['applicabilitySource']> = {
   'system-rolled-player-action': 'fixture',
@@ -115,10 +125,10 @@ const APPLICABILITY_SOURCE: Record<string, EvalCheck['applicabilitySource']> = {
   'unauditable-mapping': 'artifact',
   'narrating-past-a-block': 'artifact',
   'missing-canon-capture': 'artifact',
-  'hidden-info-leak': 'none',
-  'over-resolution': 'none',
-  'unsurfaced-check': 'none',
-  'scene-jump': 'none',
+  'hidden-info-leak': 'ungated',
+  'over-resolution': 'ungated',
+  'unsurfaced-check': 'ungated',
+  'scene-jump': 'ungated',
 };
 
 function applicabilitySourceFor(id: string): EvalCheck['applicabilitySource'] {
@@ -127,7 +137,7 @@ function applicabilitySourceFor(id: string): EvalCheck['applicabilitySource'] {
     throw new Error(
       `check "${id}" has no applicabilitySource declared in registry.ts — ` +
         "state where its not_applicable verdicts come from ('fixture', " +
-        "'artifact', or 'none') rather than leaving it to be inferred",
+        "'artifact', or 'ungated') rather than leaving it to be inferred",
     );
   }
   return source;

@@ -63,7 +63,7 @@ const baseScoreRowSchema = z.object({
    * the rules it was actually scored under. Optional for rows written
    * before the field existed.
    */
-  applicabilitySource: z.enum(['fixture', 'artifact', 'none']).optional(),
+  applicabilitySource: z.enum(['fixture', 'artifact', 'ungated']).optional(),
   /** Whether a judge call produced this verdict — see
    * `CheckObservation.judgeInvoked`. Absent on older rows. */
   judgeInvoked: z.boolean().optional(),
