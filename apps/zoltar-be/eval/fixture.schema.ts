@@ -23,17 +23,32 @@ export const failureModeTagSchema = z.enum([
 
 export type FailureModeTag = z.infer<typeof failureModeTagSchema>;
 
-/** The five tags checked deterministically, no second LLM call. */
+/** The tags checked deterministically, no second LLM call. */
 export const structuralFailureModeTags = [
   'OUT-OF-ORDER-RESOLUTION',
   'SYSTEM-ROLLED-PLAYER-ACTION',
   'UNAUDITABLE-MAPPING',
   'MISSING-CANON-CAPTURE',
-  'NARRATING-PAST-A-BLOCK',
 ] as const satisfies readonly FailureModeTag[];
 
 /**
- * The four tags graded by a single Claude Sonnet 5 judge call per fixture.
+ * The tags graded by a Claude Sonnet 5 judge call per fixture.
+ *
+ * NARRATING-PAST-A-BLOCK moved here from `structuralFailureModeTags` after
+ * the same class of false FAIL that forced UNSURFACED-CHECK across, twice
+ * over: its resolution-language regex read the Warden's standard, correct
+ * way of stating a pending roll's stakes ("if you hit, you deal 10 damage")
+ * as evidence the roll had already resolved. A sentence-scoped `\bif\b`
+ * guard was added to fix exactly that, and the pattern then failed the same
+ * way on commitment language ("you put two rounds into...") — prose stating
+ * what the character is doing, not what the dice decided. "Did the narration
+ * stop where it should have" is a question about meaning, and the checker's
+ * own doc comment had flagged it as the weakest of the structural rules from
+ * the day it was written.
+ *
+ * It keeps a structural pre-filter (`judgeGate`, `eval/checks/registry.ts`)
+ * for the one part of the question structure can answer — see
+ * `narrating-past-a-block.ts`.
  * UNSURFACED-CHECK moved here from `structuralFailureModeTags` after a
  * real-run false pass: its regex classifier ("does this roll's purpose text
  * contain a perception-flavored keyword") missed a stakes-gating roll
@@ -58,6 +73,7 @@ export const judgedFailureModeTags = [
   'OVER-RESOLUTION',
   'UNSURFACED-CHECK',
   'SCENE-JUMP',
+  'NARRATING-PAST-A-BLOCK',
 ] as const satisfies readonly FailureModeTag[];
 
 /**
@@ -236,8 +252,9 @@ export const evalFixtureSchema = z
     {
       message:
         "assertion.mode must match the fixture's tag — judged tags " +
-        '(HIDDEN-INFO-LEAK, OVER-RESOLUTION, UNSURFACED-CHECK, SCENE-JUMP) ' +
-        'require a judged assertion, every other tag requires a structural assertion',
+        '(HIDDEN-INFO-LEAK, OVER-RESOLUTION, UNSURFACED-CHECK, SCENE-JUMP, ' +
+        'NARRATING-PAST-A-BLOCK) require a judged assertion, every other tag ' +
+        'requires a structural assertion',
       path: ['assertion', 'mode'],
     },
   );

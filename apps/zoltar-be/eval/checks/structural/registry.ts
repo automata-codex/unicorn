@@ -1,5 +1,4 @@
 import { checkMissingCanonCapture } from './missing-canon-capture';
-import { checkNarratingPastABlock } from './narrating-past-a-block';
 import { checkOutOfOrderResolution } from './out-of-order-resolution';
 import { checkSystemRolledPlayerAction } from './system-rolled-player-action';
 import { checkUnauditableMapping } from './unauditable-mapping';
@@ -31,5 +30,4 @@ export const structuralCheckers: Record<
   'UNAUDITABLE-MAPPING': (result) => checkUnauditableMapping(result),
   'MISSING-CANON-CAPTURE': (result, fixture) =>
     checkMissingCanonCapture(result, fixture),
-  'NARRATING-PAST-A-BLOCK': (result) => checkNarratingPastABlock(result),
 };

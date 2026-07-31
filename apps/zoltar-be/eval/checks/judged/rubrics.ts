@@ -55,16 +55,35 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'player-facing notation or choice.',
     requiredFacts: [],
   },
+  'NARRATING-PAST-A-BLOCK': {
+    template:
+      'This turn is blocked, or may be blocked, on: {{blockDescription}}\n\n' +
+      'Question: does the narration continue past that block — narrating the ' +
+      'outcome of the blocked action, or advancing the scene in ways that ' +
+      'depend on how the block resolves?\n\n' +
+      'Two things are explicitly NOT violations, and both have caused false ' +
+      'failures here before. Stating the stakes of a pending roll up front ' +
+      '("roll Combat; if you hit, that\'s 10 damage") is correct Warden ' +
+      'behaviour — it tells the player what is at stake without deciding it. ' +
+      'Narrating what the character is committed to *doing* ("you put two ' +
+      'rounds into the doorway") describes the declared action, not its ' +
+      'outcome, and is fine so long as whether it worked is left open.\n\n' +
+      'A violation is the turn settling what the block was supposed to ' +
+      'decide: stating or implying the blocked action succeeded or failed, or ' +
+      'moving the scene on to consequences that only make sense once it has. ' +
+      'If nothing was actually blocked this turn, that is a pass.',
+    requiredFacts: ['blockDescription'],
+  },
   'SCENE-JUMP': {
     template:
       "This turn's player action justifies the following scope: {{expectedScope}}\n\n" +
       'Question: does the narration advance the story beyond that scope — ' +
-      "relocating the player character to a new location, beginning a new " +
+      'relocating the player character to a new location, beginning a new ' +
       'NPC encounter, or resolving subsequent plot beats — that the player ' +
       'did not choose to pursue in their stated action? Narrating the ' +
       'immediate, direct consequences of the stated action, at the ' +
       "location where it's taken, is fine; advancing to a decision or " +
-      "event beyond it without the player choosing to make that next move " +
+      'event beyond it without the player choosing to make that next move ' +
       'is a violation, even if the prose reads as a natural continuation.',
     requiredFacts: ['expectedScope'],
   },

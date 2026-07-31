@@ -1,185 +1,92 @@
-import { getWinningResponseEvent } from '../../turn-result';
-
+import type { EvalFixture } from '../../fixture.schema';
 import type { TurnExecutionResult } from '../../turn-result';
 import type { StructuralVerdict } from './types';
 
-interface GmResponsePayload {
-  playerText: string;
+type DiceRequestRow = TurnExecutionResult['diceRequests'][number];
+
+/**
+ * Identity for a `dice_request` across the seed/result boundary. `id` is
+ * regenerated when a fixture seeds a scratch adventure, so it can't be used;
+ * `issuedAtSequence` plus `purpose` is stable, because a seeded request's
+ * purpose is fixture data rather than something this turn's Warden wrote.
+ */
+function requestKey(request: {
+  issuedAtSequence?: unknown;
+  purpose?: unknown;
+}): string {
+  return `${String(request.issuedAtSequence)}::${String(request.purpose)}`;
 }
 
 /**
- * Language implying a blocked action already resolved — a rough proxy for
- * "narration continued past the point it should have stopped at." This is
- * the weakest of the six structural checkers: unlike roll-sequencing or
- * roll_source (mechanically observable facts), "did the narration stop at
- * the right point" is fundamentally a prose-content judgment. Kept as a
- * best-effort keyword heuristic for now; if it proves too noisy against
- * real fixtures, this tag may need a judged (LLM-graded) fallback instead —
- * flagged explicitly, not silently accepted as solved.
- */
-const RESOLUTION_LANGUAGE_PATTERN =
-  /\b(succeeds?|fails?|you (hit|deal|take|put)|damage is dealt|the (attack|shot|blow) (lands|connects))\b/gi;
-
-/**
- * A bare substring match against `RESOLUTION_LANGUAGE_PATTERN` isn't enough
- * on its own: "If you hit, you deal 10 damage" is the Warden's standard (and
- * correct) way to state a pending roll's stakes before it resolves — not
- * evidence the roll already resolved. Confirmed against real replayed
- * output (turn21-narrating-past-a-block): the pattern matched "you hit"/
- * "you deal" inside exactly that conditional framing and produced a false
- * FAILED, even though the roll it referred to was still an open,
- * re-prompted dice_request at the end of the same turn.
+ * NARRATING-PAST-A-BLOCK's structural pre-filter — everything about this
+ * failure mode that can be settled without reading prose. Registered as the
+ * check's `judgeGate` (`eval/checks/registry.ts`); returning `null` sends
+ * the turn to the rubric.
  *
- * A match only counts as genuine resolution language if nothing earlier in
- * its own sentence conditions it — scoped to the sentence (back to the
- * previous `.`/`!`/`?`/blank line), not the whole turn, so an unrelated
- * "if" earlier in the response doesn't suppress a real violation later on.
- */
-function hasUnconditionalResolutionLanguage(playerText: string): boolean {
-  const pattern = new RegExp(RESOLUTION_LANGUAGE_PATTERN.source, 'gi');
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(playerText)) !== null) {
-    const sentenceStart =
-      Math.max(
-        playerText.lastIndexOf('.', match.index),
-        playerText.lastIndexOf('!', match.index),
-        playerText.lastIndexOf('?', match.index),
-        playerText.lastIndexOf('\n\n', match.index),
-      ) + 1;
-    const clause = playerText.slice(sentenceStart, match.index);
-    if (!/\bif\b/i.test(clause)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * The spec names two distinct blocking mechanisms for this tag: "blocked on
- * missing data OR an unresolved player dice_request." The dice_request half
- * is mechanically observable (a pending row); the missing-data half isn't —
- * there's no "pending stat request" concept anywhere in this system, so the
- * only signal available is the Warden's own language admitting it's
- * narrating ahead of an unresolved decision or roll. That phrasing is close
- * to self-incriminating on its own — a Warden that says "here's what
- * happens regardless" is explicitly telling the reader it's narrating past
- * an unresolved gap — so a match here is treated as a violation directly,
- * independent of whether a dice_request happens to be pending.
+ * **What stays here.** A `dice_request` this turn both issued and resolved,
+ * with `target` still `null`, is a hard non-lexical fact: `target` is
+ * written once at insert and never updated (confirmed against
+ * `session.repository.ts`), so the threshold this roll's success depended on
+ * was never established, yet the roll was resolved anyway. That is a Warden
+ * self-ruling past a missing-data block rather than waiting for it — the
+ * case no amount of narration analysis can see, because a Warden doing it
+ * cleanly narrates a perfectly ordinary outcome.
  *
- * Broadened after checking against real replayed output (Part 8): the
- * original pattern required the word "while" paired with "decide"/"resolve"
- * nearby, or "regardless OF the number/score/result" specifically. Real
- * phrasing varies more than that — "The world's side of this exchange has
- * already resolved — here's what happens regardless:" uses neither "while"
- * nor "regardless of X," just bare "regardless" as a continuation marker.
- * The `regardless` alternative below requires it be followed by
- * "happens"/a colon/dash (signaling "and here's the continuation"), not
- * just any use of the word — a bare "regardless of the noise outside,
- * nothing has moved" (an unrelated, non-violating sentence) doesn't have
- * that shape and correctly does not match.
- */
-const BLOCK_ACKNOWLEDGING_CONTINUATION_PATTERN =
-  /\bwhile\b[^.]{0,25}\b(decid\w*|resolv\w*)\b|\bregardless of\b[^.]{0,20}\b(number|score|result)\b|\bhappens?\s+regardless\b|\bregardless\s*[:—-]|\bno matter (what|how)\b/i;
-
-/**
- * `target` is set once when a dice_request is issued and never updated
- * (confirmed against `session.repository.ts` — no code path writes it after
- * insert), so a `resolved` request whose `target` is still `null` is a hard,
- * non-lexical fact: the stat value this roll's success threshold depended on
- * was never obtained from the player, yet the roll got resolved anyway. This
- * catches the case `BLOCK_ACKNOWLEDGING_CONTINUATION_PATTERN` structurally
- * can't: a Warden that resolves the missing-data block by self-ruling
- * ("you haven't given me your Instinct score, but I'm ruling on the
- * fiction...") rather than by narrating "regardless of the number" while
- * still claiming to wait — the request goes straight from pending to
- * resolved with no target ever set, and `isBlocked` below no longer sees
- * anything blocked by the time this turn's response is checked.
+ * **What does not stay here, and why.** The two prose matchers this check
+ * used to carry are gone. `RESOLUTION_LANGUAGE_PATTERN` read the Warden's
+ * standard, correct way of stating a pending roll's stakes as evidence the
+ * roll had resolved; a sentence-scoped `if` guard fixed that instance and
+ * the pattern then failed identically on commitment language. Both are
+ * questions about what narration *means*, which is the judge's job.
  *
- * Restricted to requests whose `purpose` names a stat/save this system
- * actually has (Mothership's fixed, small vocabulary — not free narration
- * text), so a legitimate narrative-selection roll with no target at all
- * (e.g. "1d6 to determine which of six things happens") isn't misread as a
- * missing-data block — that roll never had a target concept to begin with.
+ * **Deliberately not gated on "is anything blocked."** The obvious
+ * structural applicability test — is a `dice_request` pending at end of turn
+ * — is wrong for this check. Half the corpus blocks on data that has no
+ * mechanical representation at all: `turn16` is blocked on a stat value the
+ * player never supplied, and there is no "pending stat request" concept
+ * anywhere in this system. Measured across both frozen runs, gating on a
+ * pending request would report `not_applicable` for 19 of `turn16`'s 20 reps
+ * — the fixture would stop grading the failure mode it exists for. So the
+ * judge decides both whether a block existed and whether narration ran past
+ * it, and this check's `applicabilitySource` is `'ungated'`.
  */
-const STAT_CHECK_PATTERN =
-  /\b(strength|speed|intellect|combat|sanity|fear|body|instinct)\b[^.]{0,20}\b(roll|check|save)\b/i;
-
-/**
- * NARRATING-PAST-A-BLOCK: the response's narration should stop at the block
- * point rather than continue narrating the blocked action's outcome or
- * escalating the scene regardless of it — whether the block is a pending
- * `dice_request` (mechanically checkable), missing player-supplied data
- * resolved by self-ruling instead of waiting (mechanically checkable via
- * `target`), or missing player-supplied data narrated past outright (only
- * checkable via the Warden's own block-acknowledging language).
- */
-export function checkNarratingPastABlock(
+export function narratingPastABlockGate(
   result: TurnExecutionResult,
-): StructuralVerdict {
-  const winningResponse = getWinningResponseEvent(result);
-  const playerText = winningResponse
-    ? ((winningResponse.payload as GmResponsePayload).playerText ?? '')
-    : '';
+  fixture: EvalFixture,
+): StructuralVerdict | null {
+  // Requests the fixture seeded are excluded: they were issued by an earlier
+  // turn, and their `target` was decided before the Warden under test ran.
+  //
+  // This is not hypothetical. Every `turn16` rep in both frozen runs — 20 of
+  // 20 — resolves a seeded Instinct request that carries `target: null`
+  // because the fixture captured it that way. The uncorrected rule read that
+  // as a self-ruling violation on every rep of both models, which is most of
+  // why the fixture sat at 0/10 and read as "confidently zero" in
+  // `docs/eval-methodology.md`. It was measuring the fixture, not the Warden.
+  const seededKeys = new Set(
+    (fixture.seededState.pendingDiceRequests ?? []).map(requestKey),
+  );
 
-  if (BLOCK_ACKNOWLEDGING_CONTINUATION_PATTERN.test(playerText)) {
-    return {
-      outcome: 'FAILED',
-      actual:
-        'playerText explicitly acknowledges an unresolved decision/roll and ' +
-        `narrates onward anyway: "${playerText}"`,
-    };
-  }
-
-  const unresolvedTargetRolls = result.diceRequests.filter(
-    (r) =>
+  const selfRuled = result.diceRequests.filter(
+    (r: DiceRequestRow) =>
       r.status === 'resolved' &&
       r.target === null &&
-      STAT_CHECK_PATTERN.test(r.purpose),
+      !seededKeys.has(requestKey(r)),
   );
-  if (unresolvedTargetRolls.length > 0) {
+
+  if (selfRuled.length > 0) {
     return {
       outcome: 'FAILED',
-      actual: unresolvedTargetRolls
+      actual: selfRuled
         .map(
           (r) =>
-            `dice_request "${r.purpose}" (${r.notation}) resolved this turn with no target ever ` +
-            'set — the stat value it depended on was never obtained from the player before the ' +
-            'turn narrated a resolved outcome',
+            `dice_request "${r.purpose}" (${r.notation}) was issued and resolved within this ` +
+            'turn with no target ever set — the threshold its success depended on was never ' +
+            'established, yet the turn narrated a resolved outcome',
         )
         .join('; '),
     };
   }
 
-  const isBlocked = result.diceRequests.some((r) => r.status === 'pending');
-  if (!isBlocked) {
-    return {
-      outcome: 'NOT_APPLICABLE',
-      actual:
-        'no pending dice_request after this turn, no resolved dice_request with a missing ' +
-        'target, and no block-acknowledging language in playerText — nothing blocked',
-    };
-  }
-
-  if (!winningResponse) {
-    return {
-      outcome: 'NOT_APPLICABLE',
-      actual:
-        'a dice_request is pending, but no gm_response/correction event exists to check',
-    };
-  }
-
-  if (hasUnconditionalResolutionLanguage(playerText)) {
-    return {
-      outcome: 'FAILED',
-      actual:
-        'a dice_request is pending, but playerText contains resolution ' +
-        `language suggesting the blocked action was narrated anyway: "${playerText}"`,
-    };
-  }
-
-  return {
-    outcome: 'PASSED',
-    actual:
-      'a dice_request is pending and playerText contains no resolution-implying language',
-  };
+  return null;
 }

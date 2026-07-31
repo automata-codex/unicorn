@@ -5,6 +5,7 @@ import {
 } from '../fixture.schema';
 
 import { judgeRubrics } from './judged/rubrics';
+import { narratingPastABlockGate } from './structural/narrating-past-a-block';
 
 import type { EvalFixture, FailureModeTag } from '../fixture.schema';
 import type { TurnExecutionResult } from '../turn-result';
@@ -123,7 +124,11 @@ const APPLICABILITY_SOURCE: Record<string, EvalCheck['applicabilitySource']> = {
   'system-rolled-player-action': 'fixture',
   'out-of-order-resolution': 'fixture',
   'unauditable-mapping': 'artifact',
-  'narrating-past-a-block': 'artifact',
+  // Judged, but with a structural pre-filter that only ever FAILs or
+  // falls through — it never reports not_applicable, and the judge
+  // reaches a verdict on every rep. See `narrating-past-a-block.ts`
+  // for why gating on "is a dice_request pending" would be wrong.
+  'narrating-past-a-block': 'ungated',
   'missing-canon-capture': 'artifact',
   'hidden-info-leak': 'ungated',
   'over-resolution': 'ungated',
@@ -142,6 +147,15 @@ function applicabilitySourceFor(id: string): EvalCheck['applicabilitySource'] {
   }
   return source;
 }
+
+/**
+ * Structural pre-filters for judged checks, by check id — see
+ * `EvalCheck.judgeGate`. Optional by design: most judged questions have no
+ * structural half worth separating out.
+ */
+const JUDGE_GATES: Partial<Record<string, EvalCheck['judgeGate']>> = {
+  'narrating-past-a-block': narratingPastABlockGate,
+};
 
 function buildChecks(): Record<string, EvalCheck> {
   const checks: Record<string, EvalCheck> = {};
@@ -164,6 +178,7 @@ function buildChecks(): Record<string, EvalCheck> {
       mode: 'judged',
       applicabilitySource: applicabilitySourceFor(id),
       rubricHash: () => rubricHashFor(id),
+      judgeGate: JUDGE_GATES[id],
     };
   }
 
