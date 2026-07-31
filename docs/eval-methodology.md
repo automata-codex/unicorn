@@ -400,3 +400,26 @@ above announced themselves as suspiciously good news — a category going to 1.0
 turns becoming non-applicable. Neither read as a bug at first glance. The check is cheap:
 for any check whose denominator moved sharply, hand-construct output that *should* produce
 each verdict and confirm the checker agrees.
+
+---
+
+## Denominators are not automatically model-neutral
+
+Every earlier instance of a prose dependency corrupted a *verdict*. `isAttributedTo` corrupts
+a *denominator*: binding a roll to the acting entity by the Warden's leading-name convention
+left 3 of 20 reps unbindable under 4.6 and 0 of 20 under Sonnet 5, because the two models
+phrase `purpose` differently. A comparison whose two sides are computed over differently-sized
+and differently-selected populations is not the comparison it appears to be, and no amount of
+care reading the rate will surface it.
+
+So when comparing models, check the denominators before the rates, and check whether anything
+inside the applicability path depends on wording. This is the strongest practical argument for
+reporting applicability alongside rate rather than leaving it derivable: a rate moving because
+its denominator moved looks identical to a rate moving because behaviour moved.
+
+A related lesson from the same audit: `out-of-order-resolution` carried a roll-before-
+`player_action` clause that could never fire, because `writeTurnEvents` writes `player_action`
+unconditionally first and a scratch adventure seeds no prior `game_events`. Dead code in a
+checker is invisible from run data — it produces no verdicts and no errors — and is caught only
+by the practice already recorded above: hand-construct output that *should* produce each
+verdict, and confirm the checker agrees.

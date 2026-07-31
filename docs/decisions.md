@@ -146,13 +146,19 @@ The record carries `query`, `limit`, `resultCount`, `topSimilarity`, and `source
 
 The standing deferral on a LangGraph-style decomposition of the turn loop carried a falsifiable criterion: harness results should first show which failure categories resist prompt-level fixes. Dice arbitration reliability was the lead candidate for a category that would, on the theory that reliable sequencing of request → resolution → narration is a control-flow problem a single prompt can't be made to solve.
 
-The 4.6 → Sonnet 5 baseline is evidence against that theory for at least half the category. Under corrected applicability gating, `SYSTEM-ROLLED-PLAYER-ACTION` moved from 5/19 (0.26) to 18/20 (0.90) — with an unchanged prompt (`97feadbd`), unchanged fixture content, and no orchestration work of any kind. A category that responds that strongly to a model swap is not a category that resists non-structural fixes, and rebuilding the turn loop to solve something a model upgrade largely solved would have been the expensive answer to the wrong question.
+The 4.6 → Sonnet 5 baseline is evidence against that theory for at least half the category. Under corrected applicability gating, `SYSTEM-ROLLED-PLAYER-ACTION` moved from 3/17 (0.18) to 18/20 (0.90) — with an unchanged prompt (`97feadbd`), unchanged fixture content, and no orchestration work of any kind. A category that responds that strongly to a model swap is not a category that resists non-structural fixes, and rebuilding the turn loop to solve something a model upgrade largely solved would have been the expensive answer to the wrong question.
 
 Three reasons this doesn't close the question:
 
 - **The residual is not cosmetic.** 2/20 means the Warden takes a player's declared action out of their hands roughly one combat turn in ten. In solo play, where the player has no table to appeal to, that's an agency violation rather than a polish item. "Mostly fixed" is a weaker result here than the rate suggests.
 - **The measurement predates M7.2.** Both runs executed against an empty `rules_chunk` index, and the runaway-lookup errors show a Warden repeatedly unable to resolve what it was looking for. Rules availability plausibly affects when and how it reaches for dice. Re-measure after ingestion before treating 0.90 as the model's actual ceiling.
-- **The sequencing half is unmeasured.** `OUT-OF-ORDER-RESOLUTION` reports `not_applicable` across the whole Sonnet 5 run because its fixtures can't observe ordering under a model that splits request from resolution across a turn boundary. The category that most directly motivated the graph — ordering, not attribution — currently has no evidence either way under the model we'd be building against.
+- **The sequencing half is measured, and agrees.** `OUT-OF-ORDER-RESOLUTION` reads 0.39 (7/18)
+  on 4.6 and 1.00 (20/20) on Sonnet 5 under the structural deferred-gate rule. Both
+  dice-arbitration categories therefore respond to a model swap alone. The caveat is that only
+  the deferred-gate half is measurable: the in-turn case reports `not_applicable` pending
+  `gatedByRollId`. Sonnet 5 defers on every rep, so nothing is currently being missed for the
+  model we'd be building against — but that is a property of this model's behaviour, not a
+  guarantee, and it will need re-checking whenever roll behaviour moves.
 
 Revised criterion for revisiting: extend the turn19/21 fixtures through the follow-up turn, re-baseline after M7.2, and try the cheaper structural option first — the deferred `rollType` / `gatedByRollId` / `actingEntityId` fields on `roll_dice`, which enforce sequencing at the tool schema without decomposing the loop. A graph becomes the right answer only if a measured residual survives all three.
 
@@ -356,14 +362,32 @@ spontaneous GM-side roll (single die, no modifier, no `target`, resolving no pen
 request) and sends only the remaining semantic question — does `purpose` enumerate outcomes
 covering the notation's range — to the judge.
 
-Applying the line: `out-of-order-resolution` and the re-gated `system-rolled-player-action`
-read only structure and stay structural. `unauditable-mapping` and `narrating-past-a-block`
-migrate. `missing-canon-capture` is unverified and needs the same review — a marker-phrase
-match is a prose dependency even though a fixed substring is more robust than a regex, and
-the check has produced zero verdicts across both runs, so nothing about it has been tested
-in practice. Migration is cheap by construction: `checkId` deliberately does not encode
-`checkMode` (see above), so a check changes mode without un-pairing its own comparison
-history — which is the history that would show whether the migration helped.
+The line has a third case, discovered by applying it. Some questions are neither semantic nor
+answerable from current structure: they would be structural if the payload recorded a fact it
+doesn't. Ordering two rolls requires knowing which depends on which — sequence numbers show
+what happened first, not what gated what — and attributing a Warden-side roll to the player
+requires `actingEntityId`, since `actorType` is `'gm'` for every such roll whether it stands
+in for an NPC or the player. Those wait on the deferred `roll_dice` fields, and the honest
+interim verdict is `not_applicable` naming the missing field, not a regex approximating it.
+That reframes those fields: they are measurement infrastructure as much as a candidate fix
+for the Warden's own sequencing.
+
+The line has a second constraint, running the other way. A judged verdict is binary, so a
+judge cannot say "nothing to grade" — asked about a detail the narration never introduced, it
+answers "it didn't" and returns a pass, converting an honest zero denominator into a spurious
+1.00. Applicability gating therefore stays structural even on judged checks. `judgeGate` is
+the mechanism, and `missing-canon-capture` is the case where that constraint decided against
+migrating at all.
+
+Applying the line as it currently stands: `system-rolled-player-action` stays structural, and
+reports undecided rather than guessing when its prose binding fails. `out-of-order-resolution`
+stays structural for the deferred-gate case and declines the in-turn case as schema-blocked —
+it was *not* structure-only when this entry was first written; `CONDITIONAL_DAMAGE_PATTERN`
+was prose classification and was the only clause firing under 4.6. `unauditable-mapping` and
+`narrating-past-a-block` migrated to judged with structural gates. `missing-canon-capture`
+stays structural; its zero denominator is a fixture defect, not a checker one. Migration is
+cheap by construction: `checkId` deliberately does not encode `checkMode` (see above), so a
+check changes mode without un-pairing its own comparison history.
 
 ### `eval:rescore` re-grades frozen artifacts; re-score rows are a distinct row kind
 
