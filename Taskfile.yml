@@ -72,14 +72,14 @@ tasks:
       - node -r @swc-node/register -r reflect-metadata --env-file=.env scripts/eval-run.ts {{.CLI_ARGS}}
 
   eval:report:
-    desc: 'Render a markdown report from a run directory written by eval:run (M7.4.1). Pure rendering — no DB, no Anthropic. Requires ZOLTAR_EVAL_ROOT only. Usage — task eval:report -- <run-dir> [--output <path>]'
+    desc: 'Render a markdown report from a run directory written by eval:run (M7.4.1). Pure rendering — no DB, no Anthropic. Requires ZOLTAR_EVAL_ROOT only. --scoring picks which grading to render: the run''s own reps/ scores, or an eval:rescore pass; with no flag the most recent re-score wins (falling back to the run), and the choice is named in the report title, header and on stderr. Usage — task eval:report -- <run-dir> [--scoring run|rescore|rescore=<timestamp>] [--output <path>]'
     dir: apps/zoltar-be
     cmds:
       # Plain tsx is fine here, unlike eval:run — no Nest DI container.
       - npx tsx --env-file=.env scripts/eval-report.ts {{.CLI_ARGS}}
 
   eval:compare:
-    desc: 'Paired comparison of two eval:run directories, pairing on (fixtureId, checkId) (M7.4.1). Pure rendering — no DB, no Anthropic. Requires ZOLTAR_EVAL_ROOT only. Usage — task eval:compare -- <run-dir-a> <run-dir-b> [--filter-rubric CHECK=HASH]... [--filter-harness <version>] [--output <path>]'
+    desc: 'Paired comparison of two eval:run directories, pairing on (fixtureId, checkId) (M7.4.1). Pure rendering — no DB, no Anthropic. Requires ZOLTAR_EVAL_ROOT only. Reports App/ΔApp alongside every rate so a rate bought by a shrinking denominator is visible, plus an Applicability shifts section. --scoring works as in eval:report and applies to both sides; the report warns when the two sides end up graded by different checker code. Usage — task eval:compare -- <run-dir-a> <run-dir-b> [--filter-rubric CHECK=HASH]... [--filter-harness <version>] [--scoring run|rescore|rescore=<timestamp>] [--output <path>]'
     dir: apps/zoltar-be
     cmds:
       # Plain tsx is fine here, unlike eval:run — no Nest DI container.

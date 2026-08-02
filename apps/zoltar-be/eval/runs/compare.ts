@@ -1,5 +1,5 @@
 import type { RateEntry, ResolvedApplicabilitySource } from './rates';
-import type { ApplicabilitySource, ScoreRow } from './scores';
+import type { ApplicabilitySource, ScoredRow } from './scores';
 
 export type CompareStatus =
   | 'paired'
@@ -285,7 +285,7 @@ export interface HeterogeneityInfo {
  * manifest's `rubricHashes` map are actually keyed on.)
  */
 export function detectHeterogeneity(
-  rows: ScoreRow[],
+  rows: ScoredRow[],
   label: string,
 ): HeterogeneityInfo {
   const hashesByCheck = new Map<string, { tag: string; hashes: Set<string> }>();
@@ -347,9 +347,9 @@ export interface ApplyFiltersOptions {
  * `--filter-harness` has no such asymmetry: every row always carries one.
  */
 export function applyFilters(
-  rows: ScoreRow[],
+  rows: ScoredRow[],
   filters: ApplyFiltersOptions,
-): ScoreRow[] {
+): ScoredRow[] {
   return rows.filter((row) => {
     const wantedHash = filters.rubricHashByCheckId?.[row.checkId];
     if (
@@ -405,8 +405,8 @@ export function parseRubricFilters(values: string[]): Record<string, string> {
  * `not-applicable-one-side` row.
  */
 export function describeFilterImpact(
-  before: ScoreRow[],
-  after: ScoreRow[],
+  before: ScoredRow[],
+  after: ScoredRow[],
   rubricFilters: Record<string, string>,
 ): string[] {
   const messages: string[] = [];

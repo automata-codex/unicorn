@@ -129,6 +129,48 @@ export function renderApplicabilityFindings(rates: RateEntry[]): string[] {
 }
 
 /**
+ * Which grading a rendered report describes — the run's own `scores.jsonl`
+ * or one re-score pass. Structurally what `resolveScoring` returns, restated
+ * here as the narrow thing a renderer needs so this file stays free of any
+ * filesystem dependency.
+ *
+ * Not optional: a run directory can hold several gradings of the same
+ * generator output, and a report that doesn't name which one it used is a
+ * report two people will quote at each other without noticing they aren't
+ * discussing the same numbers.
+ */
+export interface ScoringProvenance {
+  kind: 'run' | 'rescore';
+  label: string;
+  source: string;
+  corpusVersion?: string;
+  harnessVersion?: string;
+  carriedForward?: number;
+}
+
+/** Header bullets naming the grading, shared by `eval:report` and
+ * `eval:compare`'s per-side headers. */
+export function renderScoringProvenance(scoring: ScoringProvenance): string[] {
+  const lines = [`- Scoring: ${scoring.label} (${scoring.source})`];
+  if (scoring.kind === 'rescore') {
+    if (scoring.corpusVersion) {
+      lines.push(
+        `- Corpus version at scoring: ${shortCorpusVersion(scoring.corpusVersion)}`,
+      );
+    }
+    if (scoring.harnessVersion) {
+      lines.push(`- Harness version at scoring: ${scoring.harnessVersion}`);
+    }
+    if (scoring.carriedForward !== undefined) {
+      lines.push(
+        `- Carried forward (no artifact to re-grade): ${scoring.carriedForward}`,
+      );
+    }
+  }
+  return lines;
+}
+
+/**
  * Renders a run's vouched rates as markdown. Pure function over
  * `readManifest`/`computeRates`/`summarizeExclusions`'s output — no DB, no
  * network, no Anthropic (enforced by a guard test importing nothing from
@@ -144,16 +186,22 @@ export function renderRunReport(
   manifest: Manifest,
   rates: RateEntry[],
   exclusions: ExclusionsSummary,
+  scoring: ScoringProvenance,
 ): string {
   const lines: string[] = [];
 
-  lines.push(`# Eval Run Report: ${manifest.runId}`, '');
+  // The title carries the grading too, not only the `- Scoring:` bullet: an
+  // excerpt pasted into a message usually takes the heading and drops the
+  // header block.
+  const titleSuffix = scoring.kind === 'rescore' ? ` (${scoring.label})` : '';
+  lines.push(`# Eval Run Report${titleSuffix}: ${manifest.runId}`, '');
   lines.push(`- Model: ${manifest.model}`);
   lines.push(`- Prompt hash: ${manifest.promptHash}`);
   lines.push(`- Temperature: ${manifest.temperature}`);
   lines.push(`- Corpus version: ${shortCorpusVersion(manifest.corpusVersion)}`);
   lines.push(`- Planned reps: ${manifest.plannedReps}`);
   lines.push(`- Completed reps: ${manifest.completedReps.length}`);
+  lines.push(...renderScoringProvenance(scoring));
   if (manifest.decisionRule) {
     lines.push(`- Decision rule: ${manifest.decisionRule}`);
   }

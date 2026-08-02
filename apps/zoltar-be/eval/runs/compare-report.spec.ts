@@ -5,8 +5,28 @@ import { describe, expect, it } from 'vitest';
 import { comparePairs, orderForDisplay } from './compare';
 import { renderCompareReport } from './compare-report';
 
+import type { CompareSideInput } from './compare-report';
 import type { Manifest } from './manifest';
 import type { RateEntry } from './rates';
+import type { ScoringProvenance } from './report-multi';
+
+const RUN_SCORING: ScoringProvenance = {
+  kind: 'run',
+  label: "the run's own scores",
+  source: '/runs/thisrun/reps/<nnn>/scores.jsonl',
+};
+
+function side(
+  manifest: Manifest,
+  overrides: Partial<CompareSideInput> = {},
+): CompareSideInput {
+  return {
+    manifest,
+    scoring: RUN_SCORING,
+    heterogeneityWarnings: [],
+    ...overrides,
+  };
+}
 
 function baseManifest(overrides: Partial<Manifest> = {}): Manifest {
   return {
@@ -58,7 +78,7 @@ describe('renderCompareReport', () => {
       promptHash: 'bbbbbbbb',
     });
 
-    const report = renderCompareReport(manifestA, manifestB, [], [], []);
+    const report = renderCompareReport(side(manifestA), side(manifestB), []);
 
     expect(report).toContain(
       '- Decision rule: ship if no fixture drops >0.2 and median rises',
@@ -73,7 +93,7 @@ describe('renderCompareReport', () => {
       corpusVersion: 'bb'.repeat(32),
     });
 
-    const report = renderCompareReport(manifestA, manifestB, [], [], []);
+    const report = renderCompareReport(side(manifestA), side(manifestB), []);
 
     expect(report).toContain('Corpus versions differ between run A and run B');
     expect(report).toContain('aaaaaaaaaaaa'); // shortCorpusVersion(A)
@@ -88,18 +108,24 @@ describe('renderCompareReport', () => {
       corpusVersion: shared,
     });
 
-    const report = renderCompareReport(manifestA, manifestB, [], [], []);
+    const report = renderCompareReport(side(manifestA), side(manifestB), []);
 
     expect(report).toContain('## Warnings\n\n(none)');
   });
 
   it('includes heterogeneity warnings from both sides', () => {
     const report = renderCompareReport(
-      baseManifest(),
-      baseManifest({ runId: 'run-b' }),
+      side(baseManifest(), {
+        heterogeneityWarnings: [
+          'run A spans multiple rubric hashes (aaaaaaaa, bbbbbbbb)',
+        ],
+      }),
+      side(baseManifest({ runId: 'run-b' }), {
+        heterogeneityWarnings: [
+          'run B spans multiple harness versions (abc1111, abc2222)',
+        ],
+      }),
       [],
-      ['run A spans multiple rubric hashes (aaaaaaaa, bbbbbbbb)'],
-      ['run B spans multiple harness versions (abc1111, abc2222)'],
     );
 
     expect(report).toContain(
@@ -125,11 +151,9 @@ describe('renderCompareReport', () => {
     const pairs = orderForDisplay(comparePairs(ratesA, ratesB));
 
     const report = renderCompareReport(
-      baseManifest(),
-      baseManifest({ runId: 'run-b' }),
+      side(baseManifest()),
+      side(baseManifest({ runId: 'run-b' })),
       pairs,
-      [],
-      [],
     );
 
     expect(report).toContain('## Regressions (1)');
@@ -149,10 +173,8 @@ describe('renderCompareReport', () => {
 
   it('renders "(none)" for every section on an empty comparison', () => {
     const report = renderCompareReport(
-      baseManifest(),
-      baseManifest({ runId: 'run-b' }),
-      [],
-      [],
+      side(baseManifest()),
+      side(baseManifest({ runId: 'run-b' })),
       [],
     );
 
@@ -172,11 +194,9 @@ describe('renderCompareReport', () => {
     );
 
     const report = renderCompareReport(
-      baseManifest(),
-      baseManifest({ runId: 'run-b' }),
+      side(baseManifest()),
+      side(baseManifest({ runId: 'run-b' })),
       pairs,
-      [],
-      [],
     );
 
     expect(report).toContain(
@@ -215,11 +235,9 @@ describe('renderCompareReport', () => {
     );
 
     const report = renderCompareReport(
-      baseManifest(),
-      baseManifest({ runId: 'run-b' }),
+      side(baseManifest()),
+      side(baseManifest({ runId: 'run-b' })),
       pairs,
-      [],
-      [],
     );
 
     expect(report).toContain('## Applicability shifts (1)');
@@ -242,11 +260,9 @@ describe('renderCompareReport', () => {
     );
 
     const report = renderCompareReport(
-      baseManifest(),
-      baseManifest({ runId: 'run-b' }),
+      side(baseManifest()),
+      side(baseManifest({ runId: 'run-b' })),
       pairs,
-      [],
-      [],
     );
 
     expect(report).toContain('## Improvements (1)');
@@ -256,6 +272,80 @@ describe('renderCompareReport', () => {
     );
   });
 
+  it('names each side scoring source in its header', () => {
+    const report = renderCompareReport(
+      side(baseManifest()),
+      side(baseManifest({ runId: 'run-b' }), {
+        scoring: {
+          kind: 'rescore',
+          label: 're-score 2026-07-30T09-00-00Z',
+          source: '/runs/b/rescore/2026-07-30T09-00-00Z.jsonl',
+          harnessVersion: 'abc1234',
+        },
+      }),
+      [],
+    );
+
+    expect(report).toContain(
+      "- Scoring: the run's own scores (/runs/thisrun/reps/<nnn>/scores.jsonl)",
+    );
+    expect(report).toContain(
+      '- Scoring: re-score 2026-07-30T09-00-00Z ' +
+        '(/runs/b/rescore/2026-07-30T09-00-00Z.jsonl)',
+    );
+  });
+
+  it('warns when the two sides were graded by different graders', () => {
+    const report = renderCompareReport(
+      side(baseManifest()),
+      side(baseManifest({ runId: 'run-b' }), {
+        scoring: {
+          kind: 'rescore',
+          label: 're-score 2026-07-30T09-00-00Z',
+          source: '/runs/b/rescore/2026-07-30T09-00-00Z.jsonl',
+        },
+      }),
+      [],
+    );
+
+    expect(report).toContain(
+      "Run A is scored from the run's own scores and run B from " +
+        're-score 2026-07-30T09-00-00Z',
+    );
+  });
+
+  it('warns when both sides are re-scores under different checker code', () => {
+    const rescore = (label: string, harnessVersion: string) =>
+      ({
+        kind: 'rescore',
+        label,
+        source: `/runs/x/rescore/${label}.jsonl`,
+        harnessVersion,
+      }) as const;
+
+    const report = renderCompareReport(
+      side(baseManifest(), { scoring: rescore('pass-1', 'aaa1111') }),
+      side(baseManifest({ runId: 'run-b' }), {
+        scoring: rescore('pass-2', 'bbb2222'),
+      }),
+      [],
+    );
+
+    expect(report).toContain(
+      "Run A's re-score ran under harness aaa1111 and run B's under bbb2222",
+    );
+  });
+
+  it('does not warn when both sides used the same grading', () => {
+    const report = renderCompareReport(
+      side(baseManifest()),
+      side(baseManifest({ runId: 'run-b' })),
+      [],
+    );
+
+    expect(report).toContain('## Warnings\n\n(none)');
+  });
+
   it('warns when a check gates applicability differently on each side', () => {
     const pairs = comparePairs(
       [rate({ fixtureId: 'migrated', applicabilitySource: 'artifact' })],
@@ -263,11 +353,9 @@ describe('renderCompareReport', () => {
     );
 
     const report = renderCompareReport(
-      baseManifest(),
-      baseManifest({ runId: 'run-b' }),
+      side(baseManifest()),
+      side(baseManifest({ runId: 'run-b' })),
       pairs,
-      [],
-      [],
     );
 
     expect(report).toContain(

@@ -13,10 +13,12 @@ import {
   formatApplicability,
   formatApplicabilitySource,
   formatRate,
+  renderScoringProvenance,
 } from './report-multi';
 
 import type { ComparePair } from './compare';
 import type { Manifest } from './manifest';
+import type { ScoringProvenance } from './report-multi';
 
 function formatDelta(delta: number | null): string {
   if (delta === null) return 'n/a';
@@ -132,15 +134,64 @@ function renderApplicabilityShiftTable(pairs: ComparePair[]): string[] {
   return lines;
 }
 
-function renderRunHeader(label: string, manifest: Manifest): string[] {
+/** One side of the comparison: the run, the grading its numbers came from,
+ * and that side's heterogeneity warnings. Grouped rather than passed as
+ * three parallel positional arguments per side — six positionals in
+ * A,A,A,B,B,B order is a swap waiting to happen, and a comparison that
+ * silently attributes run A's scoring to run B is precisely the failure this
+ * plumbing exists to prevent. */
+export interface CompareSideInput {
+  manifest: Manifest;
+  scoring: ScoringProvenance;
+  heterogeneityWarnings: string[];
+}
+
+function renderRunHeader(label: string, side: CompareSideInput): string[] {
+  const { manifest } = side;
   const lines = [`## Run ${label}: ${manifest.runId}`, ''];
   lines.push(`- Model: ${manifest.model}`);
   lines.push(`- Prompt hash: ${manifest.promptHash}`);
   lines.push(`- Temperature: ${manifest.temperature}`);
   lines.push(`- Corpus version: ${shortCorpusVersion(manifest.corpusVersion)}`);
   lines.push(`- Decision rule: ${manifest.decisionRule ?? '(none recorded)'}`);
+  lines.push(...renderScoringProvenance(side.scoring));
   lines.push('');
   return lines;
+}
+
+/**
+ * Warns when the two sides were graded by different graders — the hazard
+ * `--scoring`'s default introduces and the reason that default is safe to
+ * have at all. Two kinds of mismatch count: one side read from `reps/` while
+ * the other read a re-score, and two re-scores produced under different
+ * checker code. Neither shows up anywhere in the rates themselves.
+ */
+function scoringMismatchWarnings(
+  a: ScoringProvenance,
+  b: ScoringProvenance,
+): string[] {
+  if (a.kind !== b.kind) {
+    return [
+      `Run A is scored from ${a.label} and run B from ${b.label} — these ` +
+        'are different graders over the same kind of output, so every Δ in ' +
+        'this report mixes grader change with model change. Pass ' +
+        '--scoring run (or --scoring rescore) to put both sides on the same ' +
+        'footing.',
+    ];
+  }
+  if (
+    a.kind === 'rescore' &&
+    a.harnessVersion !== undefined &&
+    b.harnessVersion !== undefined &&
+    a.harnessVersion !== b.harnessVersion
+  ) {
+    return [
+      `Run A's re-score ran under harness ${a.harnessVersion} and run B's ` +
+        `under ${b.harnessVersion} — the two sides were graded by different ` +
+        'checker code, so this comparison is not grader-neutral.',
+    ];
+  }
+  return [];
 }
 
 /**
@@ -157,22 +208,24 @@ function renderRunHeader(label: string, manifest: Manifest): string[] {
  * the whole reason to name it explicitly.
  */
 export function renderCompareReport(
-  manifestA: Manifest,
-  manifestB: Manifest,
+  a: CompareSideInput,
+  b: CompareSideInput,
   pairs: ComparePair[],
-  heterogeneityWarningsA: string[],
-  heterogeneityWarningsB: string[],
 ): string {
   const lines: string[] = ['# Eval Compare Report', ''];
 
-  lines.push(...renderRunHeader('A', manifestA));
-  lines.push(...renderRunHeader('B', manifestB));
+  lines.push(...renderRunHeader('A', a));
+  lines.push(...renderRunHeader('B', b));
 
-  const warnings = [...heterogeneityWarningsA, ...heterogeneityWarningsB];
-  if (manifestA.corpusVersion !== manifestB.corpusVersion) {
+  const warnings = [
+    ...a.heterogeneityWarnings,
+    ...b.heterogeneityWarnings,
+    ...scoringMismatchWarnings(a.scoring, b.scoring),
+  ];
+  if (a.manifest.corpusVersion !== b.manifest.corpusVersion) {
     warnings.push(
       'Corpus versions differ between run A and run B ' +
-        `(${shortCorpusVersion(manifestA.corpusVersion)} vs ${shortCorpusVersion(manifestB.corpusVersion)}) — ` +
+        `(${shortCorpusVersion(a.manifest.corpusVersion)} vs ${shortCorpusVersion(b.manifest.corpusVersion)}) — ` +
         'this comparison mixes prompt/model effect with fixture-corpus differences.',
     );
   }
