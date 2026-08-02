@@ -417,6 +417,20 @@ inside the applicability path depends on wording. This is the strongest practica
 reporting applicability alongside rate rather than leaving it derivable: a rate moving because
 its denominator moved looks identical to a rate moving because behaviour moved.
 
+**The reports now do this, so the check is no longer manual.** `eval:report` carries an `App`
+column on the per-fixture and per-tag tables; `eval:compare` carries `App A`/`App B`/`ΔApp` on
+every row and an `Applicability shifts` section ranked by magnitude, which is where a
+denominator collapse shows up even when no rate delta can be computed. Applicability is
+`N / (N + NA)` with errors excluded — an errored rep never determined whether the check
+applied. Read it next to the `Src` column: the same number is a harness defect on a
+fixture-gated check and a behavioural measure on an artifact-gated one. See `decisions.md`,
+"Applicability is reported alongside every rate."
+
+One more thing to check before comparing two runs: **which grading each side was rendered
+from.** A run directory can hold its own `scores.jsonl` plus several `eval:rescore` passes.
+Both commands take `--scoring` and name the resolved grading in their headers; `eval:compare`
+warns when the two sides land on different ones.
+
 A related lesson from the same audit: `out-of-order-resolution` carried a roll-before-
 `player_action` clause that could never fire, because `writeTurnEvents` writes `player_action`
 unconditionally first and a scratch adventure seeds no prior `game_events`. Dead code in a
