@@ -1,5 +1,5 @@
-import type { RateEntry } from './rates';
-import type { ScoreRow } from './scores';
+import type { RateEntry, ResolvedApplicabilitySource } from './rates';
+import type { ApplicabilitySource, ScoreRow } from './scores';
 
 export type CompareStatus =
   | 'paired'
@@ -18,11 +18,46 @@ export interface ComparePair {
   delta: number | null;
   nA: number;
   nB: number;
+  applicabilityA: number | null;
+  applicabilityB: number | null;
+  applicabilityDenominatorA: number;
+  applicabilityDenominatorB: number;
+  /**
+   * `applicabilityB - applicabilityA`, and **deliberately not gated on
+   * `status`.** A pair where one side's rate is undefined still has two
+   * perfectly well-defined applicabilities, and that is the case worth
+   * seeing: a check that went from 0.90 applicable to 0.00 currently renders
+   * as a bare `not-applicable-one-side` row with no magnitude anywhere, which
+   * is how the largest denominator moves in a run become the least visible
+   * thing in its report.
+   *
+   * Still `null` when either side has no applicability at all — a fixture
+   * absent from one run (`a-only`/`b-only`), or one whose every rep errored.
+   * Those are genuinely uncomparable, unlike the case above.
+   */
+  deltaApplicability: number | null;
+  /** `null` when the fixture/check is absent from that side entirely. A
+   * mismatch between the two is a checker migration landing mid-comparison —
+   * the same applicability number means different things on either side. */
+  applicabilitySourceA: ResolvedApplicabilitySource | null;
+  applicabilitySourceB: ResolvedApplicabilitySource | null;
   status: CompareStatus;
 }
 
 function key(fixtureId: string, checkId: string): string {
   return `${fixtureId}::${checkId}`;
+}
+
+/** One side's contribution to a pair, with the absent-side defaults in one
+ * place rather than restated per branch. */
+function side(entry: RateEntry | undefined) {
+  return {
+    rate: entry?.rate ?? null,
+    n: entry?.n ?? 0,
+    applicability: entry?.applicability ?? null,
+    applicabilityDenominator: entry?.applicabilityDenominator ?? 0,
+    applicabilitySource: entry?.applicabilitySource ?? null,
+  };
 }
 
 /**
@@ -31,9 +66,11 @@ function key(fixtureId: string, checkId: string): string {
  * effect with fixture-difficulty variance.
  *
  * `not-applicable-one-side` covers both "one side has no usable denominator"
- * and the rarer "neither side does" — either way a delta can't honestly be
- * computed, and the caller's job is the same: report the pair as-is, never
- * against a partial denominator.
+ * and the rarer "neither side does" — either way a *rate* delta can't
+ * honestly be computed, and the caller's job is the same: report the pair
+ * as-is, never against a partial denominator. The applicability delta is a
+ * different measurement and follows its own rule — see
+ * `ComparePair.deltaApplicability`.
  */
 export function comparePairs(
   ratesA: RateEntry[],
@@ -47,63 +84,40 @@ export function comparePairs(
   for (const k of allKeys) {
     const a = byKeyA.get(k);
     const b = byKeyB.get(k);
+    const sideA = side(a);
+    const sideB = side(b);
+    const identity = a ?? b!;
 
-    if (a && !b) {
-      pairs.push({
-        fixtureId: a.fixtureId,
-        checkId: a.checkId,
-        tag: a.tag,
-        rateA: a.rate,
-        rateB: null,
-        delta: null,
-        nA: a.n,
-        nB: 0,
-        status: 'a-only',
-      });
-      continue;
-    }
-    if (b && !a) {
-      pairs.push({
-        fixtureId: b.fixtureId,
-        checkId: b.checkId,
-        tag: b.tag,
-        rateA: null,
-        rateB: b.rate,
-        delta: null,
-        nA: 0,
-        nB: b.n,
-        status: 'b-only',
-      });
-      continue;
-    }
-
-    const entryA = a!;
-    const entryB = b!;
-    if (entryA.rate === null || entryB.rate === null) {
-      pairs.push({
-        fixtureId: entryA.fixtureId,
-        checkId: entryA.checkId,
-        tag: entryA.tag,
-        rateA: entryA.rate,
-        rateB: entryB.rate,
-        delta: null,
-        nA: entryA.n,
-        nB: entryB.n,
-        status: 'not-applicable-one-side',
-      });
-      continue;
-    }
+    let status: CompareStatus;
+    if (!b) status = 'a-only';
+    else if (!a) status = 'b-only';
+    else if (sideA.rate === null || sideB.rate === null) {
+      status = 'not-applicable-one-side';
+    } else status = 'paired';
 
     pairs.push({
-      fixtureId: entryA.fixtureId,
-      checkId: entryA.checkId,
-      tag: entryA.tag,
-      rateA: entryA.rate,
-      rateB: entryB.rate,
-      delta: entryB.rate - entryA.rate,
-      nA: entryA.n,
-      nB: entryB.n,
-      status: 'paired',
+      fixtureId: identity.fixtureId,
+      checkId: identity.checkId,
+      tag: identity.tag,
+      rateA: sideA.rate,
+      rateB: sideB.rate,
+      delta:
+        status === 'paired'
+          ? (sideB.rate as number) - (sideA.rate as number)
+          : null,
+      nA: sideA.n,
+      nB: sideB.n,
+      applicabilityA: sideA.applicability,
+      applicabilityB: sideB.applicability,
+      applicabilityDenominatorA: sideA.applicabilityDenominator,
+      applicabilityDenominatorB: sideB.applicabilityDenominator,
+      deltaApplicability:
+        sideA.applicability === null || sideB.applicability === null
+          ? null
+          : sideB.applicability - sideA.applicability,
+      applicabilitySourceA: sideA.applicabilitySource,
+      applicabilitySourceB: sideB.applicabilitySource,
+      status,
     });
   }
 
@@ -129,6 +143,90 @@ export const isImprovement = (p: ComparePair): boolean =>
 export const isUnchanged = (p: ComparePair): boolean =>
   p.status === 'paired' && p.delta === 0;
 export const isUnpaired = (p: ComparePair): boolean => p.status !== 'paired';
+
+/**
+ * A pair whose applicability moved at all.
+ *
+ * This classification **overlaps** the four above by design, and that
+ * overlap is the whole point: the case worth catching is a check that
+ * improved its rate by shrinking its denominator, which is a legitimate
+ * `Improvements` row *and* an applicability shift. Filing it in only one
+ * section is how it goes unnoticed. Callers that present it as a section
+ * must say the sections aren't disjoint.
+ */
+export const isApplicabilityShift = (p: ComparePair): boolean =>
+  p.deltaApplicability !== null && p.deltaApplicability !== 0;
+
+/** Applicability shifts, biggest magnitude first in either direction — a
+ * denominator collapsing and a denominator opening up are the same size of
+ * problem for a comparison. */
+export function orderApplicabilityShifts(pairs: ComparePair[]): ComparePair[] {
+  return pairs
+    .filter(isApplicabilityShift)
+    .sort(
+      (a, b) =>
+        Math.abs(b.deltaApplicability!) - Math.abs(a.deltaApplicability!) ||
+        byFixtureThenCheck(a, b),
+    );
+}
+
+/** A source a check actually declared, as opposed to one the rows failed to
+ * record (`unknown`) or disagreed on within a single side (`mixed`). */
+function isDeclaredSource(
+  source: ResolvedApplicabilitySource | null,
+): source is ApplicabilitySource {
+  return source === 'fixture' || source === 'artifact' || source === 'ungated';
+}
+
+/**
+ * Pairs whose two sides declare *different* applicability sources — a
+ * checker migrated between the two runs, so the same applicability number is
+ * a harness signal on one side and a behavioural measure on the other.
+ *
+ * Requires both sides to have actually declared one. A side that reads
+ * `unknown` hasn't contradicted anything: its rows predate the field (a run
+ * carrying forward pre-`applicabilitySource` rows is the ordinary case), and
+ * calling that a migration would raise a per-check alarm about a checker
+ * that never moved. Those pairs go to
+ * `findIndeterminateApplicabilitySources` instead, which reports them once
+ * rather than once each.
+ */
+export function findApplicabilitySourceMismatches(
+  pairs: ComparePair[],
+): ComparePair[] {
+  return pairs
+    .filter(
+      (p) =>
+        isDeclaredSource(p.applicabilitySourceA) &&
+        isDeclaredSource(p.applicabilitySourceB) &&
+        p.applicabilitySourceA !== p.applicabilitySourceB,
+    )
+    .sort(byFixtureThenCheck);
+}
+
+/**
+ * Pairs where at least one side's applicability source couldn't be
+ * established — `unknown` (rows predating the field) or `mixed` (a checker
+ * migrating mid-run). Their ΔApp is still arithmetic, but there's no telling
+ * whether it reads as a harness defect or a behavioural finding.
+ *
+ * Reported as one aggregated warning by the renderer rather than one per
+ * check: the cause is almost always a single event affecting many rows at
+ * once, and a wall of near-identical lines buries the mismatches that are
+ * real.
+ */
+export function findIndeterminateApplicabilitySources(
+  pairs: ComparePair[],
+): ComparePair[] {
+  return pairs
+    .filter(
+      (p) =>
+        p.deltaApplicability !== null &&
+        (!isDeclaredSource(p.applicabilitySourceA) ||
+          !isDeclaredSource(p.applicabilitySourceB)),
+    )
+    .sort(byFixtureThenCheck);
+}
 
 /**
  * Regressions first — sorted by delta ascending, worst first. A change

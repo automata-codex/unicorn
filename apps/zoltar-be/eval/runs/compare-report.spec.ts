@@ -148,12 +148,131 @@ describe('renderCompareReport', () => {
   });
 
   it('renders "(none)" for every section on an empty comparison', () => {
-    const report = renderCompareReport(baseManifest(), baseManifest({ runId: 'run-b' }), [], [], []);
+    const report = renderCompareReport(
+      baseManifest(),
+      baseManifest({ runId: 'run-b' }),
+      [],
+      [],
+      [],
+    );
 
     expect(report).toContain('## Regressions (0)\n\n(none)');
     expect(report).toContain('## Improvements (0)\n\n(none)');
+    expect(report).toContain('## Applicability shifts (0)\n\n(none)');
     expect(report).toContain('## Unchanged (0)\n\n(none)');
     expect(report).toContain('## Unpaired / No Denominator (0)\n\n(none)');
+  });
+
+  it('puts App A / App B / ΔApp on every paired row', () => {
+    const pairs = orderForDisplay(
+      comparePairs(
+        [rate({ fixtureId: 'improves', pass: 6, fail: 4 })],
+        [rate({ fixtureId: 'improves', pass: 4, fail: 0, notApplicable: 6 })],
+      ),
+    );
+
+    const report = renderCompareReport(
+      baseManifest(),
+      baseManifest({ runId: 'run-b' }),
+      pairs,
+      [],
+      [],
+    );
+
+    expect(report).toContain(
+      '| Fixture | Check | Tag | Rate A | Rate B | Δ | N A | N B | App A | App B | ΔApp |',
+    );
+    // +0.40 on the rate, entirely bought by six reps leaving the denominator.
+    expect(report).toContain(
+      '| improves | check-a | OUT-OF-ORDER-RESOLUTION | 0.60 | 1.00 | +0.40 | 10 | 4 | 1.00 | 0.40 | -0.60 |',
+    );
+  });
+
+  it('gives an applicability collapse a magnitude even with no rate delta', () => {
+    // Previously this rendered as a bare `not-applicable-one-side` row: the
+    // largest denominator move in the run, with no number attached to it.
+    const pairs = orderForDisplay(
+      comparePairs(
+        [
+          rate({
+            fixtureId: 'turn19-system-rolled-player-action',
+            checkId: 'system-rolled-player-action',
+            pass: 18,
+            fail: 0,
+            notApplicable: 2,
+          }),
+        ],
+        [
+          rate({
+            fixtureId: 'turn19-system-rolled-player-action',
+            checkId: 'system-rolled-player-action',
+            pass: 0,
+            fail: 0,
+            notApplicable: 20,
+          }),
+        ],
+      ),
+    );
+
+    const report = renderCompareReport(
+      baseManifest(),
+      baseManifest({ runId: 'run-b' }),
+      pairs,
+      [],
+      [],
+    );
+
+    expect(report).toContain('## Applicability shifts (1)');
+    expect(report).toContain('Not disjoint from the sections above');
+    expect(report).toContain(
+      '| turn19-system-rolled-player-action | system-rolled-player-action | ' +
+        'OUT-OF-ORDER-RESOLUTION | fixture | fixture | 0.90 (18/20) | ' +
+        '0.00 (0/20) | -0.90 | 1.00 | n/a | n/a | not-applicable-one-side |',
+    );
+    // And it is still reported in the unpaired table, unchanged.
+    expect(report).toContain('## Unpaired / No Denominator (1)');
+  });
+
+  it('lists a denominator-bought improvement in both Improvements and Applicability shifts', () => {
+    const pairs = orderForDisplay(
+      comparePairs(
+        [rate({ fixtureId: 'bought', pass: 6, fail: 4 })],
+        [rate({ fixtureId: 'bought', pass: 4, fail: 0, notApplicable: 6 })],
+      ),
+    );
+
+    const report = renderCompareReport(
+      baseManifest(),
+      baseManifest({ runId: 'run-b' }),
+      pairs,
+      [],
+      [],
+    );
+
+    expect(report).toContain('## Improvements (1)');
+    expect(report).toContain('## Applicability shifts (1)');
+    expect(report.indexOf('## Applicability shifts')).toBeGreaterThan(
+      report.indexOf('## Improvements'),
+    );
+  });
+
+  it('warns when a check gates applicability differently on each side', () => {
+    const pairs = comparePairs(
+      [rate({ fixtureId: 'migrated', applicabilitySource: 'artifact' })],
+      [rate({ fixtureId: 'migrated', applicabilitySource: 'fixture' })],
+    );
+
+    const report = renderCompareReport(
+      baseManifest(),
+      baseManifest({ runId: 'run-b' }),
+      pairs,
+      [],
+      [],
+    );
+
+    expect(report).toContain(
+      'gates applicability on artifact in run A and fixture in run B',
+    );
   });
 });
 

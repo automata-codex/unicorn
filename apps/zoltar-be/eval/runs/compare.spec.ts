@@ -5,6 +5,11 @@ import {
   comparePairs,
   describeFilterImpact,
   detectHeterogeneity,
+  findApplicabilitySourceMismatches,
+  findIndeterminateApplicabilitySources,
+  isApplicabilityShift,
+  isImprovement,
+  orderApplicabilityShifts,
   orderForDisplay,
   parseRubricFilters,
 } from './compare';
@@ -110,6 +115,156 @@ describe('comparePairs', () => {
     expect(pair.rateA).toBeNull();
     expect(pair.rateB).toBe(0.7);
     expect(pair.delta).toBeNull();
+  });
+
+  it('still computes an applicability delta when the rate delta is undefined', () => {
+    // turn19/21's shape: 18/20 applicable on one side, 0/20 on the other. The
+    // rate delta genuinely can't be computed, but the collapse is the whole
+    // finding and used to render as a bare `not-applicable-one-side` row with
+    // no magnitude anywhere in the report.
+    const [pair] = comparePairs(
+      [rate({ pass: 18, fail: 0, notApplicable: 2 })],
+      [rate({ pass: 0, fail: 0, notApplicable: 20 })],
+    );
+
+    expect(pair.status).toBe('not-applicable-one-side');
+    expect(pair.delta).toBeNull();
+    expect(pair.applicabilityA).toBe(0.9);
+    expect(pair.applicabilityB).toBe(0);
+    expect(pair.deltaApplicability).toBeCloseTo(-0.9);
+  });
+
+  it('leaves the applicability delta null when a side is absent entirely', () => {
+    const [aOnly] = comparePairs([rate({ fixtureId: 'only-a' })], []);
+    expect(aOnly.applicabilityA).toBe(1);
+    expect(aOnly.applicabilityB).toBeNull();
+    expect(aOnly.deltaApplicability).toBeNull();
+    expect(aOnly.applicabilitySourceB).toBeNull();
+
+    const [bOnly] = comparePairs([], [rate({ fixtureId: 'only-b' })]);
+    expect(bOnly.deltaApplicability).toBeNull();
+    expect(bOnly.applicabilitySourceA).toBeNull();
+  });
+
+  it('leaves the applicability delta null when a side only ever errored', () => {
+    const [pair] = comparePairs(
+      [rate({ pass: 0, fail: 0, notApplicable: 0, error: 10 })],
+      [rate({ pass: 7, fail: 3 })],
+    );
+    expect(pair.applicabilityA).toBeNull();
+    expect(pair.deltaApplicability).toBeNull();
+  });
+
+  it('catches a rate that rose only because its denominator shrank', () => {
+    // The case the ΔApp column exists for: 6/10 → 4/4 reads as +0.40 in the
+    // rate column and is entirely explained by six reps dropping out.
+    const [pair] = comparePairs(
+      [rate({ pass: 6, fail: 4, notApplicable: 0 })],
+      [rate({ pass: 4, fail: 0, notApplicable: 6 })],
+    );
+
+    expect(pair.status).toBe('paired');
+    expect(pair.delta).toBeCloseTo(0.4);
+    expect(pair.deltaApplicability).toBeCloseTo(-0.6);
+    expect(isImprovement(pair)).toBe(true);
+    // Both classifications are true at once, and both must be reported.
+    expect(isApplicabilityShift(pair)).toBe(true);
+  });
+
+  it('carries each side applicability source, and null for an absent side', () => {
+    const [pair] = comparePairs(
+      [rate({ applicabilitySource: 'artifact' })],
+      [rate({ applicabilitySource: 'fixture' })],
+    );
+    expect(pair.applicabilitySourceA).toBe('artifact');
+    expect(pair.applicabilitySourceB).toBe('fixture');
+  });
+});
+
+describe('orderApplicabilityShifts', () => {
+  it('ranks by magnitude in either direction, ignoring unmoved pairs', () => {
+    const pairs = comparePairs(
+      [
+        rate({ fixtureId: 'collapses', pass: 10, fail: 0 }),
+        rate({ fixtureId: 'opens-up', pass: 2, fail: 0, notApplicable: 8 }),
+        rate({ fixtureId: 'nudges', pass: 9, fail: 0, notApplicable: 1 }),
+        rate({ fixtureId: 'flat', pass: 5, fail: 5 }),
+      ],
+      [
+        rate({ fixtureId: 'collapses', pass: 1, fail: 0, notApplicable: 9 }),
+        rate({ fixtureId: 'opens-up', pass: 9, fail: 1 }),
+        rate({ fixtureId: 'nudges', pass: 8, fail: 0, notApplicable: 2 }),
+        rate({ fixtureId: 'flat', pass: 3, fail: 7 }),
+      ],
+    );
+
+    expect(orderApplicabilityShifts(pairs).map((p) => p.fixtureId)).toEqual([
+      'collapses', // -0.90
+      'opens-up', // +0.80
+      'nudges', // -0.10
+    ]);
+  });
+});
+
+describe('findApplicabilitySourceMismatches', () => {
+  it('names a check whose gating source changed between the two runs', () => {
+    const pairs = comparePairs(
+      [
+        rate({ fixtureId: 'migrated', applicabilitySource: 'artifact' }),
+        rate({ fixtureId: 'steady', applicabilitySource: 'fixture' }),
+      ],
+      [
+        rate({ fixtureId: 'migrated', applicabilitySource: 'fixture' }),
+        rate({ fixtureId: 'steady', applicabilitySource: 'fixture' }),
+      ],
+    );
+
+    expect(
+      findApplicabilitySourceMismatches(pairs).map((p) => p.fixtureId),
+    ).toEqual(['migrated']);
+  });
+
+  it('does not treat an absent side as a mismatch', () => {
+    const pairs = comparePairs(
+      [rate({ fixtureId: 'only-a', applicabilitySource: 'artifact' })],
+      [],
+    );
+    expect(findApplicabilitySourceMismatches(pairs)).toEqual([]);
+  });
+
+  it('does not call an unrecorded source a migration', () => {
+    // The ordinary case for a run whose rows predate the field, or one
+    // carrying forward such rows: `unknown` contradicts nothing, and
+    // reporting it per check as a checker migration buries the real ones.
+    const pairs = comparePairs(
+      [rate({ fixtureId: 'old-rows', applicabilitySource: 'unknown' })],
+      [rate({ fixtureId: 'old-rows', applicabilitySource: 'ungated' })],
+    );
+
+    expect(findApplicabilitySourceMismatches(pairs)).toEqual([]);
+    expect(
+      findIndeterminateApplicabilitySources(pairs).map((p) => p.fixtureId),
+    ).toEqual(['old-rows']);
+  });
+
+  it('treats a mid-run mixed source as indeterminate, not as a migration', () => {
+    const pairs = comparePairs(
+      [rate({ fixtureId: 'churned', applicabilitySource: 'mixed' })],
+      [rate({ fixtureId: 'churned', applicabilitySource: 'fixture' })],
+    );
+
+    expect(findApplicabilitySourceMismatches(pairs)).toEqual([]);
+    expect(findIndeterminateApplicabilitySources(pairs)).toHaveLength(1);
+  });
+
+  it('leaves fully-declared, agreeing pairs out of both lists', () => {
+    const pairs = comparePairs(
+      [rate({ applicabilitySource: 'fixture' })],
+      [rate({ applicabilitySource: 'fixture' })],
+    );
+
+    expect(findApplicabilitySourceMismatches(pairs)).toEqual([]);
+    expect(findIndeterminateApplicabilitySources(pairs)).toEqual([]);
   });
 });
 
