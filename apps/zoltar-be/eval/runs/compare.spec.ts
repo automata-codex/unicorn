@@ -15,17 +15,24 @@ import type { ScoreRow } from './scores';
 function rate(overrides: Partial<RateEntry> = {}): RateEntry {
   const pass = overrides.pass ?? 5;
   const fail = overrides.fail ?? 5;
+  const notApplicable = overrides.notApplicable ?? 0;
+  const n = pass + fail;
+  const applicabilityDenominator = n + notApplicable;
   return {
     fixtureId: 'fixture-a',
     checkId: 'check-a',
     tag: 'OUT-OF-ORDER-RESOLUTION',
     checkMode: 'structural',
+    applicabilitySource: 'fixture',
     pass,
     fail,
-    notApplicable: 0,
+    notApplicable,
     error: 0,
-    n: pass + fail,
-    rate: pass + fail === 0 ? null : pass / (pass + fail),
+    n,
+    rate: n === 0 ? null : pass / n,
+    applicabilityDenominator,
+    applicability:
+      applicabilityDenominator === 0 ? null : n / applicabilityDenominator,
     ...overrides,
   };
 }

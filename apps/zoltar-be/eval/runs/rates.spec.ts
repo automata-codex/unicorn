@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeRates, rollupByTag, summarizeExclusions } from './rates';
+import {
+  classifyApplicability,
+  computeRates,
+  findApplicabilityIssues,
+  rollupByTag,
+  summarizeExclusions,
+} from './rates';
 
 import type { ScoreRow } from './scores';
 
@@ -107,6 +113,99 @@ describe('computeRates', () => {
     expect(overRes.rate).toBe(0);
   });
 
+  it('keeps errors out of the applicability denominator', () => {
+    // turn14's shape: 7 not_applicable, 3 errors, no pass or fail. A rep that
+    // errored never determined whether the check applied, so it belongs in
+    // neither half of the ratio — the applicability denominator is 7, and the
+    // 3 errors are accounted for separately.
+    const rows = [
+      ...Array.from({ length: 7 }, (_, i) =>
+        scoreRow({
+          repIndex: i + 1,
+          verdict: 'not_applicable',
+          notApplicableReason: 'no mapping to audit',
+        }),
+      ),
+      ...Array.from({ length: 3 }, (_, i) =>
+        scoreRow({
+          repIndex: i + 8,
+          verdict: 'error',
+          errorMessage: 'timeout',
+        }),
+      ),
+    ];
+
+    const [rate] = computeRates(rows);
+    expect(rate.notApplicable).toBe(7);
+    expect(rate.error).toBe(3);
+    expect(rate.n).toBe(0);
+    expect(rate.applicabilityDenominator).toBe(7);
+    expect(rate.applicability).toBe(0);
+  });
+
+  it('gives applicability: null when every rep errored', () => {
+    const rows = [
+      scoreRow({ repIndex: 1, verdict: 'error', errorMessage: 'timeout' }),
+      scoreRow({ repIndex: 2, verdict: 'error', errorMessage: 'timeout' }),
+    ];
+
+    const [rate] = computeRates(rows);
+    expect(rate.applicabilityDenominator).toBe(0);
+    expect(rate.applicability).toBeNull();
+  });
+
+  it('computes applicability as n / (n + notApplicable)', () => {
+    const rows = [
+      scoreRow({ repIndex: 1, verdict: 'pass' }),
+      scoreRow({ repIndex: 2, verdict: 'fail' }),
+      scoreRow({ repIndex: 3, verdict: 'pass' }),
+      scoreRow({
+        repIndex: 4,
+        verdict: 'not_applicable',
+        notApplicableReason: 'no dice_roll this turn',
+      }),
+    ];
+
+    const [rate] = computeRates(rows);
+    expect(rate.n).toBe(3);
+    expect(rate.applicabilityDenominator).toBe(4);
+    expect(rate.applicability).toBe(0.75);
+    // The rate itself is unchanged by any of this.
+    expect(rate.rate).toBeCloseTo(2 / 3);
+  });
+
+  it('resolves applicabilitySource when every row declares the same one', () => {
+    const rows = [
+      scoreRow({ repIndex: 1, applicabilitySource: 'fixture' }),
+      scoreRow({ repIndex: 2, applicabilitySource: 'fixture' }),
+    ];
+    expect(computeRates(rows)[0].applicabilitySource).toBe('fixture');
+  });
+
+  it('resolves applicabilitySource to unknown when no row declares one', () => {
+    const rows = [scoreRow({ repIndex: 1 }), scoreRow({ repIndex: 2 })];
+    expect(computeRates(rows)[0].applicabilitySource).toBe('unknown');
+  });
+
+  it('resolves applicabilitySource to unknown when only some rows declare one', () => {
+    // Can't vouch that the undeclared row was scored the same way, and
+    // nothing is known to conflict — distinct from `mixed`, which is a
+    // checker migration caught mid-run.
+    const rows = [
+      scoreRow({ repIndex: 1, applicabilitySource: 'artifact' }),
+      scoreRow({ repIndex: 2 }),
+    ];
+    expect(computeRates(rows)[0].applicabilitySource).toBe('unknown');
+  });
+
+  it('resolves applicabilitySource to mixed when rows declare different ones', () => {
+    const rows = [
+      scoreRow({ repIndex: 1, applicabilitySource: 'artifact' }),
+      scoreRow({ repIndex: 2, applicabilitySource: 'fixture' }),
+    ];
+    expect(computeRates(rows)[0].applicabilitySource).toBe('mixed');
+  });
+
   it('sorts by fixtureId then checkId', () => {
     const rows = [
       scoreRow({ fixtureId: 'b', checkId: 'z' }),
@@ -126,8 +225,16 @@ describe('computeRates', () => {
 describe('rollupByTag', () => {
   it('aggregates pass/fail/n/rate across fixtures sharing a tag', () => {
     const rows = [
-      scoreRow({ fixtureId: 'a', tag: 'OUT-OF-ORDER-RESOLUTION', verdict: 'pass' }),
-      scoreRow({ fixtureId: 'b', tag: 'OUT-OF-ORDER-RESOLUTION', verdict: 'fail' }),
+      scoreRow({
+        fixtureId: 'a',
+        tag: 'OUT-OF-ORDER-RESOLUTION',
+        verdict: 'pass',
+      }),
+      scoreRow({
+        fixtureId: 'b',
+        tag: 'OUT-OF-ORDER-RESOLUTION',
+        verdict: 'fail',
+      }),
     ];
     const [rollup] = rollupByTag(computeRates(rows));
 
@@ -154,6 +261,196 @@ describe('rollupByTag', () => {
     ];
     const [rollup] = rollupByTag(computeRates(rows));
     expect(rollup.fixturesWithNoDenominator).toBe(1);
+  });
+
+  it('carries not_applicable, error and applicability across the tag', () => {
+    const rows = [
+      scoreRow({
+        fixtureId: 'a',
+        tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
+        verdict: 'pass',
+        applicabilitySource: 'fixture',
+      }),
+      scoreRow({
+        fixtureId: 'b',
+        tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
+        verdict: 'not_applicable',
+        notApplicableReason: 'fixture says this check does not apply',
+        applicabilitySource: 'fixture',
+      }),
+      scoreRow({
+        fixtureId: 'c',
+        tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
+        verdict: 'error',
+        errorMessage: 'timeout',
+        applicabilitySource: 'fixture',
+      }),
+    ];
+    const [rollup] = rollupByTag(computeRates(rows));
+
+    expect(rollup.notApplicable).toBe(1);
+    expect(rollup.error).toBe(1);
+    expect(rollup.n).toBe(1);
+    // 1 / (1 + 1) — the errored rep is in neither half.
+    expect(rollup.applicabilityDenominator).toBe(2);
+    expect(rollup.applicability).toBe(0.5);
+    expect(rollup.applicabilitySources).toEqual(['fixture']);
+  });
+
+  it('names every distinct applicability source a tag spans', () => {
+    const rows = [
+      scoreRow({
+        fixtureId: 'a',
+        checkId: 'check-a',
+        tag: 'SHARED-TAG',
+        applicabilitySource: 'fixture',
+      }),
+      scoreRow({
+        fixtureId: 'b',
+        checkId: 'check-b',
+        tag: 'SHARED-TAG',
+        applicabilitySource: 'artifact',
+      }),
+    ];
+    const [rollup] = rollupByTag(computeRates(rows));
+    expect(rollup.applicabilitySources).toEqual(['artifact', 'fixture']);
+  });
+});
+
+describe('classifyApplicability', () => {
+  it('accepts a fixture-gated check that applies on every rep', () => {
+    expect(
+      classifyApplicability({
+        applicability: 1,
+        applicabilitySource: 'fixture',
+      }),
+    ).toBe('ok');
+  });
+
+  it('flags a fixture-gated check whose reps disagree as a harness defect', () => {
+    // The scenario decides before the model runs, so anything strictly
+    // between 0 and 1 means the checker or the fixture is wrong — never that
+    // behaviour moved.
+    expect(
+      classifyApplicability({
+        applicability: 0.6,
+        applicabilitySource: 'fixture',
+      }),
+    ).toBe('fixture-gated-split');
+  });
+
+  it('treats a fixture-gated check that never applies as a coverage note', () => {
+    expect(
+      classifyApplicability({
+        applicability: 0,
+        applicabilitySource: 'fixture',
+      }),
+    ).toBe('fixture-gated-never-applies');
+  });
+
+  it('flags an ungated check that reported not_applicable', () => {
+    expect(
+      classifyApplicability({
+        applicability: 0.9,
+        applicabilitySource: 'ungated',
+      }),
+    ).toBe('ungated-gate-fired');
+  });
+
+  it('reads a partial artifact-gated applicability as behaviour, not a defect', () => {
+    expect(
+      classifyApplicability({
+        applicability: 0.1,
+        applicabilitySource: 'artifact',
+      }),
+    ).toBe('artifact-gated-selection');
+  });
+
+  it('declines to interpret an unknown or mixed source', () => {
+    expect(
+      classifyApplicability({
+        applicability: 0.5,
+        applicabilitySource: 'unknown',
+      }),
+    ).toBe('indeterminate-source');
+    expect(
+      classifyApplicability({
+        applicability: 0.5,
+        applicabilitySource: 'mixed',
+      }),
+    ).toBe('indeterminate-source');
+  });
+
+  it('says nothing about a check where every rep errored', () => {
+    expect(
+      classifyApplicability({
+        applicability: null,
+        applicabilitySource: 'fixture',
+      }),
+    ).toBe('ok');
+  });
+});
+
+describe('findApplicabilityIssues', () => {
+  it('separates harness defects from how-to-read notes', () => {
+    const rows = [
+      // Fixture-gated, reps disagree: defect.
+      scoreRow({
+        fixtureId: 'turn19-system-rolled-player-action',
+        checkId: 'system-rolled-player-action',
+        applicabilitySource: 'fixture',
+        repIndex: 1,
+        verdict: 'pass',
+      }),
+      scoreRow({
+        fixtureId: 'turn19-system-rolled-player-action',
+        checkId: 'system-rolled-player-action',
+        applicabilitySource: 'fixture',
+        repIndex: 2,
+        verdict: 'not_applicable',
+        notApplicableReason: 'nothing bound to the player',
+      }),
+      // Artifact-gated, mostly excluded: note, not a defect.
+      scoreRow({
+        fixtureId: 'turn14-unauditable-mapping',
+        checkId: 'unauditable-mapping',
+        applicabilitySource: 'artifact',
+        repIndex: 1,
+        verdict: 'not_applicable',
+        notApplicableReason: 'no mapping to audit',
+      }),
+      scoreRow({
+        fixtureId: 'turn14-unauditable-mapping',
+        checkId: 'unauditable-mapping',
+        applicabilitySource: 'artifact',
+        repIndex: 2,
+        verdict: 'pass',
+      }),
+    ];
+
+    const findings = findApplicabilityIssues(computeRates(rows));
+
+    expect(findings.map((f) => [f.checkId, f.reading, f.severity])).toEqual([
+      ['unauditable-mapping', 'artifact-gated-selection', 'note'],
+      ['system-rolled-player-action', 'fixture-gated-split', 'defect'],
+    ]);
+    expect(findings[1].message).toContain('0.50 (1/2)');
+  });
+
+  it('returns nothing when every check is clean', () => {
+    const rows = [
+      scoreRow({
+        repIndex: 1,
+        verdict: 'pass',
+        applicabilitySource: 'ungated',
+      }),
+      scoreRow({
+        repIndex: 2,
+        verdict: 'fail',
+        applicabilitySource: 'ungated',
+      }),
+    ];
+    expect(findApplicabilityIssues(computeRates(rows))).toEqual([]);
   });
 });
 
@@ -201,7 +498,7 @@ describe('summarizeExclusions', () => {
         checkId: 'out-of-order-resolution',
         verdict: 'not_applicable',
         notApplicableReason:
-          'the turn deferred Alvarez\'s gating roll to a pending dice_request ' +
+          "the turn deferred Alvarez's gating roll to a pending dice_request " +
           '("Alvarez combat roll to hit") rather than resolving it this turn',
         notApplicableReasonCode:
           "deferred Alvarez's gating roll to a pending dice_request",
@@ -212,7 +509,7 @@ describe('summarizeExclusions', () => {
         checkId: 'out-of-order-resolution',
         verdict: 'not_applicable',
         notApplicableReason:
-          'the turn deferred Alvarez\'s gating roll to a pending dice_request ' +
+          "the turn deferred Alvarez's gating roll to a pending dice_request " +
           '("roll under Combat to hit the contractor") rather than resolving it this turn',
         notApplicableReasonCode:
           "deferred Alvarez's gating roll to a pending dice_request",

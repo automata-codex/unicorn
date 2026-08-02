@@ -16,6 +16,17 @@ export type Verdict = z.infer<typeof verdictSchema>;
 export const checkModeSchema = z.enum(['structural', 'judged']);
 export type CheckMode = z.infer<typeof checkModeSchema>;
 
+/** Mirrors `EvalCheck.applicabilitySource` — see `eval/checks/registry.ts`
+ * for what each value means and why the third is `'ungated'`. Named here
+ * (rather than left inline on the row schema) because the reporting layer
+ * resolves it across a group of rows and needs the type. */
+export const applicabilitySourceSchema = z.enum([
+  'fixture',
+  'artifact',
+  'ungated',
+]);
+export type ApplicabilitySource = z.infer<typeof applicabilitySourceSchema>;
+
 /**
  * Which writer produced a row. `run` rows come from `eval:run` — one
  * observation of generator and grader together. `rescore` rows come from
@@ -63,7 +74,7 @@ const baseScoreRowSchema = z.object({
    * the rules it was actually scored under. Optional for rows written
    * before the field existed.
    */
-  applicabilitySource: z.enum(['fixture', 'artifact', 'ungated']).optional(),
+  applicabilitySource: applicabilitySourceSchema.optional(),
   /** Whether a judge call produced this verdict — see
    * `CheckObservation.judgeInvoked`. Absent on older rows. */
   judgeInvoked: z.boolean().optional(),
