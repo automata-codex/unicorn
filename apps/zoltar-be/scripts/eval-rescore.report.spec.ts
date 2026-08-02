@@ -159,4 +159,47 @@ describe('renderRescoreReport', () => {
       '- Carried forward (no artifact to re-grade): 24',
     );
   });
+
+  it('renders the same rate and rollup columns eval:report does', () => {
+    // Not a duplicate of report-multi.spec's golden: the point is that both
+    // commands go through `renderRatesTable`/`renderTagRollupTable`, so a
+    // re-scored report can never describe different columns than the run
+    // report it will be compared against.
+    const rendered = renderRescoreReport(
+      summary({
+        rates: [
+          {
+            fixtureId: 'turn14-unauditable-mapping',
+            checkId: 'unauditable-mapping',
+            tag: 'UNAUDITABLE-MAPPING',
+            checkMode: 'judged',
+            applicabilitySource: 'artifact',
+            pass: 0,
+            fail: 0,
+            notApplicable: 7,
+            error: 3,
+            n: 0,
+            rate: null,
+            applicabilityDenominator: 7,
+            applicability: 0,
+          },
+        ],
+      }),
+    );
+
+    expect(rendered).toContain(
+      '| Fixture | Check | Tag | Mode | Src | Pass | Fail | N/A | Error | N | Rate | App |',
+    );
+    expect(rendered).toContain(
+      '| Tag | Src | Pass | Fail | N/A | Error | N | Rate | App | Fixtures w/o denominator |',
+    );
+    // The 3 errors are out of the applicability denominator entirely — this
+    // reads 0/7, not 0/10.
+    expect(rendered).toContain(
+      '| turn14-unauditable-mapping | unauditable-mapping | UNAUDITABLE-MAPPING | judged | artifact | 0 | 0 | 7 | 3 | 0 | n/a | 0.00 (0/7) |',
+    );
+    // Artifact-gated: a note about how to read it, never filed as a defect.
+    expect(rendered).toContain('**How to read these numbers**');
+    expect(rendered).not.toContain('**Harness defects**');
+  });
 });

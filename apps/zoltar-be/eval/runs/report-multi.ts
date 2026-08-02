@@ -1,14 +1,131 @@
 import { shortCorpusVersion } from '../corpus-version';
 
-import { rollupByTag } from './rates';
+import { findApplicabilityIssues, rollupByTag } from './rates';
 
 import type { Manifest } from './manifest';
-import type { ExclusionsSummary, RateEntry } from './rates';
+import type {
+  ExclusionsSummary,
+  RateEntry,
+  ResolvedApplicabilitySource,
+  TagRollup,
+} from './rates';
 
 /** Shared with `compare-report.ts` — an undefined rate must never render as
  * `0.00`. */
 export function formatRate(rate: number | null): string {
   return rate === null ? 'n/a' : rate.toFixed(2);
+}
+
+/**
+ * `0.75 (3/4)` — the ratio *and* the fraction it came from. The fraction is
+ * the point: a rate that moved because its denominator moved is
+ * indistinguishable from one that moved because behaviour did, and the
+ * denominator is the only thing that tells them apart
+ * (`docs/eval-methodology.md`, "Denominators are not automatically
+ * model-neutral").
+ */
+export function formatApplicability(entry: {
+  applicability: number | null;
+  n: number;
+  applicabilityDenominator: number;
+}): string {
+  if (entry.applicability === null) return 'n/a';
+  return `${entry.applicability.toFixed(2)} (${entry.n}/${entry.applicabilityDenominator})`;
+}
+
+/** `'unknown'` renders as `?` — short enough for a table column, and it
+ * reads as "not recorded" rather than as a declared value. */
+export function formatApplicabilitySource(
+  source: ResolvedApplicabilitySource,
+): string {
+  return source === 'unknown' ? '?' : source;
+}
+
+/** Joined with `+` so a tag spanning two checks with different sources reads
+ * as `artifact+fixture` rather than silently showing only one of them. */
+function formatApplicabilitySources(
+  sources: ResolvedApplicabilitySource[],
+): string {
+  return sources.map(formatApplicabilitySource).join('+');
+}
+
+/**
+ * The per-fixture rate table, shared verbatim between `eval:report` and
+ * `eval:rescore`'s own report. One definition rather than two copies: the
+ * two rendered identical tables from identical `RateEntry[]` already, and
+ * keeping two column lists in step by hand is exactly how a re-scored report
+ * ends up describing different columns than the run report it's compared to.
+ */
+export function renderRatesTable(
+  rates: RateEntry[],
+  emptyText: string,
+): string[] {
+  if (rates.length === 0) return [emptyText];
+
+  const lines = [
+    '| Fixture | Check | Tag | Mode | Src | Pass | Fail | N/A | Error | N | Rate | App |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+  ];
+  for (const r of rates) {
+    lines.push(
+      `| ${r.fixtureId} | ${r.checkId} | ${r.tag} | ${r.checkMode} | ` +
+        `${formatApplicabilitySource(r.applicabilitySource)} | ${r.pass} | ` +
+        `${r.fail} | ${r.notApplicable} | ${r.error} | ${r.n} | ` +
+        `${formatRate(r.rate)} | ${formatApplicability(r)} |`,
+    );
+  }
+  return lines;
+}
+
+/** The per-tag rollup table, shared for the same reason as
+ * `renderRatesTable`. */
+export function renderTagRollupTable(
+  rollups: TagRollup[],
+  emptyText: string,
+): string[] {
+  if (rollups.length === 0) return [emptyText];
+
+  const lines = [
+    '| Tag | Src | Pass | Fail | N/A | Error | N | Rate | App | Fixtures w/o denominator |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+  ];
+  for (const t of rollups) {
+    lines.push(
+      `| ${t.tag} | ${formatApplicabilitySources(t.applicabilitySources)} | ` +
+        `${t.pass} | ${t.fail} | ${t.notApplicable} | ${t.error} | ${t.n} | ` +
+        `${formatRate(t.rate)} | ${formatApplicability(t)} | ` +
+        `${t.fixturesWithNoDenominator} |`,
+    );
+  }
+  return lines;
+}
+
+/**
+ * The `## Applicability findings` section: defects (the harness is wrong)
+ * before notes (the number is right but needs reading carefully), each group
+ * labelled, so a bug can't be skimmed as a finding about the model.
+ */
+export function renderApplicabilityFindings(rates: RateEntry[]): string[] {
+  const lines = ['## Applicability findings', ''];
+  const findings = findApplicabilityIssues(rates);
+  const defects = findings.filter((f) => f.severity === 'defect');
+  const notes = findings.filter((f) => f.severity === 'note');
+
+  if (findings.length === 0) {
+    lines.push('(none)');
+    return lines;
+  }
+
+  if (defects.length > 0) {
+    lines.push('**Harness defects** — these are bugs, not model findings.', '');
+    for (const f of defects) lines.push(`- ${f.message}`);
+    if (notes.length > 0) lines.push('');
+  }
+  if (notes.length > 0) {
+    lines.push('**How to read these numbers**', '');
+    for (const f of notes) lines.push(`- ${f.message}`);
+  }
+  return lines;
 }
 
 /**
@@ -43,36 +160,14 @@ export function renderRunReport(
   lines.push('');
 
   lines.push('## Per-fixture rates', '');
-  if (rates.length === 0) {
-    lines.push('(no vouched rows)');
-  } else {
-    lines.push(
-      '| Fixture | Check | Tag | Mode | Pass | Fail | N/A | Error | N | Rate |',
-      '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
-    );
-    for (const r of rates) {
-      lines.push(
-        `| ${r.fixtureId} | ${r.checkId} | ${r.tag} | ${r.checkMode} | ${r.pass} | ${r.fail} | ${r.notApplicable} | ${r.error} | ${r.n} | ${formatRate(r.rate)} |`,
-      );
-    }
-  }
+  lines.push(...renderRatesTable(rates, '(no vouched rows)'));
   lines.push('');
 
   lines.push('## Per-tag rollup', '');
-  const rollups = rollupByTag(rates);
-  if (rollups.length === 0) {
-    lines.push('(no vouched rows)');
-  } else {
-    lines.push(
-      '| Tag | Pass | Fail | N | Rate | Fixtures w/o denominator |',
-      '| --- | --- | --- | --- | --- | --- |',
-    );
-    for (const t of rollups) {
-      lines.push(
-        `| ${t.tag} | ${t.pass} | ${t.fail} | ${t.n} | ${formatRate(t.rate)} | ${t.fixturesWithNoDenominator} |`,
-      );
-    }
-  }
+  lines.push(...renderTagRollupTable(rollupByTag(rates), '(no vouched rows)'));
+  lines.push('');
+
+  lines.push(...renderApplicabilityFindings(rates));
   lines.push('');
 
   lines.push('## Errors', '');

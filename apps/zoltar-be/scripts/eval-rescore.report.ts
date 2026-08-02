@@ -1,6 +1,11 @@
 import { shortCorpusVersion } from '../eval/corpus-version';
 import { rollupByTag } from '../eval/runs/rates';
-import { formatRate } from '../eval/runs/report-multi';
+import {
+  formatRate,
+  renderApplicabilityFindings,
+  renderRatesTable,
+  renderTagRollupTable,
+} from '../eval/runs/report-multi';
 
 import type { RescoreSummary } from './eval-rescore.core';
 
@@ -78,36 +83,14 @@ export function renderRescoreReport(summary: RescoreSummary): string {
   lines.push('');
 
   lines.push('## Re-scored per-fixture rates', '');
-  if (summary.rates.length === 0) {
-    lines.push('(no rows)');
-  } else {
-    lines.push(
-      '| Fixture | Check | Tag | Mode | Pass | Fail | N/A | Error | N | Rate |',
-      '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
-    );
-    for (const r of summary.rates) {
-      lines.push(
-        `| ${r.fixtureId} | ${r.checkId} | ${r.tag} | ${r.checkMode} | ${r.pass} | ${r.fail} | ${r.notApplicable} | ${r.error} | ${r.n} | ${formatRate(r.rate)} |`,
-      );
-    }
-  }
+  lines.push(...renderRatesTable(summary.rates, '(no rows)'));
   lines.push('');
 
   lines.push('## Re-scored per-tag rollup', '');
-  const rollups = rollupByTag(summary.rates);
-  if (rollups.length === 0) {
-    lines.push('(no rows)');
-  } else {
-    lines.push(
-      '| Tag | Pass | Fail | N | Rate | Fixtures w/o denominator |',
-      '| --- | --- | --- | --- | --- | --- |',
-    );
-    for (const t of rollups) {
-      lines.push(
-        `| ${t.tag} | ${t.pass} | ${t.fail} | ${t.n} | ${formatRate(t.rate)} | ${t.fixturesWithNoDenominator} |`,
-      );
-    }
-  }
+  lines.push(...renderTagRollupTable(rollupByTag(summary.rates), '(no rows)'));
+  lines.push('');
+
+  lines.push(...renderApplicabilityFindings(summary.rates));
   lines.push('');
 
   lines.push('## Unpaired checks', '');
