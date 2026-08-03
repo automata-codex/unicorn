@@ -237,7 +237,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 
 #### M7.3 — Turn-State Replay Infrastructure
 
-*Prerequisite for M7.4 (Warden Eval Harness): automatic, no-action-required capture of an adventure's true starting state, plus a way to fold that state forward through the existing event log to reconstruct any later turn. Replaces the M7.1 `save-synthesis` script, which only ever handled the zero-turn case. Spec: [`docs/specs/zoltar/010-m7.3-turn-state-replay-spec.md`](specs/zoltar/010-m7.3-turn-state-replay-spec.md).*
+*Prerequisite for M7.4 (Warden Eval Harness): automatic, no-action-required capture of an adventure's true starting state, plus a way to fold that state forward through the existing event log to reconstruct any later turn. Replaces the M7.1 `save-synthesis` script, which only ever handled the zero-turn case. Spec: [`docs/specs/zoltar/009-m7.3-turn-state-replay-spec.md`](specs/zoltar/009-m7.3-turn-state-replay-spec.md).*
 
 - [x] Automatic turn-0 capture — new `adventure_synthesis_snapshots` table, written once per adventure inside the existing synthesis-commit transaction; `save-synthesis` removed as redundant
 - [x] `load-synthesis` sources its starting state from `adventure_synthesis_snapshots` by adventure id, not a hand-supplied JSON file
@@ -248,7 +248,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 
 #### M7.4 — Warden Eval Harness
 
-*Regression suite for Warden prompt candidates against known failure modes surfaced by real playtests (out-of-order tool resolution, hidden-info leaks, unauditable state changes, etc.). Drives the real turn pipeline in-process rather than reimplementing it; seeds each fixture's starting state via M7.3's `reconstructStateAsOfTurn` rather than any bespoke save/load mechanism. Spec: [`docs/specs/zoltar/011-m7.4-eval-harness-spec.md`](specs/zoltar/011-m7.4-eval-harness-spec.md).*
+*Regression suite for Warden prompt candidates against known failure modes surfaced by real playtests (out-of-order tool resolution, hidden-info leaks, unauditable state changes, etc.). Drives the real turn pipeline in-process rather than reimplementing it; seeds each fixture's starting state via M7.3's `reconstructStateAsOfTurn` rather than any bespoke save/load mechanism. Spec: [`docs/specs/zoltar/010-m7.4-eval-harness-spec.md`](specs/zoltar/010-m7.4-eval-harness-spec.md).*
 
 - [ ] `EvalFixture` format — `savePointRef` (adventure id + target sequence number), player input, structural and/or judge-graded assertions, failure-mode tag
 - [ ] Structural assertion checkers — deterministic, no second LLM call (e.g. tool-call ordering)
