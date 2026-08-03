@@ -227,7 +227,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 
 #### M7.2 — Rules Ingestion Pipeline
 
-*Populate the `rules_chunk` index for Mothership. M7 ships runtime plumbing (`rules_lookup` tool, `VoyageService`, pgvector query) but leaves the index empty so playtest evidence from M7 can prioritize ingestion coverage. Separate milestone because the pipeline is Python, not TypeScript, and is independently testable. Spec: [`docs/specs/zoltar/013-m7.2-rules-ingestion.md`](specs/zoltar/013-m7.2-rules-ingestion.md).*
+*Populate the `rules_chunk` index for Mothership. M7 ships runtime plumbing (`rules_lookup` tool, `VoyageService`, pgvector query) but leaves the index empty so playtest evidence from M7 can prioritize ingestion coverage. Separate milestone because the pipeline is Python, not TypeScript, and is independently testable. Spec: [`docs/specs/zoltar/012-m7.2-rules-ingestion.md`](specs/zoltar/012-m7.2-rules-ingestion.md).*
 
 - [ ] Python ingestion pipeline under `ingestion/` (marker extraction → heading-aware chunking → Voyage document-mode embedding → SQL insert)
 - [ ] One-time local seed of Mothership rules chunks from the PDF
