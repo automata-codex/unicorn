@@ -250,13 +250,13 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 
 *Regression suite for Warden prompt candidates against known failure modes surfaced by real playtests (out-of-order tool resolution, hidden-info leaks, unauditable state changes, etc.). Drives the real turn pipeline in-process rather than reimplementing it; seeds each fixture's starting state via M7.3's `reconstructStateAsOfTurn` rather than any bespoke save/load mechanism. Spec: [`docs/specs/zoltar/010-m7.4-eval-harness-spec.md`](specs/zoltar/010-m7.4-eval-harness-spec.md).*
 
-- [ ] `EvalFixture` format — `savePointRef` (adventure id + target sequence number), player input, structural and/or judge-graded assertions, failure-mode tag
-- [ ] Structural assertion checkers — deterministic, no second LLM call (e.g. tool-call ordering)
-- [ ] Judge-graded assertions — single grading call per fixture, Claude Sonnet 5, one rubric per failure-mode tag (not per fixture)
-- [ ] Harness CLI (`npm run eval:harness -- --fixtures ... --tag ... --prompt-variant ... --output ...`); A/B prompt comparison is two invocations plus a manual diff, not a built-in feature
-- [ ] Markdown output report (summary by tag, per-fixture failure detail)
-- [ ] Fixtures for each failure-mode tag identified in real playtests, at least 2 confirmed instances per tag where the fixture-count bar requires it
-- [ ] One deliberately-broken counterexample per structural checker, to prove the checker actually fails bad behavior and isn't silently passing everything
+- [x] `EvalFixture` format — adventure id + target sequence number, player input, structural and/or judge-graded assertions, failure-mode tag. Shipped as `sourceAdventureId` / `sourceSequenceNumber` plus a `seededState` block captured statically at authoring time, rather than a live `savePointRef` the harness re-derives per run — see `eval/fixture.schema.ts`. Also carries fixture-authored `applicability`, `fixtureSchemaVersion`, and `repOverride`, none of which the spec anticipated
+- [x] Structural assertion checkers — deterministic, no second LLM call (e.g. tool-call ordering)
+- [x] Judge-graded assertions — single grading call per fixture, Claude Sonnet 5, one rubric per failure-mode tag (not per fixture)
+- [x] Harness CLI — shipped as `eval:run` (execution) + `eval:report` (rendering), not the single `eval:harness` named here; see `docs/decisions.md § eval:harness retired, not kept alongside eval:run`. `--fixtures` and `--output` as specified, `--prompt` rather than `--prompt-variant`, and no `--tag` — a second overlapping selector was deliberately not built (`scripts/eval-run.ts`). A/B comparison is still two invocations, though `eval:compare` now renders the diff instead of leaving it manual
+- [x] Markdown output report (summary by tag, per-fixture failure detail) — `eval/runs/report-multi.ts`: per-fixture rates, per-tag rollup, errors, exclusions, applicability findings
+- [ ] Fixtures for each failure-mode tag identified in real playtests, at least 2 confirmed instances per tag where the fixture-count bar requires it — 15 fixtures cover all 9 tags, but `MISSING-CANON-CAPTURE`, `UNSURFACED-CHECK`, `OVER-RESOLUTION`, and `SCENE-JUMP` each still sit at a single instance. The first three are the ones the spec flagged as needing a second confirmed instance before the category counts as covered; `SCENE-JUMP` was added after the spec and inherits the same bar. Blocked on playtest evidence, not on code
+- [x] One deliberately-broken counterexample per structural checker, to prove the checker actually fails bad behavior and isn't silently passing everything
 
 #### M8 — Multiplayer Foundation
 
