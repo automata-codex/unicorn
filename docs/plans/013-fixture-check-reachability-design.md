@@ -192,8 +192,27 @@ Two checks: **`out-of-order-resolution`** (tier 1, and the one most likely to ex
 circularity problem) and **`narrating-past-a-block`** (tier 2, and the one that would have caught
 `turn16`).
 
-**Failure condition, stated in advance:** if probe construction for either cannot be kept clearly
-independent of the checker's own logic, the design does not work and should be reconsidered
-rather than patched. A validator that agrees with the checker because it was written from the
-checker is worse than no validator — it converts an unknown risk into a false assurance, which
-is the exact trade this document exists to argue against.
+**Failure condition, stated in advance.** An earlier draft phrased this as: *if probe
+construction cannot be kept clearly independent of the checker's own logic, the design does not
+work.* That criterion is unusable as written, because "clearly independent" is a judgment made
+by whoever wrote the probe — the one person who has already read the checker and can no longer
+tell which of their choices came from the assertion and which came from the implementation. It
+asks the least qualified party for the verdict.
+
+The testable form: **can the probe be written by someone working only from the fixture's
+`assertion` text, without opening the checker file?** That is a procedure, not an assessment. It
+can be run, and it can fail in a way the author cannot rationalise away.
+
+Two outcomes, both worth having:
+
+- **The probe can be written from the assertion.** Then agreement between probe and checker is
+  evidence, and disagreement is the finding — which is the property the whole design depends on.
+- **The assertion is too vague to determine what a passing turn looks like.** Then the finding
+  is about the *assertion*, and it is a real defect regardless: a fixture whose stated
+  expectation can't distinguish a passing turn from a failing one is not grading what its author
+  thought it was. This is worth discovering whether or not this design is ever built, which
+  makes the prototype cheap even in the branch where it kills the design.
+
+A validator that agrees with the checker because it was written from the checker is worse than
+no validator — it converts an unknown risk into a false assurance, which is the exact trade this
+document exists to argue against.

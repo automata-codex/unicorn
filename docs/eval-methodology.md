@@ -86,11 +86,15 @@ Re-grading the two runs above against the fix:
   damage-conditional phrasing, which the pre-fix pattern-only rule missed) and now correctly
   read `FAILED`.
 - `out-of-order-resolution`: unchanged for both runs — `claude-sonnet-4-6` stays 0/9 on both
-  fixtures (the entries below are still accurate), `claude-sonnet-5` stays fully
-  `not_applicable` on both. The situation now gates correctly, but the ordering evidence this
-  check needs genuinely isn't in these fixtures under a model that splits the to-hit request
-  and its resolution across a turn boundary — see the "Out of scope" note on extending
-  turn19/21 through the follow-up turn.
+  fixtures, `claude-sonnet-5` stays fully `not_applicable` on both. The situation now gates
+  correctly, but under the regex still in place at this point the check had no ordering
+  evidence to read. This was read at the time as the fixtures being too short — one turn, under
+  a model that splits the to-hit request from its resolution — and the fix was assumed to be
+  extending turn19/21 through the follow-up turn. **That reading was wrong twice over**: the
+  regex was the problem (the structural deferred-gate rule reads 5/10 and 2/8 off the *same*
+  artifacts), and extending the fixtures would have guaranteed a PASS rather than measured one.
+  See `decisions.md`, "`out-of-order-resolution` reads the deferred gate, and declines the
+  in-turn case."
 
 > **Superseded 2026-07-31 by the structural check migrations
 > (`4c9f2e73efd7...` → `88fa84bd8329...`).** The numbers immediately above were
@@ -110,42 +114,61 @@ tradeoff, not an oversight — the fixtures sitting near 0.5 (mostly the `turn24
 checks) carry real uncertainty at this N and should be read as "unsettled," not as a
 precise estimate, until/unless the budget for a higher N is revisited.
 
-**Observed at N=10, candidates for `repOverride` during supervised iteration** (rate 0.0
-across all reps, confidently — n large enough that the result isn't just small-sample
-noise):
+### Settled fixtures — candidates for `repOverride` during supervised iteration
 
-- `turn01-unauditable-mapping` (0/6) — **stale**, checker migrated
-- `turn03-unauditable-mapping` (0/9) — **stale**, checker migrated
-- `turn03-unsurfaced-check` (0/10)
-- `turn16-narrating-past-a-block` (0/10) — rule was invalid, **rate confirmed**, see below
-- `turn19-out-of-order-resolution` (0/9) — **stale**, now 5/10
-- `turn21-out-of-order-resolution` (0/9) — **stale**, now 2/8
+This section listed the fixtures observed at rate 0.0 across every rep at N=10, on the grounds
+that a settled fixture is burning compute during supervised iteration. **The original list is
+retracted.** It read:
 
-**Four of these six were measuring the harness, not the Warden**, and the list's own
-framing is what made that hard to see: "confidently zero, n large enough that the result
-isn't just small-sample noise" describes a *statistical* confidence that was entirely real
-and completely beside the point. A large n does not make a checker correct. Every one of
-the entries above was a rate produced by a rule that has since been found to misreport —
-`turn16` most starkly, where all 10 reps failed on a `dice_request` the *fixture* seeded
-with a null target, so the check was grading fixture capture rather than model behaviour.
+> `turn01-unauditable-mapping` (0/6), `turn03-unauditable-mapping` (0/9),
+> `turn03-unsurfaced-check` (0/10), `turn16-narrating-past-a-block` (0/10),
+> `turn19-out-of-order-resolution` (0/9), `turn21-out-of-order-resolution` (0/9)
 
-The practical lesson is narrower than "distrust the list": a fixture sitting at exactly
-0.0 or 1.0 across every rep is more likely to indicate a checker that cannot move than a
-model that never varies, and should be treated as a harness suspect before it is recorded
-as a finding. That is the same rule the model-swap section below gives for large rate
-jumps; it applies just as well to rates that never move at all.
+**Four of those six were measuring the harness, not the Warden**, and the list's own framing
+is what made that hard to see: "confidently zero, n large enough that the result isn't just
+small-sample noise" describes a *statistical* confidence that was entirely real and completely
+beside the point. A large n does not make a checker correct. `turn16` is the starkest case —
+all 10 reps failed on a `dice_request` the *fixture* seeded with a null target, so the check
+was grading fixture capture rather than model behaviour.
 
-`turn14-unauditable-mapping` also read 0.0 but at n=2 (7 of its 10 reps were
-`not_applicable`) — too small a sample to call it settled; it's a low-applicability
-fixture, not a confidently-zero one, and needs disproportionately more reps than the rest
-of the corpus to reach the same confidence, not fewer.
+### Re-derived from the re-scored reports (corpus `88fa84bd8329`, harness `600cc73`)
 
-**This list is model-specific, and the Sonnet 5 run already invalidated part of it.**
-`turn03-unsurfaced-check` read 0/10 under `claude-sonnet-4-6` — as confidently zero as
-anything here — and 7/10 under `claude-sonnet-5` against the same prompt and the same
+Under `claude-sonnet-4-6`, the model the original list was measured against:
+
+| Fixture / check | Rate | App | Status |
+| --- | --- | --- | --- |
+| `turn01-unauditable-mapping` | 0.00 (0/10) | 1.00 | **confirmed zero** — judged, full denominator |
+| `turn03-unsurfaced-check` | 0.00 (0/10) | 1.00 | **confirmed zero** — but see the model note below |
+| `turn16-narrating-past-a-block` | 0.00 (0/10) | 1.00 | **confirmed zero** — rule was invalid, rate survived re-measurement |
+| `turn21-system-rolled-player-action` | 0.00 (0/7) | 0.78 | new entry; N=7, 2 reps undecided, not settled |
+| `turn03-unauditable-mapping` | 0.10 (1/10) | 1.00 | **moved off zero** |
+| `turn19-out-of-order-resolution` | 0.50 (5/10) | 1.00 | **moved off zero** |
+| `turn21-out-of-order-resolution` | 0.25 (2/8) | 0.89 | **moved off zero** |
+
+Three of the six survive, one at a denominator too thin to call settled, and one
+(`turn21-system-rolled-player-action`) appears that wasn't on the list at all. Note that
+`turn02-missing-canon-capture` is *not* a zero-rate entry and never belonged on such a list:
+it is a zero-*denominator* case (10/10 `not_applicable`, App 0.00), which is a different
+condition with a different remedy — fixture work, not reps.
+
+**The list must be re-derived per model, not carried across a swap.** `turn03-unsurfaced-check`
+reads 0.00 (0/10) under 4.6 and **0.70 (7/10)** under `claude-sonnet-5`, same prompt, same
 fixture. "Confidently zero" means confidently zero *for the model it was measured under*,
-which is a weaker claim than it looks on a list that doesn't name the model in every row.
-Re-derive the list per model rather than carrying it across a swap.
+which is a weaker claim than it looks on a list that doesn't name the model in every row. Under
+Sonnet 5 the zeros are `turn01-unauditable-mapping` (0/9), `turn03-unauditable-mapping` (0/7)
+and `turn16-narrating-past-a-block` (0/10) — a different list.
+
+**Ceilings belong on this list too, and are the harder half.** The same re-derivation surfaces
+`turn21-narrating-past-a-block` at 1.00 under both models and
+`turn{19,21}-out-of-order-resolution` at 1.00 (20/20) under Sonnet 5. A pinned 1.00 is exactly
+as likely to be a checker artifact as a pinned 0.00 and far less likely to be investigated,
+because it presents with full applicability and a healthy denominator and nobody audits good
+news. See `decisions.md`, "A rate that never moves is a harness suspect, not a finding."
+
+`turn14-unauditable-mapping` reads 0.11 (1/9) under 4.6 and has a zero denominator under
+Sonnet 5 (7 `not_applicable`, 3 errors). It is a low-applicability fixture, not a
+confidently-zero one, and needs disproportionately *more* reps than the rest of the corpus to
+reach the same confidence, not fewer.
 
 None of the above may take a permanent `repOverride` in the standing regression suite —
 per the hazard above, a fixture settled today is exactly the one a future prompt edit
@@ -229,6 +252,32 @@ test ever ran.
 > provides. `turn19-out-of-order-resolution` read 0/9 largely because its regex matched
 *NPC* damage rolls ("Contractor rifle damage if hit") that were never gated by the player's
 pending request. Neither was a fact about model behaviour.
+
+#### `turn16`'s full correction history, because it has been mis-stated more than once
+
+Stated in order, since every partial version of this story is misleading in a different
+direction:
+
+1. `turn16-narrating-past-a-block` read **0/10 under both models**, and was written up as a
+   confidently-zero model finding.
+2. The checker had a real defect: it treated any resolved `dice_request` with `target === null`
+   as a self-ruling violation, and the *fixture* seeded exactly such a request at capture time.
+   Every rep failed before the Warden's behaviour was consulted. The detector bug was genuine
+   and was fixed in **`cacf6e5`**, which migrated the check to judged with a structural gate.
+3. **The rate did not move.** Under the migrated rubric, graded by a judge that never sees the
+   seeded request, `turn16` still fails 10 of 10 under both models.
+4. So the original number was **correct by accident** — right answer, invalid derivation. It
+   was not evidence when it was published, and it is evidence now, and those are two different
+   states that happen to display the same digits.
+5. The commit message for `cacf6e5` overstated the correction (it read as though the finding
+   itself was retracted); `600cc73` walked that back. The doc-level version was wrong twice
+   before landing here.
+
+The conclusion that matters for future work: **`turn16` is a genuine, reproducible Warden
+failure and one of only two in the corpus that survive the Sonnet 5 upgrade.** It belongs at
+the top of the next prompt-iteration pass, alongside `unauditable-mapping`. Nothing about the
+checker defect diminishes it — and the temptation to quietly drop a finding whose derivation
+turned out to be broken is exactly what step 4 exists to resist.
 
 **A model-stability gap closed.** `unauditable-mapping`'s classifier reached a verdict on
 15 of 20 reps under 4.6 and 4 of 20 under Sonnet 5 against an unchanged prompt — the clearest
@@ -380,19 +429,41 @@ against 4.6 alone.
 **Fixtures can encode a model's failure profile.** `turn19`/`turn21` capture a single turn,
 which was sufficient to observe `out-of-order-resolution` under 4.6 because 4.6 compressed
 a to-hit request and its resolution into one turn — itself the OVER-RESOLUTION failure.
-Sonnet 5 splits them across a turn boundary, so the ordering evidence now lands on a turn
-the fixture doesn't contain. The fixture wasn't wrong; it was calibrated, without anyone
-deciding to calibrate it, to a failure mode the new model doesn't have.
+Sonnet 5 splits them across a turn boundary and defers, so the in-turn ordering case never
+arises for it. The fixture wasn't wrong; it was calibrated, without anyone deciding to
+calibrate it, to a failure mode the new model doesn't have.
+
+> **A correction, because the first reading of this was wrong.** This was originally written as
+> "the ordering evidence now lands on a turn the fixture doesn't contain," with the implied fix
+> of extending turn19/21 through the follow-up turn. Both halves were mistaken. The evidence
+> was in the captured turn — the structural deferred-gate rule reads it off the same frozen
+> artifacts (Sonnet 5, 20/20) — and the extension would have been unsound anyway, because a
+> deferred gate ends the turn and any dependent roll on the follow-up turn is after resolution
+> by construction. A model swap can make a fixture look too small when the actual defect is in
+> the checker; check the checker before rewriting the corpus, since only one of those two is
+> reversible for free.
 
 **Heuristic classifiers standing in front of structural checks are the highest-risk
-surface.** `system-rolled-player-action` matched on damage-roll phrasing, which reliably
-caught 4.6 because 4.6 over-rolls and produces damage rolls constantly. Sonnet 5 rolls
-to-hit and stops, so the matcher saw nothing and returned PASS on turns containing the
-exact violation the check exists to catch — a false pass, not merely a false
-`not_applicable`. This is the same defect class that already forced `UNSURFACED-CHECK` from
-a regex classifier to a judge call after a real-run false pass (see `decisions.md`); that
-one didn't need a model swap to surface, but a model swap is what makes the rest of them
-visible at once.
+surface.** Three confirmed instances now, all the same defect wearing different symptoms:
+
+1. **`UNSURFACED-CHECK`** — a regex classifier missed a stakes-gating roll phrased as a
+   question ("Does anything react to Alvarez moving…") rather than with a fixed keyword, and
+   returned a false pass on a real run. Migrated to a judge call. This one surfaced without a
+   model swap.
+2. **`system-rolled-player-action`** — matched on damage-roll phrasing, which reliably caught
+   4.6 because 4.6 over-rolls and produces damage rolls constantly. Sonnet 5 rolls to-hit and
+   stops, so the matcher saw nothing and returned PASS on turns containing the exact violation
+   the check exists to catch — again a false pass, not merely a false `not_applicable`.
+3. **`unauditable-mapping`'s `NARRATIVE_SELECTION_PATTERN`** — returned false
+   `NOT_APPLICABLE` on twelve turns of `"Ambient station event check"`, which is the model's
+   own dominant phrasing for exactly the roll type the check exists to grade. This is the
+   quietest of the three and the most instructive: it produced no wrong verdicts, only missing
+   ones, so it presented as low applicability rather than as a defect. The rate it left behind
+   was computed over the turns the regex happened to recognise.
+
+The pattern across all three is that a regex over prose encodes the idiom of whichever model
+was current when it was written, and silently stops matching when that changes. A model swap
+is what makes them visible at once; it is not what creates them.
 
 **Practical rule: on a new model's first run, treat large applicability shifts and large
 rate jumps as harness suspects before recording them as model findings.** Both defects
@@ -437,3 +508,38 @@ unconditionally first and a scratch adventure seeds no prior `game_events`. Dead
 checker is invisible from run data — it produces no verdicts and no errors — and is caught only
 by the practice already recorded above: hand-construct output that *should* produce each
 verdict, and confirm the checker agrees.
+
+---
+
+## Un-rankable is a numerator problem, not a sample-size problem
+
+`eval:compare` sorts by rate delta, which means the row it puts at the top is the row a reader
+treats as the headline. In the 4.6 → Sonnet 5 re-scored comparison, the Regressions section
+was headed by `turn03-unauditable-mapping` at **0.10 → 0.00**. That is one passing rep out of
+ten against zero out of seven. Fisher's exact test gives p ≈ 1.0 — the two sides are, on this
+evidence, indistinguishable.
+
+**An `N < 5` floor does not catch it.** N was 10 and 7; both sides clear any plausible sample-size
+threshold. The pair is un-rankable at *any* N, because the numerators are 1 and 0. No count
+threshold can express that, and a significance test can — which is the whole argument for having
+one, stated as narrowly as possible: not "the harness should be statistically rigorous," but
+"there exists a specific, recurring failure that only a significance test detects."
+
+**Both belong, and they decline different things.** The N floor declines to rank pairs that are
+genuinely thin. The Fisher test declines to rank pairs whose move isn't distinguishable from
+noise regardless of thickness. Neither subsumes the other: a 1-of-10 vs 0-of-7 pair passes the
+floor and fails the test; a 3-of-4 vs 0-of-4 pair fails the floor and would pass the test.
+
+**Implemented as a rankability gate, never a display filter.** This distinction is the reason
+the section exists. Non-significant rows still render — in a band beneath the ranked ones,
+labelled as not distinguishable from noise — because a small move that recurs across three
+consecutive runs is a real signal, and a filter would destroy the only evidence that could ever
+establish it. The failure being avoided is the same one recorded under a warning's suggested
+remedy in `decisions.md`: resolving an inconsistency by deleting it. Suppressing a row makes the
+report look decisive; it does not make it correct.
+
+**Cost, when someone wants it.** Fisher's exact for a 2×2 is a hypergeometric tail sum, roughly
+twenty lines with no dependency, and it slots into `isRankable` alongside the existing N floor.
+It is not built today. The reason to write this down rather than build it now is that the gate
+only matters once comparisons are run often enough that nobody re-derives each headline by hand,
+and at present they still are.
