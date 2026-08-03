@@ -71,13 +71,27 @@ export interface ResolvedScoring {
   /** True when no `--scoring` flag was given and the default landed on a
    * re-score rather than the run — callers say so on stderr. */
   defaultedToRescore: boolean;
-  /** Re-score only: what actually governed these verdicts, as recorded on
-   * the rows. Absent (or multi-valued, joined) rather than guessed. */
+  /**
+   * Re-score only: what actually governed these verdicts, as recorded on the
+   * rows — computed over **re-graded rows only.**
+   *
+   * Carried-forward rows keep the *source run's* stamps, because nothing
+   * re-graded them. Folding those in makes every re-score with at least one
+   * carried-forward row look like it spanned two harness versions, which is
+   * provenance rather than grading divergence, and is exactly the false
+   * signal that nearly got a run re-scored under a harness predating every
+   * checker migration in this cycle.
+   */
   corpusVersion?: string;
   harnessVersion?: string;
   /** Re-score only: rows whose verdict was copied because the source turn
    * errored before producing an artifact to re-grade. */
   carriedForward?: number;
+  /** Re-score only: the harness that graded the carried-forward rows — the
+   * source run's own. Reported because the count and its provenance are
+   * worth seeing, never compared across sides as if it were this pass's
+   * grader. */
+  carriedForwardHarnessVersion?: string;
 }
 
 function distinct(values: (string | undefined)[]): string | undefined {
@@ -91,6 +105,8 @@ function readRescorePass(
   defaultedToRescore: boolean,
 ): ResolvedScoring {
   const rows = readRescoreRows(pass.path);
+  const regraded = rows.filter((r) => !r.carriedForward);
+  const carried = rows.filter((r) => r.carriedForward);
   return {
     kind: 'rescore',
     label: `re-score ${pass.timestamp}`,
@@ -98,9 +114,12 @@ function readRescorePass(
     rows,
     exclusions: [],
     defaultedToRescore,
-    corpusVersion: distinct(rows.map((r) => r.corpusVersion)),
-    harnessVersion: distinct(rows.map((r) => r.harnessVersion)),
-    carriedForward: rows.filter((r) => r.carriedForward).length,
+    corpusVersion: distinct(regraded.map((r) => r.corpusVersion)),
+    harnessVersion: distinct(regraded.map((r) => r.harnessVersion)),
+    carriedForward: carried.length,
+    carriedForwardHarnessVersion: distinct(
+      carried.map((r) => r.harnessVersion),
+    ),
   };
 }
 

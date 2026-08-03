@@ -183,6 +183,29 @@ describe('scoring-source', () => {
       );
     });
 
+    it('computes the harness version from re-graded rows only', () => {
+      // A carried-forward row keeps the source run's harness stamp because
+      // nothing re-graded it. Folding it into `harnessVersion` is what made
+      // two identically-graded re-scores look like different graders.
+      writeRescorePass('2026-07-30T09-00-00Z', [
+        rescoreRow({ repIndex: 1, harnessVersion: '600cc73' }),
+        rescoreRow({ repIndex: 2, harnessVersion: '600cc73' }),
+        rescoreRow({
+          repIndex: 3,
+          harnessVersion: 'fa1d801',
+          carriedForward: true,
+        }),
+      ]);
+
+      const resolved = resolveScoring(runDir, { kind: 'latest-rescore' });
+
+      expect(resolved.harnessVersion).toBe('600cc73');
+      expect(resolved.carriedForward).toBe(1);
+      // Reported, so the count and its provenance are visible — just never
+      // compared across sides as if it graded this pass.
+      expect(resolved.carriedForwardHarnessVersion).toBe('fa1d801');
+    });
+
     it('reports the corpus and harness versions the re-score rows carry', () => {
       writeRescorePass('2026-07-30T09-00-00Z', [
         rescoreRow({ corpusVersion: 'later', harnessVersion: 'def5678' }),

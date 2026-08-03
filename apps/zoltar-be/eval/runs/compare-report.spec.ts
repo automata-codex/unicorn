@@ -314,6 +314,92 @@ describe('renderCompareReport', () => {
     );
   });
 
+  it('does not call carried-forward provenance a grader mismatch', () => {
+    // The two frozen runs: both re-graded under 600cc73, differing only in
+    // the harness their carried-forward rows retained. Reporting that as
+    // "graded by different checker code" is what nearly got one side
+    // re-scored under a harness predating every checker migration.
+    const rescore = (label: string, carriedFrom: string) =>
+      ({
+        kind: 'rescore',
+        label,
+        source: `/runs/x/rescore/${label}.jsonl`,
+        harnessVersion: '600cc73',
+        carriedForward: 18,
+        carriedForwardHarnessVersion: carriedFrom,
+      }) as const;
+
+    const report = renderCompareReport(
+      side(baseManifest(), { scoring: rescore('pass-a', 'fa1d801') }),
+      side(baseManifest({ runId: 'run-b' }), {
+        scoring: rescore('pass-b', 'dfe5e4d'),
+      }),
+      [],
+    );
+
+    expect(report).toContain('## Warnings\n\n(none)');
+    // The counts and their provenance still appear, just not as divergence.
+    expect(report).toContain(
+      '- Carried forward (no artifact to re-grade): 18 (verdicts retained from harness fa1d801)',
+    );
+    expect(report).toContain(
+      '- Carried forward (no artifact to re-grade): 18 (verdicts retained from harness dfe5e4d)',
+    );
+  });
+
+  it('bands low-N pairs beneath the ranked rows instead of ranking them', () => {
+    // turn03's shape: 1/10 -> 0/7 is a -0.10 delta at p ~ 1.0, and it sorted
+    // above a genuine regression built on ten reps a side.
+    const pairs = orderForDisplay(
+      comparePairs(
+        [
+          rate({ fixtureId: 'real-regression', pass: 9, fail: 1 }),
+          rate({ fixtureId: 'thin', pass: 1, fail: 9 }),
+        ],
+        [
+          rate({ fixtureId: 'real-regression', pass: 4, fail: 6 }),
+          rate({ fixtureId: 'thin', pass: 0, fail: 3, notApplicable: 7 }),
+        ],
+      ),
+    );
+
+    const report = renderCompareReport(
+      side(baseManifest()),
+      side(baseManifest({ runId: 'run-b' })),
+      pairs,
+    );
+
+    // Both are regressions and the count covers both.
+    expect(report).toContain('## Regressions (2)');
+    expect(report).toContain(
+      '**Low N (fewer than 5 decided reps on a side) — listed, not ranked (1)**',
+    );
+    // The thin pair is listed, never dropped...
+    expect(report).toContain('| thin | check-a |');
+    // ...but below the ranked one, despite its larger delta.
+    expect(report.indexOf('| real-regression | check-a |')).toBeLessThan(
+      report.indexOf('| thin | check-a |'),
+    );
+  });
+
+  it('leaves Unchanged unbanded, having no ranking to qualify', () => {
+    const pairs = orderForDisplay(
+      comparePairs(
+        [rate({ fixtureId: 'flat-thin', pass: 2, fail: 0 })],
+        [rate({ fixtureId: 'flat-thin', pass: 2, fail: 0 })],
+      ),
+    );
+
+    const report = renderCompareReport(
+      side(baseManifest()),
+      side(baseManifest({ runId: 'run-b' })),
+      pairs,
+    );
+
+    expect(report).toContain('## Unchanged (1)');
+    expect(report).not.toContain('listed, not ranked');
+  });
+
   it('warns when both sides are re-scores under different checker code', () => {
     const rescore = (label: string, harnessVersion: string) =>
       ({

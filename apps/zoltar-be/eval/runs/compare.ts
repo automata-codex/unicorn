@@ -124,7 +124,9 @@ export function comparePairs(
   return pairs;
 }
 
-function byFixtureThenCheck(a: ComparePair, b: ComparePair): number {
+/** Stable display order for pairs whose ranking is deliberately not being
+ * asserted — shared with `compare-report.ts`'s low-N band. */
+export function byFixtureThenCheck(a: ComparePair, b: ComparePair): number {
   return (
     a.fixtureId.localeCompare(b.fixtureId) || a.checkId.localeCompare(b.checkId)
   );
@@ -283,13 +285,26 @@ export interface HeterogeneityInfo {
  * checkId are 1:1 in the current corpus, so grouping by checkId agrees
  * with that language today, but checkId is what `rubricHashFor` and the
  * manifest's `rubricHashes` map are actually keyed on.)
+ *
+ * **Carried-forward rows are excluded, and the filtering happens here rather
+ * than at the call site.** Such a row keeps the source run's `harnessVersion`
+ * and `rubricHash` because nothing re-graded it — that is documented
+ * provenance, not drift within this scoring pass. Counting it fires both
+ * warnings on any re-score with at least one carried-forward row, and both
+ * name a `--filter-*` remedy that would *delete* those rows rather than
+ * reduce the side to a consistent subset. A warning that fires on a normal
+ * condition and prescribes a destructive fix is worse than no warning: it
+ * trains a reader to skip the section where the real drift would appear.
+ * Filtering internally means a caller cannot reintroduce the bug by passing
+ * the wrong array.
  */
 export function detectHeterogeneity(
-  rows: ScoredRow[],
+  rows: ReadonlyArray<ScoredRow & { carriedForward?: boolean }>,
   label: string,
 ): HeterogeneityInfo {
+  const graded = rows.filter((row) => !row.carriedForward);
   const hashesByCheck = new Map<string, { tag: string; hashes: Set<string> }>();
-  for (const row of rows) {
+  for (const row of graded) {
     if (row.rubricHash === undefined) continue;
     let entry = hashesByCheck.get(row.checkId);
     if (!entry) {
@@ -309,7 +324,7 @@ export function detectHeterogeneity(
     .sort((a, b) => a.checkId.localeCompare(b.checkId));
 
   const harnessVersions = [
-    ...new Set(rows.map((r) => r.harnessVersion)),
+    ...new Set(graded.map((r) => r.harnessVersion)),
   ].sort();
 
   const warnings: string[] = [];

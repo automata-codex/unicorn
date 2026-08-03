@@ -1,6 +1,7 @@
 import { shortCorpusVersion } from '../corpus-version';
 
 import {
+  byFixtureThenCheck,
   findApplicabilitySourceMismatches,
   findIndeterminateApplicabilitySources,
   isImprovement,
@@ -38,25 +39,81 @@ function sourceCell(source: ComparePair['applicabilitySourceA']): string {
   return source === null ? '—' : formatApplicabilitySource(source);
 }
 
-function renderPairedTable(title: string, pairs: ComparePair[]): string[] {
+/**
+ * Below this many decided reps on either side, a pair is listed but not
+ * ranked. `turn03-unauditable-mapping` is the motivating case: 1/10 → 0/7
+ * sorted above every genuine regression on a delta of −0.10 that Fisher puts
+ * at p ≈ 1.0.
+ *
+ * Deliberately a threshold on **N, not on Δ**. A minimum-Δ filter would hide
+ * exactly the small-but-real moves this section exists to surface; a
+ * minimum-N one only declines to rank what cannot be ranked. And the rows
+ * are banded rather than dropped — a low-N pair is still the only evidence
+ * there is about that fixture, and silently omitting it would be the
+ * "silent cap" failure the report is otherwise careful to avoid.
+ */
+const MIN_RANKABLE_N = 5;
+
+const isRankable = (p: ComparePair): boolean =>
+  p.nA >= MIN_RANKABLE_N && p.nB >= MIN_RANKABLE_N;
+
+const PAIRED_HEADER = [
+  '| Fixture | Check | Tag | Rate A | Rate B | Δ | N A | N B | App A | App B | ΔApp |',
+  '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+];
+
+function pairedRow(p: ComparePair): string {
+  return (
+    `| ${p.fixtureId} | ${p.checkId} | ${p.tag} | ${formatRate(p.rateA)} | ` +
+    `${formatRate(p.rateB)} | ${formatDelta(p.delta)} | ${p.nA} | ${p.nB} | ` +
+    `${formatApplicabilityRatio(p.applicabilityA)} | ` +
+    `${formatApplicabilityRatio(p.applicabilityB)} | ` +
+    `${formatDelta(p.deltaApplicability)} |`
+  );
+}
+
+/**
+ * `bandLowN` splits the ranked rows from those too thin to rank. Applied to
+ * Regressions and Improvements, where the ordering carries a claim about
+ * which moves matter most; not to Unchanged, whose rows are all Δ 0 and
+ * carry no ranking to qualify.
+ */
+function renderPairedTable(
+  title: string,
+  pairs: ComparePair[],
+  { bandLowN = false }: { bandLowN?: boolean } = {},
+): string[] {
   const lines = [`## ${title} (${pairs.length})`, ''];
   if (pairs.length === 0) {
     lines.push('(none)');
-  } else {
-    lines.push(
-      '| Fixture | Check | Tag | Rate A | Rate B | Δ | N A | N B | App A | App B | ΔApp |',
-      '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
-    );
-    for (const p of pairs) {
-      lines.push(
-        `| ${p.fixtureId} | ${p.checkId} | ${p.tag} | ${formatRate(p.rateA)} | ` +
-          `${formatRate(p.rateB)} | ${formatDelta(p.delta)} | ${p.nA} | ${p.nB} | ` +
-          `${formatApplicabilityRatio(p.applicabilityA)} | ` +
-          `${formatApplicabilityRatio(p.applicabilityB)} | ` +
-          `${formatDelta(p.deltaApplicability)} |`,
-      );
-    }
+    lines.push('');
+    return lines;
   }
+
+  const ranked = bandLowN ? pairs.filter(isRankable) : pairs;
+  const lowN = bandLowN ? pairs.filter((p) => !isRankable(p)) : [];
+
+  if (ranked.length === 0) {
+    lines.push('(none above the ranking threshold)');
+  } else {
+    lines.push(...PAIRED_HEADER);
+    for (const p of ranked) lines.push(pairedRow(p));
+  }
+
+  if (lowN.length > 0) {
+    lines.push('');
+    lines.push(
+      `**Low N (fewer than ${MIN_RANKABLE_N} decided reps on a side) — ` +
+        `listed, not ranked (${lowN.length})**`,
+      '',
+      ...PAIRED_HEADER,
+    );
+    // Sorted by fixture rather than by delta: declining to rank these is the
+    // point, and ordering them by magnitude would re-assert the ranking.
+    for (const p of [...lowN].sort(byFixtureThenCheck))
+      lines.push(pairedRow(p));
+  }
+
   lines.push('');
   return lines;
 }
@@ -165,6 +222,14 @@ function renderRunHeader(label: string, side: CompareSideInput): string[] {
  * have at all. Two kinds of mismatch count: one side read from `reps/` while
  * the other read a re-score, and two re-scores produced under different
  * checker code. Neither shows up anywhere in the rates themselves.
+ *
+ * `harnessVersion` here is the **re-graded** rows' harness (see
+ * `ResolvedScoring`). An earlier version compared the harness versions of
+ * *all* rows, which meant two re-scores graded identically still tripped
+ * this warning whenever either side had a carried-forward row keeping its
+ * source run's stamp — 278 of 300 rows graded by the same code, reported as
+ * a grader mismatch, with a remedy that would have re-scored one side under
+ * a harness predating every checker migration in the cycle.
  */
 function scoringMismatchWarnings(
   a: ScoringProvenance,
@@ -262,8 +327,12 @@ export function renderCompareReport(
   const unchanged = pairs.filter(isUnchanged);
   const unpaired = pairs.filter(isUnpaired);
 
-  lines.push(...renderPairedTable('Regressions', regressions));
-  lines.push(...renderPairedTable('Improvements', improvements));
+  lines.push(
+    ...renderPairedTable('Regressions', regressions, { bandLowN: true }),
+  );
+  lines.push(
+    ...renderPairedTable('Improvements', improvements, { bandLowN: true }),
+  );
   lines.push(...renderApplicabilityShiftTable(pairs));
   lines.push(...renderPairedTable('Unchanged', unchanged));
   lines.push(...renderUnpairedTable(unpaired));

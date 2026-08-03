@@ -331,6 +331,61 @@ describe('orderForDisplay', () => {
 });
 
 describe('detectHeterogeneity', () => {
+  it('does not count carried-forward rows as harness drift', () => {
+    // The regression this guards: a re-score with even one carried-forward
+    // row looked like it spanned two harness versions, because such a row
+    // keeps the source run's stamp — nothing re-graded it. On the two frozen
+    // runs that meant 278 of 300 rows graded identically under 600cc73,
+    // reported as drift, with a --filter-harness remedy that would have
+    // deleted the carried-forward rows rather than made the side consistent.
+    const rows = [
+      scoreRow({ repIndex: 1, harnessVersion: '600cc73' }),
+      scoreRow({ repIndex: 2, harnessVersion: '600cc73' }),
+      {
+        ...scoreRow({ repIndex: 3, harnessVersion: 'fa1d801' }),
+        carriedForward: true,
+      },
+    ];
+
+    const info = detectHeterogeneity(rows, 'run A');
+    expect(info.harnessVersions).toEqual(['600cc73']);
+    expect(info.warnings).toEqual([]);
+  });
+
+  it('does not count a carried-forward row rubric hash as mid-run drift', () => {
+    const rows = [
+      scoreRow({ checkId: 'hidden-info-leak', rubricHash: 'aaaaaaaa' }),
+      {
+        ...scoreRow({
+          repIndex: 2,
+          checkId: 'hidden-info-leak',
+          rubricHash: 'bbbbbbbb',
+        }),
+        carriedForward: true,
+      },
+    ];
+
+    const info = detectHeterogeneity(rows, 'run A');
+    expect(info.mixedRubricChecks).toEqual([]);
+    expect(info.warnings).toEqual([]);
+  });
+
+  it('still warns on real drift among re-graded rows', () => {
+    const rows = [
+      scoreRow({ repIndex: 1, harnessVersion: '600cc73' }),
+      scoreRow({ repIndex: 2, harnessVersion: 'abc9999' }),
+      {
+        ...scoreRow({ repIndex: 3, harnessVersion: 'fa1d801' }),
+        carriedForward: true,
+      },
+    ];
+
+    const info = detectHeterogeneity(rows, 'run A');
+    expect(info.harnessVersions).toEqual(['600cc73', 'abc9999']);
+    expect(info.warnings).toHaveLength(1);
+    expect(info.warnings[0]).toContain('spans multiple harness versions');
+  });
+
   it('does not warn when a run spans two checks with one rubric hash each', () => {
     // The normal case: one rubric template per judged check, so a run
     // covering several judged checks spans several hashes by design.

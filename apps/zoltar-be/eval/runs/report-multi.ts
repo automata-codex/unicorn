@@ -143,9 +143,13 @@ export interface ScoringProvenance {
   kind: 'run' | 'rescore';
   label: string;
   source: string;
+  /** Re-graded rows only — see `ResolvedScoring`. Carried-forward provenance
+   * is `carriedForwardHarnessVersion`, reported separately and never mixed
+   * in here. */
   corpusVersion?: string;
   harnessVersion?: string;
   carriedForward?: number;
+  carriedForwardHarnessVersion?: string;
 }
 
 /** Header bullets naming the grading, shared by `eval:report` and
@@ -162,8 +166,13 @@ export function renderScoringProvenance(scoring: ScoringProvenance): string[] {
       lines.push(`- Harness version at scoring: ${scoring.harnessVersion}`);
     }
     if (scoring.carriedForward !== undefined) {
+      // Names the grader these rows kept, so the count reads as provenance
+      // rather than as this pass having spanned two harness versions.
+      const under = scoring.carriedForwardHarnessVersion
+        ? ` (verdicts retained from harness ${scoring.carriedForwardHarnessVersion})`
+        : '';
       lines.push(
-        `- Carried forward (no artifact to re-grade): ${scoring.carriedForward}`,
+        `- Carried forward (no artifact to re-grade): ${scoring.carriedForward}${under}`,
       );
     }
   }
