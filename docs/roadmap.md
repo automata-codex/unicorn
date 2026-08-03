@@ -197,7 +197,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 
 #### M6 — GmService & State Management
 
-*Apply GM responses to game state and close the play loop. Spec: [`docs/specs/zoltar/m6-state-management.md`](specs/zoltar/006-m6-state-management.md).*
+*Apply GM responses to game state and close the play loop. Spec: [`docs/specs/zoltar/006-m6-state-management.md`](specs/zoltar/006-m6-state-management.md).*
 
 - [x] `GmService` orchestrating request/response cycle (lives on `SessionService`; the `GmService` name is retired — one session service, not two)
 - [x] Backend state change validation (resource deductions, HP thresholds, flag changes) + application to DB
@@ -223,11 +223,11 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [x] SQL views joining `game_events` and `adventure_telemetry` (per-turn, per-state-history, per-correction)
 - [x] CLI script that produces a turn-by-turn markdown report for a given adventure id
 - [x] Sanity-check the `adventure_telemetry` payload shape against a real Mothership run and adjust if fields are missing or redundant
-- [x] Warden prompt versioning in production: persist version on each telemetry row, surface in M7.1 review output (parity with the playtest app's Setup dropdown — deferred from M7, see `docs/specs/zoltar/m7-ai-tools.md § Deferrals Introduced in M7`). Versioning is filename + content-hash rather than a semantic version number.
+- [x] Warden prompt versioning in production: persist version on each telemetry row, surface in M7.1 review output (parity with the playtest app's Setup dropdown — deferred from M7, see `docs/specs/zoltar/007-m7-ai-tools.md § Deferrals Introduced in M7`). Versioning is filename + content-hash rather than a semantic version number.
 
 #### M7.2 — Rules Ingestion Pipeline
 
-*Populate the `rules_chunk` index for Mothership. M7 ships runtime plumbing (`rules_lookup` tool, `VoyageService`, pgvector query) but leaves the index empty so playtest evidence from M7 can prioritize ingestion coverage. Separate milestone because the pipeline is Python, not TypeScript, and is independently testable.*
+*Populate the `rules_chunk` index for Mothership. M7 ships runtime plumbing (`rules_lookup` tool, `VoyageService`, pgvector query) but leaves the index empty so playtest evidence from M7 can prioritize ingestion coverage. Separate milestone because the pipeline is Python, not TypeScript, and is independently testable. Spec: [`docs/specs/zoltar/013-m7.2-rules-ingestion.md`](specs/zoltar/013-m7.2-rules-ingestion.md).*
 
 - [ ] Python ingestion pipeline under `ingestion/` (marker extraction → heading-aware chunking → Voyage document-mode embedding → SQL insert)
 - [ ] One-time local seed of Mothership rules chunks from the PDF

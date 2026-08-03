@@ -54,7 +54,7 @@ The pipeline verifies the input PDF against a known SHA-256 hash before running 
 
 ```bash
 sha256sum mothership_players_survival_guide.pdf
-# expected: <hash published in ingestion/hashes/mothership-psv-1e.txt>
+# expected: <hash published in ingestion/mothership/hashes/mothership-psg-1e.txt>
 ```
 
 If the hash does not match, the pipeline warns the user that fixups may not apply correctly and asks them to confirm before continuing. It does not block ingestion — a mismatched hash may mean a different printing or edition, not a corrupted file.
