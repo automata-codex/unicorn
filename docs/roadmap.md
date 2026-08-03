@@ -234,6 +234,8 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [ ] Fixup patch scaffolding for chunk-level corrections
 - [ ] Hash-verification step to detect source-document drift between re-ingestions
 - [ ] Ingestion smoke tests (chunk count, embedding dimensions, system_id tagging)
+- [ ] Re-baseline both models against the populated index — full corpus, uniform N, compared against the re-scored `88fa84bd8329` runs. A populated index changes what the Warden sees (tool results, and plausibly its roll behaviour), so every rate measured against the empty index is provisional. Update `Current baseline N` in `docs/eval-methodology.md` if applicability or variance shifted
+- [ ] Dedicated playtest after ingestion lands — confirms the index actually helped, and is the source of the second confirmed instances `MISSING-CANON-CAPTURE`, `UNSURFACED-CHECK`, `OVER-RESOLUTION`, and `SCENE-JUMP` need to close M7.4's remaining item. Harness-only validation stays provisional without it
 
 #### M7.3 — Turn-State Replay Infrastructure
 
@@ -266,6 +268,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [ ] Narrative transfer via `caller_transfer` in `submit_gm_response`
 - [ ] Initiative mode (adventure mode flip, order stored in record, `advance_initiative` handling in `GmService`)
 - [ ] Frontend: caller indicator and transfer UI, initiative order display and active player highlighting
+- [ ] Multi-PC / caller model dedicated playtest, then author fixtures for whatever caller and initiative failure modes it surfaces. The current corpus has no coverage for caller transfer or initiative sequencing at all — these are new failure modes, not new instances of existing tags, so this is corpus expansion rather than a re-run. Do not combine with mechanical coverage playtests (see Phase 2 requirements)
 
 #### M9 — Self-Hosted Deployment
 
@@ -279,6 +282,8 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [ ] Self-hosted setup guide + DigitalOcean Droplet walkthrough
 - [ ] Signup mode documented in self-hosted setup guide
 - [ ] Responsive polish pass (thumb reach, viewport refinement)
+- [ ] Full-corpus eval run before tagging, compared against the M7.2 re-baseline. This is release discipline rather than milestone scope — it belongs on the release checklist alongside the setup guide and env-var docs, and it recurs at every tagged release, not just this one. Listed here explicitly to establish the habit
+- [ ] Comprehensive release checklist authored for future releases
 - [ ] First tagged release (`v0.1.0`)
 
 ---
