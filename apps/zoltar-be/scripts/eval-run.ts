@@ -24,7 +24,7 @@
  *   node -r @swc-node/register -r reflect-metadata --env-file=.env \
  *     scripts/eval-run.ts \
  *     --prompt src/wardens/prompts/mothership-m7.txt \
- *     --model claude-sonnet-4-6 \
+ *     --model claude-sonnet-5 \
  *     --reps 10 \
  *     [--fixtures turn19-out-of-order-resolution,turn24-scene-jump] \
  *     [--fixtures-dir eval/fixtures/] \

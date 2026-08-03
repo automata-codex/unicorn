@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-export const DEFAULT_SYNTHESIS_MODEL = 'claude-sonnet-4-6';
+export const DEFAULT_SYNTHESIS_MODEL = 'claude-sonnet-5';
 export const DEFAULT_SYNTHESIS_MAX_TOKENS = 8192;
 export const DEFAULT_SESSION_MAX_TOKENS = 4096;
 

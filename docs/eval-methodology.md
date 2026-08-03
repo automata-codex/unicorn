@@ -181,6 +181,17 @@ change, a meaningfully different corpus (fixture count or content), or a prompt 
 substantial enough to shift where fixtures sit relative to 0.5 all warrant revisiting this
 number rather than assuming it still holds.
 
+> **The trigger fired on 2026-08-03**, when `DEFAULT_SYNTHESIS_MODEL` moved to
+> `claude-sonnet-5`. N=10 was calibrated against per-fixture variance under
+> `claude-sonnet-4-6`, and Sonnet 5 does not sit where 4.6 sat: several fixtures that
+> carried real variance under 4.6 are now pinned at 1.00, and the three `turn24-*`
+> fixtures that lost half their reps to errors under 4.6 now complete. Both moves change
+> which fixture is the noisiest one N is supposed to cover — which is the whole basis of
+> the number. **N=10 is carried forward unchanged for now**, because re-calibrating
+> against an empty `rules_chunk` index would only have to be redone after M7.2. Re-derive
+> it from the M7.2 re-baseline, and treat the current value as inherited rather than
+> estimated until then.
+
 ---
 
 ## Structural check migrations (2026-07-31)
