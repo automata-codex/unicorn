@@ -4,19 +4,34 @@
  *
  * Usage:
  *   npx tsx --env-file=.env scripts/eval-compare.ts <run-dir-a> <run-dir-b> \
- *     [--filter-rubric <hash>] [--filter-harness <version>] [--output <path>]
+ *     [--filter-rubric CHECK=HASH]... [--filter-harness <version>] [--output <path>]
  *
  * Or via the task wrapper:
- *   task eval:compare -- <run-dir-a> <run-dir-b> [--filter-rubric <hash>] [--filter-harness <version>] [--output <path>]
+ *   task eval:compare -- <run-dir-a> <run-dir-b> [--filter-rubric CHECK=HASH]... [--filter-harness <version>] [--output <path>]
  *
  * Each `<run-dir>` is a bare run directory name (resolved against
  * `$ZOLTAR_EVAL_ROOT/eval-runs/`) or an absolute path.
  *
  * Pairs on `(fixtureId, checkId)` — never compares aggregate rates alone.
- * If either side's rows span more than one `rubricHash`/`harnessVersion`,
- * the report warns and names the exact `--filter-rubric`/`--filter-harness`
- * value that would reduce it to a consistent subset; it never discards a
- * side on its own.
+ * If a judged check's rows within one side span more than one rubric hash
+ * (the rubric template was edited mid-run), the report warns and names the
+ * exact `--filter-rubric CHECK=HASH` that would reduce that check to a
+ * consistent subset — scoped to that one check, so it never touches other
+ * checks' rows. A run covering several judged checks normally spans several
+ * hashes (one template per check) and does not warn.
+ *
+ * `--filter-rubric` is repeatable, one per affected check. Passing a bare
+ * hash (the old global-filter form) is a usage error. If a filter would
+ * zero out a fixture's denominator, that is reported on stderr rather than
+ * silently rendered as an empty row.
+ *
+ * `--scoring` picks which grading of each run to compare — the run's own
+ * `reps/<nnn>/scores.jsonl` or an `eval:rescore` pass — and applies to both
+ * sides, matching `eval:report`'s flag and default (most recent re-score,
+ * else the run). Each side's header names the grading it used, and the
+ * report warns when the two sides ended up on different graders: comparing
+ * a re-scored run against a raw one attributes the checker change to the
+ * model.
  *
  * Needs only `ZOLTAR_EVAL_ROOT` from the environment — never `DATABASE_URL`,
  * `ANTHROPIC_API_KEY`, or anything else `.env` carries for the server. Plain
@@ -30,14 +45,22 @@ import { parseArgs } from 'node:util';
 import {
   applyFilters,
   comparePairs,
+  describeFilterImpact,
   detectHeterogeneity,
   orderForDisplay,
+  parseRubricFilters,
 } from '../eval/runs/compare';
 import { renderCompareReport } from '../eval/runs/compare-report';
 import { readManifest } from '../eval/runs/manifest';
 import { resolveEvalRoot, resolveRunDirArg } from '../eval/runs/paths';
 import { computeRates } from '../eval/runs/rates';
-import { readVouchedRows } from '../eval/runs/scores';
+import {
+  parseScoringArg,
+  resolveScoring,
+  ScoringSourceError,
+} from '../eval/runs/scoring-source';
+
+import type { ScoringSelector } from '../eval/runs/scoring-source';
 
 class UsageError extends Error {
   constructor(message: string) {
@@ -47,14 +70,16 @@ class UsageError extends Error {
 }
 
 const USAGE =
-  'Usage: eval-compare <run-dir-a> <run-dir-b> [--filter-rubric <hash>] ' +
-  '[--filter-harness <version>] [--output <path>]';
+  'Usage: eval-compare <run-dir-a> <run-dir-b> [--filter-rubric CHECK=HASH]... ' +
+  '[--filter-harness <version>] [--scoring run|rescore|rescore=<timestamp>] ' +
+  '[--output <path>]';
 
 interface CliArgs {
   runDirA: string;
   runDirB: string;
-  filterRubric?: string;
+  rubricFilters: Record<string, string>;
   filterHarness?: string;
+  scoring: ScoringSelector;
   output?: string;
 }
 
@@ -63,8 +88,9 @@ function parseCliArgs(argv: string[]): CliArgs {
     args: argv,
     allowPositionals: true,
     options: {
-      'filter-rubric': { type: 'string' },
+      'filter-rubric': { type: 'string', multiple: true },
       'filter-harness': { type: 'string' },
+      scoring: { type: 'string' },
       output: { type: 'string' },
     },
   });
@@ -75,17 +101,35 @@ function parseCliArgs(argv: string[]): CliArgs {
     );
   }
 
+  let rubricFilters: Record<string, string>;
+  try {
+    rubricFilters = parseRubricFilters(values['filter-rubric'] ?? []);
+  } catch (err) {
+    throw new UsageError(
+      `${err instanceof Error ? err.message : String(err)}. ${USAGE}`,
+    );
+  }
+
+  let scoring: ScoringSelector;
+  try {
+    scoring = parseScoringArg(
+      typeof values.scoring === 'string' ? values.scoring : undefined,
+    );
+  } catch (err) {
+    throw new UsageError(
+      `${err instanceof Error ? err.message : String(err)}. ${USAGE}`,
+    );
+  }
+
   return {
     runDirA: positionals[0],
     runDirB: positionals[1],
-    filterRubric:
-      typeof values['filter-rubric'] === 'string'
-        ? values['filter-rubric']
-        : undefined,
+    rubricFilters,
     filterHarness:
       typeof values['filter-harness'] === 'string'
         ? values['filter-harness']
         : undefined,
+    scoring,
     output: typeof values.output === 'string' ? values.output : undefined,
   };
 }
@@ -109,12 +153,58 @@ async function main(): Promise<number> {
   const manifestA = readManifest(runDirA);
   const manifestB = readManifest(runDirB);
 
+  let scoringA: ReturnType<typeof resolveScoring>;
+  let scoringB: ReturnType<typeof resolveScoring>;
+  try {
+    scoringA = resolveScoring(runDirA, cli.scoring);
+    scoringB = resolveScoring(runDirB, cli.scoring);
+  } catch (err) {
+    if (err instanceof ScoringSourceError) {
+      process.stderr.write(`${err.message}\n`);
+      return 2;
+    }
+    throw err;
+  }
+
+  // One `--scoring` value governs both sides, but `auto` can still land on
+  // different kinds — run A may have been re-scored and run B not. Say so
+  // here as well as in the report's Warnings section: a comparison across
+  // two graders is the failure this default is most likely to cause.
+  for (const [label, dir, scoring] of [
+    ['A', cli.runDirA, scoringA],
+    ['B', cli.runDirB, scoringB],
+  ] as const) {
+    if (scoring.defaultedToRescore) {
+      process.stderr.write(
+        `run ${label} (${dir}): no --scoring given; using ${scoring.label} ` +
+          "rather than the run's own scores.\n",
+      );
+    }
+  }
+
   const filters = {
-    rubricHash: cli.filterRubric,
+    rubricHashByCheckId: cli.rubricFilters,
     harnessVersion: cli.filterHarness,
   };
-  const rowsA = applyFilters(readVouchedRows(runDirA).rows, filters);
-  const rowsB = applyFilters(readVouchedRows(runDirB).rows, filters);
+  const rawRowsA = scoringA.rows;
+  const rawRowsB = scoringB.rows;
+  const rowsA = applyFilters(rawRowsA, filters);
+  const rowsB = applyFilters(rawRowsB, filters);
+
+  for (const message of describeFilterImpact(
+    rawRowsA,
+    rowsA,
+    cli.rubricFilters,
+  )) {
+    process.stderr.write(`run A (${cli.runDirA}): ${message}\n`);
+  }
+  for (const message of describeFilterImpact(
+    rawRowsB,
+    rowsB,
+    cli.rubricFilters,
+  )) {
+    process.stderr.write(`run B (${cli.runDirB}): ${message}\n`);
+  }
 
   const heterogeneityA = detectHeterogeneity(rowsA, `run A (${cli.runDirA})`);
   const heterogeneityB = detectHeterogeneity(rowsB, `run B (${cli.runDirB})`);
@@ -124,11 +214,17 @@ async function main(): Promise<number> {
   );
 
   const report = renderCompareReport(
-    manifestA,
-    manifestB,
+    {
+      manifest: manifestA,
+      scoring: scoringA,
+      heterogeneityWarnings: heterogeneityA.warnings,
+    },
+    {
+      manifest: manifestB,
+      scoring: scoringB,
+      heterogeneityWarnings: heterogeneityB.warnings,
+    },
     pairs,
-    heterogeneityA.warnings,
-    heterogeneityB.warnings,
   );
 
   if (cli.output) {

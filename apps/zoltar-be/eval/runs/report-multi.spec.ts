@@ -6,6 +6,13 @@ import { renderRunReport } from './report-multi';
 
 import type { Manifest } from './manifest';
 import type { ExclusionsSummary, RateEntry } from './rates';
+import type { ScoringProvenance } from './report-multi';
+
+const RUN_SCORING: ScoringProvenance = {
+  kind: 'run',
+  label: "the run's own scores",
+  source: '/runs/thisrun/reps/<nnn>/scores.jsonl',
+};
 
 function baseManifest(overrides: Partial<Manifest> = {}): Manifest {
   return {
@@ -26,6 +33,7 @@ const EMPTY_EXCLUSIONS: ExclusionsSummary = {
   unvouchedReps: [],
   rawExclusions: [],
   notApplicableByReason: [],
+  notApplicableByFixture: [],
   errorsByMessage: [],
 };
 
@@ -58,24 +66,33 @@ describe('renderRunReport', () => {
         checkId: 'out-of-order-resolution',
         tag: 'OUT-OF-ORDER-RESOLUTION',
         checkMode: 'structural',
+        applicabilitySource: 'fixture',
         pass: 1,
         fail: 1,
         notApplicable: 0,
         error: 0,
         n: 2,
         rate: 0.5,
+        applicabilityDenominator: 2,
+        applicability: 1,
       },
       {
+        // Declared `ungated` yet every rep came back not_applicable — the
+        // shape the findings section exists to catch, since a reader seeing
+        // only `Rate: n/a` would file it as a model result.
         fixtureId: 'turn24-scene-jump',
         checkId: 'scene-jump',
         tag: 'SCENE-JUMP',
         checkMode: 'judged',
+        applicabilitySource: 'ungated',
         pass: 0,
         fail: 0,
         notApplicable: 2,
         error: 0,
         n: 0,
         rate: null,
+        applicabilityDenominator: 2,
+        applicability: 0,
       },
     ];
 
@@ -85,6 +102,14 @@ describe('renderRunReport', () => {
         'rep 003 exists on disk but is not vouched for in manifest.json (crashed or in-progress run) — excluded',
       ],
       notApplicableByReason: [{ reason: 'no dice_roll this turn', count: 2 }],
+      notApplicableByFixture: [
+        {
+          fixtureId: 'turn24-scene-jump',
+          checkId: 'scene-jump',
+          reason: 'no dice_roll this turn',
+          count: 2,
+        },
+      ],
       errorsByMessage: [
         {
           message: 'Inner tool loop did not terminate within 20 iterations',
@@ -93,7 +118,7 @@ describe('renderRunReport', () => {
       ],
     };
 
-    const report = renderRunReport(manifest, rates, exclusions);
+    const report = renderRunReport(manifest, rates, exclusions, RUN_SCORING);
 
     expect(report).toBe(
       [
@@ -105,20 +130,27 @@ describe('renderRunReport', () => {
         '- Corpus version: deadbeefdead',
         '- Planned reps: 2',
         '- Completed reps: 2',
+        "- Scoring: the run's own scores (/runs/thisrun/reps/<nnn>/scores.jsonl)",
         '',
         '## Per-fixture rates',
         '',
-        '| Fixture | Check | Tag | Mode | Pass | Fail | N/A | Error | N | Rate |',
-        '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
-        '| turn19-out-of-order-resolution | out-of-order-resolution | OUT-OF-ORDER-RESOLUTION | structural | 1 | 1 | 0 | 0 | 2 | 0.50 |',
-        '| turn24-scene-jump | scene-jump | SCENE-JUMP | judged | 0 | 0 | 2 | 0 | 0 | n/a |',
+        '| Fixture | Check | Tag | Mode | Src | Pass | Fail | N/A | Error | N | Rate | App |',
+        '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+        '| turn19-out-of-order-resolution | out-of-order-resolution | OUT-OF-ORDER-RESOLUTION | structural | fixture | 1 | 1 | 0 | 0 | 2 | 0.50 | 1.00 (2/2) |',
+        '| turn24-scene-jump | scene-jump | SCENE-JUMP | judged | ungated | 0 | 0 | 2 | 0 | 0 | n/a | 0.00 (0/2) |',
         '',
         '## Per-tag rollup',
         '',
-        '| Tag | Pass | Fail | N | Rate | Fixtures w/o denominator |',
-        '| --- | --- | --- | --- | --- | --- |',
-        '| OUT-OF-ORDER-RESOLUTION | 1 | 1 | 2 | 0.50 | 0 |',
-        '| SCENE-JUMP | 0 | 0 | 0 | n/a | 1 |',
+        '| Tag | Src | Pass | Fail | N/A | Error | N | Rate | App | Fixtures w/o denominator |',
+        '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+        '| OUT-OF-ORDER-RESOLUTION | fixture | 1 | 1 | 0 | 0 | 2 | 0.50 | 1.00 (2/2) | 0 |',
+        '| SCENE-JUMP | ungated | 0 | 0 | 2 | 0 | 0 | n/a | 0.00 (0/2) | 1 |',
+        '',
+        '## Applicability findings',
+        '',
+        '**Harness defects** — these are bugs, not model findings.',
+        '',
+        '- fixture "turn24-scene-jump" check "scene-jump" is declared ungated but reported not_applicable (applicability 0.00 (0/2)) — a gate fired where the registry says none exists.',
         '',
         '## Errors',
         '',
@@ -129,6 +161,12 @@ describe('renderRunReport', () => {
         '- Unvouched reps on disk (not in manifest.json): 3',
         '- (2x) not_applicable: no dice_roll this turn',
         '- rep 003 exists on disk but is not vouched for in manifest.json (crashed or in-progress run) — excluded',
+        '',
+        '### Not-applicable, by fixture',
+        '',
+        '| Fixture | Check | Count | Reason |',
+        '| --- | --- | --- | --- |',
+        '| turn24-scene-jump | scene-jump | 2 | no dice_roll this turn |',
       ].join('\n'),
     );
   });
@@ -136,7 +174,7 @@ describe('renderRunReport', () => {
   it('renders a golden report for a run with zero vouched reps', () => {
     const manifest = baseManifest({ plannedReps: 3, completedReps: [] });
 
-    const report = renderRunReport(manifest, [], EMPTY_EXCLUSIONS);
+    const report = renderRunReport(manifest, [], EMPTY_EXCLUSIONS, RUN_SCORING);
 
     expect(report).toBe(
       [
@@ -148,6 +186,7 @@ describe('renderRunReport', () => {
         '- Corpus version: deadbeefdead',
         '- Planned reps: 3',
         '- Completed reps: 0',
+        "- Scoring: the run's own scores (/runs/thisrun/reps/<nnn>/scores.jsonl)",
         '',
         '## Per-fixture rates',
         '',
@@ -157,11 +196,19 @@ describe('renderRunReport', () => {
         '',
         '(no vouched rows)',
         '',
+        '## Applicability findings',
+        '',
+        '(none)',
+        '',
         '## Errors',
         '',
         '(none)',
         '',
         '## Exclusions',
+        '',
+        '(none)',
+        '',
+        '### Not-applicable, by fixture',
         '',
         '(none)',
       ].join('\n'),
@@ -175,7 +222,7 @@ describe('renderRunReport', () => {
       decisionRule: 'ship if no fixture drops >0.2 and median rises',
     });
 
-    const report = renderRunReport(manifest, [], EMPTY_EXCLUSIONS);
+    const report = renderRunReport(manifest, [], EMPTY_EXCLUSIONS, RUN_SCORING);
 
     expect(report).toBe(
       [
@@ -187,6 +234,7 @@ describe('renderRunReport', () => {
         '- Corpus version: deadbeefdead',
         '- Planned reps: 1',
         '- Completed reps: 0',
+        "- Scoring: the run's own scores (/runs/thisrun/reps/<nnn>/scores.jsonl)",
         '- Decision rule: ship if no fixture drops >0.2 and median rises',
         '',
         '## Per-fixture rates',
@@ -197,6 +245,10 @@ describe('renderRunReport', () => {
         '',
         '(no vouched rows)',
         '',
+        '## Applicability findings',
+        '',
+        '(none)',
+        '',
         '## Errors',
         '',
         '(none)',
@@ -204,14 +256,60 @@ describe('renderRunReport', () => {
         '## Exclusions',
         '',
         '(none)',
+        '',
+        '### Not-applicable, by fixture',
+        '',
+        '(none)',
       ].join('\n'),
     );
   });
 });
 
-describe('guard: report-multi.ts and rates.ts never read the DB', () => {
+describe('renderRunReport — scoring provenance', () => {
+  it('names a re-score in the title as well as the header', () => {
+    // The title matters independently: an excerpt pasted into a message
+    // takes the heading and drops the header bullets.
+    const report = renderRunReport(baseManifest(), [], EMPTY_EXCLUSIONS, {
+      kind: 'rescore',
+      label: 're-score 2026-07-30T09-00-00Z',
+      source: '/runs/thisrun/rescore/2026-07-30T09-00-00Z.jsonl',
+      corpusVersion: 'deadbeef'.repeat(8),
+      harnessVersion: 'abc1234',
+      carriedForward: 3,
+    });
+
+    expect(report).toContain(
+      '# Eval Run Report (re-score 2026-07-30T09-00-00Z): ',
+    );
+    expect(report).toContain(
+      '- Scoring: re-score 2026-07-30T09-00-00Z ' +
+        '(/runs/thisrun/rescore/2026-07-30T09-00-00Z.jsonl)',
+    );
+    expect(report).toContain('- Corpus version at scoring: deadbeefdead');
+    expect(report).toContain('- Harness version at scoring: abc1234');
+    expect(report).toContain('- Carried forward (no artifact to re-grade): 3');
+  });
+
+  it('leaves the title alone for a run scored from its own reps', () => {
+    const report = renderRunReport(
+      baseManifest(),
+      [],
+      EMPTY_EXCLUSIONS,
+      RUN_SCORING,
+    );
+
+    expect(report).toContain(
+      '# Eval Run Report: claude-sonnet-4-6__ab12cd34__2026-07-26T14-32-10Z',
+    );
+    // No re-score-only bullets when there was no re-score.
+    expect(report).not.toContain('Corpus version at scoring');
+    expect(report).not.toContain('Carried forward');
+  });
+});
+
+describe('guard: report-multi.ts, rates.ts and scoring-source.ts never read the DB', () => {
   it('import nothing from src/db', () => {
-    for (const file of ['report-multi.ts', 'rates.ts']) {
+    for (const file of ['report-multi.ts', 'rates.ts', 'scoring-source.ts']) {
       const source = readFileSync(join(__dirname, file), 'utf-8');
       expect(source).not.toMatch(/from ['"].*src\/db/);
     }

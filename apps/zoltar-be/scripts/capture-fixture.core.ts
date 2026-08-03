@@ -64,13 +64,16 @@ async function pendingDiceRequestsAsOfTurn(
  * unchanged — the CLI wrapper's `main()` already knows how to report a
  * plain `Error`'s message to stderr, no need to re-wrap it here.
  *
- * `playerInput` and `assertion` are filled with placeholder values the
- * fixture author is expected to replace by hand — this tool only knows
- * enough to produce a *validly-shaped* fixture, not a *correct* one. The
- * placeholder `assertion.mode` matches what `tag` actually requires (per
- * `evalFixtureSchema`'s tag/mode refinement) so the written file passes
- * `loadFixtures` validation as-is, ready to be hand-edited rather than
- * hand-restructured.
+ * `playerInput`, `assertion`, and `applicability` are filled with
+ * placeholder values the fixture author is expected to replace by hand —
+ * this tool only knows enough to produce a *validly-shaped* fixture, not a
+ * *correct* one. The placeholder `assertion.mode` matches what `tag`
+ * actually requires (per `evalFixtureSchema`'s tag/mode refinement) so the
+ * written file passes `loadFixtures` validation as-is, ready to be
+ * hand-edited rather than hand-restructured. `applicability`'s placeholder
+ * defaults to `applies: false` — fail-closed, since a check that reads it
+ * (`requiresFixtureSchema: 2`) treats an unedited stub as "not yet
+ * confirmed" rather than silently assuming the situation applies.
  */
 export async function captureFixture(
   db: Db,
@@ -115,6 +118,17 @@ export async function captureFixture(
       content:
         'TODO: fill in the player message that actually triggered this turn ' +
         `(source adventure ${args.adventureId}, sequence ${args.targetSequenceNumber})`,
+    },
+    /** Keyed by check id (`toCheckId` in `eval/checks/registry.ts` — lower-
+     * cased `tag`) so a checker can look itself up by its own id without
+     * this tool needing to import that registry. */
+    applicability: {
+      [args.tag.toLowerCase()]: {
+        applies: false,
+        situation:
+          `TODO: does this fixture's scenario call for the "${args.tag}" check? State why ` +
+          'or why not — see the doc comment on applicabilitySchema in eval/fixture.schema.ts.',
+      },
     },
     assertion: isJudgedTag(args.tag)
       ? {

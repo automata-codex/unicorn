@@ -1,111 +1,138 @@
+import { isAttributedTo, unbindableVerdict } from './attribution';
+import { requireApplicability } from './types';
+
 import type { DiceRollEventPayload } from '../../../src/session/session.events';
+import type { EvalFixture } from '../../fixture.schema';
 import type { TurnExecutionResult } from '../../turn-result';
 import type { StructuralVerdict } from './types';
 
-/** Same signal `OUT-OF-ORDER-RESOLUTION` uses: a damage roll phrased as
- * conditional on an unconfirmed hit is a consequence roll for a
- * just-declared action. Here it identifies *which* rolls represent an
- * action's resolution at all, not their timing. */
-const CONDITIONAL_DAMAGE_PATTERN =
-  /\b(damage|dmg)\b[^.]{0,40}\bif\b[^.]{0,30}\b(hits?|succeeds?|lands?|connects?)\b/i;
-
-/** Naming tokens that mark an entity as clearly NPC-side, so a resource
- * pool prefix containing one of these is never treated as "the player." */
-const NPC_TOKEN_PATTERN =
-  /\b(contractor|guard|android|unit-?\d+|soldier|mercenary|enemy|hostile|npc)\b/i;
-
-/**
- * Derives candidate player-entity names from `campaignState.resourcePools`
- * keys (`{entity_id}_{pool_name}`, per this repo's naming convention —
- * `alvarez_hp`, `alvarez_armor`). There's no canonical "this is the player
- * character" field anywhere in `TurnExecutionResult` — the harness doesn't
- * seed `character_sheet` rows (see `harness-runner.ts`) — so this is a
- * heuristic: any `_hp`/`_armor`/`_stress`-suffixed pool prefix that doesn't
- * look like an NPC is treated as a player-entity candidate. Real captured
- * data can carry more than one candidate for the same character (e.g. both
- * `alvarez` and `lt_alvarez`) — all candidates are accepted.
- */
-function candidatePlayerEntityNames(
-  campaignState: Record<string, unknown>,
-): string[] {
-  const resourcePools =
-    (campaignState as { resourcePools?: Record<string, unknown> })
-      .resourcePools ?? {};
-  const names = new Set<string>();
-  for (const key of Object.keys(resourcePools)) {
-    const match = key.match(/^(.+?)_(hp|armor|stress)$/i);
-    if (!match) continue;
-    const candidate = match[1].replace(/_/g, ' ').trim();
-    if (!candidate || NPC_TOKEN_PATTERN.test(candidate)) continue;
-    names.add(candidate.toLowerCase());
-  }
-  return [...names];
-}
-
-function isPlayerAttributed(
-  purpose: string,
-  candidateNames: string[],
-): boolean {
-  const lower = purpose.toLowerCase();
-  return candidateNames.some((name) => lower.startsWith(name));
-}
+const CHECK_ID = 'system-rolled-player-action';
 
 /**
  * SYSTEM-ROLLED-PLAYER-ACTION: a roll representing the player's own
- * declared action's consequence (identified via `CONDITIONAL_DAMAGE_PATTERN`
- * + player-entity attribution) should never appear as an already-resolved
- * `dice_roll` event straight from the Warden's tool loop — a well-behaved
- * turn defers it via a `dice_request` instead, resolved in a later turn.
- * Its presence *at all* is the violation; `roll_source` isn't a useful
- * signal here despite the tag's name — every tool-loop roll is
- * unconditionally `system_generated` regardless of which entity it
- * represents, so checking its value can't distinguish "correctly
- * system-rolled NPC action" from "incorrectly system-rolled player action."
+ * declared action should never appear as an already-resolved `dice_roll`
+ * event straight from the Warden's tool loop — a well-behaved turn defers
+ * it via a `dice_request` instead, resolved in a later turn. Its presence
+ * *at all* is the violation, not just its damage sub-roll: an earlier
+ * version of this checker only flagged rolls matching a
+ * damage-conditional-on-an-unconfirmed-hit pattern, which missed a
+ * system-rolled *to-hit* roll entirely (confirmed against real replayed
+ * output — a Sonnet 5 run's "Alvarez Combat roll to shoot contractor...
+ * (target: under 30)" resolved system-side read as a false PASS).
+ *
+ * Applicability and the acting player entity are both fixture-authored
+ * (`fixture.applicability[checkId]`, `eval/fixture.schema.ts`) rather than
+ * inferred from this turn's own output — gating on "did a dice_roll event
+ * appear" selects on the model's own choice, not the scenario, and
+ * guessing the player entity from `campaignState.resourcePools` naming
+ * conventions is exactly the kind of inference this check no longer needs
+ * once the fixture states it directly.
+ *
+ * ---
+ *
+ * **Audit: what this check reads.** It was flagged for re-verification on
+ * the grounds that it hadn't been examined since the re-gating, and that the
+ * one check previously described as structure-only turned out not to be.
+ * The result, field by field:
+ *
+ * - `fixture.applicability[...]` — fixture-authored, not model output.
+ * - `rollSource` — a column the backend writes.
+ * - `dice_request.status` — a column the backend writes. Binding a request
+ *   to the player needs no prose at all; a request is player-facing by
+ *   construction. This was the audit's first real finding: the check had
+ *   been requiring a leading-name match here too, and rejecting correct
+ *   turns whose request simply didn't name the player.
+ * - `payload.purpose` via `isAttributedTo` — **prose**, and the one
+ *   remaining prose dependency in the structural checks. It is not
+ *   removable: nothing in `game_events` records who acted, and `actorType`
+ *   is `'gm'` for every Warden-side roll whether it represents an NPC or the
+ *   player, which is precisely the distinction being drawn. See
+ *   `attribution.ts` for the full argument and the `actingEntityId` fix it
+ *   waits on.
+ *
+ * So the answer to "does it read only structure" is no, and the honest
+ * response was not to claim otherwise but to stop the prose dependency
+ * failing silently — `unbindableVerdict` turns "the name didn't match" into
+ * an undecided verdict rather than a pass. Measured on the frozen runs, that
+ * costs 2 of 40 reps and leaves the model that behaves correctly untouched.
  */
 export function checkSystemRolledPlayerAction(
   result: TurnExecutionResult,
+  fixture: EvalFixture,
 ): StructuralVerdict {
+  const applicability = requireApplicability(fixture, CHECK_ID);
+  if (!applicability.applies) {
+    return { outcome: 'NOT_APPLICABLE', actual: applicability.situation };
+  }
+  const { playerEntity } = applicability;
+
   const diceRolls = result.gameEvents.filter(
     (e) => e.eventType === 'dice_roll',
   );
 
-  if (diceRolls.length === 0) {
-    return { outcome: 'NOT_APPLICABLE', actual: 'no dice_roll events this turn' };
-  }
-
-  const candidateNames = candidatePlayerEntityNames(result.campaignState);
-  if (candidateNames.length === 0) {
-    return {
-      outcome: 'NOT_APPLICABLE',
-      actual:
-        'no player entity could be identified from campaignState.resourcePools — nothing to check',
-    };
-  }
-
-  const violations = diceRolls.filter((roll) => {
-    const purpose = (roll.payload as DiceRollEventPayload).purpose ?? '';
+  const violatingRolls = diceRolls.filter((roll) => {
+    const payload = roll.payload as DiceRollEventPayload;
     return (
-      CONDITIONAL_DAMAGE_PATTERN.test(purpose) &&
-      isPlayerAttributed(purpose, candidateNames)
+      isAttributedTo(payload.purpose ?? '', playerEntity) &&
+      roll.rollSource !== 'player_entered'
     );
   });
 
-  if (violations.length === 0) {
+  if (violatingRolls.length > 0) {
     return {
-      outcome: 'PASSED',
-      actual: 'no player-attributed consequence roll was resolved system-side this turn',
+      outcome: 'FAILED',
+      actual: violatingRolls
+        .map(
+          (r) =>
+            `sequence ${r.sequenceNumber}: purpose "${(r.payload as DiceRollEventPayload).purpose}" ` +
+            `(rollSource: ${r.rollSource ?? 'unknown'}) — ${playerEntity}'s own action was resolved ` +
+            'by the system instead of deferred to a dice_request',
+        )
+        .join('; '),
     };
   }
 
+  // No `isAttributedTo` here, deliberately. A `dice_request` is player-facing
+  // by construction — `roll_dice` is documented as "for system-generated
+  // rolls (NPC actions, GM saves...)" while `diceRequests` is "for
+  // player-facing rolls where the player interacts with the dice"
+  // (`session.tools.ts`), and the backend surfaces every pending request to
+  // the player. So a pending request *is* a deferred player roll as a matter
+  // of structure, whatever its purpose text happens to say.
+  //
+  // Requiring a leading-name match here was a real false negative: a
+  // manually-verified clean turn deferred Alvarez's roll as "Combat roll to
+  // shoot the contractor at the equipment bay door" — correct behaviour,
+  // phrased without her name, because a request addressed *to* the player
+  // has no reason to name them. See this check's spec for that turn.
+  const deferredRequests = result.diceRequests.filter(
+    (r) => r.status === 'pending',
+  );
+  if (deferredRequests.length > 0) {
+    return {
+      outcome: 'PASSED',
+      actual: deferredRequests
+        .map(
+          (r) =>
+            `pending dice_request "${r.purpose}" (${r.notation}) correctly defers ` +
+            `a player-facing roll rather than resolving it system-side`,
+        )
+        .join('; '),
+    };
+  }
+
+  // Nothing bound to the player. That reads as a pass only when it rests on
+  // structure rather than on a prose match having failed — see
+  // `unbindableVerdict`, which returns a verdict here when the turn contains
+  // rolls or requests that couldn't be attributed to anyone.
+  const undecided = unbindableVerdict(result, playerEntity);
+  if (undecided) return undecided;
+
   return {
-    outcome: 'FAILED',
-    actual: violations
-      .map(
-        (r) =>
-          `sequence ${r.sequenceNumber}: purpose "${(r.payload as DiceRollEventPayload).purpose}" ` +
-          "— the player's own consequence roll was resolved by the system " +
-          'instead of deferred to a dice_request',
-      )
-      .join('; '),
+    outcome: 'PASSED',
+    actual:
+      `this turn produced no dice_roll and no dice_request at all, so ${playerEntity}'s ` +
+      'action was not resolved system-side (whether it was surfaced at all is a ' +
+      "different check's concern)",
   };
 }

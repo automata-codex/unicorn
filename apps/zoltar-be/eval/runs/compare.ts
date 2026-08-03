@@ -1,5 +1,5 @@
-import type { RateEntry } from './rates';
-import type { ScoreRow } from './scores';
+import type { RateEntry, ResolvedApplicabilitySource } from './rates';
+import type { ApplicabilitySource, ScoredRow } from './scores';
 
 export type CompareStatus =
   | 'paired'
@@ -18,11 +18,46 @@ export interface ComparePair {
   delta: number | null;
   nA: number;
   nB: number;
+  applicabilityA: number | null;
+  applicabilityB: number | null;
+  applicabilityDenominatorA: number;
+  applicabilityDenominatorB: number;
+  /**
+   * `applicabilityB - applicabilityA`, and **deliberately not gated on
+   * `status`.** A pair where one side's rate is undefined still has two
+   * perfectly well-defined applicabilities, and that is the case worth
+   * seeing: a check that went from 0.90 applicable to 0.00 currently renders
+   * as a bare `not-applicable-one-side` row with no magnitude anywhere, which
+   * is how the largest denominator moves in a run become the least visible
+   * thing in its report.
+   *
+   * Still `null` when either side has no applicability at all — a fixture
+   * absent from one run (`a-only`/`b-only`), or one whose every rep errored.
+   * Those are genuinely uncomparable, unlike the case above.
+   */
+  deltaApplicability: number | null;
+  /** `null` when the fixture/check is absent from that side entirely. A
+   * mismatch between the two is a checker migration landing mid-comparison —
+   * the same applicability number means different things on either side. */
+  applicabilitySourceA: ResolvedApplicabilitySource | null;
+  applicabilitySourceB: ResolvedApplicabilitySource | null;
   status: CompareStatus;
 }
 
 function key(fixtureId: string, checkId: string): string {
   return `${fixtureId}::${checkId}`;
+}
+
+/** One side's contribution to a pair, with the absent-side defaults in one
+ * place rather than restated per branch. */
+function side(entry: RateEntry | undefined) {
+  return {
+    rate: entry?.rate ?? null,
+    n: entry?.n ?? 0,
+    applicability: entry?.applicability ?? null,
+    applicabilityDenominator: entry?.applicabilityDenominator ?? 0,
+    applicabilitySource: entry?.applicabilitySource ?? null,
+  };
 }
 
 /**
@@ -31,9 +66,11 @@ function key(fixtureId: string, checkId: string): string {
  * effect with fixture-difficulty variance.
  *
  * `not-applicable-one-side` covers both "one side has no usable denominator"
- * and the rarer "neither side does" — either way a delta can't honestly be
- * computed, and the caller's job is the same: report the pair as-is, never
- * against a partial denominator.
+ * and the rarer "neither side does" — either way a *rate* delta can't
+ * honestly be computed, and the caller's job is the same: report the pair
+ * as-is, never against a partial denominator. The applicability delta is a
+ * different measurement and follows its own rule — see
+ * `ComparePair.deltaApplicability`.
  */
 export function comparePairs(
   ratesA: RateEntry[],
@@ -47,70 +84,49 @@ export function comparePairs(
   for (const k of allKeys) {
     const a = byKeyA.get(k);
     const b = byKeyB.get(k);
+    const sideA = side(a);
+    const sideB = side(b);
+    const identity = a ?? b!;
 
-    if (a && !b) {
-      pairs.push({
-        fixtureId: a.fixtureId,
-        checkId: a.checkId,
-        tag: a.tag,
-        rateA: a.rate,
-        rateB: null,
-        delta: null,
-        nA: a.n,
-        nB: 0,
-        status: 'a-only',
-      });
-      continue;
-    }
-    if (b && !a) {
-      pairs.push({
-        fixtureId: b.fixtureId,
-        checkId: b.checkId,
-        tag: b.tag,
-        rateA: null,
-        rateB: b.rate,
-        delta: null,
-        nA: 0,
-        nB: b.n,
-        status: 'b-only',
-      });
-      continue;
-    }
-
-    const entryA = a!;
-    const entryB = b!;
-    if (entryA.rate === null || entryB.rate === null) {
-      pairs.push({
-        fixtureId: entryA.fixtureId,
-        checkId: entryA.checkId,
-        tag: entryA.tag,
-        rateA: entryA.rate,
-        rateB: entryB.rate,
-        delta: null,
-        nA: entryA.n,
-        nB: entryB.n,
-        status: 'not-applicable-one-side',
-      });
-      continue;
-    }
+    let status: CompareStatus;
+    if (!b) status = 'a-only';
+    else if (!a) status = 'b-only';
+    else if (sideA.rate === null || sideB.rate === null) {
+      status = 'not-applicable-one-side';
+    } else status = 'paired';
 
     pairs.push({
-      fixtureId: entryA.fixtureId,
-      checkId: entryA.checkId,
-      tag: entryA.tag,
-      rateA: entryA.rate,
-      rateB: entryB.rate,
-      delta: entryB.rate - entryA.rate,
-      nA: entryA.n,
-      nB: entryB.n,
-      status: 'paired',
+      fixtureId: identity.fixtureId,
+      checkId: identity.checkId,
+      tag: identity.tag,
+      rateA: sideA.rate,
+      rateB: sideB.rate,
+      delta:
+        status === 'paired'
+          ? (sideB.rate as number) - (sideA.rate as number)
+          : null,
+      nA: sideA.n,
+      nB: sideB.n,
+      applicabilityA: sideA.applicability,
+      applicabilityB: sideB.applicability,
+      applicabilityDenominatorA: sideA.applicabilityDenominator,
+      applicabilityDenominatorB: sideB.applicabilityDenominator,
+      deltaApplicability:
+        sideA.applicability === null || sideB.applicability === null
+          ? null
+          : sideB.applicability - sideA.applicability,
+      applicabilitySourceA: sideA.applicabilitySource,
+      applicabilitySourceB: sideB.applicabilitySource,
+      status,
     });
   }
 
   return pairs;
 }
 
-function byFixtureThenCheck(a: ComparePair, b: ComparePair): number {
+/** Stable display order for pairs whose ranking is deliberately not being
+ * asserted — shared with `compare-report.ts`'s low-N band. */
+export function byFixtureThenCheck(a: ComparePair, b: ComparePair): number {
   return (
     a.fixtureId.localeCompare(b.fixtureId) || a.checkId.localeCompare(b.checkId)
   );
@@ -129,6 +145,90 @@ export const isImprovement = (p: ComparePair): boolean =>
 export const isUnchanged = (p: ComparePair): boolean =>
   p.status === 'paired' && p.delta === 0;
 export const isUnpaired = (p: ComparePair): boolean => p.status !== 'paired';
+
+/**
+ * A pair whose applicability moved at all.
+ *
+ * This classification **overlaps** the four above by design, and that
+ * overlap is the whole point: the case worth catching is a check that
+ * improved its rate by shrinking its denominator, which is a legitimate
+ * `Improvements` row *and* an applicability shift. Filing it in only one
+ * section is how it goes unnoticed. Callers that present it as a section
+ * must say the sections aren't disjoint.
+ */
+export const isApplicabilityShift = (p: ComparePair): boolean =>
+  p.deltaApplicability !== null && p.deltaApplicability !== 0;
+
+/** Applicability shifts, biggest magnitude first in either direction — a
+ * denominator collapsing and a denominator opening up are the same size of
+ * problem for a comparison. */
+export function orderApplicabilityShifts(pairs: ComparePair[]): ComparePair[] {
+  return pairs
+    .filter(isApplicabilityShift)
+    .sort(
+      (a, b) =>
+        Math.abs(b.deltaApplicability!) - Math.abs(a.deltaApplicability!) ||
+        byFixtureThenCheck(a, b),
+    );
+}
+
+/** A source a check actually declared, as opposed to one the rows failed to
+ * record (`unknown`) or disagreed on within a single side (`mixed`). */
+function isDeclaredSource(
+  source: ResolvedApplicabilitySource | null,
+): source is ApplicabilitySource {
+  return source === 'fixture' || source === 'artifact' || source === 'ungated';
+}
+
+/**
+ * Pairs whose two sides declare *different* applicability sources — a
+ * checker migrated between the two runs, so the same applicability number is
+ * a harness signal on one side and a behavioural measure on the other.
+ *
+ * Requires both sides to have actually declared one. A side that reads
+ * `unknown` hasn't contradicted anything: its rows predate the field (a run
+ * carrying forward pre-`applicabilitySource` rows is the ordinary case), and
+ * calling that a migration would raise a per-check alarm about a checker
+ * that never moved. Those pairs go to
+ * `findIndeterminateApplicabilitySources` instead, which reports them once
+ * rather than once each.
+ */
+export function findApplicabilitySourceMismatches(
+  pairs: ComparePair[],
+): ComparePair[] {
+  return pairs
+    .filter(
+      (p) =>
+        isDeclaredSource(p.applicabilitySourceA) &&
+        isDeclaredSource(p.applicabilitySourceB) &&
+        p.applicabilitySourceA !== p.applicabilitySourceB,
+    )
+    .sort(byFixtureThenCheck);
+}
+
+/**
+ * Pairs where at least one side's applicability source couldn't be
+ * established — `unknown` (rows predating the field) or `mixed` (a checker
+ * migrating mid-run). Their ΔApp is still arithmetic, but there's no telling
+ * whether it reads as a harness defect or a behavioural finding.
+ *
+ * Reported as one aggregated warning by the renderer rather than one per
+ * check: the cause is almost always a single event affecting many rows at
+ * once, and a wall of near-identical lines buries the mismatches that are
+ * real.
+ */
+export function findIndeterminateApplicabilitySources(
+  pairs: ComparePair[],
+): ComparePair[] {
+  return pairs
+    .filter(
+      (p) =>
+        p.deltaApplicability !== null &&
+        (!isDeclaredSource(p.applicabilitySourceA) ||
+          !isDeclaredSource(p.applicabilitySourceB)),
+    )
+    .sort(byFixtureThenCheck);
+}
 
 /**
  * Regressions first — sorted by delta ascending, worst first. A change
@@ -151,8 +251,17 @@ export function orderForDisplay(pairs: ComparePair[]): ComparePair[] {
   return [...regressions, ...improvements, ...unchanged, ...unpaired];
 }
 
+/** One judged check whose reps were graded against more than one rubric
+ * hash — a rubric template edited mid-run, not the ordinary case of a run
+ * covering several checks. */
+export interface MixedRubricCheck {
+  checkId: string;
+  tag: string;
+  hashes: string[];
+}
+
 export interface HeterogeneityInfo {
-  rubricHashes: string[];
+  mixedRubricChecks: MixedRubricCheck[];
   harnessVersions: string[];
   /** One entry per heterogeneous dimension, each naming the exact
    * `--filter-rubric`/`--filter-harness` invocation that would reduce this
@@ -162,28 +271,70 @@ export interface HeterogeneityInfo {
 }
 
 /**
- * Distinct `rubricHash`/`harnessVersion` values present in one side's rows.
- * `label` names the side in the warning text (e.g. the run directory) so a
- * two-sided caller's combined output says which side is heterogeneous.
+ * Detects mid-run rubric drift and harness-version spread in one side's
+ * rows. `label` names the side in the warning text (e.g. the run directory)
+ * so a two-sided caller's combined output says which side is affected.
+ *
+ * Rubric hashes are grouped **per `checkId`**, not across the whole run.
+ * The harness ships one rubric template per judged check
+ * (`rubricHashFor(checkId)`, `eval/checks/registry.ts`), so a run covering
+ * several judged checks spans several hashes by design — that is the
+ * normal case and must not warn. Only a single check spanning more than
+ * one hash across its reps indicates the rubric was actually edited
+ * mid-run. (The M7.4 spec describes this as "one rubric per tag"; tag and
+ * checkId are 1:1 in the current corpus, so grouping by checkId agrees
+ * with that language today, but checkId is what `rubricHashFor` and the
+ * manifest's `rubricHashes` map are actually keyed on.)
+ *
+ * **Carried-forward rows are excluded, and the filtering happens here rather
+ * than at the call site.** Such a row keeps the source run's `harnessVersion`
+ * and `rubricHash` because nothing re-graded it — that is documented
+ * provenance, not drift within this scoring pass. Counting it fires both
+ * warnings on any re-score with at least one carried-forward row, and both
+ * name a `--filter-*` remedy that would *delete* those rows rather than
+ * reduce the side to a consistent subset. A warning that fires on a normal
+ * condition and prescribes a destructive fix is worse than no warning: it
+ * trains a reader to skip the section where the real drift would appear.
+ * Filtering internally means a caller cannot reintroduce the bug by passing
+ * the wrong array.
  */
 export function detectHeterogeneity(
-  rows: ScoreRow[],
+  rows: ReadonlyArray<ScoredRow & { carriedForward?: boolean }>,
   label: string,
 ): HeterogeneityInfo {
-  const rubricHashes = [
-    ...new Set(
-      rows
-        .map((r) => r.rubricHash)
-        .filter((h): h is string => h !== undefined),
-    ),
+  const graded = rows.filter((row) => !row.carriedForward);
+  const hashesByCheck = new Map<string, { tag: string; hashes: Set<string> }>();
+  for (const row of graded) {
+    if (row.rubricHash === undefined) continue;
+    let entry = hashesByCheck.get(row.checkId);
+    if (!entry) {
+      entry = { tag: row.tag, hashes: new Set() };
+      hashesByCheck.set(row.checkId, entry);
+    }
+    entry.hashes.add(row.rubricHash);
+  }
+
+  const mixedRubricChecks: MixedRubricCheck[] = [...hashesByCheck.entries()]
+    .filter(([, entry]) => entry.hashes.size > 1)
+    .map(([checkId, entry]) => ({
+      checkId,
+      tag: entry.tag,
+      hashes: [...entry.hashes].sort(),
+    }))
+    .sort((a, b) => a.checkId.localeCompare(b.checkId));
+
+  const harnessVersions = [
+    ...new Set(graded.map((r) => r.harnessVersion)),
   ].sort();
-  const harnessVersions = [...new Set(rows.map((r) => r.harnessVersion))].sort();
 
   const warnings: string[] = [];
-  if (rubricHashes.length > 1) {
+  for (const mixed of mixedRubricChecks) {
     warnings.push(
-      `${label} spans multiple rubric hashes (${rubricHashes.join(', ')}) — ` +
-        `filter to one with --filter-rubric ${rubricHashes[0]}`,
+      `${label}: check \`${mixed.checkId}\` (tag ${mixed.tag}) was graded ` +
+        `against ${mixed.hashes.length} different rubric versions ` +
+        `(${mixed.hashes.join(', ')}) — that check's rates are not ` +
+        `comparable. Every other check in this run is unaffected. Filter ` +
+        `to one with --filter-rubric ${mixed.checkId}=${mixed.hashes[0]}`,
     );
   }
   if (harnessVersions.length > 1) {
@@ -193,11 +344,14 @@ export function detectHeterogeneity(
     );
   }
 
-  return { rubricHashes, harnessVersions, warnings };
+  return { mixedRubricChecks, harnessVersions, warnings };
 }
 
 export interface ApplyFiltersOptions {
-  rubricHash?: string;
+  /** checkId -> the one rubricHash to keep for that check. Rows for checks
+   * absent from this map are untouched, so a filter targeting one drifting
+   * check can never zero out an unrelated check's rows. */
+  rubricHashByCheckId?: Record<string, string>;
   harnessVersion?: string;
 }
 
@@ -208,14 +362,15 @@ export interface ApplyFiltersOptions {
  * `--filter-harness` has no such asymmetry: every row always carries one.
  */
 export function applyFilters(
-  rows: ScoreRow[],
+  rows: ScoredRow[],
   filters: ApplyFiltersOptions,
-): ScoreRow[] {
+): ScoredRow[] {
   return rows.filter((row) => {
+    const wantedHash = filters.rubricHashByCheckId?.[row.checkId];
     if (
-      filters.rubricHash !== undefined &&
+      wantedHash !== undefined &&
       row.rubricHash !== undefined &&
-      row.rubricHash !== filters.rubricHash
+      row.rubricHash !== wantedHash
     ) {
       return false;
     }
@@ -227,4 +382,80 @@ export function applyFilters(
     }
     return true;
   });
+}
+
+/**
+ * Parses repeated `--filter-rubric CHECK=HASH` values into the map
+ * `applyFilters` expects. Rejects the legacy bare-hash form (missing `=`)
+ * and a check id named more than once, both loudly — a filter that fails
+ * silently to parse is exactly the kind of "quietly wrong" this flag has
+ * already caused once.
+ */
+export function parseRubricFilters(values: string[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const value of values) {
+    const eq = value.indexOf('=');
+    const checkId = eq === -1 ? '' : value.slice(0, eq).trim();
+    const hash = eq === -1 ? '' : value.slice(eq + 1).trim();
+    if (!checkId || !hash) {
+      throw new Error(
+        `--filter-rubric takes CHECK=HASH (e.g. hidden-info-leak=4cf7fda1), got "${value}"`,
+      );
+    }
+    if (checkId in result) {
+      throw new Error(
+        `--filter-rubric was given more than once for check "${checkId}"`,
+      );
+    }
+    result[checkId] = hash;
+  }
+  return result;
+}
+
+/**
+ * Names, in plain text, every `(fixtureId, checkId)` whose denominator a
+ * filter reduced to zero, plus every filter key that matched no rows at
+ * all — so a filter that would silently zero a fixture's rate is instead
+ * reported on stderr rather than rendered as an unremarkable `a-only` /
+ * `not-applicable-one-side` row.
+ */
+export function describeFilterImpact(
+  before: ScoredRow[],
+  after: ScoredRow[],
+  rubricFilters: Record<string, string>,
+): string[] {
+  const messages: string[] = [];
+
+  const nBefore = new Map<string, number>();
+  for (const row of before) {
+    if (row.verdict !== 'pass' && row.verdict !== 'fail') continue;
+    const key = `${row.fixtureId}::${row.checkId}`;
+    nBefore.set(key, (nBefore.get(key) ?? 0) + 1);
+  }
+  const nAfter = new Map<string, number>();
+  for (const row of after) {
+    if (row.verdict !== 'pass' && row.verdict !== 'fail') continue;
+    const key = `${row.fixtureId}::${row.checkId}`;
+    nAfter.set(key, (nAfter.get(key) ?? 0) + 1);
+  }
+  for (const [key, n] of nBefore) {
+    if (n > 0 && (nAfter.get(key) ?? 0) === 0) {
+      const [fixtureId, checkId] = key.split('::');
+      messages.push(
+        `--filter-rubric zeroed the denominator for fixture "${fixtureId}" ` +
+          `check "${checkId}" (was N ${n}, now N 0)`,
+      );
+    }
+  }
+
+  const checksSeen = new Set(before.map((r) => r.checkId));
+  for (const checkId of Object.keys(rubricFilters)) {
+    if (!checksSeen.has(checkId)) {
+      messages.push(
+        `--filter-rubric named check "${checkId}", which has no rows in this run`,
+      );
+    }
+  }
+
+  return messages;
 }

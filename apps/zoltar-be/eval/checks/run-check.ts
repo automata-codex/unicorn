@@ -5,15 +5,37 @@ import type { AnthropicService } from '../../src/anthropic/anthropic.service';
 import type { EvalFixture } from '../fixture.schema';
 import type { TurnExecutionResult } from '../turn-result';
 import type { EvalCheck } from './registry';
-import type { StructuralOutcome } from './structural/types';
+import type { StructuralOutcome, StructuralVerdict } from './structural/types';
 
 export interface CheckObservation {
   verdict: 'pass' | 'fail' | 'not_applicable' | 'error';
   /** Short marker for a report's "Actual: ..." line — a structural
    * checker's `actual` text, a judge's rationale, or an error marker. */
   detail: string;
+  /**
+   * Whether a judge call actually happened. Always `false` for a structural
+   * check; `false` for a judged check whose `judgeGate` settled the rep
+   * before the judge was reached.
+   *
+   * Exists for `eval:judge-variance`, which measures how often a rubric
+   * flips against fixed input. It selects candidates by `check.mode`, so a
+   * gated judged check would contribute frozen inputs whose verdicts are
+   * deterministic — re-running one N times produces N identical answers, a
+   * guaranteed non-flip counted in the denominator. That deflates the
+   * measured flip rate of the rubric being validated, which is precisely
+   * the number the command exists to produce and the one thing that must
+   * not be quietly optimistic.
+   */
+  judgeInvoked: boolean;
+  /** Set only when `judgeInvoked` — a rep the gate settled was graded by no
+   * rubric, and stamping one on it would imply otherwise. */
   rubricHash?: string;
   notApplicableReason?: string;
+  /** Stable grouping key for `notApplicableReason` when the latter
+   * interpolates per-rep-variable text — see `StructuralVerdict.actualCode`.
+   * Absent means `notApplicableReason` is itself stable and doubles as its
+   * own key. */
+  notApplicableReasonCode?: string;
   errorMessage?: string;
   durationMs: number;
 }
@@ -63,6 +85,7 @@ export async function runCheck(
     return {
       verdict: 'not_applicable',
       detail: 'fixture schema gate',
+      judgeInvoked: false,
       notApplicableReason:
         `check "${check.id}" requires fixtureSchemaVersion >= ` +
         `${check.requiresFixtureSchema}, fixture "${fixture.id}" has ` +
@@ -75,20 +98,25 @@ export async function runCheck(
     if (check.mode === 'structural') {
       const checker =
         structuralCheckers[check.tag as keyof typeof structuralCheckers];
-      const verdict = checker(turnResult, fixture);
-      return {
-        verdict: mapStructuralOutcome(verdict.outcome),
-        detail: verdict.actual,
-        notApplicableReason:
-          verdict.outcome === 'NOT_APPLICABLE' ? verdict.actual : undefined,
-        durationMs: Date.now() - start,
-      };
+      return fromStructuralVerdict(checker(turnResult, fixture), start);
     }
 
-    const judged = await runJudgeCall(anthropic, fixture, turnResult);
+    // Structural pre-filter, when the check has one: anything structure can
+    // settle is settled here, free and deterministically, and only the
+    // semantic residual reaches the rubric.
+    const gated = check.judgeGate?.(turnResult, fixture);
+    if (gated) return fromStructuralVerdict(gated, start);
+
+    const judged = await runJudgeCall(
+      anthropic,
+      fixture,
+      turnResult,
+      check.judgeContext?.(turnResult, fixture),
+    );
     return {
       verdict: judged.passed ? 'pass' : 'fail',
       detail: judged.rationale,
+      judgeInvoked: true,
       rubricHash: check.rubricHash?.(),
       durationMs: Date.now() - start,
     };
@@ -96,8 +124,27 @@ export async function runCheck(
     return {
       verdict: 'error',
       detail: `check "${check.id}" threw`,
+      judgeInvoked: false,
       errorMessage: err instanceof Error ? err.message : String(err),
       durationMs: Date.now() - start,
     };
   }
+}
+
+/** Shared by the structural path and the judged path's gate — both produce
+ * a `StructuralVerdict` and must map to a row identically. */
+function fromStructuralVerdict(
+  verdict: StructuralVerdict,
+  start: number,
+): CheckObservation {
+  return {
+    verdict: mapStructuralOutcome(verdict.outcome),
+    detail: verdict.actual,
+    judgeInvoked: false,
+    notApplicableReason:
+      verdict.outcome === 'NOT_APPLICABLE' ? verdict.actual : undefined,
+    notApplicableReasonCode:
+      verdict.outcome === 'NOT_APPLICABLE' ? verdict.actualCode : undefined,
+    durationMs: Date.now() - start,
+  };
 }

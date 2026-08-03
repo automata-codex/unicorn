@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { checkSystemRolledPlayerAction } from '../checks/structural/system-rolled-player-action';
 import {
   fakeDiceRequest,
+  fakeFixture,
   fakeGameEvent,
   fakePendingCanon,
   fakeTurnExecutionResult,
@@ -27,6 +28,17 @@ import {
 } from './paths';
 
 import type { TurnExecutionResult } from '../turn-result';
+
+const APPLICABLE_FIXTURE = fakeFixture({
+  tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
+  applicability: {
+    'system-rolled-player-action': {
+      applies: true,
+      playerEntity: 'alvarez',
+      situation: 'test fixture',
+    },
+  },
+});
 
 function buildResult(): TurnExecutionResult {
   return fakeTurnExecutionResult({
@@ -113,8 +125,8 @@ describe('serializeTurnResult / deserializeTurnResult', () => {
     const original = buildResult();
     const revived = deserializeTurnResult(serializeTurnResult(original));
 
-    const originalVerdict = checkSystemRolledPlayerAction(original);
-    const revivedVerdict = checkSystemRolledPlayerAction(revived);
+    const originalVerdict = checkSystemRolledPlayerAction(original, APPLICABLE_FIXTURE);
+    const revivedVerdict = checkSystemRolledPlayerAction(revived, APPLICABLE_FIXTURE);
 
     expect(revivedVerdict).toEqual(originalVerdict);
     expect(revivedVerdict.outcome).toBe('FAILED');
@@ -189,8 +201,8 @@ describe('writeFixtureArtifacts / readTurnResultArtifact', () => {
 
     const read = readTurnResultArtifact(runDir, 2, 'fixture-b');
 
-    expect(checkSystemRolledPlayerAction(read)).toEqual(
-      checkSystemRolledPlayerAction(original),
+    expect(checkSystemRolledPlayerAction(read, APPLICABLE_FIXTURE)).toEqual(
+      checkSystemRolledPlayerAction(original, APPLICABLE_FIXTURE),
     );
   });
 });

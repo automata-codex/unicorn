@@ -5,8 +5,15 @@ import {
 } from '../fixture.schema';
 
 import { judgeRubrics } from './judged/rubrics';
+import { narratingPastABlockGate } from './structural/narrating-past-a-block';
+import {
+  unauditableMappingGate,
+  unauditableMappingJudgeContext,
+} from './structural/unauditable-mapping';
 
 import type { EvalFixture, FailureModeTag } from '../fixture.schema';
+import type { TurnExecutionResult } from '../turn-result';
+import type { StructuralVerdict } from './structural/types';
 
 export interface EvalCheck {
   /**
@@ -20,6 +27,34 @@ export interface EvalCheck {
   id: string;
   tag: FailureModeTag;
   mode: 'structural' | 'judged';
+  /**
+   * Where this check's `not_applicable` verdicts come from — declared, not
+   * inferred, and required so a new check can't quietly omit the answer.
+   *
+   * - `'fixture'`: from the fixture-authored `applicability[checkId]` entry.
+   *   The scenario decides, so the denominator is fixed before the model
+   *   runs.
+   * - `'artifact'`: from the turn's own output. **This is the hazard label.**
+   *   Gating on what the model produced selects on the outcome variable, so
+   *   the denominator moves with the behaviour being measured — the exact
+   *   bug that made 38 of 40 reps read `not_applicable` across two checks
+   *   (see `decisions.md`). Sometimes unavoidable (a check about the shape
+   *   of a roll has nothing to gate on until a roll exists), but a rate
+   *   built on one should be read alongside its exclusion counts, never
+   *   alone.
+   * - `'ungated'`: the check reaches pass or fail on every rep and never
+   *   reports `not_applicable`, so there is no gate and no selection to
+   *   worry about.
+   *
+   * `'ungated'` rather than `'none'` because an absence-shaped value reads
+   * as "not declared yet," which is exactly the ambiguity the required
+   * field and its throwing lookup exist to eliminate. And deliberately not
+   * `'judged-check'`, which would be a `mode` value on an applicability
+   * axis: the two coincide today only by accident, and stop coinciding as
+   * soon as `narrating-past-a-block` and `unauditable-mapping` become
+   * judged checks that keep an artifact-sourced structural gate.
+   */
+  applicabilitySource: 'fixture' | 'artifact' | 'ungated';
   /**
    * Minimum `fixtureSchemaVersion` this check needs. Nothing declares this
    * today — every check works against v1 fixtures — but the field exists so
@@ -38,22 +73,137 @@ export interface EvalCheck {
   requiredFixtureFields?: string[];
   /** Judged checks only: SHA-256 (8 hex chars) of the rubric template text. */
   rubricHash?: () => string;
+  /**
+   * Judged checks only: a structural pre-filter run *before* the judge call.
+   * Returns a verdict to settle the rep without asking the model, or `null`
+   * to mean "the remaining question is genuinely semantic — go ask."
+   *
+   * This is how a check spans both modes (`decisions.md`: "A single check
+   * may span both"): the structural half answers what structure can answer —
+   * deterministically, free, no judge variance — and only the residual
+   * reaches the rubric. `mode` stays `'judged'` because that's what
+   * `runCheck` dispatches on and what the row records; the gate is an
+   * implementation detail of the judged path, not a third mode.
+   *
+   * A gated verdict sets `judgeInvoked: false` and carries no `rubricHash`,
+   * which is what keeps `eval:judge-variance` honest — see
+   * `CheckObservation.judgeInvoked`.
+   */
+  judgeGate?: (
+    result: TurnExecutionResult,
+    fixture: EvalFixture,
+  ) => StructuralVerdict | null;
+  /**
+   * Judged checks only: extra prompt text appended to the judge call,
+   * typically the subset of events the `judgeGate` already identified as
+   * this check's subject.
+   *
+   * The alternative is a rubric that describes the structural filter in
+   * words and asks the model to apply it — a second implementation of the
+   * same rule, free to drift from the first, in a check whose entire reason
+   * for being rebuilt was that prose descriptions of roll classification
+   * don't hold. One implementation selects; the judge grades what it hands
+   * over.
+   */
+  judgeContext?: (result: TurnExecutionResult, fixture: EvalFixture) => string;
 }
 
 function toCheckId(tag: FailureModeTag): string {
   return tag.toLowerCase();
 }
 
+/**
+ * The first two checks to read fixture-authored `applicability`
+ * (`eval/fixture.schema.ts`) — a fixture below this version never had the
+ * field authored, and `runCheck`'s fixture-schema gate (`run-check.ts`)
+ * reports `not_applicable` rather than letting the checker guess.
+ */
+const REQUIRES_FIXTURE_SCHEMA: Partial<Record<string, number>> = {
+  'system-rolled-player-action': 2,
+  'out-of-order-resolution': 2,
+};
+
+/**
+ * One entry per check id, hand-declared rather than derived — there is no
+ * property of a tag that implies where its applicability comes from, and a
+ * default would be a guess at exactly the thing this field exists to state.
+ * A check id missing from this map is a hard error at registry build time,
+ * so adding a check forces the question to be answered.
+ *
+ * The two `'fixture'` entries are the checks re-gated onto fixture-authored
+ * `applicability`; the `'artifact'` entries gate on the turn's own output
+ * and carry the selection hazard named on `EvalCheck.applicabilitySource`;
+ * the judged four reach a verdict on every rep and gate on nothing. That
+ * last group is `'ungated'`, not "judged" — the overlap with `mode` is
+ * coincidental and ends with the first hybrid check.
+ */
+const APPLICABILITY_SOURCE: Record<string, EvalCheck['applicabilitySource']> = {
+  'system-rolled-player-action': 'fixture',
+  'out-of-order-resolution': 'fixture',
+  'unauditable-mapping': 'artifact',
+  // Judged, but with a structural pre-filter that only ever FAILs or
+  // falls through — it never reports not_applicable, and the judge
+  // reaches a verdict on every rep. See `narrating-past-a-block.ts`
+  // for why gating on "is a dice_request pending" would be wrong.
+  'narrating-past-a-block': 'ungated',
+  'missing-canon-capture': 'artifact',
+  'hidden-info-leak': 'ungated',
+  'over-resolution': 'ungated',
+  'unsurfaced-check': 'ungated',
+  'scene-jump': 'ungated',
+};
+
+function applicabilitySourceFor(id: string): EvalCheck['applicabilitySource'] {
+  const source = APPLICABILITY_SOURCE[id];
+  if (!source) {
+    throw new Error(
+      `check "${id}" has no applicabilitySource declared in registry.ts — ` +
+        "state where its not_applicable verdicts come from ('fixture', " +
+        "'artifact', or 'ungated') rather than leaving it to be inferred",
+    );
+  }
+  return source;
+}
+
+/**
+ * Structural pre-filters for judged checks, by check id — see
+ * `EvalCheck.judgeGate`. Optional by design: most judged questions have no
+ * structural half worth separating out.
+ */
+const JUDGE_GATES: Partial<Record<string, EvalCheck['judgeGate']>> = {
+  'narrating-past-a-block': narratingPastABlockGate,
+  'unauditable-mapping': unauditableMappingGate,
+};
+
+/** Extra judge-prompt context by check id — see `EvalCheck.judgeContext`. */
+const JUDGE_CONTEXTS: Partial<Record<string, EvalCheck['judgeContext']>> = {
+  'unauditable-mapping': unauditableMappingJudgeContext,
+};
+
 function buildChecks(): Record<string, EvalCheck> {
   const checks: Record<string, EvalCheck> = {};
 
   for (const tag of structuralFailureModeTags) {
     const id = toCheckId(tag);
-    checks[id] = { id, tag, mode: 'structural' };
+    checks[id] = {
+      id,
+      tag,
+      mode: 'structural',
+      applicabilitySource: applicabilitySourceFor(id),
+      requiresFixtureSchema: REQUIRES_FIXTURE_SCHEMA[id],
+    };
   }
   for (const tag of judgedFailureModeTags) {
     const id = toCheckId(tag);
-    checks[id] = { id, tag, mode: 'judged', rubricHash: () => rubricHashFor(id) };
+    checks[id] = {
+      id,
+      tag,
+      mode: 'judged',
+      applicabilitySource: applicabilitySourceFor(id),
+      rubricHash: () => rubricHashFor(id),
+      judgeGate: JUDGE_GATES[id],
+      judgeContext: JUDGE_CONTEXTS[id],
+    };
   }
 
   return checks;

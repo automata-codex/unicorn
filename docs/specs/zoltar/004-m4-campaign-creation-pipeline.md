@@ -480,7 +480,7 @@ async callMessages(params: {
 }): Promise<Anthropic.Message>
 ```
 
-- Default model: `claude-sonnet-4-6`
+- Default model: `claude-sonnet-4-6` at M4; now `claude-sonnet-5` (see `decisions.md`, "Warden model upgraded to `claude-sonnet-5`")
 - Default `maxTokens`: `8192` (synthesis responses are large)
 - API key from `ConfigService` (`ANTHROPIC_API_KEY` env var — already in `.env.example` from M1)
 - No retry logic in M4. Surface Anthropic SDK errors to the caller; `SynthesisService` sets `adventure.status = 'failed'` on catch.

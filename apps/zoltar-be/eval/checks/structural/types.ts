@@ -1,3 +1,5 @@
+import type { ApplicabilityEntry, EvalFixture } from '../../fixture.schema';
+
 /**
  * `NOT_APPLICABLE` is distinct from `PASSED`: it means the turn never
  * produced the event(s) this checker looks for at all (no dice_roll this
@@ -15,8 +17,43 @@ export type StructuralOutcome = 'PASSED' | 'FAILED' | 'NOT_APPLICABLE';
  * `actual` is the report's "Actual: ..." line — the fixture's own `check`
  * text (free text, authored per-fixture) supplies "Expected: ...", so a
  * checker never needs to restate what was expected, only what it found.
+ *
+ * `actualCode` is only needed on `NOT_APPLICABLE` verdicts whose `actual`
+ * text interpolates per-rep-variable content (e.g. a model-generated dice
+ * request `purpose`) rather than fixture-authored constants — grouping
+ * exclusions by the raw `actual` text would otherwise fragment identical
+ * failure modes into one group per rep. When set, it must be stable across
+ * reps of the same fixture; exclusion aggregation groups on it in place of
+ * `actual`, falling back to `actual` when absent.
  */
 export interface StructuralVerdict {
   outcome: StructuralOutcome;
   actual: string;
+  actualCode?: string;
+}
+
+/**
+ * Fetches a fixture's fixture-authored applicability entry for one check id
+ * (`eval/fixture.schema.ts`). Throws rather than falling back silently: a
+ * check declaring `requiresFixtureSchema` only ever reaches its checker once
+ * `runCheck`'s gate has confirmed the fixture's `fixtureSchemaVersion` meets
+ * that minimum (`run-check.ts`), so a missing entry at that point means the
+ * fixture author bumped the version without actually authoring the field —
+ * a fixture-authoring bug worth a loud `error` row, not a silent guess.
+ */
+export function requireApplicability(
+  fixture: EvalFixture,
+  checkId: string,
+): ApplicabilityEntry {
+  const entry = fixture.applicability?.[checkId];
+  if (!entry) {
+    throw new Error(
+      `fixture "${fixture.id}" has no applicability entry for check "${checkId}" ` +
+        `(fixtureSchemaVersion ${fixture.fixtureSchemaVersion}) — a fixture at schema ` +
+        'version 2+ carrying this check must author fixture.applicability["' +
+        checkId +
+        '"]',
+    );
+  }
+  return entry;
 }

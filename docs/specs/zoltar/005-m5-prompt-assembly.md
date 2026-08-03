@@ -430,7 +430,7 @@ Prompt caching is generally available on the Anthropic API — no beta header re
 
 ### Model and token defaults
 
-Use `claude-sonnet-4-6` (the existing `DEFAULT_SYNTHESIS_MODEL` constant). Default `maxTokens: 4096` for session calls — GM responses are bounded by `playerText` length, which runs much smaller than synthesis output.
+Use the existing `DEFAULT_SYNTHESIS_MODEL` constant — `claude-sonnet-4-6` as of M5; now `claude-sonnet-5` (see `decisions.md`, "Warden model upgraded to `claude-sonnet-5`"). Default `maxTokens: 4096` for session calls — GM responses are bounded by `playerText` length, which runs much smaller than synthesis output. **Note for anyone re-reading this budget:** Sonnet 5 runs adaptive thinking by default, and `max_tokens` caps thinking and response text together, so 4096 covers more than it did when this line was written.
 
 ### Formatting the GM context blob
 

@@ -36,7 +36,7 @@ Packages are internal workspace packages — they are not published to npm.
 | Frontend           | Svelte 5 / SvelteKit                     |
 | Backend            | NestJS 11                                |
 | Database           | PostgreSQL                               |
-| AI                 | Anthropic Claude API (claude-sonnet-4-6) |
+| AI                 | Anthropic Claude API (claude-sonnet-5)   |
 | Auth (self-hosted) | Auth.js                                  |
 | Auth (SaaS)        | Clerk                                    |
 | Real-time (SaaS)   | Ably                                     |

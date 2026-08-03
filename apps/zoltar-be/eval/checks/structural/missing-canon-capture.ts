@@ -39,12 +39,74 @@ function parseIntroductionMarker(check: string): string | null {
 }
 
 /**
+ * Case, whitespace and dash-shape are not meaningful differences between
+ * "the narration used the fixture's phrase" and "it didn't". The authored
+ * marker for `turn02` contains an em-dash, and an exact substring match
+ * would miss a narration writing the same words with a hyphen or a colon —
+ * a hair-trigger on a character no one would consider load-bearing.
+ *
+ * This is a narrower kind of matching than the prose classifiers removed
+ * from the other checks: the phrase is a fixture-authored constant, not a
+ * guess at how a model might word something. It is still a prose dependency
+ * and is recorded as one on `checkMissingCanonCapture` below.
+ */
+function normalizeForMarkerMatch(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[‐-―\-:_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
  * MISSING-CANON-CAPTURE: if the turn's expected narration introduces a new
  * spatial/plot-relevant detail, the response must write it somewhere durable
  * — either a new `campaignState.worldFacts` key, or a new `pending_canon`
  * proposal. Compares against `fixture.seededState.campaignState.worldFacts`
  * (the pre-turn snapshot) since `TurnExecutionResult.campaignState` alone is
  * post-turn only and can't show what's *new* without that baseline.
+ *
+ * ---
+ *
+ * **Audit, against both frozen runs.** This check was flagged for review on
+ * two grounds: its marker-phrase gate is a prose dependency, and it had
+ * produced zero verdicts across 20 reps, so nothing about it had been
+ * exercised in practice.
+ *
+ * Both grounds hold, and the conclusion is not the one the other checks
+ * reached.
+ *
+ * *The verdicts are correct.* All 20 reps report `NOT_APPLICABLE` because
+ * the marker never appears — and the narration genuinely never introduces
+ * the expected detail. Checked directly rather than assumed: normalising
+ * case, whitespace and dash shape finds 0 of 20, and even a loose search for
+ * "veridian internal" alone finds 0 of 20. The nearby-looking hits are about
+ * Lab C's quarantine access restriction and an unlabeled life-sign ping —
+ * different subjects entirely. The prose gate is not producing false
+ * exclusions here, which is what separates this case from
+ * `NARRATIVE_SELECTION_PATTERN` and its relatives.
+ *
+ * *The grading logic is nonetheless untested.* The `worldFacts`-diff and
+ * `pending_canon` branches — the parts that actually decide pass or fail —
+ * have never run against real output, because the turn never gets that far.
+ * This fixture contributes zero regression coverage for its tag under either
+ * model, and the per-rep `NOT_APPLICABLE` text now says so directly.
+ *
+ * *Deliberately NOT migrated to judged.* Every other prose-dependent check
+ * in this milestone moved to a rubric; this one must not, and the reason is
+ * the reason it looked broken. A judge asked "did the narration introduce
+ * the detail, and if so was it captured" would answer "it didn't" on all 20
+ * reps, and — the judge verdict being binary — return 20 passes. An honest
+ * zero denominator would become a spurious 1.00, which is strictly worse
+ * than the situation being fixed. `NOT_APPLICABLE` is the correct verdict
+ * and only the structural path can express it.
+ *
+ * *The real defect is in the fixture, not the checker.* `turn02` asks about
+ * a detail neither model reproduces, so it can never grade anything. Fixing
+ * that means recapturing the fixture against a turn whose narration reliably
+ * introduces its detail, or authoring the expectation as something other
+ * than a literal phrase — fixture work, tracked separately, not a checker
+ * change.
  */
 export function checkMissingCanonCapture(
   result: TurnExecutionResult,
@@ -84,19 +146,23 @@ export function checkMissingCanonCapture(
     };
   }
 
-  const gmResponseEvent = result.gameEvents.find(
-    (e) => e.eventType === 'gm_response',
-  );
-  const newCanon = gmResponseEvent
+  // The *winning* response, not the first `gm_response`. When a correction
+  // fires, `writeTurnEvents` writes it after the original and any canon it
+  // proposes carries the correction's sequence number — matching on the
+  // original would miss those rows and report a capture that happened as a
+  // failure to capture. Every other consumer of this turn's narration
+  // already uses `getWinningResponseEvent`; this one had drifted.
+  const winningEvent = getWinningResponseEvent(result);
+  const newCanon = winningEvent
     ? result.pendingCanon.filter(
-        (c) => c.sequenceNumber === gmResponseEvent.sequenceNumber,
+        (c) => c.sequenceNumber === winningEvent.sequenceNumber,
       )
     : [];
 
   if (newCanon.length > 0) {
     return {
       outcome: 'PASSED',
-      actual: `${newCanon.length} new pending_canon row(s) proposed this turn (sequence ${gmResponseEvent!.sequenceNumber}): ${newCanon.map((c) => c.summary).join('; ')}`,
+      actual: `${newCanon.length} new pending_canon row(s) proposed this turn (sequence ${winningEvent!.sequenceNumber}): ${newCanon.map((c) => c.summary).join('; ')}`,
     };
   }
 
@@ -106,13 +172,20 @@ export function checkMissingCanonCapture(
     const playerText = winningResponse
       ? ((winningResponse.payload as GmResponsePayload).playerText ?? '')
       : '';
-    if (!playerText.toLowerCase().includes(introductionMarker.toLowerCase())) {
+    if (
+      !normalizeForMarkerMatch(playerText).includes(
+        normalizeForMarkerMatch(introductionMarker),
+      )
+    ) {
       return {
         outcome: 'NOT_APPLICABLE',
         actual:
           `expected new detail's marker phrase ("${introductionMarker}") never appears in ` +
           "this turn's playerText — the narration didn't introduce the detail this run, so " +
-          'there was nothing to capture',
+          'there was nothing to capture. This fixture contributed no regression coverage ' +
+          'for MISSING-CANON-CAPTURE on this rep',
+        actualCode:
+          'narration did not introduce the expected detail — no coverage this rep',
       };
     }
   }

@@ -1,8 +1,6 @@
 import { checkMissingCanonCapture } from './missing-canon-capture';
-import { checkNarratingPastABlock } from './narrating-past-a-block';
 import { checkOutOfOrderResolution } from './out-of-order-resolution';
 import { checkSystemRolledPlayerAction } from './system-rolled-player-action';
-import { checkUnauditableMapping } from './unauditable-mapping';
 
 import type {
   EvalFixture,
@@ -24,11 +22,10 @@ export const structuralCheckers: Record<
   StructuralTag,
   (result: TurnExecutionResult, fixture: EvalFixture) => StructuralVerdict
 > = {
-  'OUT-OF-ORDER-RESOLUTION': (result) => checkOutOfOrderResolution(result),
-  'SYSTEM-ROLLED-PLAYER-ACTION': (result) =>
-    checkSystemRolledPlayerAction(result),
-  'UNAUDITABLE-MAPPING': (result) => checkUnauditableMapping(result),
+  'OUT-OF-ORDER-RESOLUTION': (result, fixture) =>
+    checkOutOfOrderResolution(result, fixture),
+  'SYSTEM-ROLLED-PLAYER-ACTION': (result, fixture) =>
+    checkSystemRolledPlayerAction(result, fixture),
   'MISSING-CANON-CAPTURE': (result, fixture) =>
     checkMissingCanonCapture(result, fixture),
-  'NARRATING-PAST-A-BLOCK': (result) => checkNarratingPastABlock(result),
 };

@@ -11,11 +11,30 @@ import type { EvalFixture } from '../../fixture.schema';
 import type { TurnExecutionResult } from '../../turn-result';
 
 /**
- * Deliberate, known asymmetry (spec "Judge model" section): the Warden runs
- * on Sonnet 4.6 (`DEFAULT_SYNTHESIS_MODEL` in `anthropic.service.ts`); the
- * judge runs on Sonnet 5. `AnthropicService.callMessages` already supports a
- * per-call `model` override, so the judge reuses it directly rather than
- * needing a separate direct-SDK client.
+ * The judge model, held separate from the Warden's so the two can be moved
+ * independently. `AnthropicService.callMessages` already supports a per-call
+ * `model` override, so the judge reuses it directly rather than needing a
+ * separate direct-SDK client.
+ *
+ * **The asymmetry this was written for is gone.** The spec's "Judge model"
+ * section described a deliberate gap — Warden on Sonnet 4.6, judge on Sonnet 5
+ * — so that a more capable grader sat above the model under test. Now that
+ * `DEFAULT_SYNTHESIS_MODEL` is also `claude-sonnet-5`, every judged check
+ * grades a generator that is the same model as its grader.
+ *
+ * That is a real methodological cost and it is accepted deliberately, not
+ * overlooked: the alternative is pinning the judge to a model we no longer
+ * ship against, which trades a self-grading bias for a drift no one is
+ * watching. Two things keep it honest. `eval:judge-variance` measures grader
+ * stability against frozen input and is unaffected by which model produced
+ * that input. And the corpus's two structural checks
+ * (`out-of-order-resolution`, `system-rolled-player-action`) reach a verdict
+ * with no model in the loop at all, so they remain a judge-independent read on
+ * the same runs.
+ *
+ * Raise this above the Warden again when an Opus-tier judge is affordable for
+ * routine comparisons; see `decisions.md`, "Warden model upgraded to
+ * `claude-sonnet-5`."
  */
 export const JUDGE_MODEL = 'claude-sonnet-5';
 
@@ -139,12 +158,14 @@ export async function runJudgeCall(
   anthropic: AnthropicService,
   fixture: EvalFixture,
   result: TurnExecutionResult,
+  extraContext?: string,
 ): Promise<JudgedVerdict> {
   const rubricText = resolveRubricText(fixture);
   const prompt =
     `${rubricText}\n\n` +
     `--- This turn's narration (playerText) ---\n${extractPlayerText(result)}\n\n` +
     `--- This turn's tool-call sequence ---\n${summarizeGameEvents(result)}\n\n` +
+    (extraContext ? `--- Scope of this check ---\n${extraContext}\n\n` : '') +
     'Call judge_verdict with your verdict and a brief rationale.';
 
   const message = await anthropic.callMessages({

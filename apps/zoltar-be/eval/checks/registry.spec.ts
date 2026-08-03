@@ -5,7 +5,6 @@ import {
   judgedFailureModeTags,
   structuralFailureModeTags,
 } from '../fixture.schema';
-import { fakeFixture } from './structural/test-helpers';
 
 import {
   evalChecks,
@@ -13,6 +12,7 @@ import {
   rubricTextFor,
   selectChecksForFixture,
 } from './registry';
+import { fakeFixture } from './structural/test-helpers';
 
 describe('evalChecks', () => {
   it('has exactly one check per tag in failureModeTagSchema', () => {
@@ -24,6 +24,64 @@ describe('evalChecks', () => {
       expect(matching).toHaveLength(1);
     }
     expect(checksByTag).toHaveLength(tags.length);
+  });
+
+  it('declares an applicabilitySource for every check', () => {
+    // Required, not optional, so adding a check forces the question to be
+    // answered rather than defaulted — the field exists precisely to make
+    // outcome-selected denominators visible, and a silent default would be
+    // a guess at the thing it records.
+    for (const check of Object.values(evalChecks)) {
+      expect(['fixture', 'artifact', 'ungated']).toContain(
+        check.applicabilitySource,
+      );
+    }
+  });
+
+  it('marks the two re-gated checks as fixture-sourced', () => {
+    // These are the checks moved off "did the model happen to roll?" onto
+    // fixture-authored applicability — the fix `decisions.md` records.
+    expect(evalChecks['system-rolled-player-action'].applicabilitySource).toBe(
+      'fixture',
+    );
+    expect(evalChecks['out-of-order-resolution'].applicabilitySource).toBe(
+      'fixture',
+    );
+  });
+
+  it('marks checks that never report not_applicable as ungated', () => {
+    // Narrowed from "every judged tag" once the first hybrid checks landed.
+    // `mode` and `applicabilitySource` are different axes: a judged check
+    // with a structural pre-filter can and does report not_applicable, and
+    // labelling it 'ungated' would put the hazard label on the wrong checks.
+    for (const id of [
+      'hidden-info-leak',
+      'over-resolution',
+      'unsurfaced-check',
+      'scene-jump',
+    ]) {
+      expect(evalChecks[id].applicabilitySource).toBe('ungated');
+    }
+  });
+
+  it('marks a judged check whose gate can report not_applicable as artifact-sourced', () => {
+    // `unauditable-mapping` is judged, and its `judgeGate` decides
+    // applicability from the turn's own rolls — the outcome-selection hazard
+    // the label exists to flag. This pairing is the reason the enum value is
+    // 'ungated' rather than 'judged-check'.
+    const check = evalChecks['unauditable-mapping'];
+    expect(check.mode).toBe('judged');
+    expect(check.applicabilitySource).toBe('artifact');
+    expect(check.judgeGate).toBeDefined();
+  });
+
+  it('gives every judged check with a gate a matching judgeContext or a self-contained rubric', () => {
+    // A gate that narrows *which* events the rubric is about must hand that
+    // set to the judge, or the rubric has to restate the filter in prose and
+    // the two can drift. `narrating-past-a-block`'s gate narrows nothing
+    // (it only ever FAILs or falls through), so it needs no context.
+    expect(evalChecks['unauditable-mapping'].judgeContext).toBeDefined();
+    expect(evalChecks['narrating-past-a-block'].judgeContext).toBeUndefined();
   });
 
   it('has unique, lower-kebab ids that match their tag', () => {

@@ -690,5 +690,13 @@
   "assertion": {
     "mode": "structural",
     "check": "Alvarez's weapon damage roll must be attributed to the player (roll_source: player_entered) or surfaced as a dice_request, not generated system-side. Original turn generated the 7-damage roll system-side without asking the player to roll it or offering \"roll for me\" as an explicit choice \u2014 while her Combat/to-hit roll was correctly left as a player action in the same turn."
-  }
+  },
+  "applicability": {
+    "system-rolled-player-action": {
+      "applies": true,
+      "playerEntity": "Alvarez",
+      "situation": "Alvarez declares she'll use the equipment racks as cover and shoot the contractor at the door \u2014 a resolvable attack requiring a Combat to-hit roll and, if it lands, a damage roll."
+    }
+  },
+  "fixtureSchemaVersion": 2
 }

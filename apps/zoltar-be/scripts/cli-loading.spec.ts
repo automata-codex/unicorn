@@ -131,4 +131,27 @@ describe('CLI entrypoint loading — exercises the real production loader, not V
     expect(stderr).toMatch(/ZOLTAR_EVAL_ROOT/);
     expect(status).not.toBe(0);
   });
+  it('eval-rescore.ts loads under plain tsx and reaches its usage error', () => {
+    // `eval-rescore.ts` runs under tsx, not @swc-node/register — it never
+    // builds a Nest DI container. Same class of bug is still possible
+    // (a relative specifier that satisfies tsc and Vitest but not the real
+    // loader), so it gets the same smoke test.
+    let stderr = '';
+    let status: number | null = 0;
+    try {
+      execFileSync('npx', ['tsx', 'scripts/eval-rescore.ts'], {
+        cwd: PACKAGE_ROOT,
+        encoding: 'utf-8',
+        env: FAKE_ENV,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (err) {
+      const failure = err as { status: number | null; stderr: string };
+      status = failure.status;
+      stderr = failure.stderr;
+    }
+    expect(stderr).not.toMatch(/Cannot find module|MODULE_NOT_FOUND/);
+    expect(stderr).toMatch(/expected exactly one positional argument/);
+    expect(status).toBe(2);
+  });
 });

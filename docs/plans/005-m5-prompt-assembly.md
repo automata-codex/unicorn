@@ -142,7 +142,8 @@ writes, no endpoint wired.
 
 - Extend `AnthropicService` with `callSession(params: CallSessionParams)`.
   `callMessages` stays as-is; `callSession` is additive. Reuse
-  `DEFAULT_SYNTHESIS_MODEL` (`claude-sonnet-4-6`), default `max_tokens: 4096`.
+  `DEFAULT_SYNTHESIS_MODEL` (`claude-sonnet-4-6` at M5; now `claude-sonnet-5`),
+  default `max_tokens: 4096`.
 - `session.prompt.ts`:
   - `formatGmContextBlob(blob)` — serialize structured GM context into
     human-readable text covering narrative, entities, flags (value + trigger),

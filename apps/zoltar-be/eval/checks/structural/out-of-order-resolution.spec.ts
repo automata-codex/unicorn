@@ -2,150 +2,281 @@ import { describe, expect, it } from 'vitest';
 
 import { checkOutOfOrderResolution } from './out-of-order-resolution';
 import {
+  fakeDiceRequest,
   fakeDiceRoll,
+  fakeFixture,
   fakeGameEvent,
   fakeTurnExecutionResult,
 } from './test-helpers';
 
+const CHECK_ID = 'out-of-order-resolution';
+
+const APPLICABLE_FIXTURE = fakeFixture({
+  tag: 'OUT-OF-ORDER-RESOLUTION',
+  applicability: {
+    [CHECK_ID]: {
+      applies: true,
+      playerEntity: 'Alvarez',
+      situation:
+        'Alvarez declares an attack requiring a to-hit roll to resolve before any damage roll.',
+    },
+  },
+});
+
+const NOT_APPLICABLE_FIXTURE = fakeFixture({
+  tag: 'OUT-OF-ORDER-RESOLUTION',
+  applicability: {
+    [CHECK_ID]: {
+      applies: false,
+      situation:
+        'Alvarez only asks a clarifying question this turn — no action is declared that would ' +
+        'trigger a resolution roll, so there is no ordering for this check to grade.',
+    },
+  },
+});
+
+/** The deferred Combat to-hit every real rep of turn19/turn21 ends on —
+ * 1d100 against a target, issued at the turn's `gm_response` and left
+ * pending for the player. */
+function pendingCombatGate(
+  purpose = 'Alvarez Combat roll to shoot contractor at door',
+) {
+  return fakeDiceRequest({
+    notation: '1d100',
+    purpose,
+    target: 30,
+    status: 'pending',
+    issuedAtSequence: 6,
+  });
+}
+
 describe('checkOutOfOrderResolution', () => {
-  it('passes when a to-hit roll resolves with no conditional damage language', () => {
+  it('passes when a gate is pending and nothing was resolved for the player ahead of it', () => {
+    // Shape of turn19 rep 003/004/007/010 under 4.6: the to-hit is deferred,
+    // and the only rolls resolved in-turn belong to NPCs.
     const result = fakeTurnExecutionResult({
       gameEvents: [
         fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
         fakeDiceRoll({
           sequenceNumber: 2,
-          purpose: 'Contractor Alpha combat attack roll against Alvarez',
-        }),
-        fakeDiceRoll({
-          sequenceNumber: 3,
-          purpose: 'Contractor Alpha damage — hit confirmed',
+          purpose: 'Contractor Alpha returning fire at Alvarez',
+          notation: '1d100',
         }),
       ],
+      diceRequests: [pendingCombatGate()],
     });
 
-    expect(checkOutOfOrderResolution(result).outcome).toBe('PASSED');
+    const verdict = checkOutOfOrderResolution(result, APPLICABLE_FIXTURE);
+    expect(verdict.outcome).toBe('PASSED');
+    expect(verdict.actualCode).toBeDefined();
   });
 
-  it('fails when a damage roll is phrased conditionally on an unconfirmed hit (deliberately-broken counterexample, from real replayed output)', () => {
+  it('fails when a consequence is resolved for the player while their gate is still pending', () => {
+    // The canonical violation, from turn19 rep 001: rifle damage rolled
+    // system-side at sequence 4 while the Combat to-hit it depends on is
+    // deferred to the player and still pending when the turn ends.
     const result = fakeTurnExecutionResult({
       gameEvents: [
         fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
         fakeDiceRoll({
           sequenceNumber: 2,
-          purpose: 'Alvarez rifle damage if combat roll succeeds',
-        }),
-      ],
-    });
-
-    const verdict = checkOutOfOrderResolution(result);
-    expect(verdict.outcome).toBe('FAILED');
-    expect(verdict.actual).toMatch(/sequence 2/);
-    expect(verdict.actual).toMatch(/not been confirmed yet/);
-  });
-
-  it('fails on "if player hits" (conjugated/plural form), from real replayed output (deliberately-broken counterexample)', () => {
-    // Real case, turn19-out-of-order-resolution: CONDITIONAL_DAMAGE_PATTERN
-    // used a bare `hit` alternative instead of `hits?` — `\bhit\b` never
-    // matches inside "hits" (no word boundary between "t" and "s"), so this
-    // roll's damage was silently missed even though its sibling roll on the
-    // same turn ("Contractor rifle damage if hit") was correctly flagged.
-    // This is the more severe of the two: Alvarez's own rifle damage,
-    // pre-rolled and stated as "already rolled" while her own Combat/to-hit
-    // roll is still an open, unresolved dice_request.
-    const result = fakeTurnExecutionResult({
-      gameEvents: [
-        fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
-        fakeDiceRoll({
-          sequenceNumber: 3,
-          purpose: 'Contractor rifle damage if hit',
+          purpose: 'Contractor Alpha returning fire at Alvarez',
+          notation: '1d100',
         }),
         fakeDiceRoll({
           sequenceNumber: 4,
-          purpose: 'Alvarez rifle damage if player hits',
+          purpose: 'Alvarez rifle damage if her attack hits',
+          notation: '1d10',
         }),
       ],
+      diceRequests: [pendingCombatGate()],
     });
 
-    const verdict = checkOutOfOrderResolution(result);
+    const verdict = checkOutOfOrderResolution(result, APPLICABLE_FIXTURE);
     expect(verdict.outcome).toBe('FAILED');
-    expect(verdict.actual).toMatch(/sequence 3/);
-    expect(verdict.actual).toMatch(/sequence 4/);
+    expect(verdict.actual).toMatch(/Alvarez rifle damage/);
   });
 
-  it('fails on conditional damage language even with no separate to-hit roll present in the turn (the to-hit is deferred to the player)', () => {
-    // Confirmed against real replayed output: the Warden sometimes pre-rolls
-    // damage "if combat roll succeeds" while leaving the actual to-hit roll
-    // to the player (a pending dice_request), so there's no second roll in
-    // this turn's own events to compare against at all.
+  it('catches a pre-rolled consequence that never says "if hit"', () => {
+    // The reason the regex had to go. `CONDITIONAL_DAMAGE_PATTERN` required
+    // damage-conditional phrasing, so a Warden doing exactly the same wrong
+    // thing without the tell passed. Structure sees no difference between
+    // the two, which is the point.
     const result = fakeTurnExecutionResult({
       gameEvents: [
         fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
         fakeDiceRoll({
           sequenceNumber: 2,
-          purpose: 'Contractor weapon damage if hit',
+          purpose: 'Alvarez rifle damage',
+          notation: '1d10',
         }),
       ],
+      diceRequests: [pendingCombatGate()],
+    });
+
+    expect(checkOutOfOrderResolution(result, APPLICABLE_FIXTURE).outcome).toBe(
+      'FAILED',
+    );
+  });
+
+  it('does not fail on an NPC damage roll phrased conditionally (regression: four false FAILs on turn19)', () => {
+    // "Contractor rifle damage if hit" matched `CONDITIONAL_DAMAGE_PATTERN`
+    // and failed the turn, even though an NPC's damage is not gated by the
+    // player's pending request in any way. This fired on 4 of turn19's 10
+    // reps under 4.6 and is most of why that fixture read 0/9.
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
+        fakeDiceRoll({
+          sequenceNumber: 2,
+          purpose: 'Contractor rifle damage if hit',
+          notation: '1d10',
+        }),
+      ],
+      diceRequests: [pendingCombatGate()],
+    });
+
+    expect(checkOutOfOrderResolution(result, APPLICABLE_FIXTURE).outcome).toBe(
+      'PASSED',
+    );
+  });
+
+  it('binds the gate structurally, not by name — a request that never says "Alvarez" still counts', () => {
+    // Same lesson as `system-rolled-player-action`: a `dice_request` is
+    // player-facing by construction, and a request addressed *to* the player
+    // has no reason to name them. Real purpose text from turn19 rep 002.
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
+      ],
       diceRequests: [
-        {
-          id: 'req-1',
-          adventureId: 'a1',
-          issuedAtSequence: 1,
-          notation: '1d100',
-          purpose: 'Alvarez Combat roll to hit',
-          target: 30,
-          status: 'pending',
-          resolvedAtSequence: null,
-          resolvedAt: null,
-          createdAt: new Date('2026-07-15T00:00:00.000Z'),
-        },
+        pendingCombatGate(
+          'Combat roll to shoot contractor at equipment bay door — roll under 30 to hit',
+        ),
       ],
     });
 
-    const verdict = checkOutOfOrderResolution(result);
-    expect(verdict.outcome).toBe('FAILED');
-    expect(verdict.actual).toMatch(/sequence 2/);
+    expect(checkOutOfOrderResolution(result, APPLICABLE_FIXTURE).outcome).toBe(
+      'PASSED',
+    );
+  });
+
+  it('is undecided when the turn left no pending gate, naming the missing gatedByRollId', () => {
+    // turn21 rep 005: everything resolved in-turn. Sequence order shows what
+    // happened first, not what depended on what, so there is no ordering
+    // verdict to reach without a link between a roll and the roll that
+    // gated it.
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
+        fakeDiceRoll({
+          sequenceNumber: 2,
+          purpose: 'Alvarez Combat roll to hit',
+          notation: '1d100',
+        }),
+        fakeDiceRoll({
+          sequenceNumber: 3,
+          purpose: 'Alvarez rifle damage',
+          notation: '1d10',
+        }),
+      ],
+      diceRequests: [],
+    });
+
+    const verdict = checkOutOfOrderResolution(result, APPLICABLE_FIXTURE);
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
+    expect(verdict.actual).toMatch(/gatedByRollId/);
+    expect(verdict.actualCode).toBeDefined();
+  });
+
+  it('guards the negative assertion: a turn that rolls nothing and defers nothing is undecided, not a pass', () => {
+    // "No consequence rolled ahead of its gate" is satisfied by absence, so
+    // without this a Warden that simply stopped issuing gating requests
+    // would climb to 1.00 by doing less. No pending gate, no verdict.
+    const verdict = checkOutOfOrderResolution(
+      fakeTurnExecutionResult({ gameEvents: [], diceRequests: [] }),
+      APPLICABLE_FIXTURE,
+    );
+
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
   });
 
   it("fails when a dice_roll precedes the turn's own player_action", () => {
+    // Independent of any gate — pure sequence numbers, an invariant of the
+    // write path rather than a claim about dependencies.
     const result = fakeTurnExecutionResult({
       gameEvents: [
-        fakeDiceRoll({ sequenceNumber: 1, purpose: 'Combat roll for Alvarez' }),
+        fakeDiceRoll({
+          sequenceNumber: 1,
+          purpose: 'Alvarez rifle damage',
+          notation: '1d10',
+        }),
         fakeGameEvent({ sequenceNumber: 2, eventType: 'player_action' }),
       ],
+      diceRequests: [pendingCombatGate()],
     });
 
-    const verdict = checkOutOfOrderResolution(result);
+    const verdict = checkOutOfOrderResolution(result, APPLICABLE_FIXTURE);
     expect(verdict.outcome).toBe('FAILED');
     expect(verdict.actual).toMatch(/before this turn's player_action/);
   });
 
-  it('is not applicable when there are no dice_roll events at all (boundary)', () => {
-    const result = fakeTurnExecutionResult({
-      gameEvents: [
-        fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
-      ],
-    });
-
-    const verdict = checkOutOfOrderResolution(result);
-    expect(verdict.outcome).toBe('NOT_APPLICABLE');
-    expect(verdict.actual).toMatch(/no dice_roll events/);
-  });
-
-  it('does not false-positive on a damage roll with no conditional phrasing (boundary)', () => {
+  it('[known limitation] flags a player roll that is properly ordered but unlinkable to the gate', () => {
+    // turn21 rep 009 under 4.6, and a deliberate record of a wrong verdict.
+    // Alvarez's stress check is triggered by NPC fire that already resolved
+    // earlier in the turn, so it is correctly ordered — but it is
+    // GM-initiated, carries no `requestId`, and sits after the gate in
+    // sequence, exactly like a pre-rolled damage roll. Only `gatedByRollId`
+    // separates them.
+    //
+    // Costs 1 of 18 decided reps on the frozen 4.6 run. Left unpatched on
+    // purpose: the available discriminators are notation (1d10 vs 1d100) and
+    // purpose wording, and reaching for either re-imports the failure that
+    // produced `CONDITIONAL_DAMAGE_PATTERN`. This test exists so the
+    // behaviour is pinned and visible rather than mistaken for correct — if
+    // `gatedByRollId` ever lands, it should flip to PASSED.
     const result = fakeTurnExecutionResult({
       gameEvents: [
         fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
         fakeDiceRoll({
           sequenceNumber: 2,
-          purpose: 'Contractor Alpha combat attack roll against Alvarez',
+          purpose: 'Contractor Alpha return fire on Alvarez',
+          notation: '1d100',
         }),
         fakeDiceRoll({
-          sequenceNumber: 3,
-          purpose: 'Contractor Alpha damage roll, attack landed',
+          sequenceNumber: 8,
+          purpose:
+            'Alvarez stress/panic check from taking fire (stress 0, threshold 3)',
+          notation: '1d100',
         }),
+      ],
+      diceRequests: [
+        pendingCombatGate(
+          'Alvarez Combat attack roll - must roll under 30 to hit',
+        ),
       ],
     });
 
-    expect(checkOutOfOrderResolution(result).outcome).toBe('PASSED');
+    expect(checkOutOfOrderResolution(result, APPLICABLE_FIXTURE).outcome).toBe(
+      'FAILED',
+    );
+  });
+
+  it("is not applicable when the fixture's situation does not call for this check", () => {
+    const verdict = checkOutOfOrderResolution(
+      fakeTurnExecutionResult({ diceRequests: [pendingCombatGate()] }),
+      NOT_APPLICABLE_FIXTURE,
+    );
+
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
+    expect(verdict.actual).toMatch(/only asks a clarifying question/);
+  });
+
+  it('throws when the fixture is at schema version 2+ but has no applicability entry for this check', () => {
+    const fixture = fakeFixture({ tag: 'OUT-OF-ORDER-RESOLUTION' });
+
+    expect(() =>
+      checkOutOfOrderResolution(fakeTurnExecutionResult(), fixture),
+    ).toThrow(/has no applicability entry/);
   });
 });

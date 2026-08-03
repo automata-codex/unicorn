@@ -72,21 +72,29 @@ tasks:
       - node -r @swc-node/register -r reflect-metadata --env-file=.env scripts/eval-run.ts {{.CLI_ARGS}}
 
   eval:report:
-    desc: 'Render a markdown report from a run directory written by eval:run (M7.4.1). Pure rendering — no DB, no Anthropic. Requires ZOLTAR_EVAL_ROOT only. Usage — task eval:report -- <run-dir> [--output <path>]'
+    desc: 'Render a markdown report from a run directory written by eval:run (M7.4.1). Pure rendering — no DB, no Anthropic. Requires ZOLTAR_EVAL_ROOT only. --scoring picks which grading to render: the run''s own reps/ scores, or an eval:rescore pass; with no flag the most recent re-score wins (falling back to the run), and the choice is named in the report title, header and on stderr. Usage — task eval:report -- <run-dir> [--scoring run|rescore|rescore=<timestamp>] [--output <path>]'
     dir: apps/zoltar-be
     cmds:
       # Plain tsx is fine here, unlike eval:run — no Nest DI container.
       - npx tsx --env-file=.env scripts/eval-report.ts {{.CLI_ARGS}}
 
   eval:compare:
-    desc: 'Paired comparison of two eval:run directories, pairing on (fixtureId, checkId) (M7.4.1). Pure rendering — no DB, no Anthropic. Requires ZOLTAR_EVAL_ROOT only. Usage — task eval:compare -- <run-dir-a> <run-dir-b> [--filter-rubric <hash>] [--filter-harness <version>] [--output <path>]'
+    desc: 'Paired comparison of two eval:run directories, pairing on (fixtureId, checkId) (M7.4.1). Pure rendering — no DB, no Anthropic. Requires ZOLTAR_EVAL_ROOT only. Reports App/ΔApp alongside every rate so a rate bought by a shrinking denominator is visible, plus an Applicability shifts section. --scoring works as in eval:report and applies to both sides; the report warns when the two sides end up graded by different checker code. Usage — task eval:compare -- <run-dir-a> <run-dir-b> [--filter-rubric CHECK=HASH]... [--filter-harness <version>] [--scoring run|rescore|rescore=<timestamp>] [--output <path>]'
     dir: apps/zoltar-be
     cmds:
       # Plain tsx is fine here, unlike eval:run — no Nest DI container.
       - npx tsx --env-file=.env scripts/eval-compare.ts {{.CLI_ARGS}}
 
+  eval:rescore:
+    desc: 'Re-grade a run''s frozen warden-output.json artifacts under the current checker registry, without re-running the Warden (M7.4.1). Valid after a scoring-only corpus bump or a checker change; NOT after an input-affecting one. Makes real, token-costing Anthropic calls (one judge call per judged fixture-rep); no DB. Writes rows to <run-dir>/rescore/<timestamp>.jsonl and leaves reps/ untouched. Requires ANTHROPIC_API_KEY and ZOLTAR_EVAL_ROOT. Usage — task eval:rescore -- <run-dir> [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx is fine here — no Nest DI container, AnthropicService is
+      # constructed directly.
+      - npx tsx --env-file=.env scripts/eval-rescore.ts {{.CLI_ARGS}}
+
   eval:judge-variance:
-    desc: 'Re-run judged checks N times against frozen warden-output.json artifacts already on disk — no Warden calls, no DB (M7.4.1). Makes real, token-costing Anthropic calls (judged fixtures x vouched reps x --reps). Requires ANTHROPIC_API_KEY and ZOLTAR_EVAL_ROOT. Usage — task eval:judge-variance -- <run-dir> [--reps 3] [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--output <path>]'
+    desc: 'Re-run judged checks N times against frozen warden-output.json artifacts already on disk — no Warden calls, no DB (M7.4.1). Makes real, token-costing Anthropic calls: every vouched (rep, fixture) pair is one frozen input and --trials is how many times each is re-graded, so cost is frozen-inputs x --trials. --trials does NOT subsample source reps — the run fixes those. Requires ANTHROPIC_API_KEY and ZOLTAR_EVAL_ROOT. Usage — task eval:judge-variance -- <run-dir> [--trials 3] [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--output <path>]'
     dir: apps/zoltar-be
     cmds:
       # Plain tsx is fine here — no Nest DI container, AnthropicService is

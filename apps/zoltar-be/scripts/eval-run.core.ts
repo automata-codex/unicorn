@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
@@ -31,6 +30,8 @@ import {
 } from '../eval/runs/paths';
 import { ScoreWriter } from '../eval/runs/scores';
 import { hashPromptText, promptsDir } from '../src/wardens/prompt-paths';
+
+import { getHarnessVersion } from './harness-version';
 
 import type { EvalCheck } from '../eval/checks/registry';
 import type { EvalFixture } from '../eval/fixture.schema';
@@ -123,34 +124,6 @@ export type RunEvalProgressEvent =
       durationMs: number;
       verdicts: Verdict[];
     };
-
-/**
- * `git rev-parse --short HEAD` plus a `-dirty` suffix from `git status
- * --porcelain .` scoped to this package directory, `unknown` on failure
- * (e.g. running outside a git checkout). Executed once per invocation, not
- * per rep — `harnessVersion` is recorded on every rep and every row, but
- * doesn't change mid-invocation.
- */
-function getHarnessVersion(): string {
-  const packageRoot = join(__dirname, '..'); // apps/zoltar-be
-  try {
-    const sha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
-      cwd: packageRoot,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
-      .toString()
-      .trim();
-    const statusOutput = execFileSync('git', ['status', '--porcelain', '.'], {
-      cwd: packageRoot,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
-      .toString()
-      .trim();
-    return statusOutput.length > 0 ? `${sha}-dirty` : sha;
-  } catch {
-    return 'unknown';
-  }
-}
 
 /**
  * Asserts `promptPath` byte-matches a file already present under
@@ -483,6 +456,8 @@ async function runFixtureAndScore(
         checkId: check.id,
         tag: check.tag,
         checkMode: check.mode,
+        applicabilitySource: check.applicabilitySource,
+        judgeInvoked: false,
         verdict: 'error',
         errorMessage,
         artifactPath,
@@ -547,8 +522,16 @@ async function runFixtureAndScore(
       tag: check.tag,
       checkMode: check.mode,
       verdict: observation.verdict,
+      applicabilitySource: check.applicabilitySource,
+      judgeInvoked: observation.judgeInvoked,
       rubricHash: observation.rubricHash,
       notApplicableReason: observation.notApplicableReason,
+      // Was omitted here while every other layer carried it — the field is
+      // set by `runCheck`, validated on the row, and read by
+      // `summarizeExclusions` to group per-rep-variable NOT_APPLICABLE
+      // reasons, so dropping it at the one writer silently fragmented those
+      // groups into one entry per rep.
+      notApplicableReasonCode: observation.notApplicableReasonCode,
       errorMessage: observation.errorMessage,
       artifactPath,
       durationMs: observation.durationMs,

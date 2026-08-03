@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { evalChecks } from '../eval/checks/registry';
 import { fakeTurnExecutionResult } from '../eval/checks/structural/test-helpers';
 import { writeFixtureArtifacts } from '../eval/runs/artifacts';
 import { envOnlyConfigService } from '../eval/runs/env-config-service';
@@ -82,7 +83,9 @@ function toolUseMessage(input: unknown): Anthropic.Message {
   } as unknown as Anthropic.Message;
 }
 
-function fakeAnthropic(callMessages: ReturnType<typeof vi.fn>): AnthropicService {
+function fakeAnthropic(
+  callMessages: ReturnType<typeof vi.fn>,
+): AnthropicService {
   return { callMessages } as unknown as AnthropicService;
 }
 
@@ -182,8 +185,11 @@ describe('runJudgeVariance', () => {
       .mockResolvedValue(toolUseMessage({ passed: true, rationale: 'fine' }));
 
     const summary = await runJudgeVariance(
-      { runDir, fixturesDir, reps: 4 },
-      { anthropicService: fakeAnthropic(callMessages), clock: () => new Date('2026-07-26T15:00:00.000Z') },
+      { runDir, fixturesDir, trials: 4 },
+      {
+        anthropicService: fakeAnthropic(callMessages),
+        clock: () => new Date('2026-07-26T15:00:00.000Z'),
+      },
     );
 
     expect(callMessages).toHaveBeenCalledTimes(4);
@@ -203,8 +209,11 @@ describe('runJudgeVariance', () => {
       .mockResolvedValueOnce(toolUseMessage({ passed: false, rationale: 'd' }));
 
     const summary = await runJudgeVariance(
-      { runDir, fixturesDir, reps: 4 },
-      { anthropicService: fakeAnthropic(callMessages), clock: () => new Date('2026-07-26T15:00:00.000Z') },
+      { runDir, fixturesDir, trials: 4 },
+      {
+        anthropicService: fakeAnthropic(callMessages),
+        clock: () => new Date('2026-07-26T15:00:00.000Z'),
+      },
     );
 
     const [fc] = summary.byFixtureCheck;
@@ -213,14 +222,64 @@ describe('runJudgeVariance', () => {
     expect(summary.headlines[0]).toMatch(/flipped on 1 of 1 frozen inputs/);
   });
 
+  it('excludes gate-settled inputs from the flip-rate denominator, and names them', async () => {
+    // A `judgeGate` that settles a rep structurally produces a verdict that
+    // is deterministic over fixed input by construction. Counting it as a
+    // frozen input that "didn't flip" would pull the measured flip rate
+    // toward zero — flattering the very rubric this command exists to be
+    // suspicious of. No check ships a gate yet (the first arrives with
+    // `unauditable-mapping`), so one is installed here.
+    const check = evalChecks['hidden-info-leak'];
+    const originalGate = check.judgeGate;
+    check.judgeGate = () => ({
+      outcome: 'NOT_APPLICABLE',
+      actual: 'the structural pre-filter settled this rep',
+    });
+
+    try {
+      const callMessages = vi.fn();
+      const summary = await runJudgeVariance(
+        { runDir, fixturesDir, trials: 4 },
+        {
+          anthropicService: fakeAnthropic(callMessages),
+          clock: () => new Date('2026-07-26T15:00:00.000Z'),
+        },
+      );
+
+      expect(callMessages).not.toHaveBeenCalled();
+
+      const [fc] = summary.byFixtureCheck;
+      // Nothing reached the rubric, so there is no evidence about it at all
+      // — a 0.00 flip rate here would be a claim, not a measurement.
+      expect(fc.totalInputs).toBe(0);
+      expect(fc.gatedInputs).toBe(1);
+      expect(fc.flipRate).toBeNull();
+      // Verdict counts stay inclusive — they describe what the check did.
+      expect(fc.verdictCounts).toEqual({ not_applicable: 4 });
+      expect(summary.headlines[0]).toMatch(
+        /1 further input\(s\) settled by the structural gate, never reaching the rubric/,
+      );
+      // A gated row asserts no rubric graded it. Back-filling the check's
+      // hash here would contradict `judgeInvoked: false` on the same row —
+      // found on 33 real rows before this was fixed.
+      expect(summary.rows.every((r) => r.rubricHash === '')).toBe(true);
+      expect(summary.rows.every((r) => r.judgeInvoked === false)).toBe(true);
+    } finally {
+      check.judgeGate = originalGate;
+    }
+  });
+
   it('skips structural checks and reports them as skipped', async () => {
     const callMessages = vi
       .fn()
       .mockResolvedValue(toolUseMessage({ passed: true, rationale: 'fine' }));
 
     const summary = await runJudgeVariance(
-      { runDir, fixturesDir, reps: 2 },
-      { anthropicService: fakeAnthropic(callMessages), clock: () => new Date('2026-07-26T15:00:00.000Z') },
+      { runDir, fixturesDir, trials: 2 },
+      {
+        anthropicService: fakeAnthropic(callMessages),
+        clock: () => new Date('2026-07-26T15:00:00.000Z'),
+      },
     );
 
     const skipped = summary.skipped.find(
@@ -229,9 +288,9 @@ describe('runJudgeVariance', () => {
     expect(skipped).toBeDefined();
     expect(skipped!.reason).toMatch(/deterministic over fixed input/);
     // No rows generated for the structural fixture.
-    expect(summary.rows.some((r) => r.fixtureId === STRUCTURAL_FIXTURE_ID)).toBe(
-      false,
-    );
+    expect(
+      summary.rows.some((r) => r.fixtureId === STRUCTURAL_FIXTURE_ID),
+    ).toBe(false);
   });
 
   it('writes output under judge-variance/, never reps/, and leaves scores.jsonl byte-unchanged', async () => {
@@ -244,8 +303,11 @@ describe('runJudgeVariance', () => {
       .mockResolvedValue(toolUseMessage({ passed: true, rationale: 'fine' }));
 
     const summary = await runJudgeVariance(
-      { runDir, fixturesDir, reps: 2 },
-      { anthropicService: fakeAnthropic(callMessages), clock: () => new Date('2026-07-26T15:00:00.000Z') },
+      { runDir, fixturesDir, trials: 2 },
+      {
+        anthropicService: fakeAnthropic(callMessages),
+        clock: () => new Date('2026-07-26T15:00:00.000Z'),
+      },
     );
 
     expect(summary.outputPath.startsWith(join(runDir, 'judge-variance'))).toBe(
@@ -270,18 +332,23 @@ describe('runJudgeVariance', () => {
       {
         runDir,
         fixturesDir,
-        reps: 2,
+        trials: 2,
         onProgress: (event) => {
           if (event.type === 'input-start') {
             events.push(`input-start:${event.fixtureId}`);
           } else if (event.type === 'trial-done') {
-            events.push(`trial-done:${event.fixtureId}:${event.trialIndex}/${event.totalTrials}:${event.verdict}`);
+            events.push(
+              `trial-done:${event.fixtureId}:${event.trialIndex}/${event.totalTrials}:${event.verdict}`,
+            );
           } else {
             events.push(`skipped:${event.fixtureId}`);
           }
         },
       },
-      { anthropicService: fakeAnthropic(callMessages), clock: () => new Date('2026-07-26T15:00:00.000Z') },
+      {
+        anthropicService: fakeAnthropic(callMessages),
+        clock: () => new Date('2026-07-26T15:00:00.000Z'),
+      },
     );
 
     expect(events).toContain(`skipped:${STRUCTURAL_FIXTURE_ID}`);
@@ -323,27 +390,23 @@ describe.skipIf(!RUN_LIVE)(
       rmSync(fixturesDir, { recursive: true, force: true });
     });
 
-    it(
-      'runs real judge calls against the HIDDEN-INFO-LEAK rubric and produces a coherent summary',
-      async () => {
-        const anthropicService = new AnthropicService(envOnlyConfigService());
+    it('runs real judge calls against the HIDDEN-INFO-LEAK rubric and produces a coherent summary', async () => {
+      const anthropicService = new AnthropicService(envOnlyConfigService());
 
-        const summary = await runJudgeVariance(
-          { runDir, fixturesDir, reps: 2 },
-          { anthropicService, clock: () => new Date() },
-        );
+      const summary = await runJudgeVariance(
+        { runDir, fixturesDir, trials: 2 },
+        { anthropicService, clock: () => new Date() },
+      );
 
-        expect(summary.rows).toHaveLength(2);
-        expect(summary.rows.every((r) => r.checkId === 'hidden-info-leak')).toBe(
-          true,
-        );
-        expect(summary.byFixtureCheck).toHaveLength(1);
-        expect(summary.byFixtureCheck[0].flipRate).not.toBeNull();
-        expect(summary.headlines[0]).toMatch(
-          /^rubric hidden-info-leak \(\w+\) flipped on \d+ of 1 frozen inputs$/,
-        );
-      },
-      60_000,
-    );
+      expect(summary.rows).toHaveLength(2);
+      expect(summary.rows.every((r) => r.checkId === 'hidden-info-leak')).toBe(
+        true,
+      );
+      expect(summary.byFixtureCheck).toHaveLength(1);
+      expect(summary.byFixtureCheck[0].flipRate).not.toBeNull();
+      expect(summary.headlines[0]).toMatch(
+        /^rubric hidden-info-leak \(\w+\) flipped on \d+ of 1 frozen inputs$/,
+      );
+    }, 60_000);
   },
 );
