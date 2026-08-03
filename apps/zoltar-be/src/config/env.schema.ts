@@ -13,7 +13,10 @@ export const envSchema = z.object({
   CORS_ORIGINS: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().min(1),
   VOYAGE_API_KEY: z.string().min(1),
-  VOYAGE_EMBED_MODEL: z.string().default('voyage-3-lite'),
+  // Must emit 1024-dimensional vectors to match the `rules_chunk.embedding`
+  // column. `voyage-4-lite` defaults to 1024; `voyage-3-lite` emits 512 and is
+  // not a valid override. See `docs/decisions.md § Embedding model`.
+  VOYAGE_EMBED_MODEL: z.string().default('voyage-4-lite'),
 });
 
 export type Env = z.infer<typeof envSchema>;

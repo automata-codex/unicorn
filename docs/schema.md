@@ -24,7 +24,7 @@ This document defines the Zoltar database schema for Phase 1. It serves as the s
 
 **Adventures, not sessions:** Adventures are the first-class domain concept. Sessions in the traditional VTT sense do not exist — solo async play has no meaningful session boundary. Messages and game events reference `adventure_id`. A campaign may have multiple adventures over its lifetime; each adventure owns its own GM context.
 
-**Embedding dimension:** `rules_chunk.embedding` is declared `vector(1024)`, matching Voyage AI (`voyage-3` / `voyage-3-lite`). This dimension is fixed at the column level — switching embedding models requires re-ingestion and a migration. The `embedding_dim` column on `game_system` documents which dimension was used at ingestion time and must match the column declaration.
+**Embedding dimension:** `rules_chunk.embedding` is declared `vector(1024)`, matching the default output dimension of Voyage AI's `voyage-4-lite`. Not every Voyage model emits 1024 dimensions — `voyage-3-lite`, for instance, emits 512 — so the configured `VOYAGE_EMBED_MODEL` must be checked against this column, not assumed compatible. This dimension is fixed at the column level — switching to a model with a different output dimension requires re-ingestion and a migration. The `embedding_dim` column on `game_system` documents which dimension was used at ingestion time and must match the column declaration.
 
 ---
 
@@ -376,7 +376,7 @@ CREATE INDEX rules_chunk_embedding_idx ON rules_chunk
 
 **Index tuning note:** `lists = 100` is appropriate for tens of thousands of chunks. The ivfflat index trades recall for speed — if retrieval quality degrades as the corpus grows, increase `lists` or migrate to hnsw (`USING hnsw (embedding vector_cosine_ops)`). HNSW has better recall at higher memory cost; revisit at scale.
 
-**Embedding dimension:** `vector(1024)` matches `voyage-3` and `voyage-3-lite`. Switching models requires dropping and recreating the column and re-running the ingestion pipeline. Document the model used at ingestion time in `game_system.embedding_dim`.
+**Embedding dimension:** `vector(1024)` matches the default output dimension of `voyage-4-lite` (and `voyage-4` / `voyage-4-large`, which default to 1024 and can be configured to 256/512/2048 via `output_dimension`). It does *not* match `voyage-3-lite`, which emits 512. Switching to a model with a different output dimension requires dropping and recreating the column and re-running the ingestion pipeline. Document the model used at ingestion time in `game_system.embedding_dim`.
 
 ---
 

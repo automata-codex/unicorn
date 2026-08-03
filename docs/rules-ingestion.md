@@ -78,7 +78,9 @@ Each chunk is stored with:
 
 **Provider:** [Voyage AI](https://www.voyageai.com/)
 
-Anthropic does not offer an embedding model. Voyage AI is Anthropic's recommended embeddings partner and the default for Zoltar. The recommended model is `voyage-3` or `voyage-3-lite` depending on cost/quality requirements.
+Anthropic does not offer an embedding model. Voyage AI is Anthropic's recommended embeddings partner and the default for Zoltar. The default model is `voyage-4-lite`; `voyage-4` and `voyage-4-large` are the step-ups if retrieval quality warrants the cost. All three default to 1024-dimensional output, which is what `rules_chunk.embedding` is declared as.
+
+**Model choice is dimension-constrained.** Not every Voyage model emits 1024 dimensions — `voyage-3-lite` emits 512 — and the ingestion model must be the same model the runtime uses for query embedding (`VOYAGE_EMBED_MODEL`). Mismatched dimensions fail the pgvector comparison outright; matched dimensions from different models produce meaningless similarity scores, which is the worse failure because it looks like it works.
 
 Specify `input_type="document"` at ingestion time and `input_type="query"` at query time. Voyage uses these hints to optimize representations for asymmetric retrieval.
 
@@ -86,10 +88,10 @@ Specify `input_type="document"` at ingestion time and `input_type="query"` at qu
 import voyageai
 
 vo = voyageai.Client()
-result = vo.embed(chunks, model="voyage-3-lite", input_type="document")
+result = vo.embed(chunks, model="voyage-4-lite", input_type="document")
 ```
 
-**Local alternative:** `nomic-embed-text` via Ollama. Lower retrieval quality but zero egress and no second API dependency — meaningful for users who want the self-hosted story to be fully self-contained. Supported as an opt-in configuration, not the default.
+**Local alternative:** `nomic-embed-text` via Ollama. Lower retrieval quality but zero egress and no second API dependency — meaningful for users who want the self-hosted story to be fully self-contained. Supported as an opt-in configuration, not the default. Note that it emits 768 dimensions, so adopting it means a migration on the `embedding` column, not just a config change.
 
 ### Step 6 — Storage
 
@@ -111,7 +113,7 @@ CREATE INDEX ON rules_chunk
   WITH (lists = 100);
 ```
 
-The `vector(1024)` dimension matches `voyage-3-lite`. If a different embedding model is configured, the dimension must match.
+The `vector(1024)` dimension matches the default output of `voyage-4-lite`. If a different embedding model is configured, its output dimension must match — verify before ingesting rather than after.
 
 ---
 
