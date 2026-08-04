@@ -17,10 +17,146 @@ and anything disproved into [Dead ends](#dead-ends). Do not silently edit an
 old session's numbers — supersede them with a new entry, so a wrong earlier
 reading stays visible as something that was once believed.
 
+**One exception: the preamble is maintained, not appended.**
+[If you're new to this problem](#if-youre-new-to-this-problem) is a summary
+of current state written for someone arriving cold, and it is the one
+section that should be edited in place to stay true. The append-only rule
+above protects *evidence* — what was run and what came back. The preamble is
+orientation, and orientation that describes a state the project has left is
+worse than none, because it is the first thing a newcomer reads and the last
+thing anyone remembers to update. Its "planned chunking approach" and "what
+has and hasn't been measured" subsections are the two most likely to rot;
+check them whenever you add a session.
+
 **On quoted material.** This file quotes structural metadata only — chapter
 names, page numbers, heading counts, block-type tallies. It does not
 reproduce rules text. Same posture as the fixup files per
 `docs/rules-ingestion.md § Licensing Posture`.
+
+---
+
+## If you're new to this problem
+
+Orientation for someone joining to think about chunking or retrieval, so the
+rest of this file reads as evidence rather than trivia. Everything below is
+summary — the linked documents are authoritative.
+
+### What the index is for
+
+A Warden (the AI game master) is running a Mothership session. Mid-turn it
+can call a `rules_lookup` tool with a free-text query. The backend embeds the
+query, runs cosine similarity against `rules_chunk` in pgvector filtered to
+the active game system, and returns the top matches. The Warden reads them
+and adjudicates.
+
+The consumer's constraints, all of which shape what a good chunk is:
+
+- **Top 3 by default, 5 maximum** (`rulesLookupInputSchema`,
+  `apps/zoltar-be/src/session/session.schema.ts`). Three chunks is the real
+  budget.
+- **Each result is `{text, source, similarity}`.** `section_path` is stored
+  on the row but never surfaced, so **`source` is the only citation the
+  Warden or the player ever sees.**
+- **There is no similarity floor.** The query is `ORDER BY … LIMIT n` with no
+  threshold, so on a populated index the Warden receives three chunks for
+  every question, including questions this book cannot answer. Whether to add
+  a floor is an open decision (`docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md § Part 4`).
+- **Empty results are a supported outcome.** The Warden falls back to a
+  best-effort ruling and notes the miss. Returning nothing is safe;
+  returning something confidently wrong is not.
+
+### What the Warden actually asks
+
+The most useful single input here, and easy to guess wrong. These are the
+only real `rules_lookup` queries ever recorded — from playtests that all ran
+against an empty index:
+
+```
+"perception check looking around environment, noticing details"
+"saving throws stats how to roll checks"
+"skill checks INT intellect saves diagnosis repair"
+```
+
+Keyword-stuffed and fuzzy, not crisp questions. Any chunking idea optimized
+for "what happens on a panic check?" is being tuned against a query
+distribution the Warden does not actually produce. Both styles matter; do not
+assume the tidy one.
+
+### The book
+
+Mothership Player's Survival Guide 1e. 44 pages, zine format, heavy display
+type, multi-column, art-dense — a designed object rather than a reference
+manual. 27 chapters (listed in [S1.8](#18-the-running-footer-is-the-reliable-provenance-source)),
+32 tables, and content that ranges from procedural rules to stat blocks to
+example-of-play dialogue to reference cards that duplicate body rules.
+
+Its visual design is the root cause of most of this file: every structural
+signal the extraction tool emits is derived from font size and reading order,
+and both are unreliable here.
+
+### The planned chunking approach
+
+**Not yet built** — this is the design as of 2026-08-04, not something with
+results behind it. Extract typed blocks from marker's `chunks` output
+(`Text`/`Table`/`ListGroup`, dropping headers/footers/pictures), attach the
+printed page number and chapter name from the PDF's running footer, then
+merge blocks in order toward a ~400-token target with 50–100 tokens of
+overlap. Chapter changes force a chunk boundary. Tables are never split. Each
+chunk's text opens with a breadcrumb line naming its chapter. Full contract
+in `docs/plans/012-m7.2-rules-ingestion-implementation-plan.md § Part 2`.
+
+The 400-token target and the 50–100 overlap band are inherited heuristics
+from `docs/rules-ingestion.md § Step 4`. They have never been validated
+against anything.
+
+### Hard constraints
+
+Ideas that violate these need a decision, not just an implementation:
+
+- **No rules text ships.** Extracted Markdown, chunk text, and vector indexes
+  for non-SRD systems cannot live in this repository or be distributed
+  (`docs/rules-ingestion.md § Licensing Posture`). Users run the pipeline
+  against a PDF they own. This is why there are no sample chunks in this file.
+- **`rules_chunk.embedding` is `vector(1024)`**, and the ingestion model must
+  be the *same model* as the runtime query model, not merely one of equal
+  width.
+- **Ingestion is offline, Python, and currently makes no LLM calls** — Voyage
+  embeddings only.
+- **Query time sits in the GM turn hot path**, budgeted at ~100–200 ms
+  (`docs/rules-ingestion.md § Query Time`).
+
+`docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md § 2.1` has a triage
+table for which kinds of ideas cross these lines. Worth reading as a
+*second-pass filter* on ideas rather than a first-pass frame — it is written
+to constrain, and constraint-first framing tends to narrow a brainstorm.
+
+### What has and hasn't been measured
+
+**Nothing about retrieval quality has been measured.** There is no recall
+number, no baseline, no evidence any of this works. Everything in this file
+so far is about getting text out of a PDF, not about whether the resulting
+chunks retrieve well.
+
+The measurement is planned: page-labeled fixtures scored deterministically
+for recall@3, recall@5, and MRR, with deliberately unanswerable questions
+included to see whether a similarity floor is derivable
+(`docs/plans/012-m7.2-rules-ingestion-implementation-plan.md § Part 5`).
+Fixtures are labeled by **page**, not chunk id, so they survive re-chunking —
+which is what makes iterating on chunking measurable at all.
+
+Practical consequence for brainstorming: an idea's cost is mostly "can we
+score it with the existing fixtures?" Ideas that change what a *correct*
+result means need the metric rethought before they can be judged, and that is
+the expensive category.
+
+### To see the actual extracted output
+
+It is not in this repository and cannot be. Run the pipeline yourself per
+`ingestion/README.md`, or look at a previous extraction on Alex's machine.
+Reasoning about chunking without looking at a few real pages of marker output
+is not recommended — the failures in [S1.5](#15-markdown-heading-levels-are-visual-not-semantic)
+and [S1.7](#17-section_hierarchy-is-not-true-ancestry) are much more obvious
+on sight than in summary.
 
 ---
 
