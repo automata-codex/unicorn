@@ -1,0 +1,16 @@
+# Test-only dependencies. This is the file CI installs.
+#
+# Deliberately does NOT include requirements.txt. The only ingestion test that
+# runs in CI is tests/test_chunk.py, which exercises pipeline/chunk.py against
+# a synthetic Markdown string — no marker extraction models, no Voyage key, no
+# database. Installing requirements.txt on a runner would pull marker-pdf and
+# torch (~1.2 GB resolved) to run a test that needs neither.
+#
+# The constraint this encodes: pipeline/chunk.py must stay importable with
+# nothing but the standard library installed. It must not import tiktoken,
+# extract.py, embed.py, or store.py at module scope. Its token counter is
+# injectable, and its tiktoken default is constructed lazily on first use.
+# If CI ever fails here on a missing import, fix the import — do not add the
+# package to this file.
+
+pytest==9.1.1

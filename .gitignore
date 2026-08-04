@@ -101,5 +101,11 @@ apps/zoltar-be/synthesis-saves/
 # Local database backups (contain full campaign/session data)
 infra/db/backups/
 
+# Python ingestion pipeline (ingestion/ sits outside the npm workspace globs)
+ingestion/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
 # Personal notes — kept on disk, not tracked
 docs/mental-health-toolkit.md
