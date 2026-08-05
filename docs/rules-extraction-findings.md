@@ -109,9 +109,14 @@ The 400-token target and the 50–100 overlap band are inherited heuristics
 from `docs/rules-ingestion.md § Step 4`. They have never been validated
 against anything.
 
-An FTS-based alternative to this whole approach is under consideration as of
-2026-08-05 — see the last bullet under Open questions — and could relax the
-block-merge requirement above if it pans out.
+An FTS-based alternative to this whole approach was considered and tested on
+2026-08-05. It did not pan out — see [S3](#s3--2026-08-05--postgres-fts-gut-check-on-page-granular-text).
+This design stands, still unvalidated.
+
+**A caveat this section cannot give you, but the next one can:** S3 found that
+extraction loses 14 of 32 tables outright, and that recorded Warden queries
+use vocabulary the book does not contain. Both problems sit upstream of
+chunking and are untouched by anything described above.
 
 ### Hard constraints
 
@@ -136,10 +141,17 @@ to constrain, and constraint-first framing tends to narrow a brainstorm.
 
 ### What has and hasn't been measured
 
-**Nothing about retrieval quality has been measured.** There is no recall
-number, no baseline, no evidence any of this works. Everything in this file
-so far is about getting text out of a PDF, not about whether the resulting
-chunks retrieve well.
+**Nothing about retrieval quality has been measured *numerically*.** There is
+still no recall number, no MRR, no baseline. Most of this file is about
+getting text out of a PDF, not about whether the resulting chunks retrieve
+well.
+
+The one exception is [S3](#s3--2026-08-05--postgres-fts-gut-check-on-page-granular-text),
+a deliberately qualitative gut-check: Postgres FTS over page-granular text,
+judged by hand against the three recorded Warden queries. It is evidence
+about *FTS*, not about the planned chunker, and three hand-judged queries is
+not a metric. Treat it as a disqualifying result for one alternative, not as
+a measurement of the design in place.
 
 The measurement is planned: page-labeled fixtures scored deterministically
 for recall@3, recall@5, and MRR, with deliberately unanswerable questions
@@ -190,7 +202,17 @@ Current as of 2026-08-05. Each links to the session that established it.
    (physical pp. 4–5) spans a page break, but character creation is
    structurally unreachable by the Warden — confirmed via tool-array and
    query-log inspection — so its extraction quality doesn't bear on
-   retrieval design. ([S2](#s2--2026-08-05-character-creation-is-unreachable-to-the-warden))
+   retrieval design. ([S2](#s2--2026-08-05--character-creation-is-unreachable-to-the-warden))
+7. **`Table` blocks are typed and positioned but often empty.** 14 of 32
+   carry no text at all, emitted as `<p></p>`. Physical pages 11 and 12 are
+   lost entirely as a result. Block counts are not a proxy for extracted
+   content — check text length, not block presence.
+   ([S3.2](#32-new-finding--14-of-32-table-blocks-carry-no-text))
+8. **The Warden queries in generic-TTRPG vocabulary, not the book's.**
+   `perception`, `diagnosis`, and `INT` appear on zero pages. Any retrieval
+   design that assumes query terms occur in the corpus is assuming something
+   false for this query distribution.
+   ([S3.6](#36-term-coverage--the-wardens-vocabulary-is-not-the-books))
 
 ---
 
@@ -210,6 +232,9 @@ information** — each cost real time.
 | `_meta.json` → `table_of_contents[].heading_level` | `None` for all 169 entries. The field exists and is always empty. | [S1.4](#14-markdown-output-has-no-usable-page-markers) |
 | `section_hierarchy` as semantic ancestry | It is "last header seen at each visual level," so siblings become parents: `STEP 5. GAIN STRESS > STEP 6. NOTE TRAUMA RESPONSE`. | [S1.7](#17-section_hierarchy-is-not-true-ancestry) |
 | Reading printed page numbers from marker's `PageFooter` blocks | Marker detects them (11 blocks) but emits empty `html` — it strips footers as noise. Read them from `pypdfium2` instead. | [S1.8](#18-the-running-footer-is-the-reliable-provenance-source) |
+| `websearch_to_tsquery`/`plainto_tsquery` output used unmodified | Both AND unquoted terms. The recorded queries run 5–7 content words deep, so requiring one page to carry all of them returned **0 hits on all three**. Any FTS design must OR the terms or otherwise relax this. | [S3.5](#35-the-and-trap-is-real--0-hits-on-all-three-queries) |
+| `ts_rank_cd` normalization flag `32` as a ranking fix | `rank/(rank+1)` is monotonic, so it cannot reorder results. Identical ranking to the default on every query. Flag `2` (document length) does change ordering. | [S3.8](#38-ranking-normalization-diagnostic-beyond-the-brief) |
+| FTS over page-granular text as a *replacement* for embedding retrieval | 0 of 3 recorded queries returned an acceptable top 3; the decisive failure is vocabulary the book does not contain, which no tuning fixes. Not ruled out as a *supplement*. | [S3.9](#39-conclusion--unconvincing-as-a-replacement-on-this-evidence) |
 
 ---
 
@@ -217,7 +242,7 @@ information** — each cost real time.
 
 - **Fallback chapter for the remaining 5 footer-less pages** (physical 0,
   1, 2, 10, 43 — down from 8: page 4 and its duplicates 41–42 are dropped
-  outright, not resolved, per [S2](#s2--2026-08-05-character-creation-is-unreachable-to-the-warden)).
+  outright, not resolved, per [S2](#s2--2026-08-05--character-creation-is-unreachable-to-the-warden)).
   Page 10 (equipment continuation) is body content the Warden would
   plausibly query and is the one that most needs an answer. Pages 1 and 43
   (armor/weapons and back-cover reference cards) duplicate live body rules
@@ -241,18 +266,35 @@ information** — each cost real time.
   Manual, Shipbreaker's Toolkit) needs its own check before ingestion.
 - **Is `tiktoken` a good enough proxy for Voyage's tokenizer here?** Not yet
   measured. Accepted as a heuristic per `docs/specs/zoltar/012-m7.2-rules-ingestion.md § Part 3`.
-- **Should FTS (Postgres `tsvector`/`ts_rank`/`ts_headline`) replace or
-  precede embedding-based retrieval as the primary `rules_lookup` mechanism?**
-  Proposed 2026-08-05, on the strength of the recorded Warden queries being
-  keyword-heavy rather than paraphrased ("What the Warden actually asks"
-  above) and external evidence that FTS beats semantic search on
-  keyword-anchored queries against a heterogeneous corpus
-  (alexgs.me/posts/fts-is-the-workhorse). Not yet tested against this book
-  or these queries — no session behind this bullet yet. If it holds up, it
-  would relax rather than eliminate the chunking work: table atomicity and
-  the S1.8 footer/chapter attribution stay necessary either way; the
-  block-merge-toward-400-tokens design (the part [S1.5](#15-markdown-heading-levels-are-visual-not-semantic)–[S1.7](#17-section_hierarchy-is-not-true-ancestry)
-  are currently blocking) would become optional rather than required.
+- **~~Should FTS replace or precede embedding-based retrieval?~~ Answered
+  2026-08-05 — no, not as a replacement.** See
+  [S3](#s3--2026-08-05--postgres-fts-gut-check-on-page-granular-text). The
+  premise behind the proposal was that the recorded queries are keyword-heavy;
+  S3.6 found they are keyword-heavy *in vocabulary the book does not use*,
+  which is the opposite of the condition the external evidence
+  (alexgs.me/posts/fts-is-the-workhorse) relies on. **FTS as a supplement to
+  embeddings remains untested and is not ruled out** by that session.
+- **Does the Warden's query vocabulary match the book's?** No, and this is
+  unaddressed on both retrieval paths. Two of the three recorded queries lean
+  on terms absent from the PSG (`perception`, `diagnosis`, `INT`), because
+  the Warden writes generic-TTRPG rather than Mothership vocabulary
+  ([S3.6](#36-term-coverage--the-wardens-vocabulary-is-not-the-books)).
+  Whether embeddings actually bridge this is assumed, not shown — the obvious
+  next measurement, and cheap once any index is populated. Options if they
+  do not: a system-specific synonym/thesaurus layer, or prompt-side guidance
+  steering the Warden toward book vocabulary.
+- **Do the `Table` blocks that extract empty need fixing before M7.2 ships?**
+  14 of 32 carry no text ([S3.2](#32-new-finding--14-of-32-table-blocks-carry-no-text)),
+  taking physical pages 11 and 12 (`FIREARMS`, `INDUSTRIAL EQUIPMENT`) out of
+  the index entirely. Equipment stats are plausible Warden queries, so this
+  is probably a fixup-file case (`docs/rules-ingestion.md § Step 2`) or an
+  argument for a second extraction pass on table regions. Not yet scoped.
+- **Is physical page 3 also unreachable?** [S2](#s2--2026-08-05--character-creation-is-unreachable-to-the-warden)
+  dropped pages 4, 41, 42 as character-creation content. Page 3 is the
+  character-profile sheet and appears to be the same category, but was not
+  covered by S2's analysis. It ranked in the top 3 for two of three queries in
+  S3.7 purely on stat-name density — so if it is unreachable, excluding it is
+  a free precision win on either retrieval path.
 ---
 
 ## Corrections owed to `docs/rules-ingestion.md`
@@ -516,3 +558,327 @@ unreachable regardless of extraction fidelity.
 footer-less pages) and pages 41–42 (its byte-identical back-matter
 duplicates) can be dropped from the index outright rather than resolved.
 See updated Open questions below.
+
+
+### S3 — 2026-08-05 · Postgres FTS gut-check on page-granular text
+
+Context: the Open questions bullet proposing FTS as a `rules_lookup`
+mechanism had no session behind it. This is the qualitative gut-check that
+gives it one — deliberately *not* the recall@3/@5/MRR harness M7.2 has
+planned, which still needs page-labeled fixtures that do not exist.
+
+**What this is not.** Not a head-to-head against Voyage/pgvector — that index
+is empty, and populating it to compare would defeat the point of deciding
+before that work happens. No number here is a retrieval metric. No LLM calls
+were made at ingestion or query time; the query text goes straight into
+`websearch_to_tsquery`.
+
+**Deliberate simplifications.** One row per physical page (no block merging,
+no chunking of any kind). Table HTML flattened to plain text, structure
+discarded. Chapter attribution not carried on the row — resolved separately,
+read-only, only to describe results below. These are spike shortcuts, not
+proposals.
+
+#### 3.1 Corpus construction
+
+Source: the S1 marker `chunks` artifact, read from a local path outside the
+repository. Content blocks only (`Text`/`Table`/`ListGroup`), the same filter
+S1.6 validated. Physical pages 4, 41, 42 excluded per [S2](#s2--2026-08-05--character-creation-is-unreachable-to-the-warden).
+Page index taken from the `/page/N/` prefix of each block's `id`, never from
+the `page` field (a Dead end).
+
+| Quantity | n |
+|---|---|
+| Blocks in artifact | 674 |
+| Content blocks | 409 |
+| Content blocks after S2 exclusions | 334 |
+| Content blocks contributing text | 321 |
+| **Pages loaded** | **38** |
+| Total characters | 76,803 |
+| Lexemes per page (avg / min / max) | 151 / 38 / 395 |
+
+`page_number` holds the **physical** index; printed page = physical + 1
+(standing conclusion 3). Both are given for every result below.
+
+#### 3.2 New finding — 14 of 32 `Table` blocks carry no text
+
+38 pages loaded, not the 41 that 44 − 3 exclusions implies. Three pages
+contribute nothing at all, because every content block on them flattens to
+the empty string:
+
+| Physical | Printed | Chapter | Why empty |
+|---|---|---|---|
+| 0 | 1 | — (cover) | 3 `Text` blocks, all `<p block-type="Text"></p>` |
+| 11 | 12 | `FIREARMS` | 7 `Table` blocks, all `<p></p>` |
+| 12 | 13 | `INDUSTRIAL EQUIPMENT` | 6 `Table` blocks, all `<p></p>` |
+
+Book-wide, **14 of 32 `Table` blocks (44%) have empty text**, on physical
+pages 11, 12, and 32. Page 32 (`SURVIVAL`) survives because it has other
+content; 11 and 12 do not.
+
+This is the same failure mode S1.8 found for `PageFooter` — marker emits the
+block with a detected type and bounding box, but no content — except that
+here it is silent data loss on body pages rather than deliberate noise
+stripping. S1.6's "409 content blocks" is an accurate count of blocks and an
+overcount of blocks carrying text; the real figure is 395 book-wide.
+
+**This is not an FTS finding.** It is upstream of retrieval entirely and hits
+the embedding approach identically: the two pages of equipment stat tables a
+Warden would most plausibly query for gear are absent from any index built on
+this artifact, by either method. It supersedes nothing in S1.6 — the block
+counts there are correct — but it does mean table extraction is a live
+problem independent of chunking strategy, and it is a stronger argument for
+the S1.6 note that "tables survive as HTML" needing qualification.
+
+#### 3.3 Scratch schema
+
+Created directly in the dev Postgres (`unicorn-db-1`, pgvector/pg16), not via
+a Flyway migration, and dropped at the end of the session (3.10).
+
+```sql
+CREATE TABLE spike_fts_page (
+  page_number int PRIMARY KEY,
+  page_text   text NOT NULL,
+  tsv         tsvector GENERATED ALWAYS AS
+                (to_tsvector('english', page_text)) STORED
+);
+```
+
+No GIN index, deliberately: 38 rows is a sequential scan either way, and an
+index would imply a performance claim this session is not making. Nothing
+here touches `rules_chunk`, `session.schema.ts`, or any production path.
+
+#### 3.4 Queries run
+
+The three recorded `rules_lookup` queries, unmodified. No synthetic queries
+were added.
+
+```sql
+-- AND form (websearch_to_tsquery's default behaviour)
+SELECT page_number,
+       round(ts_rank_cd(tsv, q)::numeric, 5) AS rank,
+       ts_headline('english', page_text, q,
+                   'MaxFragments=2,MaxWords=18,MinWords=8') AS snippet
+FROM spike_fts_page,
+     LATERAL (SELECT websearch_to_tsquery('english', $1)) AS t(q)
+WHERE tsv @@ q
+ORDER BY rank DESC, page_number
+LIMIT 3;
+```
+
+```sql
+-- OR form: identical, with only the operator swapped. Reusing
+-- websearch_to_tsquery's own output keeps stemming and stopword handling
+-- byte-identical between the two forms.
+LATERAL (SELECT replace(websearch_to_tsquery('english', $1)::text,
+                        ' & ', ' | ')::tsquery) AS t(q)
+```
+
+`ts_headline` output was read at the terminal to make the relevance calls in
+3.5 and is deliberately not reproduced here, per this file's posture on
+quoted material.
+
+#### 3.5 The AND trap is real — 0 hits on all three queries
+
+| Query | Terms after stemming | AND hits | OR hits |
+|---|---|---|---|
+| Q1 perception/noticing | 7 | **0** | 3 |
+| Q2 saves/stats/rolling | 5 | **0** | 3 |
+| Q3 skills/INT/repair | 7 | **0** | 3 |
+
+Parsed tsqueries (lexemes only, no rules text):
+
+```
+Q1  'percept' & 'check' & 'look' & 'around' & 'environ' & 'notic' & 'detail'
+Q2  'save' & 'throw' & 'stat' & 'roll' & 'check'
+Q3  'skill' & 'check' & 'int' & 'intellect' & 'save' & 'diagnosi' & 'repair'
+```
+
+Three for three. The brief's warning was not hypothetical: requiring one page
+to carry all 5–7 content words of a keyword-stuffed query is a far stricter
+bar than the Warden is asking for. **Any FTS design here must not use
+`websearch_to_tsquery`/`plainto_tsquery` output unmodified.** All results
+below are the OR form.
+
+#### 3.6 Term coverage — the Warden's vocabulary is not the book's
+
+Document frequency per lexeme across the 38 loaded pages, which turns out to
+explain most of the ranking behaviour:
+
+| Lexeme | Pages | Lexeme | Pages |
+|---|---|---|---|
+| `percept` | **0** | `save` | 24 |
+| `diagnosi` | **0** | `roll` | 24 |
+| `int` | **0** | `check` | 22 |
+| `notic` | 2 | `stat` | 15 |
+| `around` | 1 | `skill` | 8 |
+| `throw` | 3 | `repair` | 7 |
+| `detail` | 3 | `intellect` | 5 |
+| `environ` | 5 | `look` | 9 |
+
+Three of the queries' most distinctive terms — `perception`, `diagnosis`, and
+the abbreviation `INT` — **appear nowhere in the book.** The book writes
+`Intellect`, and has no perception concept at all. What remains after those
+drop out is the generic tail (`check`, `save`, `roll`, `stat`), which is
+spread across 15–24 of 38 pages and therefore carries almost no
+discriminating power.
+
+This is the single most important observation in the session, and it is not
+really about FTS. The recorded queries are written in generic-TTRPG
+vocabulary — `perception check`, `saving throw`, `INT` — while the book uses
+its own. A lexical matcher cannot bridge that gap by construction. This is
+precisely the case an embedding model is supposed to handle, and it accounts
+for 1 of the 3 real queries outright.
+
+#### 3.7 Per-query results and hand judgement
+
+Chapter names come from a read-only `pypdfium2` footer pass (S1.8's method,
+35/44 pages resolved). They are a description aid only — chapter was not
+stored on the row and not used in matching.
+
+**Q1 — "perception check looking around environment, noticing details"**
+
+| # | Physical | Printed | Rank | Chapter |
+|---|---|---|---|---|
+| 1 | 20 | 21 | 1.00 | `PANIC CHECKS` |
+| 2 | 18 | 19 | 0.80 | `MODIFYING STAT CHECKS & SAVES` |
+| 3 | 16 | 17 | 0.60 | `HOW TO PLAY` |
+
+**Judgement: wrong.** The top hit is the panic table, which has nothing to do
+with observing an environment; it wins because `check` recurs on it more than
+anywhere else. Result 2 matches on an example-of-play exchange rather than on
+rules. The page a Warden should have received — `STAT CHECKS & SAVES`
+(physical 17), where an awareness ruling would resolve — does not appear
+anywhere in the top 8. Per 3.6 this is not recoverable by ranking: the
+query's distinctive term is absent from the corpus.
+
+**Q2 — "saving throws stats how to roll checks"**
+
+| # | Physical | Printed | Rank | Chapter |
+|---|---|---|---|---|
+| 1 | 3 | 4 | 2.80 | `HOW TO MAKE YOUR CHARACTER` |
+| 2 | 18 | 19 | 2.80 | `MODIFYING STAT CHECKS & SAVES` |
+| 3 | 16 | 17 | 2.60 | `HOW TO PLAY` |
+
+**Judgement: partial, with a wrong result in first place.** Results 2 and 3
+are defensible — both are core resolution-mechanics pages. Result 1 is the
+character-profile sheet: it ranks first because stat names and roll
+instructions are printed densely on a form, not because it explains anything.
+`STAT CHECKS & SAVES` (physical 17), the single most on-target page in the
+book for this query, ranked **7th**.
+
+Note also that physical page 3 is character-creation content, which
+[S2](#s2--2026-08-05--character-creation-is-unreachable-to-the-warden)
+established the Warden cannot reach. Only pages 4, 41, 42 were excluded here;
+page 3 is a further under-exclusion this session did not anticipate.
+
+**Q3 — "skill checks INT intellect saves diagnosis repair"**
+
+| # | Physical | Printed | Rank | Chapter |
+|---|---|---|---|---|
+| 1 | 18 | 19 | 1.80 | `MODIFYING STAT CHECKS & SAVES` |
+| 2 | 3 | 4 | 1.60 | `HOW TO MAKE YOUR CHARACTER` |
+| 3 | 28 | 29 | 1.50 | `WOUNDS & DEATH` |
+
+**Judgement: mostly wrong.** Only result 1 is defensible. Result 2 is the
+character sheet again. Result 3 matches on `save` in the death-save sense — a
+homonym collision with the query's `saves`, and exactly the kind of
+confidently-wrong result that is worse than an empty response. The two
+chapters the query all but names — `SKILLS` (physical 21) and `SKILL
+TRAINING` (physical 23) — ranked **5th and 8th**, despite both containing
+`skill` and `repair`.
+
+**Tally: 0 of 3 queries returned a top-3 a Warden should have received.** One
+(Q2) was partially useful. Two put a character sheet in the top 3.
+
+#### 3.8 Ranking normalization diagnostic (beyond the brief)
+
+Because the failures in 3.7 looked like a ranking artifact rather than a
+matching one — long, term-dense pages beating short on-topic ones — the same
+queries were re-run with `ts_rank_cd`'s normalization flag. Cheap, and it
+distinguishes "FTS does not work here" from "the default ranking is
+untuned," which are different decisions.
+
+| Flag | Effect | Q1 | Q2 | Q3 |
+|---|---|---|---|---|
+| `0` (default) | none | target absent | target #7 | targets #5, #8 |
+| `32` | `rank/(rank+1)` | identical order | identical order | identical order |
+| `2` | divide by document length | target absent | **target #3** | **`SKILL TRAINING` #2** |
+
+`32` is a monotonic transform of `0` and therefore cannot reorder anything —
+recorded so nobody tries it again as a fix.
+
+`2` is a real improvement on the two queries that have a lexically reachable
+answer: `STAT CHECKS & SAVES` rises 7th → 3rd on Q2, and `SKILL TRAINING`
+rises 8th → 2nd on Q3. The character sheet drops to 6th and 8th respectively.
+It makes Q1 worse — a 476-character `ARMOR` page takes first place purely for
+being short, the opposite failure mode.
+
+So the default ranking is genuinely under-tuned, and roughly half the
+observed failure is fixable configuration. The other half — Q1 entirely — is
+not.
+
+#### 3.9 Conclusion — unconvincing as a replacement, on this evidence
+
+**FTS alone is not promising enough to relax or replace M7.2's chunking
+design. M7.2 continues as planned.**
+
+The reasoning, so this does not get re-litigated without new evidence:
+
+1. **It failed the only test available.** Zero of three real queries produced
+   a top-3 a Warden should have received. Two of three put a character sheet
+   — content [S2](#s2--2026-08-05--character-creation-is-unreachable-to-the-warden)
+   established is unreachable — in the top 3.
+2. **The decisive failure is not fixable by tuning.** Q1's distinctive term
+   does not occur in the book. Neither `websearch_to_tsquery` configuration,
+   rank normalization, nor any chunking strategy recovers a page that shares
+   no vocabulary with the query. Lexical matching is structurally blind to
+   this, and it is 1 of the 3 real queries.
+3. **The blog result does not transfer as assumed.** The FTS-beats-semantic
+   case (`alexgs.me/posts/fts-is-the-workhorse`) rests on queries that are
+   keyword-anchored *in the corpus's own vocabulary*. The recorded Warden
+   queries are keyword-stuffed in **generic TTRPG vocabulary** — `perception
+   check`, `saving throw`, `INT` — against a book that uses none of those
+   terms. Keyword-heavy and lexically-matchable are not the same property,
+   and the Open questions bullet conflated them.
+
+**What would change this call.** The evidence is thin in a specific,
+recoverable way: three queries, 38 pages, no comparison against the thing it
+would replace. Any of the following is new evidence — (a) the same three
+queries run against a populated pgvector index, showing embeddings do or do
+not clear the Q1 vocabulary gap; (b) a larger recorded query sample, since
+three is a weak basis for a distributional claim and two of them contain
+out-of-corpus terms; (c) FTS as a *supplement* rather than a replacement,
+which this session did not test at all and which its results do not argue
+against.
+
+**What this session does not show.** It does not show the block-merge chunker
+is *right* — that remains unvalidated, per the preamble. It shows only that
+FTS on page-granular text is not good enough to justify dropping it. Nor
+does it show FTS is worthless: with length normalization it put the correct
+page in the top 3 for both queries that had a lexically reachable answer.
+
+**Two findings that outlive the FTS question**, both affecting the embedding
+path identically:
+
+- **14 of 32 `Table` blocks carry no text** (3.2), costing two body pages
+  entirely. No chunking or retrieval strategy compensates for content that is
+  absent from the extraction.
+- **Warden query vocabulary diverges from book vocabulary** (3.6). This is a
+  retrieval-design problem, not an FTS problem, and it is currently
+  unaddressed on either path. It deserves its own open question.
+
+#### 3.10 Teardown
+
+```sql
+DROP TABLE IF EXISTS spike_fts_page;
+```
+
+Verified gone from `pg_tables`; `flyway_schema_history` shows 0 failed
+migrations, i.e. the scratch table left no trace on migration state. No
+production code path, schema, or migration was touched at any point.
+
+The spike scripts were not committed — they are throwaway JSON-shuffling, and
+the schema and both query forms are reproduced above in full, which is what
+this session needs to be repeatable. The marker artifact remains outside the
+repository per `docs/rules-ingestion.md § Licensing Posture`.
