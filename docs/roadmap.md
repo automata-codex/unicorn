@@ -4,8 +4,8 @@ This document tracks planned work by phase. Per-feature specs live in `docs/spec
 
 Phase 1 is organized in two sections:
 
-- **Feature Requirements** — the full inventory of what needs to be built, organized by domain. These are the canonical task lists.
-- **Delivery Milestones** — the sequence in which work is built and shipped. Each milestone is independently testable and represents a meaningful step toward the phase target. Most milestones include both frontend and backend work.
+- **Feature Requirements** — the inventory of *product* scope, organized by domain. These are the canonical task lists for what the application does. Development tooling — playtest review, replay infrastructure, the eval harness, rules ingestion — is deliberately not inventoried here; it appears only as delivery milestones, because it is scope that exists to support building the product rather than scope the product ships.
+- **Delivery Milestones** — the sequence in which work is built and shipped. Each milestone is independently testable and represents a meaningful step toward the phase target. Most milestones include both frontend and backend work. Unplanned work that extends a shipped milestone is noted in that milestone's summary rather than given an entry of its own.
 
 ---
 
@@ -234,8 +234,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [ ] Fixup patch scaffolding for chunk-level corrections
 - [ ] Hash-verification step to detect source-document drift between re-ingestions
 - [ ] Ingestion smoke tests (chunk count, embedding dimensions, system_id tagging)
-- [ ] Re-baseline both models against the populated index — full corpus, uniform N, compared against the re-scored `88fa84bd8329` runs. A populated index changes what the Warden sees (tool results, and plausibly its roll behaviour), so every rate measured against the empty index is provisional. Update `Current baseline N` in `docs/eval-methodology.md` if applicability or variance shifted
-- [ ] Dedicated playtest after ingestion lands — confirms the index actually helped, and is the source of the second confirmed instances `MISSING-CANON-CAPTURE`, `UNSURFACED-CHECK`, `OVER-RESOLUTION`, and `SCENE-JUMP` need to close M7.4's remaining item. Harness-only validation stays provisional without it
+- [ ] Retrieval eval harness — page-labeled fixtures scored deterministically for recall@3/@5 and MRR, with unanswerable questions included so a similarity floor is derivable. Voyage calls only, no judge, so it is cheap enough to run on every chunking change. This is the ruler M7.5 iterates against; without it, "did that chunking change help?" is unanswerable
 
 #### M7.3 — Turn-State Replay Infrastructure
 
@@ -250,7 +249,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 
 #### M7.4 — Warden Eval Harness
 
-*Regression suite for Warden prompt candidates against known failure modes surfaced by real playtests (out-of-order tool resolution, hidden-info leaks, unauditable state changes, etc.). Drives the real turn pipeline in-process rather than reimplementing it; seeds each fixture's starting state via M7.3's `reconstructStateAsOfTurn` rather than any bespoke save/load mechanism. Spec: [`docs/specs/zoltar/010-m7.4-eval-harness-spec.md`](specs/zoltar/010-m7.4-eval-harness-spec.md).*
+*Regression suite for Warden prompt candidates against known failure modes surfaced by real playtests (out-of-order tool resolution, hidden-info leaks, unauditable state changes, etc.). Drives the real turn pipeline in-process rather than reimplementing it; seeds each fixture's starting state via M7.3's `reconstructStateAsOfTurn` rather than any bespoke save/load mechanism. Spec: [`docs/specs/zoltar/010-m7.4-eval-harness-spec.md`](specs/zoltar/010-m7.4-eval-harness-spec.md). **Extended after shipping** by unplanned multi-run infrastructure — reps, machine-readable score rows, paired comparison, and re-scoring of frozen artifacts — spec: [`docs/specs/zoltar/011-eval-harness-multi-run.md`](specs/zoltar/011-eval-harness-multi-run.md), referred to as M7.4.1 in `Taskfile.yml` and `docs/eval-methodology.md`. That work was never a planned milestone and deliberately has no entry of its own.*
 
 - [x] `EvalFixture` format — adventure id + target sequence number, player input, structural and/or judge-graded assertions, failure-mode tag. Shipped as `sourceAdventureId` / `sourceSequenceNumber` plus a `seededState` block captured statically at authoring time, rather than a live `savePointRef` the harness re-derives per run — see `eval/fixture.schema.ts`. Also carries fixture-authored `applicability`, `fixtureSchemaVersion`, and `repOverride`, none of which the spec anticipated
 - [x] Structural assertion checkers — deterministic, no second LLM call (e.g. tool-call ordering)
@@ -259,6 +258,17 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [x] Markdown output report (summary by tag, per-fixture failure detail) — `eval/runs/report-multi.ts`: per-fixture rates, per-tag rollup, errors, exclusions, applicability findings
 - [ ] Fixtures for each failure-mode tag identified in real playtests, at least 2 confirmed instances per tag where the fixture-count bar requires it — 15 fixtures cover all 9 tags, but `MISSING-CANON-CAPTURE`, `UNSURFACED-CHECK`, `OVER-RESOLUTION`, and `SCENE-JUMP` each still sit at a single instance. The first three are the ones the spec flagged as needing a second confirmed instance before the category counts as covered; `SCENE-JUMP` was added after the spec and inherits the same bar. Blocked on playtest evidence, not on code
 - [x] One deliberately-broken counterexample per structural checker, to prove the checker actually fails bad behavior and isn't silently passing everything
+
+#### M7.5 — Rules Retrieval Quality
+
+*Takes the populated-but-unmeasured index from M7.2 and makes retrieval good enough to trust, then buys the Warden-level measurement once, against an index that is not about to change again. Separate from M7.2 because the two have different kinds of completion criteria — M7.2's are binary (the CLI runs, rows land, the harness scores), M7.5's is a quality bar, and quality-bar milestones absorb whatever is adjacent to them. Spec: [`docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md`](specs/zoltar/013-m7.5-rules-retrieval-quality.md).*
+
+- [ ] Retrieval quality bar set against M7.2's first measurement rather than guessed in advance, with separate targets for authored and Warden-observed query styles, recorded in `docs/eval-methodology.md`
+- [ ] Chunking iteration against `task eval:retrieval` — one change per round, each logged in `docs/rules-extraction-findings.md`, including the rounds that made things worse. Closes on the bar or on the stopping rule, whichever comes first
+- [ ] `--markdown` curated-input path on `ingest.py`, bypassing extraction. The capability ships; a curated Mothership Markdown cannot, per `docs/rules-ingestion.md § Licensing Posture`
+- [ ] Similarity floor for `rules_lookup` derived from the answerable/unanswerable distributions — or a recorded finding that they do not separate and no honest floor exists yet. Must land before the re-baseline, since it changes what reaches the Warden
+- [ ] Re-baseline both models against the final index — full corpus, uniform N, compared against the re-scored `88fa84bd8329` runs. A populated index changes what the Warden sees (tool results, and plausibly its roll behaviour), so every rate measured against the empty index is provisional. Update `Current baseline N` in `docs/eval-methodology.md` if applicability or variance shifted
+- [ ] Dedicated playtest against the final index — confirms the index actually helped, and is the source of the second confirmed instances `MISSING-CANON-CAPTURE`, `UNSURFACED-CHECK`, `OVER-RESOLUTION`, and `SCENE-JUMP` need to close M7.4's remaining item. Harness-only validation stays provisional without it
 
 #### M8 — Multiplayer Foundation
 
@@ -282,7 +292,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [ ] Self-hosted setup guide + DigitalOcean Droplet walkthrough
 - [ ] Signup mode documented in self-hosted setup guide
 - [ ] Responsive polish pass (thumb reach, viewport refinement)
-- [ ] Full-corpus eval run before tagging, compared against the M7.2 re-baseline. This is release discipline rather than milestone scope — it belongs on the release checklist alongside the setup guide and env-var docs, and it recurs at every tagged release, not just this one. Listed here explicitly to establish the habit
+- [ ] Full-corpus eval run before tagging, compared against the M7.5 re-baseline. This is release discipline rather than milestone scope — it belongs on the release checklist alongside the setup guide and env-var docs, and it recurs at every tagged release, not just this one. Listed here explicitly to establish the habit
 - [ ] Comprehensive release checklist authored for future releases
 - [ ] First tagged release (`v0.1.0`)
 

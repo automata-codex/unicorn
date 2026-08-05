@@ -1,4 +1,4 @@
-# 013 — Fixture/check reachability validation (design only)
+# Fixture/check reachability validation (design only)
 
 **Status: Deferred 2026-07-31.** Not built and not scheduled. The PASS-unreachable case it was written for (turn16) is already fixed; the FAIL-unreachable case it warns about has no instance in the corpus. Revisit when a pinned 1.00 turns out to be a checker artifact, or when corpus expansion makes hand-review of new (fixture, check) pairs impractical — whichever comes first.
 
