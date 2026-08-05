@@ -591,7 +591,7 @@ the S1.6 note that "tables survive as HTML" needing qualification.
 #### 3.3 Scratch schema
 
 Created directly in the dev Postgres (`unicorn-db-1`, pgvector/pg16), not via
-a Flyway migration, and dropped at the end of the session (3.7).
+a Flyway migration, and dropped at the end of the session (3.9).
 
 ```sql
 CREATE TABLE spike_fts_page (
@@ -687,3 +687,91 @@ vocabulary — `perception check`, `saving throw`, `INT` — while the book uses
 its own. A lexical matcher cannot bridge that gap by construction. This is
 precisely the case an embedding model is supposed to handle, and it accounts
 for 1 of the 3 real queries outright.
+
+#### 3.7 Per-query results and hand judgement
+
+Chapter names come from a read-only `pypdfium2` footer pass (S1.8's method,
+35/44 pages resolved). They are a description aid only — chapter was not
+stored on the row and not used in matching.
+
+**Q1 — "perception check looking around environment, noticing details"**
+
+| # | Physical | Printed | Rank | Chapter |
+|---|---|---|---|---|
+| 1 | 20 | 21 | 1.00 | `PANIC CHECKS` |
+| 2 | 18 | 19 | 0.80 | `MODIFYING STAT CHECKS & SAVES` |
+| 3 | 16 | 17 | 0.60 | `HOW TO PLAY` |
+
+**Judgement: wrong.** The top hit is the panic table, which has nothing to do
+with observing an environment; it wins because `check` recurs on it more than
+anywhere else. Result 2 matches on an example-of-play exchange rather than on
+rules. The page a Warden should have received — `STAT CHECKS & SAVES`
+(physical 17), where an awareness ruling would resolve — does not appear
+anywhere in the top 8. Per 3.6 this is not recoverable by ranking: the
+query's distinctive term is absent from the corpus.
+
+**Q2 — "saving throws stats how to roll checks"**
+
+| # | Physical | Printed | Rank | Chapter |
+|---|---|---|---|---|
+| 1 | 3 | 4 | 2.80 | `HOW TO MAKE YOUR CHARACTER` |
+| 2 | 18 | 19 | 2.80 | `MODIFYING STAT CHECKS & SAVES` |
+| 3 | 16 | 17 | 2.60 | `HOW TO PLAY` |
+
+**Judgement: partial, with a wrong result in first place.** Results 2 and 3
+are defensible — both are core resolution-mechanics pages. Result 1 is the
+character-profile sheet: it ranks first because stat names and roll
+instructions are printed densely on a form, not because it explains anything.
+`STAT CHECKS & SAVES` (physical 17), the single most on-target page in the
+book for this query, ranked **7th**.
+
+Note also that physical page 3 is character-creation content, which
+[S2](#s2--2026-08-05-character-creation-is-unreachable-to-the-warden)
+established the Warden cannot reach. Only pages 4, 41, 42 were excluded here;
+page 3 is a further under-exclusion this session did not anticipate.
+
+**Q3 — "skill checks INT intellect saves diagnosis repair"**
+
+| # | Physical | Printed | Rank | Chapter |
+|---|---|---|---|---|
+| 1 | 18 | 19 | 1.80 | `MODIFYING STAT CHECKS & SAVES` |
+| 2 | 3 | 4 | 1.60 | `HOW TO MAKE YOUR CHARACTER` |
+| 3 | 28 | 29 | 1.50 | `WOUNDS & DEATH` |
+
+**Judgement: mostly wrong.** Only result 1 is defensible. Result 2 is the
+character sheet again. Result 3 matches on `save` in the death-save sense — a
+homonym collision with the query's `saves`, and exactly the kind of
+confidently-wrong result that is worse than an empty response. The two
+chapters the query all but names — `SKILLS` (physical 21) and `SKILL
+TRAINING` (physical 23) — ranked **5th and 8th**, despite both containing
+`skill` and `repair`.
+
+**Tally: 0 of 3 queries returned a top-3 a Warden should have received.** One
+(Q2) was partially useful. Two put a character sheet in the top 3.
+
+#### 3.8 Ranking normalization diagnostic (beyond the brief)
+
+Because the failures in 3.7 looked like a ranking artifact rather than a
+matching one — long, term-dense pages beating short on-topic ones — the same
+queries were re-run with `ts_rank_cd`'s normalization flag. Cheap, and it
+distinguishes "FTS does not work here" from "the default ranking is
+untuned," which are different decisions.
+
+| Flag | Effect | Q1 | Q2 | Q3 |
+|---|---|---|---|---|
+| `0` (default) | none | target absent | target #7 | targets #5, #8 |
+| `32` | `rank/(rank+1)` | identical order | identical order | identical order |
+| `2` | divide by document length | target absent | **target #3** | **`SKILL TRAINING` #2** |
+
+`32` is a monotonic transform of `0` and therefore cannot reorder anything —
+recorded so nobody tries it again as a fix.
+
+`2` is a real improvement on the two queries that have a lexically reachable
+answer: `STAT CHECKS & SAVES` rises 7th → 3rd on Q2, and `SKILL TRAINING`
+rises 8th → 2nd on Q3. The character sheet drops to 6th and 8th respectively.
+It makes Q1 worse — a 476-character `ARMOR` page takes first place purely for
+being short, the opposite failure mode.
+
+So the default ranking is genuinely under-tuned, and roughly half the
+observed failure is fixable configuration. The other half — Q1 entirely — is
+not.
