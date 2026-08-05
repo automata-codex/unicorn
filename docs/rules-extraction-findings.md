@@ -146,12 +146,27 @@ still no recall number, no MRR, no baseline. Most of this file is about
 getting text out of a PDF, not about whether the resulting chunks retrieve
 well.
 
-The one exception is [S3](#s3--2026-08-05--postgres-fts-gut-check-on-page-granular-text),
-a deliberately qualitative gut-check: Postgres FTS over page-granular text,
-judged by hand against the three recorded Warden queries. It is evidence
-about *FTS*, not about the planned chunker, and three hand-judged queries is
-not a metric. Treat it as a disqualifying result for one alternative, not as
-a measurement of the design in place.
+The exceptions are [S3](#s3--2026-08-05--postgres-fts-gut-check-on-page-granular-text)
+and [S4](#s4--2026-08-05--vocabulary-vs-verbosity-isolated), deliberately
+qualitative gut-checks: Postgres FTS over page-granular text, judged by hand
+against the three recorded Warden queries. They are evidence about *FTS and
+about query shape*, not about the planned chunker, and three hand-judged
+queries is not a metric. Treat them as a disqualifying result for one
+alternative plus a diagnosis of why, not as a measurement of the design in
+place.
+
+S4's finding generalizes beyond FTS and is the more important of the two: the
+Warden's queries are long and keyword-stuffed, and that verbosity — not just
+vocabulary — is what buries the right page.
+
+[S5](#s5--2026-08-05--voyagepgvector-dense-retrieval-same-corpus-and-queries)
+then ran the real Voyage/pgvector path over the identical corpus and closed
+that question: **dense retrieval is sensitive to the same two axes.** It is
+better than FTS — markedly so on the one query that discriminates — but it
+does not absorb verbosity or vocabulary drift for free, and it still misses
+that query's target page. Shortening the query to its distinctive terms puts
+the target at rank 1 on *both* backends. So the single largest lever measured
+so far is the shape of the query, not the choice of retrieval mechanism.
 
 The measurement is planned: page-labeled fixtures scored deterministically
 for recall@3, recall@5, and MRR, with deliberately unanswerable questions
@@ -213,6 +228,26 @@ Current as of 2026-08-05. Each links to the session that established it.
    design that assumes query terms occur in the corpus is assuming something
    false for this query distribution.
    ([S3.6](#36-term-coverage--the-wardens-vocabulary-is-not-the-books))
+9. **Query verbosity hurts lexical retrieval more than vocabulary
+   mismatch does.** With 5–7 terms the high-frequency tail dominates
+   `ts_rank_cd` and buries the distinctive terms; cutting to 2–3 terms puts
+   the target page at position 1–2. Vocabulary matters absolutely under AND
+   (one out-of-corpus term returns zero rows) and barely at all under OR.
+   The two are separable and both need handling.
+   ([S4.3](#43-the-two-factors-are-separable-and-both-are-necessary))
+10. **Query shape is a bigger lever than backend choice.** Both FTS and
+    Voyage/pgvector fail the same recorded query in the same direction, and
+    both put the target at rank 1 once the query is cut to its distinctive
+    terms. Dense retrieval is the better default — it ranks on meaning and
+    beat FTS by 15 positions on that query — but it does not absorb
+    verbosity or vocabulary drift for free.
+    ([S5.3](#53-dense-retrieval-is-sensitive-to-both-axes--it-does-not-absorb-them))
+11. **The `rules_lookup` latency budget is entirely the embedding API call.**
+    ~124–148 ms end to end, of which the Voyage round trip is ~98% and the
+    pgvector scan 1–3 ms. Index choice is not the lever for query latency at
+    this corpus size, and a second network hop in the lookup path (a
+    reranker) does not fit the stated budget.
+    ([S5.4](#54-latency--the-api-call-is-the-entire-budget))
 
 ---
 
@@ -279,10 +314,32 @@ information** — each cost real time.
   on terms absent from the PSG (`perception`, `diagnosis`, `INT`), because
   the Warden writes generic-TTRPG rather than Mothership vocabulary
   ([S3.6](#36-term-coverage--the-wardens-vocabulary-is-not-the-books)).
-  Whether embeddings actually bridge this is assumed, not shown — the obvious
-  next measurement, and cheap once any index is populated. Options if they
-  do not: a system-specific synonym/thesaurus layer, or prompt-side guidance
-  steering the Warden toward book vocabulary.
+  **Measured 2026-08-05 ([S5.3](#53-dense-retrieval-is-sensitive-to-both-axes--it-does-not-absorb-them)):
+  embeddings bridge it partially, not fully.** Substituting book vocabulary
+  moved Q1 from 9th to 4th and Q3 from 3rd to 1st under dense retrieval — real
+  improvements, so the gap is not absorbed for free, but far less brittle than
+  FTS, where an out-of-corpus term zeroes an AND query outright. Still open:
+  *what to do about it.* Options are a system-specific synonym/thesaurus layer
+  or prompt-side guidance steering the Warden toward book vocabulary; the
+  latter is free, since the Warden's prompt is ours to write. **The
+  no-LLM-calls constraint rules out query rewriting by a model**
+  ([S4.4](#44-what-this-changes-about-s39)).
+- **Should `rules_lookup` preprocess the query before retrieval?** Raised by
+  [S4](#s4--2026-08-05--vocabulary-vs-verbosity-isolated), which found
+  verbosity to be the larger of the two failure drivers. Dropping
+  low-information terms is mechanical — a stopword list, or a
+  document-frequency ceiling computed from the index itself — and moved the
+  target page from unranked to position 1–2 on all three recorded queries.
+  **Now tested against embedding retrieval too
+  ([S5.3](#53-dense-retrieval-is-sensitive-to-both-axes--it-does-not-absorb-them)),
+  and the effect is the same direction, not reversed:** core-only queries hit
+  rank 1 on all three, including the Q1 that nothing else on either backend
+  has retrieved. This is the largest effect measured anywhere in S3–S5, which
+  promotes it from an optimisation to **critical path**. Worth settling
+  **before** the M7.2 eval harness is built, since it changes what the harness
+  should be measuring — and note the harness cannot detect this class of
+  problem at all if its fixture queries are written in book vocabulary by
+  hand rather than sampled from real Warden output.
 - **Do the `Table` blocks that extract empty need fixing before M7.2 ships?**
   14 of 32 carry no text ([S3.2](#32-new-finding--14-of-32-table-blocks-carry-no-text)),
   taking physical pages 11 and 12 (`FIREARMS`, `INDUSTRIAL EQUIPMENT`) out of
@@ -850,7 +907,11 @@ not clear the Q1 vocabulary gap; (b) a larger recorded query sample, since
 three is a weak basis for a distributional claim and two of them contain
 out-of-corpus terms; (c) FTS as a *supplement* rather than a replacement,
 which this session did not test at all and which its results do not argue
-against.
+against; (d) the same three queries reformulated into the book's own
+vocabulary — tests whether the failure is FTS-as-a-mechanism or the query's
+vocabulary, since 3.6 found `perception`/`diagnosis`/`INT` occur zero times
+in the corpus regardless of matching method. Untested here; ties to the open
+question above on Warden query vocabulary.
 
 **What this session does not show.** It does not show the block-merge chunker
 is *right* — that remains unvalidated, per the preamble. It shows only that
@@ -882,3 +943,309 @@ The spike scripts were not committed — they are throwaway JSON-shuffling, and
 the schema and both query forms are reproduced above in full, which is what
 this session needs to be repeatable. The marker artifact remains outside the
 repository per `docs/rules-ingestion.md § Licensing Posture`.
+
+
+### S4 — 2026-08-05 · Vocabulary vs. verbosity, isolated
+
+Context: [S3.9](#39-conclusion--unconvincing-as-a-replacement-on-this-evidence)
+listed as evidence (d) "the same three queries reformulated into the book's
+own vocabulary." This session runs it. The scratch table was rebuilt from the
+same artifact and reproduced S3's corpus exactly — 38 rows, 76,803
+characters — so S4 numbers are directly comparable to S3's.
+
+**S4 qualifies S3.9's reasoning but does not overturn its verdict.** Read
+3.9's item 2 alongside 4.4 below.
+
+#### 4.1 Method
+
+Three variants per query, to separate two confounded factors:
+
+- **original** — verbatim, as recorded.
+- **vocab-swapped** — only zero-occurrence terms replaced, everything else
+  left alone. Length essentially unchanged.
+- **core-only** — the distinctive terms alone, noise words dropped. Length
+  cut to 2–3 terms.
+
+Substitutions, each verified against corpus document frequency before use:
+
+| Query | Out-of-corpus term | Replacement | Pages |
+|---|---|---|---|
+| Q1 | `perception` (0) | `intellect` | 5 |
+| Q2 | `saving throw` (`throw` occurs only in the physical sense) | `saves` | 24 |
+| Q3 | `INT` (0) | dropped — redundant with `intellect` | — |
+| Q3 | `diagnosis` (0) | `pathology` | 1 |
+
+Candidate replacements were screened by probing document frequency for ~40
+plausible terms; `perception`, `observe`, `sensor`, `sight`, `diagnosis`, and
+`technician` all occur on **zero** pages, which constrained the choices.
+
+Each variant was run in four configurations (AND/OR × normalization 0/2), and
+scored by **the rank position of the target page(s)** — the pages S3.7 judged
+a Warden should have received. Targets: Q1 → physical 17; Q2 → 17, 18;
+Q3 → 21–24.
+
+#### 4.2 Results — position of the best target page
+
+`—` means the query returned no rows at all.
+
+| Query | Variant | AND n=0 | AND n=2 | OR n=0 | OR n=2 |
+|---|---|---|---|---|---|
+| Q1 | original | — | — | 24 | 24 |
+| Q1 | vocab-swapped | — | — | 18 | 19 |
+| Q1 | core-only | **2** | **2** | 13 | 11 |
+| Q2 | original | — | — | **2** | **1** |
+| Q2 | vocab-swapped | **1** | **2** | **2** | **1** |
+| Q2 | core-only | **2** | **2** | **2** | **1** |
+| Q3 | original | — | — | 5 | **2** |
+| Q3 | vocab-swapped | — | — | 5 | **2** |
+| Q3 | core-only | **1** | **1** | **1** | **1** |
+
+**Vocabulary substitution alone accomplished almost nothing.** Q3's
+vocab-swapped row is identical to its original row in every configuration.
+Q2's OR columns are unchanged. Q1 improved from 24th to 18th — still nowhere
+near the top 3.
+
+**Shortening the query did nearly all the work.** Under core-only, the target
+reaches position 1 or 2 under AND for all three queries.
+
+#### 4.3 The two factors are separable, and both are necessary
+
+Holding length short and varying only vocabulary isolates them cleanly:
+
+| Query | Short query, original vocab | AND | OR | Short query, swapped vocab | AND | OR |
+|---|---|---|---|---|---|---|
+| Q1 | `perception check` | 0 hits | 17 | `intellect check` | **2** | 13 |
+| Q2 | `saving throw stat check` | 0 hits | **2** | `stat check save` | **2** | **2** |
+| Q3 | `skill diagnosis repair` | 0 hits | **1** | `skill pathology repair` | **1** | **1** |
+
+The pattern is consistent across all three:
+
+1. **A single out-of-corpus term zeroes an AND query outright**, regardless of
+   how short or well-formed the rest is. All three original-vocab AND cells
+   return no rows.
+2. **Verbosity is what destroys OR ranking.** With 5–7 terms, the
+   high-frequency tail (`check` on 22 pages, `save` on 24, `roll` on 24)
+   dominates `ts_rank_cd` and buries the distinctive terms. Cutting to 2–3
+   terms fixes Q2 and Q3 under OR without touching vocabulary at all.
+3. **Correct vocabulary + short query + AND puts the target at position 1–2
+   on every query tested.** That is the only configuration that worked
+   across the board.
+
+So the failure in S3 was not FTS-as-a-mechanism. It was the query.
+
+#### 4.4 What this changes about S3.9
+
+**The verdict stands: FTS is still not a drop-in replacement.** Nothing here
+shows the Warden's actual queries work — they don't, in any configuration
+tested. What changed is the *diagnosis*, and therefore what a fix would cost.
+
+[S3.9](#39-conclusion--unconvincing-as-a-replacement-on-this-evidence) item 2
+claimed the decisive failure was vocabulary and was "not fixable by tuning."
+That is half right and, as stated, misleading:
+
+- Correct that no *rank* tuning fixes it — 3.8's normalization sweep was the
+  wrong lever, and S4 confirms it.
+- **Wrong that vocabulary is the decisive factor.** Verbosity is the larger
+  effect of the two. Vocabulary matters absolutely under AND (one bad term →
+  zero rows) but barely at all under OR.
+- Consequently the failure **is** fixable — by query preprocessing, not by
+  ranking. Two transforms are needed: drop low-information terms, and map
+  out-of-corpus vocabulary to the book's.
+
+That second transform is the expensive one. Term-dropping is mechanical (a
+stopword list, or a document-frequency ceiling computed from the index
+itself). Vocabulary mapping is not: it needs a per-system synonym table, and
+the **no-LLM-calls constraint rules out the obvious alternative** of asking a
+model to rewrite the query. This is the same open question S3 raised about
+Warden vocabulary, now with a measured cost attached.
+
+#### 4.5 Caveats — read before citing this
+
+- **The reformulations were written by someone who knew the target pages.**
+  This is the generous case, and it is an upper bound on what query
+  preprocessing could achieve, not an estimate of it. A real preprocessing
+  layer has no answer key.
+- **`core-only` is the most generous variant of all.** `intellect check`
+  essentially names the mechanic. That it reaches position 2 rather than 1 is
+  itself worth noting.
+- Still three queries and 38 pages. Still no comparison against embeddings —
+  evidence (a) in 3.9 remains the most valuable untested item, and S4 raises
+  its value, since the whole question is now whether embeddings absorb
+  verbosity and vocabulary drift for free.
+
+#### 4.6 Teardown
+
+`DROP TABLE IF EXISTS spike_fts_page;` — verified gone, migration state
+untouched, as in 3.10.
+
+
+### S5 — 2026-08-05 · Voyage/pgvector dense retrieval, same corpus and queries
+
+Context: [S3.9](#39-conclusion--unconvincing-as-a-replacement-on-this-evidence)
+listed as evidence (a) "the same three queries run against a populated
+pgvector index." [S4](#s4--2026-08-05--vocabulary-vs-verbosity-isolated) raised
+its value by leaving a fork open: is the verbosity/vocabulary problem a
+property of *lexical matching*, or of the Warden's *queries*, inherited by any
+backend? This session answers that.
+
+**Headline: the problem is the queries, not the backend.** Dense retrieval
+beats FTS substantially on the decisive query and still misses it. Shortening
+the query fixes all three on both backends.
+
+#### 5.1 Setup
+
+Corpus reconstructed from the same S1 artifact and hard-asserted against
+S3.1's numbers before anything ran — **38 pages / 76,803 characters, exact
+match**. The script exits rather than proceed on drift, since a silently
+different corpus would invalidate the whole comparison. Pages 11/12 remain
+absent per [S3.2](#32-new-finding--14-of-32-table-blocks-carry-no-text); fixing
+that is deliberately out of scope here.
+
+```sql
+CREATE TABLE spike_embed_page (
+  page_number int PRIMARY KEY,
+  page_text   text NOT NULL,
+  embedding   vector(1024)
+);
+```
+
+No IVFFlat/HNSW index — same reasoning as [S3.3](#33-scratch-schema)'s no-GIN
+call, plus an approximate index would add an accuracy confound.
+
+Embeddings came from the production `VoyageService`
+(`apps/zoltar-be/src/voyage/voyage.service.ts`), not a reimplementation, so
+`input_type` is production's: `document` for the 38 pages, `query` for each
+query string. Model `voyage-4-lite` per `docs/decisions.md § Embedding model`;
+returned dimension asserted at **1024**, matching the column. Ranking is
+plain cosine distance over the full corpus:
+
+```sql
+SELECT page_number, embedding <=> $1::vector AS distance
+FROM spike_embed_page ORDER BY distance;
+```
+
+Targets are S4.1's, unchanged: Q1 → 17; Q2 → 17, 18; Q3 → 21–24.
+
+#### 5.2 Primary result — the three real queries, unmodified
+
+Rank position of the best target page, out of 38. FTS columns are the *best
+result across every configuration S3/S4 tried*, which is generous to FTS.
+
+| Query | FTS best (S3/S4, any config) | **Dense (unmodified query)** | Top 3? |
+|---|---|---|---|
+| Q1 perception/noticing | 24th original, 18th vocab-swapped | **9th** | no |
+| Q2 saves/stats/rolling | 1st (OR n=2) | **1st** | yes |
+| Q3 skills/INT/repair | 2nd (OR n=2) | **3rd** | yes |
+
+Dense retrieval's top 3 for Q1 were `EXAMPLE OF PLAY`, `RANGE & DISTANCE`, and
+`PANIC CHECKS` — thematically in the neighbourhood of moving through and
+observing an environment, but not the page that adjudicates it.
+
+**Q1 does not clear the top 3.** It improves markedly over FTS — 24th to 9th,
+and it is at least ranking on *meaning* rather than on `check` frequency — but
+9 of 38 is not close to a top-3 budget. Per the brief's decision criteria this
+is the second branch, not the first.
+
+#### 5.3 Dense retrieval is sensitive to both axes — it does not absorb them
+
+Repeating S4's three variants against the dense index:
+
+| Query | original | vocab-swapped | core-only |
+|---|---|---|---|
+| Q1 | 9th | 4th | **1st** |
+| Q2 | 1st | 1st | **1st** |
+| Q3 | 3rd | 1st | **1st** |
+
+Monotonic improvement on both axes, for every query. This contradicts an
+assumption the preamble and Open questions had been carrying:
+
+- **Embeddings do not fully bridge the vocabulary gap.** Swapping
+  `perception`→`intellect` moved Q1 from 9th to 4th, and
+  `diagnosis`→`pathology` moved Q3 from 3rd to 1st. If dense retrieval were
+  vocabulary-agnostic, those swaps would be no-ops. They are not. It bridges
+  the gap *partially* — much better than FTS, which is structurally blind to
+  it, but not for free.
+- **Verbosity hurts dense retrieval too.** Cutting to 2–3 distinctive terms
+  put the target at rank 1 for all three queries, including the Q1 that no
+  other configuration on either backend has ever retrieved.
+
+Compare against S4.2's FTS table and the shape is the same on both backends:
+**short and on-vocabulary wins; long and off-vocabulary loses.** FTS is more
+brittle (an out-of-corpus term zeroes an AND query outright; verbosity buries
+the signal under high-frequency terms), but the direction of every effect is
+identical. That is the fork S4 left open, closed: this is a property of the
+Warden's queries, not of lexical matching.
+
+#### 5.4 Latency — the API call is the entire budget
+
+Measured per query, warm:
+
+| Component | Time |
+|---|---|
+| `VoyageService.embed(..., 'query')` | 122–145 ms |
+| pgvector scan + `ORDER BY` (38 rows, no index) | 1–3 ms |
+| **Total** | **124–148 ms** |
+
+Inside `docs/rules-ingestion.md § Query Time`'s ~100–200 ms budget, but with
+little headroom, and **the Voyage round trip is ~98% of it**. The vector scan
+is free at this scale. Two consequences worth carrying forward: index choice
+is not the lever for query latency at anything like this corpus size, and any
+design that adds a *second* network round trip to the lookup path (a reranker,
+say) does not fit the stated budget without revisiting it.
+
+Corpus embedding cost, for planning: 38 documents at concurrency 4.
+
+#### 5.5 Incidental — a similarity floor may be derivable after all
+
+`docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md § Part 4` leaves the
+similarity floor open, and the preamble notes there is currently no threshold
+at all. The top-1 cosine distances here separate more cleanly than expected:
+
+| Query | Top-1 distance | Is it answerable by this book? |
+|---|---|---|
+| Q2 | 0.459 | yes — and correct at rank 1 |
+| Q3 | 0.582 | yes — correct page at rank 3 |
+| Q1 | 0.671 | the book has no `perception` concept at all |
+
+The query the book cannot really answer has a visibly worse best match.
+Three data points is not a threshold, and this was not what the session set
+out to measure — but it suggests the floor question is answerable from data
+rather than by guessing, and that the fixture set should deliberately include
+unanswerable questions when it is built.
+
+#### 5.6 Conclusion
+
+**This supports the brief's second outcome.** Q1 still misses, so the fix was
+never primarily about which retrieval backend to pick. Both backends fail the
+same query in the same direction, and both recover completely when the query
+is shortened to its distinctive terms.
+
+What that implies, in order of confidence:
+
+1. **Query formation is on the critical path, not a nice-to-have.** A
+   preprocessing step — drop low-information terms, and map vocabulary — moved
+   every query to rank 1 on dense retrieval. Nothing else tested in S3–S5 comes
+   close to that effect size.
+2. **Dense retrieval is still the better default**, and M7.2's core bet is not
+   undermined: it beat FTS on the query that mattered by 15 positions, degrades
+   gracefully rather than returning nothing, and needs no per-system synonym
+   table to be useful. It just is not sufficient on its own.
+3. **The cheapest half of the fix has no LLM-call problem.** Term-dropping is
+   mechanical. Vocabulary mapping is the part that needs either a per-system
+   synonym table or prompt-side guidance steering the Warden toward book
+   vocabulary — and the latter is free, since the Warden's prompt is ours to
+   write.
+
+**What this does not show.** Still three queries and 38 pages, still
+page-granular rather than the planned chunker, still one book. The variant
+queries were written by someone who knew the answers
+([S4.5](#45-caveats--read-before-citing-this)'s caveat applies unchanged and
+is the main reason not to read the "rank 1 everywhere" column as a promise).
+Nothing here evaluates chunking, which remains unvalidated.
+
+#### 5.7 Teardown
+
+`DROP TABLE IF EXISTS spike_embed_page;` — verified gone from `pg_tables`,
+`flyway_schema_history` unchanged, as in 3.10 and 4.6. Scripts not committed;
+the schema, the ranking query, and the `VoyageService` call path named above
+are what make this reproducible.
