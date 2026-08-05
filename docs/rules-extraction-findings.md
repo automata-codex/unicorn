@@ -633,7 +633,7 @@ the S1.6 note that "tables survive as HTML" needing qualification.
 #### 3.3 Scratch schema
 
 Created directly in the dev Postgres (`unicorn-db-1`, pgvector/pg16), not via
-a Flyway migration, and dropped at the end of the session (3.9).
+a Flyway migration, and dropped at the end of the session (3.10).
 
 ```sql
 CREATE TABLE spike_fts_page (
@@ -867,3 +867,18 @@ path identically:
 - **Warden query vocabulary diverges from book vocabulary** (3.6). This is a
   retrieval-design problem, not an FTS problem, and it is currently
   unaddressed on either path. It deserves its own open question.
+
+#### 3.10 Teardown
+
+```sql
+DROP TABLE IF EXISTS spike_fts_page;
+```
+
+Verified gone from `pg_tables`; `flyway_schema_history` shows 0 failed
+migrations, i.e. the scratch table left no trace on migration state. No
+production code path, schema, or migration was touched at any point.
+
+The spike scripts were not committed — they are throwaway JSON-shuffling, and
+the schema and both query forms are reproduced above in full, which is what
+this session needs to be repeatable. The marker artifact remains outside the
+repository per `docs/rules-ingestion.md § Licensing Posture`.
