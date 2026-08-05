@@ -110,7 +110,7 @@ from `docs/rules-ingestion.md § Step 4`. They have never been validated
 against anything.
 
 An FTS-based alternative to this whole approach was considered and tested on
-2026-08-05. It did not pan out — see [S3](#s3--2026-08-05-postgres-fts-gut-check-on-page-granular-text).
+2026-08-05. It did not pan out — see [S3](#s3--2026-08-05--postgres-fts-gut-check-on-page-granular-text).
 This design stands, still unvalidated.
 
 **A caveat this section cannot give you, but the next one can:** S3 found that
@@ -146,7 +146,7 @@ still no recall number, no MRR, no baseline. Most of this file is about
 getting text out of a PDF, not about whether the resulting chunks retrieve
 well.
 
-The one exception is [S3](#s3--2026-08-05-postgres-fts-gut-check-on-page-granular-text),
+The one exception is [S3](#s3--2026-08-05--postgres-fts-gut-check-on-page-granular-text),
 a deliberately qualitative gut-check: Postgres FTS over page-granular text,
 judged by hand against the three recorded Warden queries. It is evidence
 about *FTS*, not about the planned chunker, and three hand-judged queries is
@@ -202,7 +202,7 @@ Current as of 2026-08-05. Each links to the session that established it.
    (physical pp. 4–5) spans a page break, but character creation is
    structurally unreachable by the Warden — confirmed via tool-array and
    query-log inspection — so its extraction quality doesn't bear on
-   retrieval design. ([S2](#s2--2026-08-05-character-creation-is-unreachable-to-the-warden))
+   retrieval design. ([S2](#s2--2026-08-05--character-creation-is-unreachable-to-the-warden))
 7. **`Table` blocks are typed and positioned but often empty.** 14 of 32
    carry no text at all, emitted as `<p></p>`. Physical pages 11 and 12 are
    lost entirely as a result. Block counts are not a proxy for extracted
@@ -242,7 +242,7 @@ information** — each cost real time.
 
 - **Fallback chapter for the remaining 5 footer-less pages** (physical 0,
   1, 2, 10, 43 — down from 8: page 4 and its duplicates 41–42 are dropped
-  outright, not resolved, per [S2](#s2--2026-08-05-character-creation-is-unreachable-to-the-warden)).
+  outright, not resolved, per [S2](#s2--2026-08-05--character-creation-is-unreachable-to-the-warden)).
   Page 10 (equipment continuation) is body content the Warden would
   plausibly query and is the one that most needs an answer. Pages 1 and 43
   (armor/weapons and back-cover reference cards) duplicate live body rules
@@ -268,7 +268,7 @@ information** — each cost real time.
   measured. Accepted as a heuristic per `docs/specs/zoltar/012-m7.2-rules-ingestion.md § Part 3`.
 - **~~Should FTS replace or precede embedding-based retrieval?~~ Answered
   2026-08-05 — no, not as a replacement.** See
-  [S3](#s3--2026-08-05-postgres-fts-gut-check-on-page-granular-text). The
+  [S3](#s3--2026-08-05--postgres-fts-gut-check-on-page-granular-text). The
   premise behind the proposal was that the recorded queries are keyword-heavy;
   S3.6 found they are keyword-heavy *in vocabulary the book does not use*,
   which is the opposite of the condition the external evidence
@@ -289,7 +289,7 @@ information** — each cost real time.
   the index entirely. Equipment stats are plausible Warden queries, so this
   is probably a fixup-file case (`docs/rules-ingestion.md § Step 2`) or an
   argument for a second extraction pass on table regions. Not yet scoped.
-- **Is physical page 3 also unreachable?** [S2](#s2--2026-08-05-character-creation-is-unreachable-to-the-warden)
+- **Is physical page 3 also unreachable?** [S2](#s2--2026-08-05--character-creation-is-unreachable-to-the-warden)
   dropped pages 4, 41, 42 as character-creation content. Page 3 is the
   character-profile sheet and appears to be the same category, but was not
   covered by S2's analysis. It ranked in the top 3 for two of three queries in
@@ -583,7 +583,7 @@ proposals.
 
 Source: the S1 marker `chunks` artifact, read from a local path outside the
 repository. Content blocks only (`Text`/`Table`/`ListGroup`), the same filter
-S1.6 validated. Physical pages 4, 41, 42 excluded per [S2](#s2--2026-08-05-character-creation-is-unreachable-to-the-warden).
+S1.6 validated. Physical pages 4, 41, 42 excluded per [S2](#s2--2026-08-05--character-creation-is-unreachable-to-the-warden).
 Page index taken from the `/page/N/` prefix of each block's `id`, never from
 the `page` field (a Dead end).
 
@@ -768,7 +768,7 @@ instructions are printed densely on a form, not because it explains anything.
 book for this query, ranked **7th**.
 
 Note also that physical page 3 is character-creation content, which
-[S2](#s2--2026-08-05-character-creation-is-unreachable-to-the-warden)
+[S2](#s2--2026-08-05--character-creation-is-unreachable-to-the-warden)
 established the Warden cannot reach. Only pages 4, 41, 42 were excluded here;
 page 3 is a further under-exclusion this session did not anticipate.
 
@@ -827,7 +827,7 @@ The reasoning, so this does not get re-litigated without new evidence:
 
 1. **It failed the only test available.** Zero of three real queries produced
    a top-3 a Warden should have received. Two of three put a character sheet
-   — content [S2](#s2--2026-08-05-character-creation-is-unreachable-to-the-warden)
+   — content [S2](#s2--2026-08-05--character-creation-is-unreachable-to-the-warden)
    established is unreachable — in the top 3.
 2. **The decisive failure is not fixable by tuning.** Q1's distinctive term
    does not occur in the book. Neither `websearch_to_tsquery` configuration,
