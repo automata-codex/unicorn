@@ -775,3 +775,53 @@ being short, the opposite failure mode.
 So the default ranking is genuinely under-tuned, and roughly half the
 observed failure is fixable configuration. The other half — Q1 entirely — is
 not.
+
+#### 3.9 Conclusion — unconvincing as a replacement, on this evidence
+
+**FTS alone is not promising enough to relax or replace M7.2's chunking
+design. M7.2 continues as planned.**
+
+The reasoning, so this does not get re-litigated without new evidence:
+
+1. **It failed the only test available.** Zero of three real queries produced
+   a top-3 a Warden should have received. Two of three put a character sheet
+   — content [S2](#s2--2026-08-05-character-creation-is-unreachable-to-the-warden)
+   established is unreachable — in the top 3.
+2. **The decisive failure is not fixable by tuning.** Q1's distinctive term
+   does not occur in the book. Neither `websearch_to_tsquery` configuration,
+   rank normalization, nor any chunking strategy recovers a page that shares
+   no vocabulary with the query. Lexical matching is structurally blind to
+   this, and it is 1 of the 3 real queries.
+3. **The blog result does not transfer as assumed.** The FTS-beats-semantic
+   case (`alexgs.me/posts/fts-is-the-workhorse`) rests on queries that are
+   keyword-anchored *in the corpus's own vocabulary*. The recorded Warden
+   queries are keyword-stuffed in **generic TTRPG vocabulary** — `perception
+   check`, `saving throw`, `INT` — against a book that uses none of those
+   terms. Keyword-heavy and lexically-matchable are not the same property,
+   and the Open questions bullet conflated them.
+
+**What would change this call.** The evidence is thin in a specific,
+recoverable way: three queries, 38 pages, no comparison against the thing it
+would replace. Any of the following is new evidence — (a) the same three
+queries run against a populated pgvector index, showing embeddings do or do
+not clear the Q1 vocabulary gap; (b) a larger recorded query sample, since
+three is a weak basis for a distributional claim and two of them contain
+out-of-corpus terms; (c) FTS as a *supplement* rather than a replacement,
+which this session did not test at all and which its results do not argue
+against.
+
+**What this session does not show.** It does not show the block-merge chunker
+is *right* — that remains unvalidated, per the preamble. It shows only that
+FTS on page-granular text is not good enough to justify dropping it. Nor
+does it show FTS is worthless: with length normalization it put the correct
+page in the top 3 for both queries that had a lexically reachable answer.
+
+**Two findings that outlive the FTS question**, both affecting the embedding
+path identically:
+
+- **14 of 32 `Table` blocks carry no text** (3.2), costing two body pages
+  entirely. No chunking or retrieval strategy compensates for content that is
+  absent from the extraction.
+- **Warden query vocabulary diverges from book vocabulary** (3.6). This is a
+  retrieval-design problem, not an FTS problem, and it is currently
+  unaddressed on either path. It deserves its own open question.
