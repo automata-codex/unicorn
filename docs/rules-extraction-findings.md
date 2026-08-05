@@ -605,3 +605,85 @@ CREATE TABLE spike_fts_page (
 No GIN index, deliberately: 38 rows is a sequential scan either way, and an
 index would imply a performance claim this session is not making. Nothing
 here touches `rules_chunk`, `session.schema.ts`, or any production path.
+
+#### 3.4 Queries run
+
+The three recorded `rules_lookup` queries, unmodified. No synthetic queries
+were added.
+
+```sql
+-- AND form (websearch_to_tsquery's default behaviour)
+SELECT page_number,
+       round(ts_rank_cd(tsv, q)::numeric, 5) AS rank,
+       ts_headline('english', page_text, q,
+                   'MaxFragments=2,MaxWords=18,MinWords=8') AS snippet
+FROM spike_fts_page,
+     LATERAL (SELECT websearch_to_tsquery('english', $1)) AS t(q)
+WHERE tsv @@ q
+ORDER BY rank DESC, page_number
+LIMIT 3;
+```
+
+```sql
+-- OR form: identical, with only the operator swapped. Reusing
+-- websearch_to_tsquery's own output keeps stemming and stopword handling
+-- byte-identical between the two forms.
+LATERAL (SELECT replace(websearch_to_tsquery('english', $1)::text,
+                        ' & ', ' | ')::tsquery) AS t(q)
+```
+
+`ts_headline` output was read at the terminal to make the relevance calls in
+3.5 and is deliberately not reproduced here, per this file's posture on
+quoted material.
+
+#### 3.5 The AND trap is real — 0 hits on all three queries
+
+| Query | Terms after stemming | AND hits | OR hits |
+|---|---|---|---|
+| Q1 perception/noticing | 7 | **0** | 3 |
+| Q2 saves/stats/rolling | 5 | **0** | 3 |
+| Q3 skills/INT/repair | 7 | **0** | 3 |
+
+Parsed tsqueries (lexemes only, no rules text):
+
+```
+Q1  'percept' & 'check' & 'look' & 'around' & 'environ' & 'notic' & 'detail'
+Q2  'save' & 'throw' & 'stat' & 'roll' & 'check'
+Q3  'skill' & 'check' & 'int' & 'intellect' & 'save' & 'diagnosi' & 'repair'
+```
+
+Three for three. The brief's warning was not hypothetical: requiring one page
+to carry all 5–7 content words of a keyword-stuffed query is a far stricter
+bar than the Warden is asking for. **Any FTS design here must not use
+`websearch_to_tsquery`/`plainto_tsquery` output unmodified.** All results
+below are the OR form.
+
+#### 3.6 Term coverage — the Warden's vocabulary is not the book's
+
+Document frequency per lexeme across the 38 loaded pages, which turns out to
+explain most of the ranking behaviour:
+
+| Lexeme | Pages | Lexeme | Pages |
+|---|---|---|---|
+| `percept` | **0** | `save` | 24 |
+| `diagnosi` | **0** | `roll` | 24 |
+| `int` | **0** | `check` | 22 |
+| `notic` | 2 | `stat` | 15 |
+| `around` | 1 | `skill` | 8 |
+| `throw` | 3 | `repair` | 7 |
+| `detail` | 3 | `intellect` | 5 |
+| `environ` | 5 | `look` | 9 |
+
+Three of the queries' most distinctive terms — `perception`, `diagnosis`, and
+the abbreviation `INT` — **appear nowhere in the book.** The book writes
+`Intellect`, and has no perception concept at all. What remains after those
+drop out is the generic tail (`check`, `save`, `roll`, `stat`), which is
+spread across 15–24 of 38 pages and therefore carries almost no
+discriminating power.
+
+This is the single most important observation in the session, and it is not
+really about FTS. The recorded queries are written in generic-TTRPG
+vocabulary — `perception check`, `saving throw`, `INT` — while the book uses
+its own. A lexical matcher cannot bridge that gap by construction. This is
+precisely the case an embedding model is supposed to handle, and it accounts
+for 1 of the 3 real queries outright.
