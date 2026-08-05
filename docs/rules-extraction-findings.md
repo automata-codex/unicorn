@@ -587,3 +587,21 @@ this artifact, by either method. It supersedes nothing in S1.6 — the block
 counts there are correct — but it does mean table extraction is a live
 problem independent of chunking strategy, and it is a stronger argument for
 the S1.6 note that "tables survive as HTML" needing qualification.
+
+#### 3.3 Scratch schema
+
+Created directly in the dev Postgres (`unicorn-db-1`, pgvector/pg16), not via
+a Flyway migration, and dropped at the end of the session (3.7).
+
+```sql
+CREATE TABLE spike_fts_page (
+  page_number int PRIMARY KEY,
+  page_text   text NOT NULL,
+  tsv         tsvector GENERATED ALWAYS AS
+                (to_tsvector('english', page_text)) STORED
+);
+```
+
+No GIN index, deliberately: 38 rows is a sequential scan either way, and an
+index would imply a performance claim this session is not making. Nothing
+here touches `rules_chunk`, `session.schema.ts`, or any production path.
