@@ -850,7 +850,11 @@ not clear the Q1 vocabulary gap; (b) a larger recorded query sample, since
 three is a weak basis for a distributional claim and two of them contain
 out-of-corpus terms; (c) FTS as a *supplement* rather than a replacement,
 which this session did not test at all and which its results do not argue
-against.
+against; (d) the same three queries reformulated into the book's own
+vocabulary — tests whether the failure is FTS-as-a-mechanism or the query's
+vocabulary, since 3.6 found `perception`/`diagnosis`/`INT` occur zero times
+in the corpus regardless of matching method. Untested here; ties to the open
+question above on Warden query vocabulary.
 
 **What this session does not show.** It does not show the block-merge chunker
 is *right* — that remains unvalidated, per the preamble. It shows only that
