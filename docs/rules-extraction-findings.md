@@ -109,9 +109,14 @@ The 400-token target and the 50–100 overlap band are inherited heuristics
 from `docs/rules-ingestion.md § Step 4`. They have never been validated
 against anything.
 
-An FTS-based alternative to this whole approach is under consideration as of
-2026-08-05 — see the last bullet under Open questions — and could relax the
-block-merge requirement above if it pans out.
+An FTS-based alternative to this whole approach was considered and tested on
+2026-08-05. It did not pan out — see [S3](#s3--2026-08-05-postgres-fts-gut-check-on-page-granular-text).
+This design stands, still unvalidated.
+
+**A caveat this section cannot give you, but the next one can:** S3 found that
+extraction loses 14 of 32 tables outright, and that recorded Warden queries
+use vocabulary the book does not contain. Both problems sit upstream of
+chunking and are untouched by anything described above.
 
 ### Hard constraints
 
@@ -136,10 +141,17 @@ to constrain, and constraint-first framing tends to narrow a brainstorm.
 
 ### What has and hasn't been measured
 
-**Nothing about retrieval quality has been measured.** There is no recall
-number, no baseline, no evidence any of this works. Everything in this file
-so far is about getting text out of a PDF, not about whether the resulting
-chunks retrieve well.
+**Nothing about retrieval quality has been measured *numerically*.** There is
+still no recall number, no MRR, no baseline. Most of this file is about
+getting text out of a PDF, not about whether the resulting chunks retrieve
+well.
+
+The one exception is [S3](#s3--2026-08-05-postgres-fts-gut-check-on-page-granular-text),
+a deliberately qualitative gut-check: Postgres FTS over page-granular text,
+judged by hand against the three recorded Warden queries. It is evidence
+about *FTS*, not about the planned chunker, and three hand-judged queries is
+not a metric. Treat it as a disqualifying result for one alternative, not as
+a measurement of the design in place.
 
 The measurement is planned: page-labeled fixtures scored deterministically
 for recall@3, recall@5, and MRR, with deliberately unanswerable questions
@@ -191,6 +203,16 @@ Current as of 2026-08-05. Each links to the session that established it.
    structurally unreachable by the Warden — confirmed via tool-array and
    query-log inspection — so its extraction quality doesn't bear on
    retrieval design. ([S2](#s2--2026-08-05-character-creation-is-unreachable-to-the-warden))
+7. **`Table` blocks are typed and positioned but often empty.** 14 of 32
+   carry no text at all, emitted as `<p></p>`. Physical pages 11 and 12 are
+   lost entirely as a result. Block counts are not a proxy for extracted
+   content — check text length, not block presence.
+   ([S3.2](#32-new-finding--14-of-32-table-blocks-carry-no-text))
+8. **The Warden queries in generic-TTRPG vocabulary, not the book's.**
+   `perception`, `diagnosis`, and `INT` appear on zero pages. Any retrieval
+   design that assumes query terms occur in the corpus is assuming something
+   false for this query distribution.
+   ([S3.6](#36-term-coverage--the-wardens-vocabulary-is-not-the-books))
 
 ---
 
@@ -210,6 +232,9 @@ information** — each cost real time.
 | `_meta.json` → `table_of_contents[].heading_level` | `None` for all 169 entries. The field exists and is always empty. | [S1.4](#14-markdown-output-has-no-usable-page-markers) |
 | `section_hierarchy` as semantic ancestry | It is "last header seen at each visual level," so siblings become parents: `STEP 5. GAIN STRESS > STEP 6. NOTE TRAUMA RESPONSE`. | [S1.7](#17-section_hierarchy-is-not-true-ancestry) |
 | Reading printed page numbers from marker's `PageFooter` blocks | Marker detects them (11 blocks) but emits empty `html` — it strips footers as noise. Read them from `pypdfium2` instead. | [S1.8](#18-the-running-footer-is-the-reliable-provenance-source) |
+| `websearch_to_tsquery`/`plainto_tsquery` output used unmodified | Both AND unquoted terms. The recorded queries run 5–7 content words deep, so requiring one page to carry all of them returned **0 hits on all three**. Any FTS design must OR the terms or otherwise relax this. | [S3.5](#35-the-and-trap-is-real--0-hits-on-all-three-queries) |
+| `ts_rank_cd` normalization flag `32` as a ranking fix | `rank/(rank+1)` is monotonic, so it cannot reorder results. Identical ranking to the default on every query. Flag `2` (document length) does change ordering. | [S3.8](#38-ranking-normalization-diagnostic-beyond-the-brief) |
+| FTS over page-granular text as a *replacement* for embedding retrieval | 0 of 3 recorded queries returned an acceptable top 3; the decisive failure is vocabulary the book does not contain, which no tuning fixes. Not ruled out as a *supplement*. | [S3.9](#39-conclusion--unconvincing-as-a-replacement-on-this-evidence) |
 
 ---
 
@@ -241,18 +266,35 @@ information** — each cost real time.
   Manual, Shipbreaker's Toolkit) needs its own check before ingestion.
 - **Is `tiktoken` a good enough proxy for Voyage's tokenizer here?** Not yet
   measured. Accepted as a heuristic per `docs/specs/zoltar/012-m7.2-rules-ingestion.md § Part 3`.
-- **Should FTS (Postgres `tsvector`/`ts_rank`/`ts_headline`) replace or
-  precede embedding-based retrieval as the primary `rules_lookup` mechanism?**
-  Proposed 2026-08-05, on the strength of the recorded Warden queries being
-  keyword-heavy rather than paraphrased ("What the Warden actually asks"
-  above) and external evidence that FTS beats semantic search on
-  keyword-anchored queries against a heterogeneous corpus
-  (alexgs.me/posts/fts-is-the-workhorse). Not yet tested against this book
-  or these queries — no session behind this bullet yet. If it holds up, it
-  would relax rather than eliminate the chunking work: table atomicity and
-  the S1.8 footer/chapter attribution stay necessary either way; the
-  block-merge-toward-400-tokens design (the part [S1.5](#15-markdown-heading-levels-are-visual-not-semantic)–[S1.7](#17-section_hierarchy-is-not-true-ancestry)
-  are currently blocking) would become optional rather than required.
+- **~~Should FTS replace or precede embedding-based retrieval?~~ Answered
+  2026-08-05 — no, not as a replacement.** See
+  [S3](#s3--2026-08-05-postgres-fts-gut-check-on-page-granular-text). The
+  premise behind the proposal was that the recorded queries are keyword-heavy;
+  S3.6 found they are keyword-heavy *in vocabulary the book does not use*,
+  which is the opposite of the condition the external evidence
+  (alexgs.me/posts/fts-is-the-workhorse) relies on. **FTS as a supplement to
+  embeddings remains untested and is not ruled out** by that session.
+- **Does the Warden's query vocabulary match the book's?** No, and this is
+  unaddressed on both retrieval paths. Two of the three recorded queries lean
+  on terms absent from the PSG (`perception`, `diagnosis`, `INT`), because
+  the Warden writes generic-TTRPG rather than Mothership vocabulary
+  ([S3.6](#36-term-coverage--the-wardens-vocabulary-is-not-the-books)).
+  Whether embeddings actually bridge this is assumed, not shown — the obvious
+  next measurement, and cheap once any index is populated. Options if they
+  do not: a system-specific synonym/thesaurus layer, or prompt-side guidance
+  steering the Warden toward book vocabulary.
+- **Do the `Table` blocks that extract empty need fixing before M7.2 ships?**
+  14 of 32 carry no text ([S3.2](#32-new-finding--14-of-32-table-blocks-carry-no-text)),
+  taking physical pages 11 and 12 (`FIREARMS`, `INDUSTRIAL EQUIPMENT`) out of
+  the index entirely. Equipment stats are plausible Warden queries, so this
+  is probably a fixup-file case (`docs/rules-ingestion.md § Step 2`) or an
+  argument for a second extraction pass on table regions. Not yet scoped.
+- **Is physical page 3 also unreachable?** [S2](#s2--2026-08-05-character-creation-is-unreachable-to-the-warden)
+  dropped pages 4, 41, 42 as character-creation content. Page 3 is the
+  character-profile sheet and appears to be the same category, but was not
+  covered by S2's analysis. It ranked in the top 3 for two of three queries in
+  S3.7 purely on stat-name density — so if it is unreachable, excluding it is
+  a free precision win on either retrieval path.
 ---
 
 ## Corrections owed to `docs/rules-ingestion.md`
