@@ -64,6 +64,99 @@ No eval re-baseline is owed for this change on its own. Both existing baselines 
 
 ---
 
+## Rules Retrieval
+
+### Rules retrieval mechanism: dense embeddings over FTS or LLM-authored regex
+
+Raised as an alternative to the planned Voyage/pgvector pipeline: have an LLM
+translate a `rules_lookup` query into a regex, grep the extracted rules text,
+and let the Warden parse ±200 words of context around hits. Investigated
+across three spikes against the real Mothership PSG 1e extraction
+(`docs/rules-extraction-findings.md § S3–S5`), run in the current M7.2
+branch before any chunking work went in, specifically to decide before
+building M7.2's block-merge chunker if it turned out to be unnecessary.
+
+**Regex was rejected as a mechanism before it was tested, and S5 later
+confirmed the reasoning empirically.** The Voyage query-time round trip
+alone is ~98% of the ~100–200ms query budget (`docs/rules-ingestion.md §
+Query Time`, measured in `docs/rules-extraction-findings.md § S5.4`), so a
+second network hop — an LLM call to author a regex, or any other synchronous
+model call at query time — does not fit that budget. Postgres full-text
+search (`tsvector`/`ts_rank`/`ts_headline`) was tested instead, as the
+mechanism that captures the same lexical-matching intuition without the
+extra round trip or the ReDoS surface of an LLM-generated pattern.
+
+**FTS lost to dense retrieval on the query that discriminates.** Against an
+identical 38-page, page-granular corpus and the three real recorded
+`rules_lookup` queries (keyword-stuffed, generic-TTRPG phrasing —
+`perception check looking around environment, noticing details`), FTS never
+placed the correct page in the top 3 for the query whose most distinctive
+term the book doesn't use (`perception` occurs on zero pages). Dense
+retrieval, run against the identical corpus and the identical unmodified
+queries, ranked that page 9th instead of 24th — meaningfully better, though
+still outside the top-3 budget on its own.
+
+| | FTS (best config, S3/S4) | Dense retrieval (S5) |
+|---|---|---|
+| Q1 (out-of-corpus term) | 24th → 18th with vocab swap | **9th**, unmodified |
+| Q2 | 1st | 1st |
+| Q3 | 2nd | 3rd |
+
+**Decided:** Voyage/pgvector dense retrieval is confirmed as the
+`rules_lookup` mechanism. M7.2 continues on its existing design — no rebuild
+of the ingestion path, no FTS index added in parallel. This was not a
+foregone conclusion going in; three spikes were run specifically because
+regex/FTS were live enough to be worth deciding before more chunker work
+landed.
+
+**What this does not settle.** Dense retrieval is not vocabulary-agnostic —
+sensitive to the same two axes (verbosity, vocabulary) that broke FTS, just
+less brittle about it. That's a separate decision, below.
+
+### Query preprocessing for `rules_lookup` promoted from optional to critical path
+
+Shortening a `rules_lookup` query to its 2–3 distinctive terms puts the
+correct page at rank 1 on *both* FTS and dense retrieval, for all three real
+recorded queries — including the one query no other configuration on either
+backend ever retrieved (`docs/rules-extraction-findings.md § S4`, `§ S5.3`).
+This is the single largest effect measured across the whole retrieval
+investigation, larger than the FTS-vs-embeddings choice itself (`docs/decisions.md
+§ Rules retrieval mechanism`, above).
+
+Two separable fixes, with different costs:
+
+- **Term-dropping is mechanical and has no open question attached.** A
+  document-frequency ceiling computed from the index itself (drop query
+  terms occurring on more than some threshold share of pages) requires no
+  vocabulary knowledge and no LLM call. Proven on both backends. This is now
+  M7.2/M7.5 scope, not a maybe.
+- **Vocabulary mapping is the part still open.** Substituting book
+  vocabulary for generic-TTRPG terms (`perception` → `Intellect`) is a real,
+  separate effect — moved the worst query from 9th to 4th under dense
+  retrieval — but the reformulations tested were authored by someone who
+  already knew the target page (`docs/rules-extraction-findings.md § S4.5`),
+  so this is an upper bound, not a validated fix. Two candidate approaches,
+  not yet chosen between: a per-system synonym/thesaurus table (real ongoing
+  authoring cost, one per supported game system), or prompt-side guidance
+  steering the Warden's own query phrasing toward book vocabulary. The
+  latter is free — the Warden is already the LLM making the tool call, so
+  shaping its query costs no additional latency or API call, unlike a
+  dedicated query-rewriting model call, which the latency finding above
+  rules out.
+
+**Consequence for the M7.2 retrieval eval harness.** Fixtures written by
+hand in tidy, correct-vocabulary phrasing cannot detect this failure mode at
+all — the harness needs query fixtures that reflect real Warden output
+(verbose, sometimes off-vocabulary), not idealized questions, or it will
+report a retrieval quality bar the Warden's actual queries never clear.
+
+**Not yet decided:** whether prompt-side guidance alone closes enough of the
+vocabulary gap to skip a synonym table, or whether both are needed. Prompt
+guidance is untested; only the oracle-authored upper bound has been
+measured.
+
+---
+
 ## Claude Integration — Tool Schemas & State
 
 ### Warden model upgraded to `claude-sonnet-5`

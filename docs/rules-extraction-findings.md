@@ -324,6 +324,25 @@ information** — each cost real time.
   latter is free, since the Warden's prompt is ours to write. **The
   no-LLM-calls constraint rules out query rewriting by a model**
   ([S4.4](#44-what-this-changes-about-s39)).
+- **The D&D-5e-bias hypothesis: is the vocabulary gap generic-TTRPG drift,
+  or specifically D&D 5e's lexicon?** All three recorded queries'
+  out-of-corpus terms have a plausible match in D&D 5e's own vocabulary
+  rather than TTRPG-generic phrasing: `perception` is 5e's actual skill name
+  (Wisdom (Perception)); `INT` is 5e's exact ability-score abbreviation —
+  and Mothership has the same underlying stat under a different name
+  (`Intellect`), so this reads as a translation error (wrong system's label
+  for the right concept), not an imprecision error; `diagnosis` is a softer
+  match, echoing 5e's Medicine-skill flavor text rather than naming a
+  mechanic. **Untested beyond pattern-matching on n=3 — no session behind
+  this yet.** If it holds, the fix is more tractable than a generic
+  synonym layer: the source vocabulary is bounded, public, and already
+  licensed (`docs/zoltar-design-doc.md § Supported Systems` — D&D 5e SRD
+  5.1, CC-BY 4.0), unlike "map whatever an LLM might drift toward." It also
+  predicts uneven cost across future systems — OSE, a D&D retroclone, may
+  need little or no correction, while UVG and Feng Shui 2 don't share 5e's
+  lexicon and would need their own check. Cheapest next step: cross-reference
+  the recorded/plausible query terms against the 5e SRD's own skill and
+  ability-score list directly — public text, no spike infrastructure needed.
 - **Should `rules_lookup` preprocess the query before retrieval?** Raised by
   [S4](#s4--2026-08-05--vocabulary-vs-verbosity-isolated), which found
   verbosity to be the larger of the two failure drivers. Dropping
