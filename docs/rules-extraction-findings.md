@@ -516,3 +516,74 @@ unreachable regardless of extraction fidelity.
 footer-less pages) and pages 41–42 (its byte-identical back-matter
 duplicates) can be dropped from the index outright rather than resolved.
 See updated Open questions below.
+
+
+### S3 — 2026-08-05 · Postgres FTS gut-check on page-granular text
+
+Context: the Open questions bullet proposing FTS as a `rules_lookup`
+mechanism had no session behind it. This is the qualitative gut-check that
+gives it one — deliberately *not* the recall@3/@5/MRR harness M7.2 has
+planned, which still needs page-labeled fixtures that do not exist.
+
+**What this is not.** Not a head-to-head against Voyage/pgvector — that index
+is empty, and populating it to compare would defeat the point of deciding
+before that work happens. No number here is a retrieval metric. No LLM calls
+were made at ingestion or query time; the query text goes straight into
+`websearch_to_tsquery`.
+
+**Deliberate simplifications.** One row per physical page (no block merging,
+no chunking of any kind). Table HTML flattened to plain text, structure
+discarded. Chapter attribution not carried on the row — resolved separately,
+read-only, only to describe results below. These are spike shortcuts, not
+proposals.
+
+#### 3.1 Corpus construction
+
+Source: the S1 marker `chunks` artifact, read from a local path outside the
+repository. Content blocks only (`Text`/`Table`/`ListGroup`), the same filter
+S1.6 validated. Physical pages 4, 41, 42 excluded per [S2](#s2--2026-08-05-character-creation-is-unreachable-to-the-warden).
+Page index taken from the `/page/N/` prefix of each block's `id`, never from
+the `page` field (a Dead end).
+
+| Quantity | n |
+|---|---|
+| Blocks in artifact | 674 |
+| Content blocks | 409 |
+| Content blocks after S2 exclusions | 334 |
+| Content blocks contributing text | 321 |
+| **Pages loaded** | **38** |
+| Total characters | 76,803 |
+| Lexemes per page (avg / min / max) | 151 / 38 / 395 |
+
+`page_number` holds the **physical** index; printed page = physical + 1
+(standing conclusion 3). Both are given for every result below.
+
+#### 3.2 New finding — 14 of 32 `Table` blocks carry no text
+
+38 pages loaded, not the 41 that 44 − 3 exclusions implies. Three pages
+contribute nothing at all, because every content block on them flattens to
+the empty string:
+
+| Physical | Printed | Chapter | Why empty |
+|---|---|---|---|
+| 0 | 1 | — (cover) | 3 `Text` blocks, all `<p block-type="Text"></p>` |
+| 11 | 12 | `FIREARMS` | 7 `Table` blocks, all `<p></p>` |
+| 12 | 13 | `INDUSTRIAL EQUIPMENT` | 6 `Table` blocks, all `<p></p>` |
+
+Book-wide, **14 of 32 `Table` blocks (44%) have empty text**, on physical
+pages 11, 12, and 32. Page 32 (`SURVIVAL`) survives because it has other
+content; 11 and 12 do not.
+
+This is the same failure mode S1.8 found for `PageFooter` — marker emits the
+block with a detected type and bounding box, but no content — except that
+here it is silent data loss on body pages rather than deliberate noise
+stripping. S1.6's "409 content blocks" is an accurate count of blocks and an
+overcount of blocks carrying text; the real figure is 395 book-wide.
+
+**This is not an FTS finding.** It is upstream of retrieval entirely and hits
+the embedding approach identically: the two pages of equipment stat tables a
+Warden would most plausibly query for gear are absent from any index built on
+this artifact, by either method. It supersedes nothing in S1.6 — the block
+counts there are correct — but it does mean table extraction is a live
+problem independent of chunking strategy, and it is a stronger argument for
+the S1.6 note that "tables survive as HTML" needing qualification.
