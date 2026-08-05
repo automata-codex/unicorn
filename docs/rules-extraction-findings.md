@@ -109,6 +109,10 @@ The 400-token target and the 50–100 overlap band are inherited heuristics
 from `docs/rules-ingestion.md § Step 4`. They have never been validated
 against anything.
 
+An FTS-based alternative to this whole approach is under consideration as of
+2026-08-05 — see the last bullet under Open questions — and could relax the
+block-merge requirement above if it pans out.
+
 ### Hard constraints
 
 Ideas that violate these need a decision, not just an implementation:
@@ -162,7 +166,7 @@ on sight than in summary.
 
 ## Standing conclusions
 
-Current as of 2026-08-04. Each links to the session that established it.
+Current as of 2026-08-05. Each links to the session that established it.
 
 1. **Run marker with `--disable_ocr` on text-layer PDFs.** The default path
    fails outright on this machine and is ~3× slower even where it works.
@@ -181,6 +185,12 @@ Current as of 2026-08-04. Each links to the session that established it.
    emits is derived from font size and reading order, both of which are
    unreliable here. Treat any future rulebook of similar design the same way.
    ([S1.5](#15-markdown-heading-levels-are-visual-not-semantic), [S1.7](#17-section_hierarchy-is-not-true-ancestry))
+6. **No table in the PSG spans a page break; at least one non-table spread
+   does, and it's out of scope anyway.** The character-creation flowchart
+   (physical pp. 4–5) spans a page break, but character creation is
+   structurally unreachable by the Warden — confirmed via tool-array and
+   query-log inspection — so its extraction quality doesn't bear on
+   retrieval design. ([S2](#s2--2026-08-05-character-creation-is-unreachable-to-the-warden))
 
 ---
 
@@ -205,23 +215,44 @@ information** — each cost real time.
 
 ## Open questions
 
-- **Fallback chapter for the 8 footer-less pages** (18% of the book's text).
-  They are cover, credits, and reference-card spreads, and much of their
-  content duplicates the body. Options: drop them, fall back to marker's
-  nearest `SectionHeader`, or attribute them to a synthetic
+- **Fallback chapter for the remaining 5 footer-less pages** (physical 0,
+  1, 2, 10, 43 — down from 8: page 4 and its duplicates 41–42 are dropped
+  outright, not resolved, per [S2](#s2--2026-08-05-character-creation-is-unreachable-to-the-warden)).
+  Page 10 (equipment continuation) is body content the Warden would
+  plausibly query and is the one that most needs an answer. Pages 1 and 43
+  (armor/weapons and back-cover reference cards) duplicate live body rules
+  rather than unreachable content, so they likely need one too. Pages 0 and
+  2 (cover, credits) are candidates to drop the same way page 4 was — not
+  yet checked with the same rigor. Options for whichever pages stay: fall
+  back to marker's nearest `SectionHeader`, or attribute to a synthetic
   `"Reference Cards"` chapter. Not yet decided. ([S1.8](#18-the-running-footer-is-the-reliable-provenance-source))
-- **Duplicate reference spreads.** Physical pages 41/42 have byte-identical
-  extracted text (2511 chars each) and both duplicate physical page 4's
-  character-creation spread. Page 1 and 43 similarly duplicate body rules as
-  reference cards. Whether to dedupe before embedding is undecided — near-
-  duplicate chunks compete with each other in cosine ranking.
+- **Duplicate reference spreads.** Resolved for pages 41/42: both are
+  byte-identical duplicates of physical page 4's character-creation spread,
+  and page 4 is now dropped as unreachable, so 41–42 drop with it — no dedup
+  logic needed for this pair. **Still open** for page 1 and page 43, which
+  duplicate live, reachable body rules (armor/weapons stats) as reference
+  cards rather than unreachable content. If both the reference card and the
+  body page it duplicates stay in the index, near-duplicate chunks compete
+  with each other in cosine ranking — whether to dedupe before embedding is
+  still undecided for this pair.
 - **Does the footer heuristic generalize?** Verified only against the PSG 1e.
   The `printed = physical + 1` offset is certainly edition-specific and
   probably printing-specific. Any second Mothership book (Warden's Operations
   Manual, Shipbreaker's Toolkit) needs its own check before ingestion.
 - **Is `tiktoken` a good enough proxy for Voyage's tokenizer here?** Not yet
   measured. Accepted as a heuristic per `docs/specs/zoltar/012-m7.2-rules-ingestion.md § Part 3`.
-
+- **Should FTS (Postgres `tsvector`/`ts_rank`/`ts_headline`) replace or
+  precede embedding-based retrieval as the primary `rules_lookup` mechanism?**
+  Proposed 2026-08-05, on the strength of the recorded Warden queries being
+  keyword-heavy rather than paraphrased ("What the Warden actually asks"
+  above) and external evidence that FTS beats semantic search on
+  keyword-anchored queries against a heterogeneous corpus
+  (alexgs.me/posts/fts-is-the-workhorse). Not yet tested against this book
+  or these queries — no session behind this bullet yet. If it holds up, it
+  would relax rather than eliminate the chunking work: table atomicity and
+  the S1.8 footer/chapter attribution stay necessary either way; the
+  block-merge-toward-400-tokens design (the part [S1.5](#15-markdown-heading-levels-are-visual-not-semantic)–[S1.7](#17-section_hierarchy-is-not-true-ancestry)
+  are currently blocking) would become optional rather than required.
 ---
 
 ## Corrections owed to `docs/rules-ingestion.md`
@@ -438,3 +469,50 @@ Not a pipeline defect, but the Part 4 sanity query has to be a question this
 edition can actually answer, or a correct index will look broken. Alex's
 `0e/` directory does contain a `Player's Survival Guide 0e.pdf`, so the two
 editions are both on disk and easy to confuse.
+
+
+### S2 — 2026-08-05 · Character creation is unreachable to the Warden
+
+Context: a retrieval-design discussion raised page-spanning content as a
+robustness question for both table extraction and prose windowing. Checked
+against the real book and the real codebase rather than assumed.
+
+**Tables do not span page breaks in the PSG.** Checked against the marker
+`chunks` output from S1 — none of the 32 `Table` blocks has a page-adjacent
+sibling with a matching column signature. No page-break handling is needed
+for table atomicity.
+
+**The character-creation flowchart (physical pp. 4–5) does span a page
+break**, and its content — box labels and conditional branches — likely
+doesn't survive text extraction at all, independent of the page break: it's
+exactly the kind of visual/spatial structure S1.5 and S1.7 already found
+marker cannot recover (`STEP 3` before `STEP 1`, siblings misread as
+parent/child).
+
+Rather than solve that extraction problem, checked whether it needs solving.
+Grepped every recorded `rules_lookup` query and enumerated the tool arrays
+of both Claude-calling modules:
+
+- The only three `rules_lookup` queries ever recorded (preserved in
+  `apps/zoltar-be/playtest-reports/` after the dev DB was wiped) are all
+  mid-play resolution mechanics — perception, saves, skill checks — and all
+  three returned 0 results against the empty index. No eval fixture or
+  playtest transcript contains a `rules_lookup` call touching character
+  creation.
+- `rules_lookup` appears in exactly one tool array: `session.tools.ts`, the
+  play loop. Character creation (`apps/zoltar-be/src/character/`) is a
+  deterministic controller/service/repository behind
+  `CharacterCreate.svelte` and makes no Anthropic calls at all. `synthesis`
+  (campaign creation), the other Claude-calling module, exposes only
+  `submit_gm_context` and `report_coherence` — no `rules_lookup`.
+
+**Conclusion: this is a structural guarantee, not an absence-of-evidence
+argument.** The Warden has no code path to character-creation content,
+mid-play or at synthesis. Page 4's poor extraction quality and its
+page-break-spanning flowchart don't need to be fixed — the content is
+unreachable regardless of extraction fidelity.
+
+**Consequence for open questions:** physical page 4 (one of the 8
+footer-less pages) and pages 41–42 (its byte-identical back-matter
+duplicates) can be dropped from the index outright rather than resolved.
+See updated Open questions below.
