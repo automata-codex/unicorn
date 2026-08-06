@@ -106,6 +106,9 @@ ingestion/.venv/
 __pycache__/
 *.pyc
 .pytest_cache/
+# Index provenance from the last local ingestion run — describes one machine's
+# index build, read by task eval:retrieval to stamp its run manifests.
+ingestion/.ingest-manifest.json
 
 # Personal notes — kept on disk, not tracked
 docs/mental-health-toolkit.md

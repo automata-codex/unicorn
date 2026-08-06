@@ -287,7 +287,14 @@ Current as of 2026-08-05. Each links to the session that established it.
     Chunk size is an M7.5 lever and should be tuned against the retrieval
     harness, not against a docstring.
     ([S11.1](#111-result--65-chunks-not-100400))
-14. **The sort's one residual failure is invisible to the corpus — for now.**
+14. **A correct top hit does not score above 0.5 on this model and corpus.**
+    Answerable queries top out at 0.527 and run as low as 0.355 while
+    returning the right page; the spec's `> 0.5` sanity bar is an unmeasured
+    guess. Answerable and unanswerable distributions do separate, but they
+    overlap between 0.355 and 0.380 — enough to be encouraging about a
+    similarity floor, nowhere near enough to set one.
+    ([S12.2](#122-the-similarity-distribution--11-queries), [S12.3](#123-the-two-distributions-do-separate--narrowly))
+15. **The sort's one residual failure is invisible to the corpus — for now.**
     Page 17's misordering is confined to a `SectionHeader` block, and
     `SectionHeader` is dropped before chunking; its content blocks sort
     correctly. Two M7.5 levers (breadcrumb composition, `SectionHeader` as
@@ -2182,3 +2189,100 @@ chunk boundaries.
 Extraction and chunk output stayed in a scratch directory outside the
 repository. No rulebook text, extracted output, or chunk content committed —
 the numbers above are counts and structural metadata only.
+
+
+### S12 — 2026-08-06 · First populated index; the `> 0.5` similarity bar is a bad guess
+
+Context: the pipeline now runs end to end. `rules_chunk` holds 66 rows for
+`mothership`, embedded with `voyage-4-lite` at 1024 dimensions. This session
+records the first retrieval measurements taken against a **real populated
+index** — the first in this log that are not scratch-table reconstructions.
+
+#### 12.1 The run
+
+`python ingest.py --system mothership --pdf <psg>` — exit 0, ~29 s wall clock
+(marker ~23 s of it), 66 chunks, 0 NULL embeddings, 26 chapters, embedding
+dimension 1024 checked against `game_system.embedding_dim` **before** the
+`DELETE`. Re-running is idempotent: "replaced 66 existing rows with 66 new
+rows," count unchanged.
+
+**Six citations verified mechanically**, not by eye: a distinctive prose run
+from each of six randomly-drawn chunks was searched for in the `pypdfium2`
+text of the printed page its `source` cites. **6 of 6 found on the cited
+page.**
+
+Two initially read as failures and both were artifacts of the *check*, worth
+recording because anyone re-running this verification will hit them:
+marker and pypdfium2 disagree on typography. Marker renders the soft
+hyphen in "coffin-like" as nothing (`coffinlike`); pypdfium2 renders it as
+`\x02`. Apostrophes differ likewise (`'` vs `’`). Fold typographic
+punctuation and strip control characters on **both** sides before comparing.
+No control characters reach the index — 0 of 66 chunks contain one.
+
+#### 12.2 The similarity distribution — 11 queries
+
+Top-1 cosine similarity, `voyage-4-lite`, against the 66-chunk index. The
+three `warden-observed` queries are the real recorded ones from
+[S3.6](#36-term-coverage--the-wardens-vocabulary-is-not-the-books); the
+unanswerable set is drawn from the concept-absent bucket
+[S9.3](#93-three-buckets-not-two) identified.
+
+| Class | Query | Top-1 | Top hit |
+|---|---|---|---|
+| authored | what happens when a character panics | **0.456** | p.21 PANIC CHECKS ✓ |
+| authored | how do I make a stat check | 0.362 | p.18 STAT CHECKS & SAVES ✓ |
+| authored | what are the range bands | 0.375 | pp.30-31 RANGE & DISTANCE ✓ |
+| authored | how does armor work | 0.441 | p.28 |
+| warden-observed | perception check looking around environment, noticing details | 0.355 | p.37 |
+| warden-observed | saving throws stats how to roll checks | **0.527** | p.18 STAT CHECKS & SAVES ✓ |
+| warden-observed | skill checks INT intellect saves diagnosis repair | 0.430 | p.18 |
+| unanswerable | suppressive fire autofire rules | 0.226 | p.27 |
+| unanswerable | flanking bonus when surrounding an enemy | 0.318 | p.27 |
+| unanswerable | opposed roll contest between two characters | 0.380 | p.42 |
+| unanswerable | android remote shutdown command | 0.246 | p.7 |
+
+**The spec's Done When 3 bar — top result > 0.5 — is not a property this
+model and corpus have.** One of seven answerable queries clears it, and the
+one that does is not the one whose retrieval is most obviously correct.
+Meanwhile the query the spec names as its own example ("panic check") returns
+the correct page at ranks 1 *and* 2 while scoring 0.456. **Retrieval being
+right and the score clearing 0.5 are close to unrelated here.** Like the
+100–400 chunk count ([S11.1](#111-result--65-chunks-not-100400)), 0.5 was
+written before anything was measured.
+
+#### 12.3 The two distributions do separate — narrowly
+
+| | n | min | max |
+|---|---|---|---|
+| answerable | 7 | 0.355 | 0.527 |
+| unanswerable | 4 | 0.226 | 0.380 |
+
+Encouraging for the floor question [S5.5](#55-incidental--a-similarity-floor-may-be-derivable-after-all)
+raised, and **not yet sufficient to set one**. The bands overlap between
+0.355 and 0.380: an answerable query sits at 0.355 and an unanswerable one at
+0.380, so any threshold that excludes the worst unanswerable also excludes
+two correct answerable queries. A floor near 0.32 would cut half the
+unanswerable set while keeping every answerable one — but on eleven
+hand-picked points that is a hypothesis, not a derivation.
+
+This is exactly what the M7.2 retrieval harness exists to turn into a real
+sample, and setting a floor from these eleven points would be the mistake the
+harness was specified to prevent. **The floor stays M7.5's, unset.**
+
+#### 12.4 Early signal on query style — do not over-read it
+
+The one answerable query whose top hit is plainly wrong (`perception check…`
+-> p.37) is the same query S3–S5 identified as the hard one, failing the same
+way for the same reason: `perception` occurs on zero pages. Dense retrieval
+over the real chunked index reproduces the finding the scratch page-granular
+corpus produced. Four points per style is far too few for a rate, but the
+qualitative story is unchanged, and the per-`queryStyle` split the harness
+carries is the right instrument.
+
+#### 12.5 Teardown
+
+The index is left populated — it is the artifact this milestone exists to
+produce. Provenance for it is in `ingestion/.ingest-manifest.json`
+(gitignored): marker 2.0.0, `voyage-4-lite`, 1024 dimensions, 66 chunks,
+400-token target, 50-100 token overlap, PDF SHA-256 recorded. No rulebook
+text committed.

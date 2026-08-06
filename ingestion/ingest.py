@@ -25,12 +25,15 @@ import argparse
 import json
 import logging
 import os
+import subprocess
 import sys
 import tempfile
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import NoReturn
 
-from pipeline import extract, fixup, hash as hashing
+from pipeline import embed, extract, fixup, hash as hashing, store
 from pipeline.chunk import Chunk, chunk_blocks, sort_blocks_by_page
 
 EXIT_OK = 0
@@ -47,6 +50,7 @@ EXIT_BAD_ARGS = 5
 DEFAULT_VOYAGE_MODEL = "voyage-4-lite"
 
 INGESTION_ROOT = Path(__file__).resolve().parent
+MANIFEST_PATH = INGESTION_ROOT / ".ingest-manifest.json"
 
 logger = logging.getLogger("ingest")
 
@@ -162,6 +166,60 @@ def build_chunks(args: argparse.Namespace, system_dir: Path, config: dict) -> li
     return chunks
 
 
+def _marker_version() -> str | None:
+    try:
+        completed = subprocess.run(
+            [sys.executable, "-m", "pip", "show", "marker-pdf"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    for line in completed.stdout.splitlines():
+        if line.lower().startswith("version:"):
+            return line.split(":", 1)[1].strip()
+    return None
+
+
+def write_manifest(
+    args: argparse.Namespace,
+    config: dict,
+    *,
+    chunk_count: int,
+    embedding_dim: int,
+) -> None:
+    """Record how this index was built, for whoever scores it later.
+
+    A retrieval score is only comparable against the same index build, so
+    M7.5's iteration needs marker version, chunking parameters, embed model,
+    and chunk count attached to every measurement — the analogue of
+    ``corpusVersion``/``harnessVersion`` on the Warden side. There is no
+    ingestion-metadata table and this milestone adds no migration, so it lands
+    beside the pipeline as a gitignored file; the retrieval harness copies it
+    into its run manifest and records an explicit null when it is absent.
+    """
+    manifest = {
+        "system": args.system,
+        "ingestedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "pdfSha256": hashing.sha256_file(args.pdf),
+        "markerVersion": _marker_version(),
+        "embedModel": args.voyage_model,
+        "embeddingDim": embedding_dim,
+        "chunkCount": chunk_count,
+        "sourceLabel": config.get("source_label"),
+        "pageOffset": config.get("page_offset"),
+        # Defaults live in chunk_blocks' signature; recorded explicitly so a
+        # future change to them is visible in the provenance rather than
+        # silently reinterpreting old runs.
+        "targetTokens": 400,
+        "overlapTokens": [50, 100],
+        "droppedPages": [],
+    }
+    MANIFEST_PATH.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    logger.info("wrote index provenance to %s", MANIFEST_PATH)
+
+
 def print_dry_run(chunks: list[Chunk]) -> None:
     print()
     print(f"chunks: {len(chunks)}")
@@ -238,12 +296,88 @@ def main(argv: list[str] | None = None) -> int:
         print_dry_run(chunks)
         return EXIT_OK
 
-    # Embedding, the dimension guard, storage, and the run manifest land in
-    # Part 5 of docs/plans/012-m7.2-rules-ingestion-implementation-plan.md.
-    # Exit codes 3 and 4 arrive with the code paths that can raise them.
-    raise NotImplementedError(
-        "embedding and storage are not implemented yet — use --dry-run"
+    if not args.voyage_api_key:
+        logger.error("--voyage-api-key is required (or set $VOYAGE_API_KEY)")
+        return EXIT_BAD_ARGS
+
+    if not chunks:
+        logger.error(
+            "no chunks were produced, so there is nothing to insert. Refusing "
+            "to proceed — continuing would delete the existing index and "
+            "replace it with nothing."
+        )
+        return EXIT_EXTRACTION
+
+    started = time.monotonic()
+
+    try:
+        import psycopg
+    except ImportError as err:  # pragma: no cover - dependency check
+        logger.error("psycopg is not installed: %s", err)
+        return EXIT_DATABASE
+
+    try:
+        connection = psycopg.connect(args.database_url)
+    except Exception as err:
+        logger.error("could not connect to the database: %s", err)
+        return EXIT_DATABASE
+
+    try:
+        try:
+            system_id, embedding_dim = store.lookup_system(connection, args.system)
+        except store.StorageError as err:
+            logger.error("%s", err)
+            return EXIT_DATABASE
+
+        # Embed and dimension-check *before* touching the table. Running the
+        # guard after the DELETE would trade a caught bug for an emptied index.
+        try:
+            vectors = embed.embed_documents(
+                [chunk.content for chunk in chunks],
+                model=args.voyage_model,
+                api_key=args.voyage_api_key,
+            )
+            embed.assert_dimensions(vectors, embedding_dim)
+        except embed.EmbeddingError as err:
+            logger.error("%s", err)
+            return EXIT_EMBEDDING
+
+        try:
+            inserted = store.replace_chunks(
+                connection,
+                system_id=system_id,
+                chunks=chunks,
+                embeddings=vectors,
+            )
+            store.reindex_embeddings(connection)
+            rows, null_embeddings = store.count_chunks(connection, system_id)
+        except Exception as err:
+            connection.rollback()
+            logger.error("database error: %s", err)
+            return EXIT_DATABASE
+    finally:
+        connection.close()
+
+    elapsed = time.monotonic() - started
+    write_manifest(args, config, chunk_count=inserted, embedding_dim=embedding_dim)
+
+    logger.info(
+        "ingested %d chunks for '%s' (model=%s, dim=%d, rows now %d, null embeddings %d) in %.1fs",
+        inserted,
+        args.system,
+        args.voyage_model,
+        embedding_dim,
+        rows,
+        null_embeddings,
+        elapsed,
     )
+    if null_embeddings:
+        logger.warning(
+            "%d rows carry a NULL embedding and are invisible to rules_lookup, "
+            "which filters them out",
+            null_embeddings,
+        )
+    return EXIT_OK
 
 
 if __name__ == "__main__":
