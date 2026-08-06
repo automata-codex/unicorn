@@ -109,3 +109,4 @@ __pycache__/
 
 # Personal notes — kept on disk, not tracked
 docs/mental-health-toolkit.md
+/.claude/worktrees/

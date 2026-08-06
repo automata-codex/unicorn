@@ -303,6 +303,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [ ] Environment variable documentation
 - [ ] Signup mode implementation (`SIGNUP_MODE` / `INVITE_TOKEN` enforcement in `AuthService`)
 - [ ] Self-hosted setup guide + DigitalOcean Droplet walkthrough
+- [ ] Verify rules text ingestion pipeline in target environment
 - [ ] Signup mode documented in self-hosted setup guide
 - [ ] Responsive polish pass (thumb reach, viewport refinement)
 - [ ] Full-corpus eval run before tagging, compared against the M7.5 re-baseline. This is release discipline rather than milestone scope — it belongs on the release checklist alongside the setup guide and env-var docs, and it recurs at every tagged release, not just this one. Listed here explicitly to establish the habit
