@@ -66,6 +66,18 @@ No eval re-baseline is owed for this change on its own. Both existing baselines 
 
 ## Rules Ingestion
 
+### Rules ingestion pipeline and retrieval quality are separate milestones
+
+M7.2's original spec included post-ingestion validation — an eval re-baseline and a dedicated playtest — as its own Part 6. Both moved out to a new milestone, M7.5 (Rules Retrieval Quality), during M7.2 implementation.
+
+**Why.** M7.5 exists to iterate on chunking quality, potentially as far as a hand-curated Markdown replacement for automated extraction. That iteration changes what's in the index. The re-baseline costs roughly 300 Warden turns plus judge calls (2 models × 15 fixtures × N=10) — buying it against an index about to be re-chunked means buying it twice. Same shape of waste the `roll_dice` schema-field deferral (below) was already guarding against, except worse: that was an unavoidable confound between two things worth measuring together; this would be pure waste, re-measuring the same thing after changing it out from under the measurement.
+
+**What makes deferring the re-baseline safe rather than merely postponing it:** the retrieval eval harness (`task eval:retrieval`) reads index quality for the price of a few Voyage calls — no Anthropic spend at all. "Is this index worth baselining?" gets answered long before anyone pays to baseline it. Without that harness the deferral would just be procrastination with an extra step.
+
+**The completion-criteria split, not just the reasoning, is why they're separate milestones rather than one milestone with a later Part 6.** M7.2's criteria are binary — the CLI runs, rows land, the harness scores. M7.5's is a quality bar — chunking iteration continues until the bar is met or a stopping rule fires. Milestones with quality-bar criteria absorb whatever is adjacent to them; folding the re-baseline into M7.2 would have made M7.2 itself open-ended, defeating the reason for having Done-When criteria at all.
+
+**Consequence:** M7.2 ends with a populated index and a way to measure it — not with evidence the Warden is actually better off. That evidence is M7.5's. The three entries below waiting on a populated-index re-baseline (`§ Warden model upgraded to claude-sonnet-5`, `§ Agentic graph decomposition stays deferred`, `§ rollType / gatedByRollId / actingEntityId on roll_dice stay deferred`) stay open one milestone longer than an M7.2-only plan would have implied.
+
 ### Chunk extraction is block-based with footer-derived provenance, not markdown headings
 
 The design doc's chunking premise — treat each `###` Markdown heading as a candidate chunk boundary — does not survive contact with the actual extraction output. The PSG's whole-book heading histogram is 84 `#`, 3 `##`, 10 `###`, 55 `####` (`docs/rules-extraction-findings.md § S1.5`): 10 `###` headings against a 100–400-chunk target kills the approach on arithmetic alone, and the levels are assigned by font size rather than document structure — `#### ARMOR` and `# 14 ARMOR` are the same section at different levels, and reading order scrambles across the character-creation spread. Markdown output is also the wrong extraction format independent of the heading problem: it discards page attribution entirely, and the only page-marker mechanism it carries (`<span id="page-N-M">` anchors) covers 16 of 44 pages.
@@ -380,6 +392,8 @@ These three fields were introduced in the M7.4 spec as a fixture-schema compatib
 So the fields are not only a possible fix; they are the precondition for knowing whether a fix is needed. Until they land, both checks report `not_applicable` naming the missing field rather than approximating it with a regex — the deliberate cost being denominator, per "Structural checks report undecided rather than guessing" below.
 
 **Still deferred**, and the reason is unchanged: adding fields to `roll_dice` changes the tool schema, which changes what reaches the Warden, which invalidates every frozen artifact and forces a fresh baseline on both models. That is affordable once, not repeatedly, and the M7.2 rules-ingestion work is already going to force one — both existing baselines ran against an empty `rules_chunk` index. Re-check after M7.2, and land the fields with that re-baseline rather than paying for a second one.
+
+**Provenance note.** During M7.2 implementation planning this conclusion was briefly reversed — a plan document recorded "resolved with Alex: the fields do not ride along, a third baseline gets paid for separately" — and instructed that this entry be rewritten to match. That rewrite never happened here. The reversal was itself reversed during M7.5 spec review: the fields land with M7.5's re-baseline, per the original reasoning above, which was correct throughout. Noted so the now-stale reasoning in that plan document isn't mistaken for a second, independent decision.
 
 ---
 

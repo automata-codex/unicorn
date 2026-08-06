@@ -12,16 +12,18 @@ The `rules_lookup` tool performs semantic search against a per-system vector ind
 
 ## Pipeline
 
-### Step 1 — PDF to Markdown
+### Step 1 — PDF Extraction
 
 **Tool:** [marker](https://github.com/VikParuchuri/marker)
 
-Marker is the preferred extraction tool for TTRPG PDFs. It handles multi-column layouts, tables, and mixed prose/stat-block content significantly better than naive text extraction. Output is clean Markdown.
+Marker is the preferred extraction tool for TTRPG PDFs. It handles multi-column layouts, tables, and mixed prose/stat-block content significantly better than naive text extraction.
 
 ```bash
 pip install marker-pdf
-marker_single rulebook.pdf output/ --langs English
+marker_single rulebook.pdf --output_dir output/ --output_format chunks --disable_ocr --disable_image_extraction
 ```
+
+Output is a set of typed content blocks (`Text`, `Table`, `ListGroup`, `SectionHeader`, and others) carrying page and bounding-box metadata for every block — not flattened Markdown, which discards the page and position signals the pipeline depends on downstream (see Step 4). `--disable_ocr` assumes the source PDF has a clean, extractable text layer, true for most modern rulebooks distributed as native digital files. Marker's default path runs full-page OCR through a llama.cpp backend that is not installed by default and adds a system dependency (`brew install llama.cpp` on macOS) plus roughly 3x the extraction time — only enable OCR for scanned-only sources, and check per source PDF rather than assuming the flag is safe to drop.
 
 Alternatives and their tradeoffs:
 
@@ -32,21 +34,23 @@ Marker is the default. The tool version is pinned in the ingestion pipeline to m
 
 ### Step 2 — Fixup Patches
 
-Marker output is imperfect for dense rules layouts. Known malformed chunks — broken tables, split stat blocks, garbled sidebar text — are corrected by a fixup patch file shipped alongside the pipeline.
+Marker output is imperfect for dense rules layouts — known malformed blocks (tables that extract with no text, garbled sidebar content) are corrected by a fixup patch file shipped alongside the pipeline.
 
-Fixup files are stored at `ingestion/fixups/{system_id}.json`. They are metadata, not rules text: each entry identifies a chunk by its position in the extracted Markdown and specifies a replacement derived from the user's own extraction. No copyrighted text is authored or distributed in the fixup files.
+Fixup files are stored at `ingestion/fixups/{system_id}.json`. They are metadata, not rules text: each entry identifies a block by its stable `id` in marker's `chunks` output (e.g. `/page/11/Table/5`) and specifies a replacement derived from the user's own extraction. No copyrighted text is authored or distributed in the fixup files.
 
 ```json
 [
   {
-    "description": "Panic table reformatted as pipe table",
-    "match": { "section": ["Combat", "Panic"], "contains": "1-10Roll" },
+    "description": "Panic table extracted with no text (empty Table block)",
+    "match": { "block_id": "/page/11/Table/5" },
     "replace_with_template": "panic_table.md"
   }
 ]
 ```
 
 Templates referenced by fixup entries are also shipped and contain structural scaffolding (table headers, column names) but not rules values. The user's extracted values populate the template.
+
+Matching on block `id` rather than section or content text is deliberate: a block that extracts with no text at all has nothing for a content-based matcher to match against, and marker's own section metadata is not reliable enough to match against either (see Step 4).
 
 ### Step 3 — Hash Verification
 
@@ -61,18 +65,21 @@ If the hash does not match, the pipeline warns the user that fixups may not appl
 
 ### Step 4 — Chunking
 
-Fixed-size chunking produces poor retrieval for rules text because a mechanic typically spans a heading, several paragraphs, and a table. The pipeline uses heading-aware chunking instead:
+Fixed-size chunking produces poor retrieval for rules text because a mechanic typically spans a heading, several paragraphs, and a table. The pipeline chunks marker's typed blocks (`Text`, `Table`, `ListGroup` — `SectionHeader`, `PageHeader`, `PageFooter`, and `Picture` blocks are dropped) rather than treating Markdown headings as chunk boundaries. Headings in dense, visually-driven rulebooks are assigned by font size, not document structure, and don't reliably track a book's actual section hierarchy — the same heading level can label both a chapter and one step within it.
 
-- Walk the Markdown heading tree
-- Each `###` section is a candidate chunk
-- Chunks exceeding ~400 tokens are split further at paragraph boundaries
-- 50–100 token overlap between adjacent chunks from the same section
+**4a — Recover reading order.** Marker's emitted block order is not reading order on multi-column pages. Before merging, blocks are sorted with a deterministic geometric pass: a block spanning most of the page width flushes the current column band and stands alone; everything else is banded by vertical position and split left/right by horizontal midline. This step is required, not optional — merging blocks in emitted order concatenates a meaningful share of multi-column body pages backwards. The sort itself is deterministic and makes no model calls; an LLM-assisted flagging pass may be used offline to spot-check pages the sort can't be validated against (pages with no numbered section headers to check order against), but never to perform the reordering — ordering must stay reproducible from the PDF alone.
+
+**4b — Merge into chunks.** Walk the sorted, page-ordered blocks and merge toward a ~400-token target, with 50–100 tokens of overlap between adjacent chunks. Table blocks are never split across a chunk boundary. A chapter change (4c) forces a chunk boundary regardless of token count.
+
+**4c — Attribute page and chapter.** Marker's block-level page field is an internal identifier, not a printed page number, and its `section_hierarchy` field reflects the last heading seen at each visual level rather than true ancestry — on a page where reading order is scrambled, this silently promotes a sibling section into a parent. Page number and chapter name are instead read directly from the PDF's running footer. This is edition- and printing-specific: the mapping from physical page index to printed page number, and the footer format itself, need their own verification pass for each new edition of a supported book, not just each new system.
 
 Each chunk is stored with:
 
-- `source` — human-readable citation, e.g. `"Mothership Player's Survival Guide p.34"`
-- `section_path` — heading ancestry, e.g. `["Combat", "Panic Checks"]`
+- `source` — human-readable citation built from the footer-derived page number, e.g. `"Mothership Player's Survival Guide p.34"`. This is the only citation surfaced to the Warden or player at query time (see Query Time, below)
+- `section_path` — chapter-level label only, footer-derived. Not full heading ancestry, which marker's structural output cannot reliably provide for this class of book. Retained for forensic and debugging use rather than as a citation the runtime response depends on
 - `system_id` — FK to the game system record
+
+**Known gap.** A portion of `Table` blocks extract with no text at all, which drops the pages they cover from the index entirely. This is exactly the class of defect Step 2's fixup mechanism exists to correct, but is not yet resolved for Mothership as of this writing — see `docs/rules-extraction-findings.md § S3.2` for current extent, and `roadmap.md` M7.2 for status.
 
 ### Step 5 — Embedding
 
@@ -121,11 +128,14 @@ The `vector(1024)` dimension matches the default output of `voyage-4-lite`. If a
 
 The `rules_lookup` tool handler in `GmService`:
 
-1. Embeds the query string via Voyage AI (`input_type="query"`)
-2. Runs a cosine similarity search against `rules_chunk` filtered to the active `system_id`
-3. Returns the top N chunks (default 3, max 5) with `content`, `source`, and `similarity` score
+1. Preprocesses the query string — drops high-document-frequency terms via a ceiling computed from the index itself, before embedding. This is not a minor cleanup step: shortening a verbose, keyword-stuffed query to its distinctive terms is the single largest retrieval-quality lever measured against this pipeline, larger than the choice of retrieval backend itself (`docs/decisions.md § Query preprocessing for rules_lookup promoted from optional to critical path`)
+2. Embeds the query string via Voyage AI (`input_type="query"`)
+3. Runs a cosine similarity search against `rules_chunk` filtered to the active `system_id`
+4. Returns the top N chunks (default 3, max 5) with `content`, `source`, and `similarity` score
 
-The Voyage API call is synchronous in the GM turn hot path. Latency is typically 100–200ms and acceptable at Phase 1 scale. If it becomes a bottleneck, common query strings (panic table, wound results, etc.) can be pre-embedded and cached — the query space for a slim system like Mothership is small enough to cache exhaustively.
+There is currently no similarity floor — the tool always returns top N chunks regardless of match quality, including for questions the indexed book cannot answer at all. A meaningful share of real Warden queries ask about mechanics a given system's rulebook doesn't contain (e.g. asking a roll-under-stat system for a difficulty number), for which returning nothing is the correct behavior rather than three confidently wrong chunks. Deriving a floor from the score distribution of answerable vs. unanswerable queries is tracked in `roadmap.md` M7.5, and should land before any full-corpus Warden evaluation is treated as representative.
+
+The Voyage API call is synchronous in the GM turn hot path and is effectively the entire latency budget — measured at ~98% of the ~100–200ms end-to-end cost, with the pgvector scan itself contributing only 1–3ms regardless of index size at Phase 1 scale. If it becomes a bottleneck, common query strings (panic table, wound results, etc.) can be pre-embedded and cached — the query space for a slim system like Mothership is small enough to cache exhaustively.
 
 ---
 
@@ -158,4 +168,4 @@ For systems with a usable SRD, the pre-built index covers only SRD content. Play
 - SHA-256 hashes for known supported PDF editions
 - Pre-built index for SRD-backed systems (D&D 5e SRD 5.1; others if licensing permits)
 
-What does not ship: extracted Markdown, chunk text, or vector indexes for non-SRD systems.
+What does not ship: extracted text (Markdown or block output), chunk text, or vector indexes for non-SRD systems.
