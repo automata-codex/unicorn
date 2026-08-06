@@ -16,8 +16,15 @@
 #   psycopg and tiktoken float above a floor. Neither affects what lands in
 #   the index: psycopg is a driver over plain SQL, and tiktoken only counts
 #   tokens for the ~400-token chunking heuristic, which has no hard boundary.
+#
+#   pypdfium2 is pinned exactly. It arrives transitively via marker-pdf, but
+#   extract.py imports and calls it directly to read the running footer —
+#   the only source of page number and chapter name in the whole pipeline —
+#   and a direct import deserves a direct pin rather than inheriting whatever
+#   marker happens to resolve.
 
 marker-pdf==2.0.0
 voyageai==0.5.0
+pypdfium2==5.10.1
 psycopg[binary]>=3.2
 tiktoken>=0.8
