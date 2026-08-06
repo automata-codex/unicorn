@@ -10,11 +10,13 @@
  * the harness lands, this and it would answer the same question at very
  * different quality, so this one goes.
  *
- * Goes through the same `VoyageService` + `RulesRepository` path the Warden
- * uses, rather than reimplementing the query: a divergence between what
- * ingestion wrote and what the runtime reads is exactly the failure
- * `docs/decisions.md § Embedding model` already got bitten by once, and a
- * bespoke query here would hide it.
+ * Goes through `RulesLookupService` — the same object the Warden's tool
+ * handler calls — rather than reimplementing the query against the
+ * repository. Query preprocessing lives in that service, so a probe that
+ * called the repository directly would report raw retrieval as though it
+ * were the runtime path. That is the same class of ingestion/runtime
+ * divergence `docs/decisions.md § Embedding model` already got bitten by
+ * once, and it is what this probe exists to catch rather than reproduce.
  *
  * Costs one Voyage call. No Anthropic call, no writes.
  *
@@ -28,6 +30,7 @@ import { sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 
 import { envOnlyConfigService } from '../../eval/runs/env-config-service';
+import { RulesLookupService } from '../../src/rules/rules-lookup.service';
 import { RulesRepository } from '../../src/rules/rules.repository';
 import { VoyageService } from '../../src/voyage/voyage.service';
 
@@ -107,23 +110,32 @@ async function main(): Promise<number> {
       return 1;
     }
 
-    const voyage = new VoyageService(envOnlyConfigService());
-    const repo = new RulesRepository(db);
+    // Through `RulesLookupService`, not around it. Calling the repository
+    // directly would skip query preprocessing and report raw retrieval as
+    // though it were the runtime path — the exact ingestion/runtime
+    // divergence this probe exists to catch.
+    const service = new RulesLookupService(
+      new RulesRepository(db),
+      new VoyageService(envOnlyConfigService()),
+    );
 
     const startedAt = Date.now();
-    const embedding = await voyage.embed(cli.query, 'query');
-    const matches = await repo.findByCosineSimilarity({
-      systemId: system.id,
-      embedding,
+    const { output, preprocessedQuery } = await service.lookup(system.id, {
+      query: cli.query,
       limit: cli.limit,
     });
+    const matches = output.results;
     const elapsedMs = Date.now() - startedAt;
 
     process.stdout.write(
-      `\nquery: ${JSON.stringify(cli.query)}\nmodel: ${process.env.VOYAGE_EMBED_MODEL}   ${elapsedMs}ms   ${matches.length} hits\n\n`,
+      `\nquery: ${JSON.stringify(cli.query)}\n` +
+        (preprocessedQuery === undefined
+          ? 'preprocessing: no change\n'
+          : `embedded as: ${JSON.stringify(preprocessedQuery)}\n`) +
+        `model: ${process.env.VOYAGE_EMBED_MODEL}   ${elapsedMs}ms   ${matches.length} hits\n\n`,
     );
     matches.forEach((match, index) => {
-      const excerpt = match.content.replace(/\s+/g, ' ').slice(0, 220);
+      const excerpt = match.text.replace(/\s+/g, ' ').slice(0, 220);
       process.stdout.write(
         `${index + 1}. similarity ${match.similarity.toFixed(4)}  ${match.source}\n   ${excerpt}…\n\n`,
       );

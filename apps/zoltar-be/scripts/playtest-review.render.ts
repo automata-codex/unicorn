@@ -261,12 +261,18 @@ function renderRulesLookups(lookups: RulesLookupRecord[]): string {
   if (lookups.length === 0) return '_(none)_';
   return lookups
     .map((l) => {
+      // Surfaced only when preprocessing changed the query, so a review can
+      // tell a bad Warden phrasing from an over-eager trim. Absent otherwise.
+      const trimmed =
+        l.preprocessedQuery !== undefined
+          ? `\n  - embedded as \`"${l.preprocessedQuery}"\``
+          : '';
       if (l.resultCount === 0) {
-        return `- \`"${l.query}"\` — 0 results ⚠️`;
+        return `- \`"${l.query}"\` — 0 results ⚠️${trimmed}`;
       }
       const sim =
         l.topSimilarity !== null ? `, top sim ${l.topSimilarity.toFixed(3)}` : '';
-      return `- \`"${l.query}"\` — ${l.resultCount} result${l.resultCount === 1 ? '' : 's'}${sim}`;
+      return `- \`"${l.query}"\` — ${l.resultCount} result${l.resultCount === 1 ? '' : 's'}${sim}${trimmed}`;
     })
     .join('\n');
 }

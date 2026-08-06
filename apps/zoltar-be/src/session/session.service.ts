@@ -877,18 +877,25 @@ export class SessionService {
       };
     }
     try {
-      const result = await this.rules.lookup(systemId, parsed.data);
+      const { output, preprocessedQuery } = await this.rules.lookup(
+        systemId,
+        parsed.data,
+      );
       rulesLookups.push({
         query: parsed.data.query,
+        ...(preprocessedQuery === undefined ? {} : { preprocessedQuery }),
         limit: parsed.data.limit ?? 3,
-        resultCount: result.results.length,
-        topSimilarity: result.results[0]?.similarity ?? null,
-        sources: result.results.map((r) => r.source),
+        resultCount: output.results.length,
+        topSimilarity: output.results[0]?.similarity ?? null,
+        sources: output.results.map((r) => r.source),
       });
       return {
         type: 'tool_result',
         tool_use_id: use.id,
-        content: JSON.stringify(result),
+        // `output` only — never the preprocessing metadata. What Claude reads
+        // is the tool schema's shape, and widening it here would be a prompt
+        // change disguised as a retrieval change.
+        content: JSON.stringify(output),
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

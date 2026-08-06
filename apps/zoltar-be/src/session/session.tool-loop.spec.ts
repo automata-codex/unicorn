@@ -76,7 +76,11 @@ function makeService(
       })),
   } as unknown as DiceService;
   const rules = {
-    lookup: overrides.lookup ?? vi.fn().mockResolvedValue({ results: [] }),
+    lookup:
+      overrides.lookup ??
+      // `lookup` returns the tool payload in `output`, with preprocessing
+      // metadata alongside it — the metadata must never reach the tool_result.
+      vi.fn().mockResolvedValue({ output: { results: [] } }),
   } as unknown as RulesLookupService;
   const repo = {} as unknown as SessionRepository;
   const campaignRepo = {
@@ -245,13 +249,15 @@ describe('SessionService.runInnerToolLoop', () => {
       )
       .mockResolvedValueOnce(message([submitGmBlock()]));
     const lookup = vi.fn().mockResolvedValue({
-      results: [
-        {
-          text: 'On 71–80…',
-          source: 'PSG p.42',
-          similarity: 0.87,
-        },
-      ],
+      output: {
+        results: [
+          {
+            text: 'On 71–80…',
+            source: 'PSG p.42',
+            similarity: 0.87,
+          },
+        ],
+      },
     });
     const { service } = makeService(callSession, { lookup });
 

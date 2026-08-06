@@ -294,7 +294,22 @@ Current as of 2026-08-05. Each links to the session that established it.
     overlap between 0.355 and 0.380 — enough to be encouraging about a
     similarity floor, nowhere near enough to set one.
     ([S12.2](#122-the-similarity-distribution--11-queries), [S12.3](#123-the-two-distributions-do-separate--narrowly))
-15. **The sort's one residual failure is invisible to the corpus — for now.**
+15. **Automated document-frequency trimming is not the same intervention as
+    S4's hand-authored trimming, and does not obviously help.** It fires on
+    answerable queries almost exclusively — unanswerable ones are built from
+    terms the corpus lacks, so nothing clears the ceiling — which compresses
+    the answerable similarity band *downward into* the unanswerable one. On a
+    single-book corpus the topic words are also the frequent words, so the
+    ceiling discards `saving` from a query about saves. Settle the threshold
+    before deriving any floor.
+    ([S13.3](#133-the-structural-problem--it-shortens-answerable-queries-and-not-unanswerable-ones), [S13.4](#134-why-a-document-frequency-ceiling-struggles-on-a-single-book-corpus))
+16. **`rules_chunk_embedding_idx` silently under-returns at small `LIMIT`.**
+    ivfflat with `lists = 100` over 66 rows leaves most lists empty, so the
+    planner's index scan (chosen at `LIMIT` ≤ 2) returns 1 row where 2 were
+    asked for; `LIMIT` ≥ 3 falls back to a sequential scan and is correct.
+    `REINDEX` does not fix it — the `lists` value is what is wrong.
+    ([S13.7](#137-incidental--the-ivfflat-index-under-returns-at-small-limit))
+17. **The sort's one residual failure is invisible to the corpus — for now.**
     Page 17's misordering is confined to a `SectionHeader` block, and
     `SectionHeader` is dropped before chunking; its content blocks sort
     correctly. Two M7.5 levers (breadcrumb composition, `SectionHeader` as
@@ -2286,3 +2301,151 @@ produce. Provenance for it is in `ingestion/.ingest-manifest.json`
 (gitignored): marker 2.0.0, `voyage-4-lite`, 1024 dimensions, 66 chunks,
 400-token target, 50-100 token overlap, PDF SHA-256 recorded. No rulebook
 text committed.
+
+
+### S13 — 2026-08-06 · Query preprocessing shipped; it moves the wrong distribution
+
+Context: document-frequency term-dropping now runs before every
+`rules_lookup` embedding call (`apps/zoltar-be/src/rules/query-preprocess.ts`),
+at the spec's proposed 40% ceiling with a 2-word floor. This is the first
+measurement of the **automated** trimming. [S4](#s4--2026-08-05--vocabulary-vs-verbosity-isolated)
+measured **hand-authored** trimming by someone who already knew the target
+page, and [S4.5](#45-caveats--read-before-citing-this) flagged that as an
+upper bound. This session is what the automated approximation actually does.
+
+#### 13.1 The mechanism works as specified
+
+Against the real 66-chunk index, document frequencies come out as expected —
+`check` 47%, `saving` 58%, `roll` 61%, `saves` 58%, `character` 64%, against
+`perception` 0%, `INT` 0%, `diagnosis` 0%, `intellect` 9%, `panics` 24%.
+
+High-frequency terms are dropped and distinctive ones survive; an
+all-high-frequency query (`the character makes a check roll`, every term
+47-64%) still embeds `makes check` rather than an empty string. Spec Done
+When 11 is satisfied in both halves.
+
+#### 13.2 But the effect on retrieval is not the expected one
+
+| Query | Before | After | Embedded as |
+|---|---|---|---|
+| perception check looking around environment… | 0.355 p.37 | 0.351 p.31 | perception looking around environment noticing details |
+| saving throws stats how to roll checks | 0.527 **p.18** | 0.291 **p.18** | throws stats |
+| skill checks INT intellect saves diagnosis repair | 0.430 p.18 | 0.348 p.35 (p.18 → rank 3) | skill INT intellect diagnosis repair |
+| what happens when a character panics | 0.456 **p.21** | 0.340 **p.21** | happens panics |
+
+The two queries whose correct page is known (`p.18` STAT CHECKS & SAVES,
+`p.21` PANIC CHECKS) **keep their correct top hit**. The other two move
+between pages whose correctness is not established, which is precisely the
+gap the labeled fixture set exists to close — do not read them as either
+improvement or regression.
+
+**Similarity drops on every one.** Shorter queries embed to lower cosine
+similarity. That much is unambiguous across all four.
+
+#### 13.3 The structural problem — it shortens answerable queries and not unanswerable ones
+
+Running the same four unanswerable queries from
+[S12.2](#122-the-similarity-distribution--11-queries):
+
+| Query | Before | After | Preprocessing |
+|---|---|---|---|
+| suppressive fire autofire rules | 0.226 | 0.226 | no change |
+| flanking bonus when surrounding an enemy | 0.318 | 0.318 | no change |
+| opposed roll contest between two characters | 0.380 | 0.195 | trimmed |
+| android remote shutdown command | 0.246 | 0.245 | no change |
+
+**Three of four are untouched**, and the reason is structural rather than
+incidental: a query about a mechanic the book does not contain is built from
+terms the book does not contain, so none of them clears a document-frequency
+ceiling. Preprocessing fires on *answerable* queries almost exclusively,
+because those are the ones whose vocabulary the corpus actually shares.
+
+The consequence for the floor question:
+
+| | Before | After |
+|---|---|---|
+| answerable | 0.355 – 0.527 | 0.291 – 0.351 |
+| unanswerable | 0.226 – 0.380 | 0.195 – 0.318 |
+| overlap | 0.355 – 0.380 | 0.291 – 0.318 |
+
+The bands were already overlapping; they still are, and the answerable band
+has been compressed down into the unanswerable one rather than pulled away
+from it. **Preprocessing pushes down exactly the distribution a similarity
+floor needs to stay high.** Any floor derived without preprocessing in its
+final configuration will be derived against numbers that no longer exist.
+
+#### 13.4 Why a document-frequency ceiling struggles on a single-book corpus
+
+In a 66-chunk corpus covering one slim rulebook, the *topic* words are also
+the *frequent* words. `saves`, `check`, `roll`, `stress` are boilerplate and
+they are the mechanics being asked about. A frequency ceiling cannot separate
+"frequent because it is filler" from "frequent because this book is about
+it," so `saving throws stats how to roll checks` trims to `throws stats` —
+discarding the word that names the mechanic. S4's hand-authored trim kept the
+topic word and dropped the filler, which is the distinction the automated
+version has no signal for.
+
+This is a hypothesis about mechanism, consistent with four queries. It is not
+a measurement, and it should not be treated as one.
+
+#### 13.5 What this does and does not change
+
+**Does not change:** the mechanism ships as specified. The 40% ceiling is
+explicitly a proposed starting value in
+`docs/specs/zoltar/012-m7.2-rules-ingestion.md § Part 7.3`, the harness is
+the tool specified to sweep it, and eleven unlabeled queries are not grounds
+for overriding a decided design.
+
+**Does change** what the sweep is for. The threshold was expected to be tuned
+for retrieval quality; it now also has to be evaluated for what it does to the
+answerable/unanswerable separation, because those are not the same objective
+and this data suggests they may pull in opposite directions. A higher ceiling
+(60-70%), which would drop only genuine filler, is the obvious first sweep
+point.
+
+**Sequencing consequence:** the floor must be derived *after* the threshold is
+settled, not alongside it. `roadmap.md` M7.5 lists both; this is evidence they
+are ordered rather than parallel.
+
+#### 13.7 Incidental — the ivfflat index under-returns at small `LIMIT`
+
+Found while checking that `--limit` reached the repository. It is a
+**pre-existing M7 defect**, unrelated to preprocessing, surfaced now because
+this is the first time anything exercised a `limit` other than the default 3.
+
+```
+limit 1 -> 1 hit    limit 2 -> 1 hit    limit 3 -> 3 hits    limit 5 -> 5 hits
+```
+
+`EXPLAIN ANALYZE` names it exactly:
+
+| LIMIT | Plan | Rows |
+|---|---|---|
+| 2 | `Index Scan using rules_chunk_embedding_idx` | **1** |
+| 3 | `Seq Scan` + top-N heapsort over 66 rows | 3 |
+
+`rules_chunk_embedding_idx` is `ivfflat (embedding vector_cosine_ops) WITH
+(lists = 100)`, created in `V7__rules_index.sql` against an empty table. With
+66 rows across 100 lists most lists are empty, and a default single-probe
+index scan finds about one row. The planner picks the index at `LIMIT` ≤ 2 and
+a sequential scan above it, so the defect appears and disappears with the
+requested limit.
+
+**`REINDEX` does not fix this** — it rebuilds with the same `lists = 100`.
+pgvector's guidance is `lists ≈ rows/1000` with a minimum of 1; at this corpus
+size the honest answer may be that the index should not exist at all, since
+[S5.4](#54-latency--the-api-call-is-the-entire-budget) measured the sequential
+scan at 1-3 ms.
+
+**Impact today is narrow but the latent risk is not.** `rules_lookup` defaults
+to `limit: 3` and its schema permits 1-5, so only an explicit `limit: 2`
+misbehaves right now. But the plan/limit boundary is a cost-estimate artifact:
+as the corpus grows the planner may choose the index at `limit: 3` too, and
+the Warden would silently receive one chunk having asked for three. Fixing it
+needs either a migration (declared out of scope for M7.2) or the ingestion
+pipeline taking ownership of index DDL — a real decision, not yet made.
+
+#### 13.6 Teardown
+
+No schema change, no migration, no index rebuild. Measurements are query
+strings, similarity scores, and page citations — no rulebook text.

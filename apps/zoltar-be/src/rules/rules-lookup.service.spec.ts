@@ -2,25 +2,38 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { VoyageService } from '../voyage/voyage.service';
 
-import { type RulesChunkMatch, RulesRepository } from './rules.repository';
+import {
+  type QueryTermFrequency,
+  type RulesChunkMatch,
+  RulesRepository,
+} from './rules.repository';
 import { RulesLookupService } from './rules-lookup.service';
 
 function makeMocks(
   embedding: number[],
   matches: RulesChunkMatch[],
+  termFrequencies: QueryTermFrequency[] = [],
 ): {
   voyage: VoyageService;
   repo: RulesRepository;
   embed: ReturnType<typeof vi.fn>;
   findByCosineSimilarity: ReturnType<typeof vi.fn>;
+  queryTermFrequencies: ReturnType<typeof vi.fn>;
 } {
   const embed = vi.fn().mockResolvedValue(embedding);
   const findByCosineSimilarity = vi.fn().mockResolvedValue(matches);
+  // Default: no indexable terms, so preprocessing is a no-op and the tests
+  // below that predate it assert on the raw query exactly as before.
+  const queryTermFrequencies = vi.fn().mockResolvedValue(termFrequencies);
   return {
     voyage: { embed } as unknown as VoyageService,
-    repo: { findByCosineSimilarity } as unknown as RulesRepository,
+    repo: {
+      findByCosineSimilarity,
+      queryTermFrequencies,
+    } as unknown as RulesRepository,
     embed,
     findByCosineSimilarity,
+    queryTermFrequencies,
   };
 }
 
@@ -80,7 +93,7 @@ describe('RulesLookupService.lookup', () => {
 
     const result = await service.lookup('s', { query: 'panic', limit: 5 });
 
-    expect(result).toEqual({
+    expect(result.output).toEqual({
       results: [
         {
           text: 'On a panic result of 71–80…',
@@ -102,7 +115,7 @@ describe('RulesLookupService.lookup', () => {
 
     const result = await service.lookup('s', { query: 'panic', limit: 3 });
 
-    expect(result).toEqual({ results: [] });
+    expect(result.output).toEqual({ results: [] });
     // Voyage is still called on the empty-index path — every attempt is M7.2
     // ingestion-prioritization signal, so we do not short-circuit around it.
     expect(embed).toHaveBeenCalledTimes(1);
@@ -115,6 +128,7 @@ describe('RulesLookupService.lookup', () => {
     const findByCosineSimilarity = vi.fn();
     const repo = {
       findByCosineSimilarity,
+      queryTermFrequencies: vi.fn().mockResolvedValue([]),
     } as unknown as RulesRepository;
     const service = new RulesLookupService(repo, voyage);
 

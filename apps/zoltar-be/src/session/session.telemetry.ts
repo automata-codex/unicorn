@@ -44,6 +44,19 @@ export interface ExecutedRollRecord {
  */
 export interface RulesLookupRecord {
   query: string;
+  /**
+   * The string actually embedded, when document-frequency preprocessing
+   * trimmed the query (`src/rules/query-preprocess.ts`). Absent when the
+   * query was embedded as written, which keeps payloads small and makes
+   * "was preprocessing applied" readable at a glance.
+   *
+   * Without this, a lookup that missed is ambiguous between two very
+   * different causes — the Warden phrased it badly, or preprocessing dropped
+   * the wrong word — and re-running the query at review time cannot
+   * distinguish them either, since it would re-apply whatever the thresholds
+   * are *then*.
+   */
+  preprocessedQuery?: string;
   limit: number;
   resultCount: number;
   topSimilarity: number | null;

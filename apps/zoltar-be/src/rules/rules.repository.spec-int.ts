@@ -164,3 +164,139 @@ describe('RulesRepository.findByCosineSimilarity (integration)', () => {
     expect(results.map((r) => r.source)).toEqual(['mothership-chunk']);
   });
 });
+
+describe('RulesRepository.queryTermFrequencies', () => {
+  /**
+   * Four chunks, so document frequencies land on clean quarters. `check`
+   * appears in every chunk (1.0), `panic` in one (0.25) — the real shape the
+   * threshold exists to separate.
+   */
+  async function seedFourChunkCorpus(): Promise<string> {
+    const systemId = await seedSystem('mothership');
+    const contents = [
+      'Make a check when the outcome is uncertain.',
+      'A check is rolled under your stat.',
+      'Roll a check to resist.',
+      'A panic check is triggered by stress.',
+    ];
+    for (const [index, content] of contents.entries()) {
+      await seedChunk({
+        systemId,
+        source: `chunk-${index}`,
+        content,
+        embedding: vec([1, 0, 0]),
+      });
+    }
+    return systemId;
+  }
+
+  it("measures document frequency across the system's chunks", async () => {
+    const systemId = await seedFourChunkCorpus();
+
+    const terms = await repo.queryTermFrequencies({
+      systemId,
+      query: 'panic check',
+    });
+
+    const byWord = Object.fromEntries(
+      terms.map((t) => [t.word, t.documentFrequency]),
+    );
+    expect(byWord).toEqual({ panic: 0.25, check: 1 });
+  });
+
+  it('returns the original word alongside its lexeme', async () => {
+    // The lexeme decides survival; the word is what gets embedded. Losing
+    // the original spelling is the failure this column exists to prevent.
+    const systemId = await seedFourChunkCorpus();
+
+    const terms = await repo.queryTermFrequencies({
+      systemId,
+      query: 'rolling checks',
+    });
+
+    expect(terms.map((t) => [t.word, t.lexeme])).toEqual([
+      ['rolling', 'roll'],
+      ['checks', 'check'],
+    ]);
+  });
+
+  it('matches on stems, not exact strings', async () => {
+    // `checks` must find chunks containing `check`, or every inflected query
+    // term would read as rare and preprocessing would keep the wrong words.
+    const systemId = await seedFourChunkCorpus();
+
+    const [term] = await repo.queryTermFrequencies({
+      systemId,
+      query: 'checks',
+    });
+
+    expect(term.documentFrequency).toBe(1);
+  });
+
+  it('drops stopwords rather than reporting them as high-frequency', async () => {
+    const systemId = await seedFourChunkCorpus();
+
+    const terms = await repo.queryTermFrequencies({
+      systemId,
+      query: 'what is the panic rule for a character',
+    });
+
+    expect(terms.map((t) => t.word)).not.toContain('the');
+    expect(terms.map((t) => t.word)).not.toContain('is');
+    expect(terms.map((t) => t.word)).toContain('panic');
+  });
+
+  it('preserves query order in `position`', async () => {
+    const systemId = await seedFourChunkCorpus();
+
+    const terms = await repo.queryTermFrequencies({
+      systemId,
+      query: 'stress panic check',
+    });
+
+    expect(terms.map((t) => t.word)).toEqual(['stress', 'panic', 'check']);
+    expect(terms.map((t) => t.position)).toEqual(
+      [...terms.map((t) => t.position)].sort((a, b) => a - b),
+    );
+  });
+
+  it('returns terms with zero frequency against an empty index', async () => {
+    // The M7 state, and the state of any fresh database. Preprocessing must
+    // see the terms and decline to drop anything, not divide by zero.
+    const systemId = await seedSystem('mothership');
+
+    const terms = await repo.queryTermFrequencies({
+      systemId,
+      query: 'panic check',
+    });
+
+    expect(terms).toHaveLength(2);
+    expect(terms.every((t) => t.documentFrequency === 0)).toBe(true);
+  });
+
+  it('ignores chunks belonging to other systems', async () => {
+    const mothershipId = await seedFourChunkCorpus();
+    const oseId = await seedSystem('ose');
+    await seedChunk({
+      systemId: oseId,
+      source: 'ose-chunk',
+      content: 'panic panic panic',
+      embedding: vec([1, 0, 0]),
+    });
+
+    const [panic] = await repo.queryTermFrequencies({
+      systemId: mothershipId,
+      query: 'panic',
+    });
+
+    expect(panic.documentFrequency).toBe(0.25);
+  });
+
+  it('returns nothing for an all-stopword query', async () => {
+    const systemId = await seedFourChunkCorpus();
+
+    expect(
+      await repo.queryTermFrequencies({ systemId, query: 'what is it' }),
+    ).toEqual([]);
+  });
+});
