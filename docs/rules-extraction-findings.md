@@ -367,7 +367,19 @@ information** — each cost real time.
   the rest is the Warden asking about mechanics the PSG does not have at all
   (suppressive fire, flanking, opposed rolls, difficulty numbers), where no
   mapping can help and the correct answer is an empty result. Treat these as
-  separate work items.
+  separate work items. **Ratio measured in [S9.4](#94-query-level-roll-up):**
+  of the 344 queries carrying an out-of-corpus term, 157 (45.6%) are
+  wrong-word-only and fixable by a vocabulary layer; 130 (37.8%) contain at
+  least one absent mechanic and are unreachable by one.
+- **Should the corpus include `SectionHeader` blocks?** Every session from S3
+  onward measured against a corpus filtered to `Text`/`Table`/`ListGroup`,
+  which drops all 169 section headings — 2,632 characters of topic labels
+  ([S9.1](#91-two-corrections-to-s8s-method)). Section titles are the
+  highest-signal terms in a rulebook and the likeliest match for a
+  keyword-heavy query, so their absence is an unexamined confound in S3–S5's
+  retrieval numbers. Cheap to test: rebuild the corpus with headings included
+  and re-run S5's ranking. Note the headings also carry the section numbering
+  the S6.2/S7 ordering work depends on.
 - **Is a similarity floor now load-bearing rather than optional?**
   `docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md § Part 4` leaves it
   open and there is currently no threshold at all, so the Warden receives three
@@ -1825,3 +1837,156 @@ dropped again; verified gone from `pg_tables`, `flyway_schema_history`
 unchanged. No artifacts-repo content is reproduced here beyond query strings
 and lexeme counts — the queries are Warden-generated text, not rulebook
 content, and the corpus side is reported as counts only.
+
+
+### S9 — 2026-08-06 · Wrong-word vs concept-absent, across all 596 queries
+
+Context: [S8.3](#83-new-finding--most-of-the-gap-is-missing-concepts-not-wrong-words)
+split the vocabulary gap into two classes by eye, on six illustrative terms.
+This measures the ratio across the whole set, to decide whether the
+vocabulary-mapping work or the mechanical-primer/similarity-floor work is the
+higher-priority build. Extends S8's method; same corpus, same 596 queries.
+
+**Headline: neither dominates, and they are not substitutes for each other.**
+Of the 344 queries carrying an out-of-corpus term, **45.6% are fixable by a
+vocabulary layer alone** and **37.8% contain at least one mechanic the book
+does not have**, where no retrieval fix exists.
+
+#### 9.1 Two corrections to S8's method
+
+**A double-stemming bug.** S8 checked term presence with
+`to_tsquery('english', lexeme)` on lexemes that `websearch_to_tsquery` had
+*already* stemmed. Postgres stems them a second time — `surpris` → `surpri`,
+`oppos` → `oppo` — so a term could fail to match its own tsvector entry. The
+correct check is `to_tsquery('simple', …)`, or comparing lexeme sets directly.
+
+Impact is small: **3 of 100** flagged terms (`decis`, `increas`, `explos`) were
+false absents, and the headline query count moves from 344 to 343 of 596 —
+57.7% to 57.6%. **S8's conclusion is unaffected.** Recorded because the bug is
+easy to reintroduce, and because it silently understates corpus coverage.
+
+**Section headings are not in the corpus.** The S3 corpus filters to
+`Text`/`Table`/`ListGroup` ([S1.6](#16-chunks-output-format-carries-typed-blocks)),
+which excludes all 169 `SectionHeader` blocks — 130 in scope after the S2 page
+exclusions, 2,632 characters of section titles. Every session from S3 onward
+has measured against a corpus with **no section titles in it**.
+
+The term that exposed this was `surpris` (10 distinct queries, 65
+invocations). The PSG prints a `26.2 SURPRISE` section, so the book plainly has
+a surprise rule — but the words live only in a heading, so the corpus has no
+lexical trace and every check since S3 has scored it absent.
+
+Only **1 of the 100** terms is recovered by adding headings back, so this
+changes no count materially. The implication for *retrieval* is larger and is
+untested: section titles are the highest-signal topic labels in a rulebook and
+are exactly what a keyword-heavy query is likeliest to match. That they were
+absent from the corpus S3–S5 measured is a confound none of those sessions
+knew about. Filed under Open questions.
+
+#### 9.2 The term list
+
+100 distinct out-of-corpus terms across the 344 queries — the hand-audit the
+brief anticipated, and small enough to do exhaustively. Removing the 3 false
+absents and the 1 heading-only case leaves **96 terms genuinely absent from the
+whole book**.
+
+#### 9.3 Three buckets, not two
+
+The brief specifies wrong-word vs concept-absent. A third is unavoidable:
+proper nouns, scenario fiction, and generic English carry no mechanical
+referent at all. `alvarez`, `lieuten`, `mycotoxin`, `npc`, `layout`, `calcul`
+are not rules the book is missing. Counting them as concept-absent would doom
+every query that names an NPC, which would corrupt the roll-up in exactly the
+direction that matters. **They are excluded from the roll-up** — they neither
+help nor doom a query.
+
+| Bucket | Terms | Basis |
+|---|---|---|
+| **wrong-word** | 25 | an in-corpus term carries the same mechanic |
+| **concept-absent** | 33 | no in-corpus vocabulary expresses it |
+| **not-a-rules-term** | 38 | no mechanical referent at all |
+
+Every wrong-word call names the in-corpus substitute that justifies it, and all
+25 were verified present at runtime — none rested on an assumed synonym:
+
+| Term | Invocations | In-corpus substitute |
+|---|---|---|
+| `stealth` | 366 | `sneak`, `hide`, `hidden`, `quiet` |
+| `initi` | 231 | `turn`, `order`, `round` — the book prints `26.1 TURN ORDER` |
+| `threshold` | 174 | `stat`, `save` |
+| `difficulti` | 149 | `stat`, `save`, `advantage` |
+| `percept` | 87 | `intellect`, `sanity`, `notice` |
+| `hp` | 40 | `health`, `wound` |
+| `armour` | 14 | `armor` — a spelling variant, not a concept gap |
+| `dc` | 5 | `stat`, `save` |
+
+The concept-absent bucket is dominated by mechanics from other systems:
+`suppress` (848 invocations), `autofir`, `burst`, `firefight`, `crossfir`;
+`flank`, `surround`, `outnumb`; `oppos`, `contest`, `versus`; `grappl`,
+`wrestl`; `opportun`, `margin`. The PSG resolves everything by rolling under a
+stat, so there is no difficulty number, no opposed roll, no flanking bonus, and
+no suppressive-fire rule for a mapping to point at. `shutdown` (116
+invocations, against `android`=8 pages) points outside this book entirely —
+Warden's Operations Manual content, not a PSG gap.
+
+#### 9.4 Query-level roll-up
+
+Per the brief, the worst case governs: one concept-absent term dooms a query
+for a vocabulary layer regardless of what else is in it. Percentages are of the
+**344**, not the full 596 — the 42.3% with no out-of-corpus term are not part
+of this question.
+
+| Bucket | Distinct queries | % of 344 | Invocations | % |
+|---|---|---|---|---|
+| **wrong-word only** | **157** | **45.6%** | 951 | 35.4% |
+| **≥1 concept-absent** | **130** | **37.8%** | 1,416 | 52.8% |
+| only non-rules terms absent | 57 | 16.6% | 317 | 11.8% |
+
+**The two views disagree, and the distinct-query one is the honest one.**
+Concept-absent is the minority by distinct query (37.8%) and the majority by
+invocation (52.8%), because a single suppressive-fire fixture repeats across
+reps and models — the fixture-design skew [S8.1](#81-what-is-actually-recorded)
+warned about, showing up exactly where it was predicted.
+
+Characteristic examples, by bucket:
+
+- **concept-absent** — queries asking for suppressive fire, autofire, or android
+  remote-shutdown mechanics. Nothing in the PSG answers these.
+- **wrong-word** — queries pairing `stealth` with `initiative order`, or asking
+  for "difficulty numbers" for skill checks. Every element maps onto a real PSG
+  mechanic under different vocabulary.
+- **non-rules only** — queries whose sole out-of-corpus term is `npc`, `ally`,
+  or `trigger`. These are already answerable; the flag was noise.
+
+#### 9.5 What this feeds
+
+Read as a build-order input, with the caveat that this is a findings session
+and not itself a decision:
+
+- **The vocabulary layer addresses the largest single bucket** — 157 of 344
+  queries, versus 130 needing the primer/floor. It is also the cheaper build:
+  a per-system synonym table against ~25 identified terms, most of them
+  high-frequency (`stealth`, `initiative`, `difficulty`, `perception` alone
+  account for 833 invocations).
+- **But it cannot substitute for the floor.** No mapping retrieves a rule the
+  book does not contain, so 130 queries are unreachable by vocabulary work at
+  any quality. For those, the correct behaviour is an empty result — which the
+  design already calls a supported outcome, and which currently cannot happen
+  because there is no threshold.
+- **They are complementary, not competing.** Sequencing the vocabulary layer
+  first is defensible on addressable-query count and cost; shipping it *without*
+  a floor leaves a third of the flagged queries receiving three confidently
+  wrong chunks.
+
+**Caveats.** The term classification is a single-pass judgement call with no
+second rater; the wrong-word/concept-absent boundary is genuinely fuzzy for a
+handful (`defens`, `evas`, `passiv`, `exceed`). All queries remain eval-run
+sourced, so the invocation weighting reflects fixture design. And nothing here
+was measured against retrieval — this is a property of queries versus corpus.
+
+#### 9.6 Teardown
+
+Scratch FTS and header tables rebuilt to reuse S3's method and dropped again;
+verified gone from `pg_tables`, `flyway_schema_history` unchanged. No
+production path touched. No rulebook text reproduced — corpus evidence is
+lexemes and counts only.
