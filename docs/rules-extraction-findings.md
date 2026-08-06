@@ -121,8 +121,9 @@ found that marker's block order is not reading order on multi-column pages**
 (8 of 16 measurable pages emit numbered sections out of order, including full
 reversals). Merging blocks "in order", as this design specifies, would
 concatenate sections backwards on half the body pages. **The design above
-cannot be implemented as written until block ordering is solved** — see the
-first bullet under Open questions.
+needs a block sort in front of it** — [S7](#s7--2026-08-06--column-aware-block-sort-feasibility-probe)
+shows a ~25-line geometric sort recovers 15 of 16 measurable pages, so this is
+a prerequisite to implement rather than a question to research.
 
 ### Hard constraints
 
@@ -254,6 +255,9 @@ Current as of 2026-08-05. Each links to the session that established it.
     since the measurement can't see unnumbered headings. Single-column pages
     are reliable. **Anything that treats block order as reading order — the
     M7.2 block-merge chunker above all — needs an explicit sort first.**
+    A column-aware sort over the `bbox` every block already carries recovers
+    15 of 16 measurable pages ([S7](#s7--2026-08-06--column-aware-block-sort-feasibility-probe)),
+    so this is a solved problem awaiting implementation, not an open risk.
     ([S6.2](#62-new-finding--reading-order-scrambling-is-pervasive-not-localised))
 12. **The `rules_lookup` latency budget is entirely the embedding API call.**
     ~124–148 ms end to end, of which the Voyage round trip is ~98% and the
@@ -372,15 +376,16 @@ information** — each cost real time.
   should be measuring — and note the harness cannot detect this class of
   problem at all if its fixture queries are written in book vocabulary by
   hand rather than sampled from real Warden output.
-- **How should block reading order be recovered?** Blocking for the M7.2
-  chunker, which merges blocks in emitted order
-  ([S6.2](#62-new-finding--reading-order-scrambling-is-pervasive-not-localised)).
-  Each block carries `polygon`/`bbox`, so a column-aware geometric sort
-  (cluster by x-range into columns, then order by y within each) is the
-  obvious candidate and needs no new dependency — but it is unvalidated, and
-  full-width elements spanning columns (banners, boxed callouts like 18.3) are
-  the case it has to get right. Until this is settled, the block-merge design
-  cannot be implemented as specified.
+- **~~How should block reading order be recovered?~~ Answered 2026-08-06 — a
+  column-aware geometric sort works.** [S7](#s7--2026-08-06--column-aware-block-sort-feasibility-probe)
+  took the measurable set from 8/16 to **15/16** with ~25 lines and no new
+  dependency, regressing nothing. Still open, but as implementation rather
+  than research: (a) the boxed-callout case on physical 17, where a heading
+  narrower than its full-width body escapes the band break; (b) validating the
+  28 pages the numbered-header oracle cannot see, for which the
+  [S6](#s6--2026-08-06--llm-assisted-fixup-discrepancy-flagging) flagging pass
+  is the available instrument. **The sort must stay deterministic** — the LLM
+  validates it, never performs it.
 - **Do the `Table` blocks that extract empty need fixing before M7.2 ships?**
   14 of 32 carry no text ([S3.2](#32-new-finding--14-of-32-table-blocks-carry-no-text)),
   taking physical pages 11 and 12 (`FIREARMS`, `INDUSTRIAL EQUIPMENT`) out of
@@ -1534,3 +1539,97 @@ outside it per `docs/rules-ingestion.md § Licensing Posture`. Scripts not
 committed — the schema, model, block scope, and prompt constraints recorded
 above are what make this reproducible. No production path, schema, or
 migration was touched.
+
+
+### S7 — 2026-08-06 · Column-aware block sort: feasibility probe
+
+Context: [S6.2](#62-new-finding--reading-order-scrambling-is-pervasive-not-localised)
+established that marker's emitted block order is not reading order on
+multi-column pages, and left the fix as a blocking open question with a
+geometric sort as the untested candidate. This is that test. It is a
+feasibility probe, not an implementation.
+
+**Result: the candidate works. This does not need a spike — it needs
+implementing against a test that already exists.**
+
+#### 7.1 Why this is measurable without hand judgement
+
+Unlike retrieval quality (S3–S5) and flagging quality (S6), block ordering has
+ground truth already in the corpus: pages carrying two or more numbered
+section headers (`18.1`, `18.2`, …) have an objectively knowable correct order.
+That makes the S6.2 detector a **pass/fail oracle**, and any proposed sort
+scoreable without a human in the loop.
+
+#### 7.2 The sort
+
+Every block carries a populated `bbox` (`[x0, y0, x1, y1]`), and
+`page_info[N].bbox` gives page dimensions (396×612 pt for this book), so no new
+dependency or data is needed. The candidate is ~25 lines:
+
+1. Treat a block as **full-width** when its width ≥ 60% of page width.
+2. Walk blocks in `y0` order. A full-width block flushes the current band and
+   is emitted on its own; everything else accumulates into the current band.
+3. Within a band, split by bbox x-centre against the page midline, then emit
+   the left column top-to-bottom followed by the right column top-to-bottom.
+
+#### 7.3 Result — 8/16 to 15/16, nothing regressed
+
+| | Pages correct |
+|---|---|
+| Marker's emitted order | 8 / 16 |
+| **After the sort** | **15 / 16** |
+
+Fixed: physical 10, 21, 22, 28, 30, 31, 32 — i.e. `SKILLS` (both pages),
+`WOUNDS & DEATH`, `RANGE & DISTANCE`, and `SURVIVAL` (both pages). **No page
+that was already correct was broken.**
+
+The single remaining failure is physical 17 (`STAT CHECKS & SAVES`), and it is
+the boxed-callout case S6 predicted would be the hard one:
+
+| Block | Width | % of page |
+|---|---|---|
+| `SectionHeader/13` (the `18.3` heading) | 163 pt | 41% |
+| `Text/14` (its body) | 352 pt | 89% |
+
+The boxed callout spans both columns, but only its *body* clears the
+full-width threshold. The body therefore triggers a band break and the heading
+does not, so the heading is bucketed into the left column and sorted between
+18.1 and 18.2 — yielding `18.1, 18.3, 18.2`. Understood and local: bind a
+`SectionHeader` to the block it introduces before banding, or detect the
+enclosing box, then re-score.
+
+#### 7.4 The oracle's coverage gap, and what closes it
+
+**The numbered-header test sees only 16 of 44 pages.** The other 28 carry
+unnumbered headings, and S6.1 already found two pages — physical 19 (`STRESS`)
+and 25 (`VIOLENT ENCOUNTERS`) — that are demonstrably scrambled while scoring
+as *clean* under this test, because their sidebar headings are unnumbered. A
+green regression suite is therefore necessary but not sufficient.
+
+[S6](#s6--2026-08-06--llm-assisted-fixup-discrepancy-flagging)'s flagging pass
+closes that gap: it judges against the page image, so unnumbered headings are
+no obstacle, and it already demonstrated the capability — correct
+`reordered_text` on both reordering pages, plus unprompted secondary ordering
+flags on physical 11 and 12 where ordering was not the test target. Suggested
+division of labour:
+
+| Layer | Cost | Coverage | When |
+|---|---|---|---|
+| Column-aware sort | — | the fix itself | in the pipeline |
+| Numbered-header check | free | 16 pages | every commit |
+| S6 flagging pass | ~$2.30 | all 44 | once per sort revision |
+
+**Boundary worth keeping firm: the LLM validates the sort, it must not perform
+it.** Ordering has to be recovered deterministically in `ingest.py`, which
+makes no LLM calls. If some page genuinely defeats the geometry, the escape
+hatch is an LLM-proposed ordering recorded once per edition as a `fixups.json`
+entry keyed on block `id` and applied deterministically at run time — the same
+positional matcher [S6.5](#65-the-fixup-schema-cannot-express-the-defect-it-exists-for)
+already says the schema needs. Treat that as a fallback: hand-blessed orderings
+do not generalise to the next book.
+
+#### 7.5 Teardown
+
+Read-only probe. No database objects, no production paths, no repository
+artifacts. The sort is reproduced in prose above rather than committed, since
+it belongs in the pipeline as real code rather than as a scratch script.
