@@ -276,9 +276,17 @@ Current as of 2026-08-05. Each links to the session that established it.
     are reliable. **Anything that treats block order as reading order — the
     M7.2 block-merge chunker above all — needs an explicit sort first.**
     A column-aware sort over the `bbox` every block already carries recovers
-    15 of 16 measurable pages ([S7](#s7--2026-08-06--column-aware-block-sort-feasibility-probe)),
-    so this is a solved problem awaiting implementation, not an open risk.
+    15 of 16 measurable pages ([S7](#s7--2026-08-06--column-aware-block-sort-feasibility-probe)).
+    **Shipped** in `ingestion/pipeline/chunk.py` and re-scored at the same
+    15/16 with nothing regressed
+    ([S10.2](#102-the-oracle-re-scored-on-the-shipped-code)).
     ([S6.2](#62-new-finding--reading-order-scrambling-is-pervasive-not-localised))
+13. **The sort's one residual failure is invisible to the corpus — for now.**
+    Page 17's misordering is confined to a `SectionHeader` block, and
+    `SectionHeader` is dropped before chunking; its content blocks sort
+    correctly. Two M7.5 levers (breadcrumb composition, `SectionHeader` as
+    indexable content) would make it a live defect again and re-owe S7.3's
+    refinement. ([S10.3](#103-new-finding--page-17s-residual-defect-never-reaches-a-chunk))
 12. **The `rules_lookup` latency budget is entirely the embedding API call.**
     ~124–148 ms end to end, of which the Voyage round trip is ~98% and the
     pgvector scan 1–3 ms. Index choice is not the lever for query latency at
@@ -1990,3 +1998,82 @@ Scratch FTS and header tables rebuilt to reuse S3's method and dropped again;
 verified gone from `pg_tables`, `flyway_schema_history` unchanged. No
 production path touched. No rulebook text reproduced — corpus evidence is
 lexemes and counts only.
+
+
+### S10 — 2026-08-06 · Column-aware sort implemented and re-scored
+
+Context: [S7](#s7--2026-08-06--column-aware-block-sort-feasibility-probe) was a
+feasibility probe that reproduced its sort in prose rather than committing it.
+This is the implementation, in `ingestion/pipeline/chunk.py`, scored against
+the same oracle. **No new algorithm** — S7's three rules, unchanged.
+
+#### 10.1 Extraction reproduced
+
+```
+ingestion/.venv/bin/marker_single "<psg>.pdf" --output_dir <tmp> \
+  --output_format chunks --disable_ocr --disable_image_extraction
+```
+
+17.1 s. 674 blocks, block-type tally identical to
+[S1.6](#16-chunks-output-format-carries-typed-blocks) — Text 354,
+SectionHeader 169, Picture 41, PageHeader 39, Table 32, ListGroup 23,
+PageFooter 11, Caption 3, Form 1, PictureGroup 1. `page_info` carries
+`bbox` `[0, 0, 396, 612]` per page, so page width needs no new source.
+Marker 2.0.0 is reproducible across runs on this input.
+
+#### 10.2 The oracle, re-scored on the shipped code
+
+| | Pages correct |
+|---|---|
+| Marker's emitted order | 8 / 16 |
+| **After `sort_reading_order`** | **15 / 16** |
+
+Identical to S7.3, including which pages moved (10, 21, 22, 28, 30, 31, 32)
+and which single page did not (17). **Nothing regressed.**
+
+#### 10.3 New finding — page 17's residual defect never reaches a chunk
+
+S7.3 left the one failure as understood-but-owed work: "bind a
+`SectionHeader` to the block it introduces before banding, or detect the
+enclosing box, then re-score." **That work is not owed, because the defect is
+confined to a block type the pipeline drops.**
+
+Page 17's sorted *content* blocks (`Text`, `Table`, `ListGroup` — the three
+types that become chunks) come out in correct reading order:
+
+| Order | Block | Belongs to |
+|---|---|---|
+| 1–3 | `Text/6`, `Text/9`, `ListGroup/12` | 18.1 STAT CHECKS |
+| 4–6 | `Text/5`, `Text/10`, `ListGroup/11` | 18.2 SAVES |
+| 7 | `Text/14` | 18.3 WHAT IS YOUR HIGH SCORE? |
+
+The only misplaced block is `SectionHeader/13` (the `18.3` heading, 41% of
+page width against its body's 89%), which lands between 18.1's column and
+18.2's column. `SectionHeader` is dropped before chunking, so the oracle —
+which measures *heading* order — reports a defect that the corpus cannot
+contain.
+
+**This is contingent, not permanent.** `roadmap.md` M7.5 carries two levers
+that would put `SectionHeader` text back into play: breadcrumb composition
+(appending marker's immediate `SectionHeader` to the footer chapter) and
+`SectionHeader` blocks as indexable content in their own right. **Either one
+makes page 17 a live defect again**, and the S7.3 refinement becomes owed
+work at that point. Re-score this page before adopting either.
+
+#### 10.4 Coverage caveat, unchanged
+
+The numbered-header oracle still sees only 16 of 44 pages
+([S7.4](#74-the-oracles-coverage-gap-and-what-closes-it)). Pages 19 and 25
+score clean here and are known scrambled via unnumbered sidebar headings
+([S6.1](#61-the-negative-control-did-not-exist-where-the-brief-expected-it)).
+A green oracle remains necessary and not sufficient; the S6 flagging pass at
+44-page scope is still the instrument that would close the gap, and is still
+unrun at that scope.
+
+#### 10.5 Teardown
+
+Extraction written to a scratch directory outside the repository and left
+there; no rulebook text, extracted output, or chunk content committed. The
+sort and the footer parser ship as `ingestion/pipeline/chunk.py` with
+`ingestion/tests/test_chunk.py` covering them (25 assertions, stdlib-only,
+verified green in a venv containing nothing but `pytest`).
