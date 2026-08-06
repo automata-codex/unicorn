@@ -113,10 +113,16 @@ An FTS-based alternative to this whole approach was considered and tested on
 2026-08-05. It did not pan out — see [S3](#s3--2026-08-05--postgres-fts-gut-check-on-page-granular-text).
 This design stands, still unvalidated.
 
-**A caveat this section cannot give you, but the next one can:** S3 found that
-extraction loses 14 of 32 tables outright, and that recorded Warden queries
-use vocabulary the book does not contain. Both problems sit upstream of
-chunking and are untouched by anything described above.
+**Three caveats this section cannot give you.** S3 found that extraction loses
+14 of 32 tables outright, and that recorded Warden queries use vocabulary the
+book does not contain — both upstream of chunking and untouched by anything
+above. More seriously, **[S6.2](#62-new-finding--reading-order-scrambling-is-pervasive-not-localised)
+found that marker's block order is not reading order on multi-column pages**
+(8 of 16 measurable pages emit numbered sections out of order, including full
+reversals). Merging blocks "in order", as this design specifies, would
+concatenate sections backwards on half the body pages. **The design above
+cannot be implemented as written until block ordering is solved** — see the
+first bullet under Open questions.
 
 ### Hard constraints
 
@@ -242,7 +248,14 @@ Current as of 2026-08-05. Each links to the session that established it.
     beat FTS by 15 positions on that query — but it does not absorb
     verbosity or vocabulary drift for free.
     ([S5.3](#53-dense-retrieval-is-sensitive-to-both-axes--it-does-not-absorb-them))
-11. **The `rules_lookup` latency budget is entirely the embedding API call.**
+11. **Marker's emitted block order is not reading order on multi-column
+    pages.** 8 of the 16 pages carrying two or more numbered section headers
+    emit them out of order, including full reversals; the true rate is higher,
+    since the measurement can't see unnumbered headings. Single-column pages
+    are reliable. **Anything that treats block order as reading order — the
+    M7.2 block-merge chunker above all — needs an explicit sort first.**
+    ([S6.2](#62-new-finding--reading-order-scrambling-is-pervasive-not-localised))
+12. **The `rules_lookup` latency budget is entirely the embedding API call.**
     ~124–148 ms end to end, of which the Voyage round trip is ~98% and the
     pgvector scan 1–3 ms. Index choice is not the lever for query latency at
     this corpus size, and a second network hop in the lookup path (a
@@ -359,6 +372,15 @@ information** — each cost real time.
   should be measuring — and note the harness cannot detect this class of
   problem at all if its fixture queries are written in book vocabulary by
   hand rather than sampled from real Warden output.
+- **How should block reading order be recovered?** Blocking for the M7.2
+  chunker, which merges blocks in emitted order
+  ([S6.2](#62-new-finding--reading-order-scrambling-is-pervasive-not-localised)).
+  Each block carries `polygon`/`bbox`, so a column-aware geometric sort
+  (cluster by x-range into columns, then order by y within each) is the
+  obvious candidate and needs no new dependency — but it is unvalidated, and
+  full-width elements spanning columns (banners, boxed callouts like 18.3) are
+  the case it has to get right. Until this is settled, the block-merge design
+  cannot be implemented as specified.
 - **Do the `Table` blocks that extract empty need fixing before M7.2 ships?**
   14 of 32 carry no text ([S3.2](#32-new-finding--14-of-32-table-blocks-carry-no-text)),
   taking physical pages 11 and 12 (`FIREARMS`, `INDUSTRIAL EQUIPMENT`) out of
@@ -390,6 +412,12 @@ touches that file:
   Guide p.34"`, which is achievable, but only via the footer-derived page
   number. Worth stating where the number comes from, since the obvious
   candidates are all wrong (see Dead ends).
+- **§ Step 2** — the fixup `match` schema (`{section, contains}`) cannot
+  express either confirmed extraction defect. `contains` needs text, and the
+  14 defective `Table` blocks hold exactly `<p></p>`; `section` derives from
+  `section_hierarchy`, a Dead end. The schema needs a positional matcher on
+  the block `id` (`/page/11/Table/5`) alongside the content one.
+  ([S6.5](#65-the-fixup-schema-cannot-express-the-defect-it-exists-for))
 
 ---
 
@@ -1268,3 +1296,241 @@ Nothing here evaluates chunking, which remains unvalidated.
 `flyway_schema_history` unchanged, as in 3.10 and 4.6. Scripts not committed;
 the schema, the ranking query, and the `VoyageService` call path named above
 are what make this reproducible.
+
+
+### S6 — 2026-08-06 · LLM-assisted fixup discrepancy flagging
+
+Context: whether an LLM comparing marker's block output against the source page
+image can do useful triage for authoring `fixups.json`, instead of unaided
+page-by-page review of all 44 pages. Pre-registered brief fixed the question,
+method, and decision criteria before the run.
+
+**The headline is not the flagging result.** Building the test set surfaced a
+pervasive extraction defect that S1–S5 had only seen in one place, and which
+bears directly on M7.2's chunker. That is 6.2; read it first.
+
+**Scope.** No database objects, no production paths. This is an offline
+*authoring* tool, outside `ingest.py`'s no-LLM-calls constraint — it runs once
+per PDF edition, never per ingestion run.
+
+#### 6.1 The negative control did not exist where the brief expected it
+
+The brief nominated `STRESS` or `SKILLS` as clean-extraction controls, on the
+reasoning that pages with no `Table` blocks should extract cleanly. Checking
+before trusting them — the one step the brief flagged as mandatory — found
+that absence of tables does not imply clean extraction:
+
+| Physical | Printed | Chapter | Emitted order |
+|---|---|---|---|
+| 17 | 18 | `STAT CHECKS & SAVES` | sections **18.3 → 18.2 → 18.1**, chapter title last |
+| 19 | 20 | `STRESS` | sidebars emitted before the chapter intro |
+| 25 | 26 | `VIOLENT ENCOUNTERS` | sidebar emitted before the chapter intro |
+
+Physical page 17 was confirmed against the rendered image: the page prints a
+chapter banner, then 18.1 and 18.2 in two columns, then a boxed 18.3 at the
+bottom. Marker emits that sequence **exactly reversed**, with the chapter
+title last. It is the single highest-value page in the book by S3–S5's
+measurements — the hand-judged target for both Q1 and Q2 — and its extracted
+reading order is backwards.
+
+A genuinely clean control was eventually found at physical 39 (printed 40,
+`CONTRACTORS`): single-column, and its emitted order matches the printed order
+exactly. That single/multi-column split is the likely mechanism, consistent
+with [S1.5](#15-markdown-heading-levels-are-visual-not-semantic).
+
+#### 6.2 New finding — reading-order scrambling is pervasive, not localised
+
+[S1.5](#15-markdown-heading-levels-are-visual-not-semantic) and
+[S1.7](#17-section_hierarchy-is-not-true-ancestry) found scrambled reading
+order on the character-creation spread and treated it as a property of that
+spread. It is not. Measuring objectively — pages carrying two or more numbered
+section headers (`18.1`, `18.2`, …), checking whether marker emits them in
+ascending order:
+
+| | n |
+|---|---|
+| Pages with 2+ numbered section headers | 16 |
+| Emitted in correct order | 8 |
+| **Emitted out of order** | **8** |
+
+The affected pages, with the emitted sequence:
+
+| Physical | Printed | Chapter | Emitted |
+|---|---|---|---|
+| 10 | 11 | — | 11.2, 11.1 |
+| 17 | 18 | `STAT CHECKS & SAVES` | 18.3, 18.2, 18.1 |
+| 21 | 22 | `SKILLS` | 22.2, 22.1 |
+| 22 | 23 | `SKILLS` | 23.2, 23.1 |
+| 28 | 29 | `WOUNDS & DEATH` | 29.2, 29.1 |
+| 30 | 31 | `RANGE & DISTANCE` | 31.3, 31.2, 31.1 |
+| 31 | 32 | `SURVIVAL` | 32.4, 32.5, 32.1, 32.2, 32.3 |
+| 32 | 33 | `SURVIVAL` | 33.2, 33.3, 33.4, 33.1 |
+
+**This is a lower bound.** The heuristic only sees pages with two or more
+*numbered* headers. Pages 19 and 25 are also scrambled but their sidebars carry
+unnumbered headings, so they score as clean. The true rate across body pages is
+higher than 8/16.
+
+Every affected chapter is mid-play resolution content — precisely the
+[query distribution](#what-the-warden-actually-asks) the Warden produces.
+
+**Why S3–S5 did not catch this.** Those sessions built a page-granular corpus
+and used bag-of-words FTS and mean-pooled embeddings, both of which are
+order-insensitive at page scale. Block order was never load-bearing, so the
+defect was invisible. It is invisible at page granularity and **fatal at chunk
+granularity**: M7.2's design merges blocks *in emitted order* toward a
+~400-token target
+(`docs/plans/012-m7.2-rules-ingestion-implementation-plan.md § Part 2`). On
+half the measurable pages that merge would concatenate sections backwards,
+producing chunks that interleave unrelated material and open with the wrong
+breadcrumb. The chunker cannot be built on this block order without an
+intervening sort.
+
+This supersedes nothing — S1.5 and S1.7 are accurate about what they examined.
+It establishes that their finding generalises far beyond the spread they
+examined.
+
+#### 6.3 Method
+
+Pages rasterized from the local PDF with `pypdfium2` (an existing pipeline
+dependency) at 1424×2200 px — under the 2576 px high-resolution vision limit,
+so nothing is downscaled server-side. Each call sends one page image plus that
+page's block list (`id`, `block_type`, extracted text) and asks for a verdict.
+
+Model `claude-opus-5`. The classification is enforced by a **structured-output
+JSON schema** rather than requested in prose, so `discrepancy` is a validated
+enum (`none | empty | garbled_table | reordered_text | missing_content`) and a
+malformed flag cannot pass silently. Each verdict also carries `confidence`,
+`severity`, `affected_block_ids`, and a structure-only `proposed_structure`.
+
+Value-free discipline was instructed at the prompt level: describe
+discrepancies structurally, refer to blocks by id and headings by numbering,
+and for reconstructions give column headers and row labels only — never
+values. It held on every call; no rules text appeared in any verdict.
+
+Test set, five pages:
+
+| Role | Physical (printed) | Basis |
+|---|---|---|
+| Positive — emptiness | 11 (12), 12 (13) | 13 empty `Table` blocks ([S3.2](#32-new-finding--14-of-32-table-blocks-carry-no-text)) |
+| Positive — reordering | 17 (18) | Reversal confirmed against image (6.1) |
+| Positive — reordering | 3 (4) | Character-creation spread ([S1.5](#15-markdown-heading-levels-are-visual-not-semantic)) |
+| Negative — clean | 39 (40) | Single-column, order verified against image (6.1) |
+
+The brief's optional "short but non-empty table" stretch case **does not exist
+in this corpus**: the 18 non-empty `Table` blocks run 177–3618 characters, with
+nothing between empty and substantial. Dropped rather than hunted for.
+
+#### 6.4 Results — and three scoping errors before a clean read
+
+Four runs. The first three differ only in which block types were sent; the
+model's behaviour was consistent throughout, and every "failure" was an
+artifact of the input, not the model.
+
+| Run | Blocks sent | Control (phys 39) verdict | Severity |
+|---|---|---|---|
+| 1 | everything | `empty` — `PageHeader`/`PageFooter` carry no text | medium |
+| 2 | `Text`/`Table`/`ListGroup` only | `missing_content` — headings absent | medium |
+| 3 | all except `PageHeader`/`PageFooter` | `missing_content` — banner/footer absent | **low** |
+| 4 | run 3 + scope stated in prompt | **`none`** | none |
+
+Each verdict was *correct for the input given*. Run 1 flagged genuinely empty
+header/footer blocks — true, but
+[S1.8](#18-the-running-footer-is-the-reliable-provenance-source) established
+marker strips those deliberately. Run 2 flagged missing headings — true,
+because the pipeline's `Text`/`Table`/`ListGroup` filter drops `SectionHeader`,
+which is real page content. Run 3 flagged the banner and footer callout as
+having no block — true, because they had been excluded. Run 4 states the
+exclusion in the prompt, and the control goes silent.
+
+**The model never produced a false observation.** Every flag pointed at a real
+difference between the image and the block list supplied. Precision was a
+function of whether the block list matched the contract being audited — which
+is a specification problem, not a model-capability one.
+
+Run 4, the defensible configuration:
+
+| Physical | Printed | Role | Verdict | Confidence | Severity |
+|---|---|---|---|---|---|
+| 39 | 40 | negative | `none` | high | none |
+| 11 | 12 | positive | `empty` | high | high |
+| 12 | 13 | positive | `empty` | high | high |
+| 3 | 4 | positive | `reordered_text` | high | high |
+| 17 | 18 | positive | `reordered_text` | high | high |
+
+Four of four defects flagged with the correct class; the clean control silent.
+
+Two qualitative observations worth more than the tally. On pages 11 and 12 the
+pass reported the empty tables as dominant and **also** noted the emitted order
+did not follow the printed arrangement — catching the 6.2 defect unprompted,
+on pages where it was not the test target. And on page 3 it identified that
+three class-modifier boxes each omit one printed line: a `missing_content`
+defect nothing in S1–S5 had noticed, and precisely the "extracted as
+plausible-looking but wrong" class the brief said had no documented instance.
+
+**Severity ranked correctly at every stage.** Even in run 3, where the control
+still fired, it fired at `low` against `high` for all four real defects. A
+reviewer sorting by severity gets a usable worklist in every configuration
+tested — which matters more than the binary flag, since the tool's job is to
+shrink what a human reads, not to be right unaided.
+
+Cost: ~33.6K input and ~3.8K output tokens per run over five pages, about
+**$0.26**. A full 44-page pass is roughly **$2.30**. Cheap enough that the
+brief's decision to skip a heuristic pre-filter is right.
+
+#### 6.5 The fixup schema cannot express the defect it exists for
+
+`ingestion/mothership/fixups.json` is `[]` — never populated. The schema in
+`docs/rules-ingestion.md § Step 2` identifies a chunk by content:
+
+```json
+"match": { "section": ["Combat", "Panic"], "contains": "1-10Roll" }
+```
+
+Both keys fail against the confirmed defects. `contains` needs text to match
+on, and the 14 defective `Table` blocks contain exactly `<p></p>` — there is
+nothing to match. `section` derives from `section_hierarchy`, which
+[S1.7](#17-section_hierarchy-is-not-true-ancestry) established is not real
+ancestry and is already a Dead end. So the only documented mechanism for
+correcting extraction cannot address the only confirmed extraction defects.
+
+The fix is available and already load-bearing everywhere else in this work:
+match on the **block `id`** (`/page/11/Table/5`), which is stable, unique, and
+is the identifier [S1.6](#16-chunks-output-format-carries-typed-blocks) fell
+back to when the `page` field proved meaningless. Recorded under Corrections
+owed.
+
+#### 6.6 Conclusion
+
+**Decision criterion 1 is met: proceed to a full 44-page run.** The pass flags
+known defects with correct classification and stays silent on a verified-clean
+page, at a cost that makes a heuristic pre-filter unnecessary.
+
+Three caveats on that result:
+
+1. **It took three scoping corrections to get there.** The tool audits the
+   block list against the image, so it can only be as precise as the contract
+   it is told to audit. A production version needs the exclusion rules stated
+   explicitly, and the *first* output of any new configuration should be
+   treated as a check on the input, not on the model.
+2. **One clean control is not a false-positive rate.** Five pages cannot
+   measure precision. The meaningful number is the flag rate across all 44,
+   and the disqualifying outcome is uniform high-severity flags — an
+   unrankable worklist — not any individual flag on a clean page.
+3. **The reconstruction output is not validated.** `proposed_structure` held
+   the value-free line, but nothing here checked whether a proposed structure
+   is *correct*. That needs its own pass before anything is promoted into
+   `fixups.json`.
+
+**The reordering finding (6.2) outranks all of this** and does not depend on
+the flagging tool at all. It is a blocking input to the M7.2 chunker design,
+not a fixup-authoring concern.
+
+#### 6.7 Teardown
+
+No database objects created; nothing to drop. Page images and the flags report
+stayed in scratch and are not in the repository; the marker artifact remains
+outside it per `docs/rules-ingestion.md § Licensing Posture`. Scripts not
+committed — the schema, model, block scope, and prompt constraints recorded
+above are what make this reproducible. No production path, schema, or
+migration was touched.
