@@ -1,0 +1,7 @@
+{
+  "_comment": "Edition-specific facts the pipeline needs but must not hardcode. Read by ingest.py, which passes them into chunk_blocks(). A new system adds a sibling directory with its own copy; a new *edition* of the same book needs page_offset and footer_format re-verified before ingesting, per docs/rules-extraction-findings.md.",
+
+  "source_label": "Mothership Player's Survival Guide",
+  "page_offset": 1,
+  "footer_format": "page-number-then-chapter"
+}

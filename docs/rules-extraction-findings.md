@@ -281,7 +281,13 @@ Current as of 2026-08-05. Each links to the session that established it.
     15/16 with nothing regressed
     ([S10.2](#102-the-oracle-re-scored-on-the-shipped-code)).
     ([S6.2](#62-new-finding--reading-order-scrambling-is-pervasive-not-localised))
-13. **The sort's one residual failure is invisible to the corpus — for now.**
+13. **The PSG is a ~20,000-token book, and a ~400-token target yields ~65
+    chunks — not the 100–400 the spec expects.** The two numbers are
+    arithmetically incompatible; the chunk-count guess is the unvalidated one.
+    Chunk size is an M7.5 lever and should be tuned against the retrieval
+    harness, not against a docstring.
+    ([S11.1](#111-result--65-chunks-not-100400))
+14. **The sort's one residual failure is invisible to the corpus — for now.**
     Page 17's misordering is confined to a `SectionHeader` block, and
     `SectionHeader` is dropped before chunking; its content blocks sort
     correctly. Two M7.5 levers (breadcrumb composition, `SectionHeader` as
@@ -2077,3 +2083,102 @@ there; no rulebook text, extracted output, or chunk content committed. The
 sort and the footer parser ship as `ingestion/pipeline/chunk.py` with
 `ingestion/tests/test_chunk.py` covering them (25 assertions, stdlib-only,
 verified green in a venv containing nothing but `pytest`).
+
+
+### S11 — 2026-08-06 · Block merge implemented; the 100–400 chunk expectation is wrong
+
+Context: [S10](#s10--2026-08-06--column-aware-sort-implemented-and-re-scored)
+shipped the sort. This is the merge — `chunk_blocks` in
+`ingestion/pipeline/chunk.py` — run end to end over the same extraction, with
+footer chapters from `pypdfium2` and the parameters
+`docs/rules-ingestion.md § Step 4` specifies (~400-token target, 50–100 token
+overlap, tables never split, chapter change forces a boundary).
+
+#### 11.1 Result — 65 chunks, not 100–400
+
+| | |
+|---|---|
+| Content blocks (`Text`/`Table`/`ListGroup`) carrying text | 371 of 409 |
+| **Total content tokens in the book** | **20,353** (`cl100k_base`) |
+| **Chunks produced** | **65** |
+| Token distribution | min 39, median 340, mean 340, max 924 |
+| Chunks over 400 tokens | 14 |
+| Chunks spanning more than one page | 6 |
+| Chunks with a breadcrumb and no body | 0 |
+
+**The spec's Done When 2 ("expect 100–400 chunks for the PSG 1e") is not
+reachable from the spec's own ~400-token target.** The two numbers were
+written independently and are arithmetically incompatible: 20,353 tokens
+against a 400-token target is a ceiling of ~50 chunks before overlap, and 65
+with it. Landing inside 100–400 would require a target of **~200 tokens or
+less** — a chunking change nobody has argued for, on a book that turns out to
+be about a quarter the size the chunk-count guess implied.
+
+[S1.6](#16-chunks-output-format-carries-typed-blocks) propagated the error
+("409 content blocks … lands plausibly inside the spec's 100–400
+expectation"). That inference silently equated *block* count with *chunk*
+count; merging 409 blocks toward 400 tokens produces far fewer chunks than
+blocks, not a comparable number.
+
+**Recommendation: correct the expectation, not the target.** The 400-token
+target is a stated retrieval heuristic with a rationale; the 100–400 chunk
+count is an unvalidated guess with none. Chunk size is an explicit M7.5 lever
+(`roadmap.md` M7.5, lever 1) and belongs there, tuned against
+`task eval:retrieval` rather than against a number chosen to match a
+docstring.
+
+#### 11.2 What the oversized chunks are
+
+All 14 chunks over 400 tokens are tables or table-adjacent, as designed —
+"a `Table` that alone exceeds the target becomes its own chunk and is allowed
+to be over." The three largest are the d100 trinket table (842 tokens), the
+d100 patch table (843), and the equipment cost table (876), each intact.
+
+**All 18 `Table` blocks that carry text appear whole, in exactly one chunk.**
+Zero split, zero duplicated.
+
+#### 11.3 FIREARMS and INDUSTRIAL EQUIPMENT produce zero chunks
+
+[S3.2](#32-new-finding--14-of-32-table-blocks-carry-no-text) predicted this
+from block-level evidence; it is now confirmed at chunk level. Physical pages
+11 and 12 resolve chapters from their footers, but their block inventory is
+`PageHeader` + `SectionHeader` + `Table` + `Picture` and **every one of their
+13 `Table` blocks extracts with no text**, so nothing survives the content
+whitelist:
+
+| Chapter | Physical page | Content blocks with text |
+|---|---|---|
+| `FIREARMS` | 11 | 0 of 7 |
+| `INDUSTRIAL EQUIPMENT` | 12 | 0 of 6 |
+
+26 of the book's 28 chapters are represented in the index. These are the two
+that are not. Equipment stats are a plausible Warden query, so this stays a
+real gap — tracked, unscoped, and shipping absent per the spec's deferral.
+
+38 content blocks book-wide carry no text, spread across 13 pages; pages 11
+and 12 are the only ones where the loss is total.
+
+#### 11.4 Correction to S1.8 — the chapter list omits `ARMOR`
+
+The footer parse resolves **28** distinct chapter names, not the 27
+[S1.8](#18-the-running-footer-is-the-reliable-provenance-source) enumerates.
+Every name in that list is found; `ARMOR` (physical pages 13–14, printed
+14–15) is additionally found and was missing from it. Chapter resolution
+still covers 36 of 44 pages, and the 8 unresolved pages are exactly the set
+S1.8 named (physical 0, 1, 2, 4, 10, 41, 42, 43). An enumeration slip, not a
+parsing difference.
+
+#### 11.5 Reading order holds through the merge
+
+Spot-read two pages the sort fixed, end to end, at chunk level: physical 21
+(`SKILLS`) and physical 30 (`RANGE & DISTANCE`). Both read forwards —
+`SKILLS` runs definition → acquisition → cross-reference → caveat, and
+`RANGE & DISTANCE` runs the band intro → Adjacent → the band list →
+Close/Long/Extreme. The sort's benefit survives merging; it is not undone by
+chunk boundaries.
+
+#### 11.6 Teardown
+
+Extraction and chunk output stayed in a scratch directory outside the
+repository. No rulebook text, extracted output, or chunk content committed —
+the numbers above are counts and structural metadata only.

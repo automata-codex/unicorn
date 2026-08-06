@@ -2,10 +2,10 @@
 
 Three sub-steps live in this module: recovering reading order (marker does
 not emit blocks in reading order on multi-column pages), attributing page
-number and chapter from the PDF's running footer, and — landing separately
-— merging the sorted, attributed blocks into chunks. They share the same
-block-list data structure end to end, and none is more than a few dozen
-lines, so they stay together rather than being split across modules. See
+number and chapter from the PDF's running footer, and merging the sorted,
+attributed blocks into chunks. They share the same block-list data structure
+end to end, and none is more than a few dozen lines, so they stay together
+rather than being split across modules. See
 ``docs/rules-ingestion.md § Step 4`` for the canonical algorithm.
 
 **This module must stay importable with nothing but the standard library.**
@@ -21,8 +21,8 @@ counter is injected, and its tiktoken default is built lazily on first call.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable, Sequence
+from dataclasses import dataclass, field
 
 # ---------------------------------------------------------------------------
 # Block model
@@ -266,3 +266,342 @@ def parse_footer(
             return printed, chapter
 
     return None, None
+
+
+# ---------------------------------------------------------------------------
+# Chunk model and merge
+# ---------------------------------------------------------------------------
+
+#: Only these three block types become chunk content. A whitelist rather than
+#: a blacklist: marker also emits ``SectionHeader``, ``PageHeader``,
+#: ``PageFooter``, ``Picture``, ``PictureGroup``, ``Caption``, and ``Form``,
+#: and a new marker version adding a type should default to *excluded* rather
+#: than silently injecting a new kind of text into the index.
+#:
+#: ``SectionHeader`` is dropped despite carrying real topic labels: its text
+#: is unreliable as ancestry (``§ S1.7``), and the breadcrumb comes from the
+#: footer chapter instead. Whether to bring headings back in — as breadcrumb
+#: material or as indexable content — is an M7.5 lever, and one that would
+#: re-open the page-17 ordering defect (``§ S10.3``).
+CONTENT_BLOCK_TYPES = frozenset({"Text", "Table", "ListGroup"})
+
+#: Tables are the densest and most mechanically load-bearing content in a
+#: rules PDF. Half a panic table is worse than an oversized chunk.
+TABLE_BLOCK_TYPE = "Table"
+
+_PARAGRAPH_RE = re.compile(r"\n{2,}")
+_SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
+
+
+@dataclass(frozen=True)
+class Chunk:
+    """One row-to-be in ``rules_chunk``.
+
+    The column set is fixed and narrow (``source``, ``section_path``,
+    ``content``, ``embedding``), so everything a reader or a scorer needs
+    about provenance has to live in ``source``. ``pages`` is kept alongside
+    as structured data so the pipeline never re-parses its own citation
+    string; it is not persisted.
+    """
+
+    content: str
+    section_path: list[str] = field(default_factory=list)
+    source: str = ""
+    pages: tuple[int, ...] = ()
+
+
+def _default_count_tokens(text: str) -> int:
+    """Lazily-constructed tiktoken counter.
+
+    Imported inside the function, not at module scope: tiktoken fetches its
+    BPE files over the network when an encoder is first built, which would
+    make the CI test network-dependent and this module non-importable on a
+    runner that installs pytest alone.
+
+    tiktoken is OpenAI's tokenizer, not Voyage's, so these counts approximate
+    what Voyage will bill and window. That is accepted — the ~400-token target
+    is a retrieval heuristic with no hard boundary, and the PSG is nowhere
+    near the 32k per-input limit. Whether the approximation actually holds is
+    an open question in ``docs/rules-extraction-findings.md``, not yet a
+    problem worth spending on; ``voyageai.Client().count_tokens()`` is the
+    exact source if it ever becomes one.
+    """
+    global _ENCODER
+    if _ENCODER is None:
+        import tiktoken
+
+        _ENCODER = tiktoken.get_encoding("cl100k_base")
+    return len(_ENCODER.encode(text))
+
+
+_ENCODER = None
+
+
+@dataclass(frozen=True)
+class _Unit:
+    """A piece of text that may or may not be split further."""
+
+    text: str
+    page: int
+    atomic: bool  # a Table block — never split, never sampled for overlap
+
+
+def _split_oversized(
+    text: str, target_tokens: int, count_tokens: Callable[[str], int]
+) -> list[str]:
+    """Break one block's text into pieces no larger than ``target_tokens``.
+
+    Paragraph boundaries first, sentence boundaries only if a single
+    paragraph is still too large, and never mid-sentence — a sentence that
+    exceeds the target on its own is emitted over-target rather than cut.
+    """
+    if count_tokens(text) <= target_tokens:
+        return [text]
+
+    def pack(parts: Sequence[str], separator: str) -> list[str]:
+        packed: list[str] = []
+        current: list[str] = []
+        current_tokens = 0
+        for part in parts:
+            part_tokens = count_tokens(part)
+            if current and current_tokens + part_tokens > target_tokens:
+                packed.append(separator.join(current))
+                current, current_tokens = [], 0
+            current.append(part)
+            current_tokens += part_tokens
+        if current:
+            packed.append(separator.join(current))
+        return packed
+
+    paragraphs = [p.strip() for p in _PARAGRAPH_RE.split(text) if p.strip()]
+    if len(paragraphs) > 1:
+        pieces = pack(paragraphs, "\n\n")
+        # A single paragraph may still be over target; recurse into it.
+        return [
+            out
+            for piece in pieces
+            for out in (
+                [piece]
+                if count_tokens(piece) <= target_tokens
+                else _split_oversized(piece, target_tokens, count_tokens)
+            )
+        ]
+
+    sentences = [s.strip() for s in _SENTENCE_RE.split(text) if s.strip()]
+    if len(sentences) > 1:
+        return pack(sentences, " ")
+
+    return [text]
+
+
+def _overlap_tail(
+    text: str,
+    overlap_tokens: tuple[int, int],
+    count_tokens: Callable[[str], int],
+) -> str:
+    """The trailing slice of ``text`` to repeat at the head of the next chunk.
+
+    Whole sentences from the end, accumulated while they fit the band. If the
+    final sentence alone overshoots the maximum, fall back to a word-level cut
+    — an overlap outside the stated band would make the band meaningless, and
+    a mid-sentence overlap is only a cosmetic cost on a fragment that is
+    duplicated content by construction.
+    """
+    minimum, maximum = overlap_tokens
+    sentences = [s for s in _SENTENCE_RE.split(text.strip()) if s.strip()]
+
+    taken: list[str] = []
+    total = 0
+    for sentence in reversed(sentences):
+        sentence_tokens = count_tokens(sentence)
+        if taken and total + sentence_tokens > maximum:
+            break
+        taken.insert(0, sentence)
+        total += sentence_tokens
+        if total >= minimum:
+            break
+
+    tail = " ".join(taken).strip()
+    if not tail:
+        return ""
+    if count_tokens(tail) <= maximum:
+        return tail
+
+    words = tail.split()
+    while words and count_tokens(" ".join(words)) > maximum:
+        words.pop(0)
+    return " ".join(words)
+
+
+def _chapter_key(page: int, page_chapters: dict[int, str]) -> tuple[str, object]:
+    """Group key for "same section, may merge".
+
+    A page with no resolved chapter gets a key unique to that page: without a
+    chapter there is no evidence two pages belong to the same section, and
+    merging them would manufacture an adjacency the footer never asserted.
+    """
+    chapter = page_chapters.get(page)
+    if chapter is None:
+        return ("unresolved", page)
+    return ("chapter", chapter)
+
+
+def _build_source(source_label: str, pages: Sequence[int]) -> str:
+    """``'<label> p.21'``, or ``'<label> pp.20-21'`` for a chunk that spans.
+
+    This string is the *only* provenance the runtime ever surfaces —
+    ``findByCosineSimilarity`` returns ``source`` and ``content`` and nothing
+    else — so it carries the whole citation. It is also what the retrieval
+    harness parses page labels out of, so the format is a contract: ASCII
+    ``p.``/``pp.``, hyphen not en-dash, page numbers printed rather than
+    physical.
+    """
+    unique = sorted(set(pages))
+    if not unique:
+        return source_label
+    if len(unique) == 1:
+        return f"{source_label} p.{unique[0]}"
+    return f"{source_label} pp.{unique[0]}-{unique[-1]}"
+
+
+def chunk_blocks(
+    blocks: Iterable[Block],
+    *,
+    page_chapters: dict[int, str],
+    source_label: str,
+    page_offset: int = 1,
+    drop_pages: frozenset[int] = frozenset(),
+    target_tokens: int = 400,
+    overlap_tokens: tuple[int, int] = (50, 100),
+    count_tokens: Callable[[str], int] | None = None,
+) -> list[Chunk]:
+    """Merge sorted, attributed blocks into ~``target_tokens`` chunks.
+
+    Expects ``blocks`` already in reading order — :func:`sort_blocks_by_page`
+    is not called here, so that a caller cannot get sorted-vs-unsorted wrong
+    silently by passing the wrong flag. Merging in marker's emitted order
+    concatenates roughly half the book's body pages backwards (``§ S6.2``).
+
+    ``drop_pages`` exists so page-level exclusions stay a config change. It is
+    empty for M7.2 deliberately: the character-creation exclusion (physical 4,
+    41, 42) is *decided* in ``docs/decisions.md`` but implemented as an M7.5
+    lever, because applying it here would change the index before the baseline
+    M7.5 iterates against.
+    """
+    count = count_tokens if count_tokens is not None else _default_count_tokens
+    minimum_overlap, maximum_overlap = overlap_tokens
+    if not 0 <= minimum_overlap <= maximum_overlap:
+        raise ValueError(f"invalid overlap band: {overlap_tokens!r}")
+    if target_tokens <= 0:
+        raise ValueError(f"target_tokens must be positive, got {target_tokens!r}")
+
+    kept = [
+        block
+        for block in blocks
+        if block.block_type in CONTENT_BLOCK_TYPES
+        and block.page not in drop_pages
+        and block.text.strip()
+    ]
+
+    chunks: list[Chunk] = []
+    run: list[Block] = []
+    run_key: tuple[str, object] | None = None
+
+    def flush_run() -> None:
+        if run:
+            chunks.extend(
+                _chunk_one_run(
+                    run,
+                    page_chapters=page_chapters,
+                    source_label=source_label,
+                    page_offset=page_offset,
+                    target_tokens=target_tokens,
+                    overlap_tokens=overlap_tokens,
+                    count_tokens=count,
+                )
+            )
+        run.clear()
+
+    for block in kept:
+        key = _chapter_key(block.page, page_chapters)
+        if run_key is not None and key != run_key:
+            flush_run()
+        run_key = key
+        run.append(block)
+    flush_run()
+
+    return chunks
+
+
+def _chunk_one_run(
+    run: Sequence[Block],
+    *,
+    page_chapters: dict[int, str],
+    source_label: str,
+    page_offset: int,
+    target_tokens: int,
+    overlap_tokens: tuple[int, int],
+    count_tokens: Callable[[str], int],
+) -> list[Chunk]:
+    """Merge one same-chapter run. A chapter change already forced a break."""
+    chapter = page_chapters.get(run[0].page)
+    section_path = [chapter] if chapter is not None else []
+    # The breadcrumb is embedded *and* read by the Warden, so it improves
+    # retrieval rather than only presentation — a continuation chunk of the
+    # panic rules can easily never contain the word "panic" otherwise. Built
+    # from the footer chapter, never from `section_hierarchy`, which records
+    # the last header seen at each visual level and so turns siblings into
+    # parents (`§ S1.7`); a wrong breadcrumb is worse than none.
+    breadcrumb = f"{chapter}\n\n" if chapter is not None else ""
+
+    units: list[_Unit] = []
+    for block in run:
+        if block.block_type == TABLE_BLOCK_TYPE:
+            units.append(_Unit(text=block.text.strip(), page=block.page, atomic=True))
+            continue
+        for piece in _split_oversized(block.text.strip(), target_tokens, count_tokens):
+            units.append(_Unit(text=piece, page=block.page, atomic=False))
+
+    chunks: list[Chunk] = []
+    current: list[_Unit] = []
+    current_tokens = 0
+    pending_overlap = ""
+
+    def flush_chunk() -> None:
+        nonlocal current, current_tokens, pending_overlap
+        if not current:
+            return
+        body = "\n\n".join(unit.text for unit in current)
+        content = breadcrumb + (
+            f"{pending_overlap}\n\n{body}" if pending_overlap else body
+        )
+        pages = tuple(sorted({unit.page + page_offset for unit in current}))
+        chunks.append(
+            Chunk(
+                content=content,
+                section_path=list(section_path),
+                source=_build_source(source_label, pages),
+                pages=pages,
+            )
+        )
+        # A chunk ending in a table hands over no overlap: a fragment of a
+        # table's rows opening the next chunk reads as unrelated noise, and
+        # atomicity is the whole reason tables are handled separately. The
+        # asymmetry is deliberate — a table chunk still *receives* the prose
+        # overlap that introduced it, which is the context a bare table of
+        # results needs to be interpretable on its own.
+        pending_overlap = (
+            "" if current[-1].atomic else _overlap_tail(body, overlap_tokens, count_tokens)
+        )
+        current = []
+        current_tokens = 0
+
+    for unit in units:
+        unit_tokens = count_tokens(unit.text)
+        if current and current_tokens + unit_tokens > target_tokens:
+            flush_chunk()
+        current.append(unit)
+        current_tokens += unit_tokens
+    flush_chunk()
+
+    return chunks
