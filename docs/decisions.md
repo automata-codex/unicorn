@@ -64,6 +64,46 @@ No eval re-baseline is owed for this change on its own. Both existing baselines 
 
 ---
 
+## Rules Ingestion
+
+### Chunk extraction is block-based with footer-derived provenance, not markdown headings
+
+The design doc's chunking premise — treat each `###` Markdown heading as a candidate chunk boundary — does not survive contact with the actual extraction output. The PSG's whole-book heading histogram is 84 `#`, 3 `##`, 10 `###`, 55 `####` (`docs/rules-extraction-findings.md § S1.5`): 10 `###` headings against a 100–400-chunk target kills the approach on arithmetic alone, and the levels are assigned by font size rather than document structure — `#### ARMOR` and `# 14 ARMOR` are the same section at different levels, and reading order scrambles across the character-creation spread. Markdown output is also the wrong extraction format independent of the heading problem: it discards page attribution entirely, and the only page-marker mechanism it carries (`<span id="page-N-M">` anchors) covers 16 of 44 pages.
+
+**Decided:** ingestion runs marker with `--output_format chunks`, not `markdown` — typed blocks (`Text`/`Table`/`ListGroup`, dropping headers/footers/pictures) carrying page and bbox metadata, merged toward a ~400-token chunk target with 50–100 tokens of overlap (`docs/rules-extraction-findings.md § S1.6`). Chapter boundaries force a chunk break.
+
+Provenance is derived, not read from any marker field. `blocks[].page` is an internal id, not a page number (physical page 0 → `'7'`, 1 → `'512'` — plausible-looking and wrong, the exact failure mode worth guarding against in any future extraction work). The physical page number comes from the `/page/N/` prefix on each block's `id`; the printed page number and chapter name are read from the PDF's running footer via `pypdfium2` directly, which resolves chapter on 36 of 44 pages (`docs/rules-extraction-findings.md § S1.8`). `section_hierarchy`, marker's own structural field, was tested and rejected as a breadcrumb source — it records the last header seen at each visual level, which turns siblings into parents on scrambled multi-column pages (`STEP 5. GAIN STRESS > STEP 6. NOTE TRAUMA RESPONSE`).
+
+**Edition-specific, not general.** The `printed page = physical page + 1` offset and the footer-parsing approach are verified only against the PSG 1e. Any second Mothership book needs its own check before ingestion (`docs/rules-extraction-findings.md § Open questions`).
+
+### Reading order requires an explicit column-aware sort; an LLM may validate it, never perform it
+
+Marker's emitted block order is not reading order on multi-column pages. Of the 16 pages carrying two or more numbered section headers, 8 emit them out of order, including full reversals (`docs/rules-extraction-findings.md § S6.2`); the true rate is plausibly higher since that test can't see unnumbered headings. A chunker that merges blocks in emitted order — the design doc's implicit assumption — would concatenate roughly half the book's body pages backwards.
+
+Two approaches were on the table: an LLM pass that reads the page image and proposes correct ordering, or a deterministic geometric sort using the bbox coordinates every block already carries. LLM-assisted flagging was piloted first for a different purpose (auditing extraction defects generally) and, as a side effect, demonstrated it could recover correct order by eye — but that's the wrong place for the capability to live: routing per-page ordering through an LLM call at ingestion time would make a Python-only, no-LLM-calls pipeline (`docs/rules-ingestion.md`, hard constraint) depend on a model call for every multi-column page, forever, on every re-ingestion.
+
+**Decided:** a ~25-line deterministic sort. Full-width blocks (≥60% of page width) flush the current column band and stand alone; everything else is banded by `y0` position and split left/right by bbox x-centre against the page midline (`docs/rules-extraction-findings.md § S7.2`). This recovered 15 of 16 measurable pages with nothing regressed. The one residual failure (physical page 17, a boxed callout whose heading is narrower than its full-width body) is understood and local, not a case against the approach.
+
+**The boundary that follows from this:** the sort must be deterministic and live in `ingest.py`. An LLM may validate the result — flagging pages where the sort still looks wrong, informed by the page image rather than geometry alone — but must never perform the reordering itself. Where geometry genuinely can't resolve a page, the escape hatch is a hand-blessed ordering recorded once per edition in `fixups.json`, keyed on block `id`; that's an explicit, reviewed exception, not a runtime dependency.
+
+**Coverage caveat carried forward, not resolved here.** The numbered-header test that validates the sort only sees 16 of 44 pages. The LLM-flagging pass is the intended instrument for validating the other 28 (unnumbered headings), not yet run at that scope.
+
+### Character-creation content is excluded from the rules index — structurally unreachable by the Warden
+
+Physical pages 4, 41, and 42 cover Mothership character creation. Confirmed via tool-array and query-log inspection that `rules_lookup` is wired only into the play-loop tool array — character creation runs its own flow and makes no Anthropic calls at all, so nothing the Warden does can retrieve these pages regardless of what the index contains (`docs/rules-extraction-findings.md § S2`).
+
+**Decided:** exclude physical pages 4, 41, 42 from the rules index. This also resolves the duplicate-spread question for that trio without needing dedup logic: 41 and 42 are byte-identical duplicates of page 4's character-creation spread, and both drop with it. Page 4 also carries the worst provenance in the corpus — its footer doesn't resolve to a chapter — so exclusion removes a hard case rather than requiring a fallback-chapter decision for it.
+
+**Not yet extended to page 3** (the character-profile sheet), which looks like the same category but wasn't covered by the S2 analysis that confirmed the other three. It's a live false-positive risk if left in — ranked top-3 for two of three test queries in `§ S3.7` on stat-name density alone, with no real relevance to what was asked. Tracked in `roadmap.md` M7.5 as a check, not yet a confirmed exclusion.
+
+### Fixup match schema keyed on block `id`, not `{section, contains}`
+
+`docs/rules-ingestion.md § Step 2` specifies fixup entries matched by `{section, contains}` — e.g. `{"section": ["Combat", "Panic"], "contains": "1-10Roll"}`. Neither key can express the confirmed extraction defects. `contains` needs text to match against, and the defect is 14 of 32 `Table` blocks extracting as empty (`<p></p>`) — there's nothing there to match on. `section` was meant to derive from `section_hierarchy`, already rejected above as unreliable ancestry.
+
+**Decided:** match fixup entries on the block `id` (e.g. `/page/11/Table/5`) instead — stable, unique, and already the fallback every other part of this pipeline uses once `page` and `section_hierarchy` proved unreliable (`docs/rules-extraction-findings.md § S6.5`). `ingestion/mothership/fixups.json` remains empty pending the table-defect scoping decision in `roadmap.md` M7.2; this entry fixes the schema those fixups will eventually use, not the defects themselves.
+
+---
+
 ## Rules Retrieval
 
 ### Rules retrieval mechanism: dense embeddings over FTS or LLM-authored regex
@@ -154,6 +194,32 @@ report a retrieval quality bar the Warden's actual queries never clear.
 vocabulary gap to skip a synonym table, or whether both are needed. Prompt
 guidance is untested; only the oracle-authored upper bound has been
 measured.
+
+**Amendment — the vocabulary gap splits into two problems, not one, and the
+floor is more load-bearing than it looked.** Measured against the 596 real
+`rules_lookup` queries recorded in `unicorn-artifacts` (`docs/rules-extraction-findings.md
+§ S8`), not just the original three. The "vocabulary mapping" fix above
+assumed a single problem — the Warden's word, the book's word — but at scale
+it splits into two with different fixes:
+
+- **Wrong word** (`initiative`→`turn order`, `stealth`→`sneak`): the book has
+  the concept under different vocabulary. A synonym table or prompt-side
+  phrasing guidance genuinely fixes this. 157 of the 344 out-of-corpus-term
+  queries (45.6%) fall here.
+- **Concept absent** (suppressive fire, flanking, opposed rolls, difficulty
+  numbers): the PSG resolves everything by rolling under a stat, so these
+  mechanics have no referent in the book at all. No mapping — synonym table
+  or otherwise — can retrieve a rule the book doesn't contain. 130 of 344
+  (37.8%) fall here, and the correct behaviour is returning nothing, which
+  the design already treats as a supported outcome (`docs/rules-extraction-findings.md
+  § S8.3`, `§ S9`).
+
+**Consequence:** the similarity floor (`docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md
+§ Part 4`, left open) is not an optional refinement alongside the vocabulary
+work — it's the only mechanism that correctly handles over a third of real
+queries, at a rate the original three-query sample gave no way to see. Both
+fixes are now confirmed necessary and non-overlapping, not alternatives to
+weigh against each other.
 
 ---
 
