@@ -303,12 +303,13 @@ Current as of 2026-08-05. Each links to the session that established it.
     ceiling discards `saving` from a query about saves. Settle the threshold
     before deriving any floor.
     ([S13.3](#133-the-structural-problem--it-shortens-answerable-queries-and-not-unanswerable-ones), [S13.4](#134-why-a-document-frequency-ceiling-struggles-on-a-single-book-corpus))
-16. **`rules_chunk_embedding_idx` silently under-returns at small `LIMIT`.**
-    ivfflat with `lists = 100` over 66 rows leaves most lists empty, so the
-    planner's index scan (chosen at `LIMIT` ≤ 2) returns 1 row where 2 were
-    asked for; `LIMIT` ≥ 3 falls back to a sequential scan and is correct.
-    `REINDEX` does not fix it — the `lists` value is what is wrong.
-    ([S13.7](#137-incidental--the-ivfflat-index-under-returns-at-small-limit))
+16. **A vector index built by migration must not be ivfflat.** ivfflat derives
+    its centroids from the rows present at build time, and migrations run
+    against empty tables; the resulting index silently returned 1 row for
+    `LIMIT 2`. `REINDEX` cannot fix it and no `lists` value chosen against
+    zero rows can either. **Fixed** in `V18__rules_chunk_hnsw_index.sql` by
+    switching to hnsw, which builds incrementally and needs no per-corpus
+    tuning. ([S13.7](#137-incidental--the-ivfflat-index-under-returns-at-small-limit), [S14](#s14--2026-08-06--the-vector-index-swapped-to-hnsw-under-return-fixed))
 17. **The sort's one residual failure is invisible to the corpus — for now.**
     Page 17's misordering is confined to a `SectionHeader` block, and
     `SectionHeader` is dropped before chunking; its content blocks sort
@@ -2449,3 +2450,69 @@ pipeline taking ownership of index DDL — a real decision, not yet made.
 
 No schema change, no migration, no index rebuild. Measurements are query
 strings, similarity scores, and page citations — no rulebook text.
+
+
+### S14 — 2026-08-06 · The vector index swapped to hnsw; under-return fixed
+
+Resolves the open decision in [S13.7](#137-incidental--the-ivfflat-index-under-returns-at-small-limit).
+Decided with Alex: fix it with a migration rather than defer.
+
+#### 14.1 What shipped
+
+`V18__rules_chunk_hnsw_index.sql` drops `rules_chunk_embedding_idx` and
+recreates it as `USING hnsw (embedding vector_cosine_ops)` with default
+parameters. pgvector 0.8.5, Postgres 16.14.
+
+**hnsw rather than a corrected `lists` value, because the `lists` value was
+never the root cause.** ivfflat derives its cluster centroids from the rows
+present when the index is built, and a migration builds it against an empty
+table — so any `lists` chosen there is chosen against zero rows and needs
+revisiting every time the corpus changes size, which M7.5's chunking iteration
+is about to do repeatedly. hnsw builds incrementally and needs no per-corpus
+tuning. `docs/schema.md` had already named hnsw as the intended escalation,
+though for retrieval quality at scale rather than for this.
+
+#### 14.2 Verification — row counts and exactness
+
+Forcing the index path (`enable_seqscan = off`) and comparing against a
+sequential scan forced the other way (`enable_indexscan = off`), same query
+vector, for every limit `rules_lookup` permits:
+
+| LIMIT | rows returned | identical to the exact answer |
+|---|---|---|
+| 1 | 1 | yes |
+| 2 | **2** (was 1) | yes |
+| 3 | 3 | yes |
+| 4 | 4 | yes |
+| 5 | 5 | yes |
+
+Confirmed through the runtime path too — the probe returns *n* hits for
+`--limit n`, 1 through 5.
+
+#### 14.3 The index is not actually used at this corpus size, and that is fine
+
+At 66 rows the planner chooses a sequential scan at every limit, and does so
+even with `enable_seqscan = off` (it prefers a bitmap scan on
+`rules_chunk_system_idx` plus a top-N heapsort over the HNSW scan). Execution
+time 0.6 ms, consistent with [S5.4](#54-latency--the-api-call-is-the-entire-budget)'s
+1-3 ms measurement.
+
+So the practical fix is that **the pathological index is gone**, not that a
+better one is now in use. Results are exact because nothing approximate runs.
+The hnsw index is there for when the corpus is large enough that the planner
+wants it, at which point it returns correct counts — `hnsw.ef_search` defaults
+to 40, far above the tool's maximum limit of 5.
+
+#### 14.4 Consequence for `store.py`
+
+The post-ingestion `REINDEX` stays, with a different justification. It was
+load-bearing for ivfflat (stale centroids after a full-corpus replace); for
+hnsw it is graph compaction after `DELETE` + `INSERT` leaves entries for every
+removed row. Cheap, offline, no reason to skip — but no longer a correctness
+requirement.
+
+#### 14.5 Teardown
+
+Migration applied to the dev database and left applied; the index is a
+permanent part of the schema. `docs/schema.md` updated to match, including
+why the swap happened. No rulebook text.

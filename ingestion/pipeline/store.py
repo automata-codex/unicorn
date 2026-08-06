@@ -101,15 +101,17 @@ def replace_chunks(
 def reindex_embeddings(connection) -> None:
     """Rebuild the ivfflat index now that the table has rows.
 
-    ``rules_chunk_embedding_idx`` was created at migration time against an
-    empty table, so it has no meaningful cluster centroids, and every
-    re-ingestion churns it against stale ones. pgvector's own guidance is to
-    build an ivfflat index after the data lands.
+    ``rules_chunk_embedding_idx`` is an hnsw index as of
+    ``V18__rules_chunk_hnsw_index.sql``. Unlike the ivfflat index it replaced,
+    it does not derive anything from the rows present at build time, so this
+    step is no longer load-bearing for *correctness* — the empty-table build
+    that made ivfflat under-return has no hnsw equivalent.
 
-    The failure mode of a degenerate ivfflat index is poor or empty recall
-    rather than an error — `ORDER BY embedding <=> …` stays *correct* only
-    because Postgres may fall back to a sequential scan, which is not
-    something to rely on. Ingestion is an offline job, so the lock is free.
+    It stays because ingestion replaces the whole corpus (``DELETE`` then
+    ``INSERT``), which leaves the graph carrying entries for every deleted
+    row. Rebuilding compacts it and produces a better-structured graph than
+    incremental insertion does. Ingestion is an offline job, so the lock is
+    free and there is no reason to skip it.
     """
     logger.info("reindexing %s", EMBEDDING_INDEX)
     connection.autocommit = True

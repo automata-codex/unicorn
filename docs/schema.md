@@ -370,11 +370,14 @@ CREATE TABLE rules_chunk (
 
 CREATE INDEX rules_chunk_system_idx ON rules_chunk (system_id);
 CREATE INDEX rules_chunk_embedding_idx ON rules_chunk
-  USING ivfflat (embedding vector_cosine_ops)
-  WITH (lists = 100);
+  USING hnsw (embedding vector_cosine_ops);
 ```
 
-**Index tuning note:** `lists = 100` is appropriate for tens of thousands of chunks. The ivfflat index trades recall for speed — if retrieval quality degrades as the corpus grows, increase `lists` or migrate to hnsw (`USING hnsw (embedding vector_cosine_ops)`). HNSW has better recall at higher memory cost; revisit at scale.
+**Index note — this was ivfflat until `V18__rules_chunk_hnsw_index.sql`, and the swap fixed a correctness bug, not a performance one.** The original `USING ivfflat … WITH (lists = 100)` silently under-returned: against a 66-row corpus most of its 100 lists are empty, so a single-probe index scan found about one row. `LIMIT 2` returned 1 row while `LIMIT 3` fell back to a sequential scan and was correct, because the planner's choice between them is a cost estimate. `rules_lookup` accepts limits 1–5, so this was reachable from the tool schema.
+
+The root cause was not the `lists` value. ivfflat derives its cluster centroids from the rows present when the index is built, and a migration builds it against an empty table — so any `lists` chosen there is chosen against zero rows and needs revisiting whenever the corpus changes size. HNSW builds incrementally and needs no per-corpus tuning, which is what makes it the right structure for an index created by migration. Defaults (`m = 16`, `ef_construction = 64`) are unchanged; `hnsw.ef_search` defaults to 40, comfortably above the tool's maximum limit of 5.
+
+At Phase 1 corpus sizes the planner does not choose this index at all — a sequential scan over tens or hundreds of rows sorts in under a millisecond (`docs/rules-extraction-findings.md § S5.4`), which is exact rather than approximate. The index exists for when that stops being true. See `§ S13.7`.
 
 **Embedding dimension:** `vector(1024)` matches the default output dimension of `voyage-4-lite` (and `voyage-4` / `voyage-4-large`, which default to 1024 and can be configured to 256/512/2048 via `output_dimension`). It does *not* match `voyage-3-lite`, which emits 512. Switching to a model with a different output dimension requires dropping and recreating the column and re-running the ingestion pipeline. Document the model used at ingestion time in `game_system.embedding_dim`.
 
