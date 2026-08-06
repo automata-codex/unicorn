@@ -16,6 +16,16 @@ import {
  * JSONL gives a second layer of protection since that glob is `.json`, but
  * the directory separation is the real one — do not rely on the extension, in
  * case someone later makes the hash recursive or extension-agnostic.
+ *
+ * **`biome.json` excludes this directory too, for a different reason than it
+ * excludes `eval/fixtures/`.** That one is about a byte-level hash; this one
+ * is about the format itself. The line-per-object layout and the `//` header
+ * comments are both invalid as a single JSON document, so a formatter that
+ * learned to process `.jsonl` would either refuse the file or rewrite it into
+ * one pretty-printed value — and this parser reads line by line, so a
+ * reformatted fixture file stops loading entirely. Biome does not touch
+ * `.jsonl` today; the exclusion is there so that staying true is not a
+ * coincidence.
  */
 export class FixtureLoadError extends Error {}
 

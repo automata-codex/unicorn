@@ -22,6 +22,16 @@ interface FixtureFileEntry {
  * A file that fails to parse, or has no string `id`, is a hard error here
  * rather than a skip — a corpus hash that silently omits a broken file is
  * worse than no hash.
+ *
+ * **Consequence: nothing may reformat `eval/fixtures/`.** Because the hash is
+ * over raw bytes, a formatter changes the corpus version without changing a
+ * single fixture, and every later `eval:compare` then warns about a
+ * cross-corpus pairing — the exact silent-poisoning case this hash exists to
+ * catch, arriving through tooling instead of an edit. `biome.json` excludes
+ * the directory (`"!apps/zoltar-be/eval/fixtures/**"`) for this reason and no
+ * other; the exclusion cannot explain itself in place, because Biome parses
+ * its config as strict JSON and **silently falls back to built-in defaults if
+ * a comment is present** rather than reporting an error.
  */
 export async function computeCorpusVersion(
   fixturesDir: string,
