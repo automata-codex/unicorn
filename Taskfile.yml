@@ -93,6 +93,13 @@ tasks:
       # constructed directly.
       - npx tsx --env-file=.env scripts/eval-rescore.ts {{.CLI_ARGS}}
 
+  eval:retrieval:
+    desc: 'Score the rules index against page-labeled retrieval fixtures — recall@3/@5, MRR, and the answerable-vs-unanswerable similarity distributions (M7.2). Makes real Voyage calls (one per fixture) but NO Anthropic calls, so it is cheap enough to run on every chunking change. Requires a populated rules_chunk index and ZOLTAR_EVAL_ROOT. --no-preprocess measures query preprocessing''s own effect; --df-threshold sweeps its ceiling. Usage — task eval:retrieval -- [--system mothership] [--fixtures <path>] [--limit 3] [--no-preprocess] [--df-threshold 0.6] [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx, as with eval:report — no Nest DI container.
+      - npx tsx --env-file=.env scripts/retrieval-eval.ts {{.CLI_ARGS}}
+
   eval:judge-variance:
     desc: 'Re-run judged checks N times against frozen warden-output.json artifacts already on disk — no Warden calls, no DB (M7.4.1). Makes real, token-costing Anthropic calls: every vouched (rep, fixture) pair is one frozen input and --trials is how many times each is re-graded, so cost is frozen-inputs x --trials. --trials does NOT subsample source reps — the run fixes those. Requires ANTHROPIC_API_KEY and ZOLTAR_EVAL_ROOT. Usage — task eval:judge-variance -- <run-dir> [--trials 3] [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--output <path>]'
     dir: apps/zoltar-be

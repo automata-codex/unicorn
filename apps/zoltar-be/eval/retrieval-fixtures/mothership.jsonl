@@ -1,0 +1,14 @@
+// Retrieval fixtures for Mothership PSG 1e. One JSON object per line.
+// Deliberately NOT under eval/fixtures/ — that directory's contents are hashed
+// into the Warden corpusVersion, and a retrieval fixture landing there would
+// trigger eval:compare's cross-corpus warning on unrelated M7.4 runs.
+//
+// Page numbers are PRINTED pages, matching the `source` citations the pipeline
+// writes. This is a starter set covering the harness's own paths; the full
+// labeled set is Part 8 of the M7.2 implementation plan.
+{"id":"rq-001","system":"mothership","query":"what happens when a character panics","queryStyle":"authored","expectedPages":[21],"expectedChapter":"PANIC CHECKS","answerable":true,"source":"hand-authored","notes":"verified: PANIC CHECKS is printed p.21"}
+{"id":"rq-002","system":"mothership","query":"how do I make a stat check or save","queryStyle":"authored","expectedPages":[18],"expectedChapter":"STAT CHECKS & SAVES","answerable":true,"source":"hand-authored","notes":"verified: STAT CHECKS & SAVES is printed p.18"}
+{"id":"rq-003","system":"mothership","query":"what are the range bands for combat","queryStyle":"authored","expectedPages":[30,31],"expectedChapter":"RANGE & DISTANCE","answerable":true,"source":"hand-authored","notes":"chapter spans printed pp.30-31"}
+{"id":"rq-004","system":"mothership","query":"saving throws stats how to roll checks","queryStyle":"warden-observed","expectedPages":[18],"expectedChapter":"STAT CHECKS & SAVES","answerable":true,"sourceTag":"UNSURFACED-CHECK","source":"recorded playtest query (findings § S3.6)"}
+{"id":"rq-005","system":"mothership","query":"suppressive fire autofire rules","queryStyle":"authored","expectedPages":[],"answerable":false,"source":"hand-authored; concept-absent bucket, findings § S9.3","notes":"the PSG resolves everything by rolling under a stat — no suppressive fire rule exists"}
+{"id":"rq-006","system":"mothership","query":"flanking bonus when surrounding an enemy","queryStyle":"authored","expectedPages":[],"answerable":false,"source":"hand-authored; concept-absent bucket, findings § S9.3"}

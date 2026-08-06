@@ -27,6 +27,23 @@ export interface RulesLookupResult {
   preprocessedQuery?: string;
 }
 
+/**
+ * Per-call overrides, used only by the retrieval harness.
+ *
+ * The Warden's own path passes nothing and gets the shipped defaults. These
+ * exist so `task eval:retrieval` can measure preprocessing's own effect —
+ * run the fixture set with and without, and diff the recall numbers — and so
+ * M7.5 can sweep the document-frequency ceiling without restarting a server
+ * or editing a constant. Sweeping through the harness is why the threshold is
+ * a constant plus a flag rather than an environment variable.
+ */
+export interface RulesLookupOptions {
+  /** Embed the query exactly as written. */
+  skipPreprocess?: boolean;
+  /** Override the document-frequency ceiling for this call. */
+  dfThreshold?: number;
+}
+
 @Injectable()
 export class RulesLookupService {
   private readonly logger = new Logger(RulesLookupService.name);
@@ -45,8 +62,11 @@ export class RulesLookupService {
   async lookup(
     systemId: string,
     input: RulesLookupInput,
+    options: RulesLookupOptions = {},
   ): Promise<RulesLookupResult> {
-    const preprocessed = await this.preprocess(systemId, input.query);
+    const preprocessed = options.skipPreprocess
+      ? { query: input.query, applied: false }
+      : await this.preprocess(systemId, input.query, options);
 
     const embedding = await this.voyage.embed(preprocessed.query, 'query');
     const limit = input.limit ?? 3;
@@ -81,10 +101,17 @@ export class RulesLookupService {
   private async preprocess(
     systemId: string,
     query: string,
+    options: RulesLookupOptions = {},
   ): Promise<{ query: string; applied: boolean }> {
     try {
       const terms = await this.repo.queryTermFrequencies({ systemId, query });
-      const result = preprocessQuery(query, terms);
+      const result = preprocessQuery(
+        query,
+        terms,
+        options.dfThreshold === undefined
+          ? {}
+          : { threshold: options.dfThreshold },
+      );
       if (result.applied) {
         this.logger.debug(
           `rules_lookup query trimmed: dropped [${result.dropped.join(', ')}]`,
