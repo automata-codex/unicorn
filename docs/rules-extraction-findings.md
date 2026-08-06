@@ -82,6 +82,14 @@ for "what happens on a panic check?" is being tuned against a query
 distribution the Warden does not actually produce. Both styles matter; do not
 assume the tidy one.
 
+**These three are the only queries recorded from *play*, but they are no longer
+the only ones recorded.** The `unicorn-artifacts` repository holds **5,139
+`rules_lookup` invocations across 596 distinct query strings**, all from eval
+runs ([S8](#s8--2026-08-06--the-real-query-distribution-596-queries-not-3)).
+The three above turned out to be broadly representative on vocabulary — but
+the large sample is skewed by fixture design (heavy combat), so use it for
+distributional questions and these three for "what does real play look like."
+
 ### The book
 
 Mothership Player's Survival Guide 1e. 44 pages, zine format, heavy display
@@ -186,6 +194,18 @@ Practical consequence for brainstorming: an idea's cost is mostly "can we
 score it with the existing fixtures?" Ideas that change what a *correct*
 result means need the metric rethought before they can be judged, and that is
 the expensive category.
+
+### Where the evidence lives
+
+Two repositories, and S1–S7 only searched one of them:
+
+- **This repo** — the design docs, the pipeline, and this file.
+- **`unicorn-artifacts`** (sibling checkout) — eval runs, playtests, and
+  transcripts. This is where the 596 recorded `rules_lookup` queries are
+  ([S8](#s8--2026-08-06--the-real-query-distribution-596-queries-not-3)).
+  **Search it before concluding that evidence does not exist**; S3–S5 built
+  distributional arguments on three queries while 596 sat one directory away.
+- Neither holds the extracted rulebook output — see below.
 
 ### To see the actual extracted output
 
@@ -341,6 +361,24 @@ information** — each cost real time.
   latter is free, since the Warden's prompt is ours to write. **The
   no-LLM-calls constraint rules out query rewriting by a model**
   ([S4.4](#44-what-this-changes-about-s39)).
+  **Split in two by [S8.3](#83-new-finding--most-of-the-gap-is-missing-concepts-not-wrong-words),
+  measured over 596 queries:** roughly half the mismatch is genuine wrong-word
+  (initiative → turn order, stealth → sneak) and a synonym layer would fix it;
+  the rest is the Warden asking about mechanics the PSG does not have at all
+  (suppressive fire, flanking, opposed rolls, difficulty numbers), where no
+  mapping can help and the correct answer is an empty result. Treat these as
+  separate work items.
+- **Is a similarity floor now load-bearing rather than optional?**
+  `docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md § Part 4` leaves it
+  open and there is currently no threshold at all, so the Warden receives three
+  chunks for every question including unanswerable ones.
+  [S8.3](#83-new-finding--most-of-the-gap-is-missing-concepts-not-wrong-words)
+  raises the stakes: a substantial share of real queries ask about mechanics
+  this book does not contain, so "return nothing" is the *correct* answer far
+  more often than assumed. [S5.5](#55-incidental--a-similarity-floor-may-be-derivable-after-all)
+  showed top-1 cosine distance separating answerable from unanswerable on three
+  points; with 596 queries available that separation can now actually be
+  measured.
 - **The D&D-5e-bias hypothesis: is the vocabulary gap generic-TTRPG drift,
   or specifically D&D 5e's lexicon?** All three recorded queries'
   out-of-corpus terms have a plausible match in D&D 5e's own vocabulary
@@ -1633,3 +1671,157 @@ do not generalise to the next book.
 Read-only probe. No database objects, no production paths, no repository
 artifacts. The sort is reproduced in prose above rather than committed, since
 it belongs in the pipeline as real code rather than as a scratch script.
+
+
+### S8 — 2026-08-06 · The real query distribution: 596 queries, not 3
+
+Context: S3–S5 rest on **three** recorded `rules_lookup` queries, and
+[S3.9](#39-conclusion--unconvincing-as-a-replacement-on-this-evidence) named "a
+larger recorded query sample" as evidence item (b) — the second-most valuable
+untested item. That sample exists. It is in the `unicorn-artifacts` repository,
+which none of S1–S7 searched.
+
+**This supersedes the sample, not the finding.** S3.6's vocabulary observation
+survives at scale. What changes is the *diagnosis*, and therefore the fix.
+
+#### 8.1 What is actually recorded
+
+Extracted every `tool_use` block named `rules_lookup` carrying an
+`input.query`, across all JSON/JSONL/Markdown in the artifacts repo. Tool
+*definitions* (an `input_schema` with a `query` property) are excluded.
+
+| | n |
+|---|---|
+| Files scanned | 739 |
+| **Invocations** | **5,139** |
+| **Distinct query strings** | **596** |
+
+**Provenance caveat, and it matters.** All 5,139 come from `zoltar/eval-runs`
+— none from playtests. The Warden still writes the query text, so these are
+genuine Warden query *formation*; what is authored is the situation, not the
+wording. But coverage reflects whatever the eval fixtures exercise, and
+repetition reflects reps × models rather than independent asks (one query
+string appears 181 times). **Read the distinct-query figures, not the
+invocation-weighted ones** — the latter are dominated by fixture design. Both
+are given below so the gap is visible.
+
+The preamble's ["What the Warden actually asks"](#what-the-warden-actually-asks)
+still shows only the three playtest queries. Those remain the only queries
+recorded from *play*; these 596 are the only ones recorded at *scale*. Neither
+set supersedes the other.
+
+#### 8.2 The vocabulary finding holds — and the three-query sample was representative
+
+Term coverage measured exactly as in [S3.6](#36-term-coverage--the-wardens-vocabulary-is-not-the-books):
+`websearch_to_tsquery` lexemes, checked for presence anywhere in the same
+38-page corpus.
+
+The three original queries:
+
+| Query | Terms in corpus |
+|---|---|
+| Q1 perception/noticing | 6 / 7 |
+| Q2 saves/stats/rolling | 5 / 5 |
+| Q3 skills/INT/repair | 5 / 7 |
+
+Two of three carry at least one absent term — 67%. Against the 596:
+
+| | Distinct | Invocation-weighted |
+|---|---|---|
+| Every term present in corpus | 252 (42.3%) | 2,455 (47.8%) |
+| **≥1 term absent from corpus** | **344 (57.7%)** | 2,684 (52.2%) |
+| No term present at all | 0 | 0 |
+
+**58% against the small sample's 67%.** The three-query sample was not the
+freak draw it might have been; S3.6 and
+[S5.3](#53-dense-retrieval-is-sensitive-to-both-axes--it-does-not-absorb-them)
+generalise. Note also that **no query is entirely out-of-corpus** — every one
+of the 596 has some lexical purchase, which is why FTS never returned zero
+under OR semantics.
+
+#### 8.3 New finding — most of the gap is missing *concepts*, not wrong *words*
+
+S3.6 framed the gap as vocabulary mismatch: the Warden says `perception`, the
+book says `Intellect`. At scale that framing is only partly right. The most
+frequent absent terms:
+
+| Absent lexeme | Invocations |
+|---|---|
+| `suppress` | 848 |
+| `stealth` | 366 |
+| `initi` (initiative) | 231 |
+| `threshold` | 174 |
+| `difficulti` | 149 |
+| `shutdown` | 116 |
+| `npc` | 107 |
+| `percept` | 87 |
+| `flank` | 45 |
+| `oppos` (opposed) | 44 |
+
+Probing the corpus for book-side equivalents separates two classes that need
+different fixes:
+
+| Warden concept | Book-side evidence | Class |
+|---|---|---|
+| initiative | `initi`=0, but `turn`=5, `order`=5, `round`=7 — and the book prints a `26.1 TURN ORDER` section | **wrong word** |
+| stealth | `stealth`=0, but `sneak`=1, `hide`=3, `hidden`=1, `quiet`=1 | **wrong word**, thin coverage |
+| cover | `cover`=7 | present |
+| android | `android`=8, but `shutdown`=0 | partly present |
+| suppressive fire | `suppress`=0, `autofir`=0, `burst`=0; only `spray`=2, `automat`=2 | **concept absent** |
+| flanking | `flank`, `surround`, `behind`, `position` all 0 | **concept absent** |
+| opposed rolls | `oppos`, `contest`, `versus` all 0 | **concept absent** |
+| difficulty numbers | `difficulti`, `threshold`, `target`, `dc` all 0 | **concept absent** |
+
+The last four are not synonym problems. The PSG resolves everything by rolling
+under a stat, so "difficulty number", "DC", and "threshold" have no referent in
+it; flanking and opposed rolls are not mechanics it has. The Warden is
+importing a d20-shaped mental model — the same class of error
+[S1.9](#19-incidental-observation--the-panic-mechanic-is-d20-not-d100) caught
+when the spec assumed a d100 panic table.
+
+**A synonym or thesaurus layer cannot fix the second class.** No mapping
+retrieves a rule the book does not contain. That splits the open question
+[S5.3](#53-dense-retrieval-is-sensitive-to-both-axes--it-does-not-absorb-them)
+left behind into two problems with different answers:
+
+1. **Wrong word** (initiative → turn order, stealth → sneak) — a per-system
+   synonym table or prompt-side vocabulary guidance, as previously proposed.
+2. **Absent concept** (suppressive fire, flanking, opposed rolls, difficulty
+   numbers) — no retrieval fix exists. The correct behaviour is to return
+   *nothing*, which the design already supports: "empty results are a supported
+   outcome… returning something confidently wrong is not." That makes
+   [S5.5](#55-incidental--a-similarity-floor-may-be-derivable-after-all)'s
+   similarity-floor hint substantially more important than it looked — it is
+   the mechanism for roughly half the query distribution.
+
+Some absent terms also point outside this book: `shutdown` against `android`=8
+suggests Warden's Operations Manual content, not a PSG gap.
+
+#### 8.4 What this does and does not change
+
+**Unchanged:** S3–S5's conclusions. Dense retrieval still beats FTS, query
+shape is still the largest lever ([S4.3](#43-the-two-factors-are-separable-and-both-are-necessary),
+[S5.3](#53-dense-retrieval-is-sensitive-to-both-axes--it-does-not-absorb-them)),
+and the ordering work (S6–S7) is untouched. Nothing here was measured against
+retrieval quality — this is a property of the *queries*, measured against the
+corpus, with no retrieval run.
+
+**Changed:** the sample size behind every vocabulary claim, and the diagnosis
+of what the mismatch is.
+
+**Now available and not yet done:** the 596 queries make the M7.2 eval harness
+tractable in a way it was not before. Its fixtures no longer have to be
+hand-authored — they can be *sampled from real Warden output*, which
+[S5.3](#53-dense-retrieval-is-sensitive-to-both-axes--it-does-not-absorb-them)
+specifically warned is the only way the harness can detect this class of
+problem at all. They still need page labels, which do not exist. The eval-run
+skew is a real limitation for that use: fixtures sampled from these would
+inherit the fixtures' combat bias.
+
+#### 8.5 Teardown
+
+The scratch FTS table was rebuilt to reuse S3's exact coverage method and
+dropped again; verified gone from `pg_tables`, `flyway_schema_history`
+unchanged. No artifacts-repo content is reproduced here beyond query strings
+and lexeme counts — the queries are Warden-generated text, not rulebook
+content, and the corpus side is reported as counts only.
