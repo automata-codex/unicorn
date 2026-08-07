@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildWorksheet, renderWorksheet } from './query-worksheet.core';
+import {
+  buildWorksheet,
+  clusterNearDuplicates,
+  normalizeTokens,
+  renderWorksheet,
+} from './query-worksheet.core';
 
 import type { EvalFixture } from '../eval/fixture.schema';
 import type { HarvestedQuery, ScoredQuery } from './query-vocab.core';
@@ -188,8 +193,8 @@ describe('renderWorksheet', () => {
       .split('\n')
       .find((l) => l.includes('damage'));
     expect(row).toContain('damage \\| armor');
-    // 6 columns → 7 pipes; an unescaped one would make 8 and shift W/E.
-    expect((row?.match(/(?<!\\)\|/g) ?? []).length).toBe(7);
+    // 8 columns → 9 pipes; an unescaped one would make 10 and shift C/N/E.
+    expect((row?.match(/(?<!\\)\|/g) ?? []).length).toBe(9);
   });
 
   it('says so explicitly when a turn has no situation', () => {
@@ -211,5 +216,90 @@ describe('renderWorksheet', () => {
 
     expect(out).toContain('claude-sonnet-5');
     expect(out).toContain('97feadbd');
+  });
+});
+
+describe('normalizeTokens', () => {
+  it('drops function words and the system name, which cannot discriminate', () => {
+    // "mothership" appears as a bare qualifier in a large share of queries.
+    expect(normalizeTokens('what is the cover bonus in Mothership')).toEqual(
+      new Set(['cover', 'bonus']),
+    );
+  });
+
+  it('strips a plural s but protects singulars ending in one', () => {
+    // `rolls` must collapse to `roll`; `stress` must not become `stres`, and
+    // `bonus` must not become `bonu` -- it is among the most frequent words
+    // in this corpus and would stop matching `bonuses`.
+    expect(normalizeTokens('rolls stress saves bonus checks')).toEqual(
+      new Set(['roll', 'stress', 'save', 'bonus', 'check']),
+    );
+  });
+});
+
+describe('clusterNearDuplicates', () => {
+  it('groups two phrasings of the same question', () => {
+    // The real pair from the corpus's worst turn; scores exactly 0.5.
+    const families = clusterNearDuplicates([
+      'using cover in combat, attack roll modifiers for cover',
+      'cover bonus to armor or attack rolls in combat',
+    ]);
+
+    expect(families.size).toBe(2);
+    expect(new Set(families.values()).size).toBe(1);
+  });
+
+  it('leaves a genuinely different question out of the family', () => {
+    const families = clusterNearDuplicates([
+      'cover bonus to armor or attack rolls in combat',
+      'firearms combat attack roll damage weapon rifle',
+    ]);
+
+    expect(families.size).toBe(0);
+  });
+
+  it('omits singletons, because a family of one is not a finding', () => {
+    expect(clusterNearDuplicates(['panic check trigger']).size).toBe(0);
+  });
+
+  it('compares against a fixed representative rather than chaining', () => {
+    // Single-linkage would merge A and C through B even when A and C are far
+    // apart, silently fusing two different questions.
+    const a = 'cover bonus attack roll';
+    const b = 'cover bonus attack roll damage weapon rifle shotgun';
+    const c = 'damage weapon rifle shotgun ammunition';
+    const families = clusterNearDuplicates([a, b, c]);
+
+    expect(families.get(a)).not.toBe(families.get(c));
+  });
+});
+
+describe('retry detection', () => {
+  it('separates one rep asking six ways from six reps asking once', () => {
+    // Rows are deduplicated across reps, so family size cannot tell these
+    // apart -- and only the first is the cascade the prompt forbids.
+    const cascade = buildWorksheet({
+      harvested: [
+        { fixtureId: 't', query: 'cover bonus attack roll', rep: '001' },
+        { fixtureId: 't', query: 'cover bonus to attack rolls', rep: '001' },
+        { fixtureId: 't', query: 'cover bonus on attack roll', rep: '001' },
+      ],
+      scored: [],
+      fixtures: [],
+    });
+    const sampling = buildWorksheet({
+      harvested: [
+        { fixtureId: 't', query: 'cover bonus attack roll', rep: '001' },
+        { fixtureId: 't', query: 'cover bonus to attack rolls', rep: '002' },
+        { fixtureId: 't', query: 'cover bonus on attack roll', rep: '003' },
+      ],
+      scored: [],
+      fixtures: [],
+    });
+
+    expect(cascade[0].rows).toHaveLength(3);
+    expect(sampling[0].rows).toHaveLength(3);
+    expect(cascade[0].maxSameFamilyInOneRep).toBe(3);
+    expect(sampling[0].maxSameFamilyInOneRep).toBe(1);
   });
 });
