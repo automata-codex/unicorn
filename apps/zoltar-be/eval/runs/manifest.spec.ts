@@ -185,9 +185,7 @@ describe('appendCompletedRep', () => {
 
     const warning1 = appendCompletedRep(runDir, completedRep({ index: 1 }));
     expect(warning1).toBeNull();
-    expect(readManifest(runDir).completedReps.map((r) => r.index)).toEqual([
-      1,
-    ]);
+    expect(readManifest(runDir).completedReps.map((r) => r.index)).toEqual([1]);
     expect(() =>
       JSON.parse(readFileSync(manifestPath(runDir), 'utf-8')),
     ).not.toThrow();

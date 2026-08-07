@@ -1,9 +1,10 @@
 import { createWriteStream, existsSync, readFileSync } from 'node:fs';
-import type { WriteStream } from 'node:fs';
 import { z } from 'zod';
 
 import { readManifest } from './manifest';
 import { listRepDirsOnDisk, repDirName, scoresPath } from './paths';
+
+import type { WriteStream } from 'node:fs';
 
 export const verdictSchema = z.enum([
   'pass',
@@ -98,7 +99,11 @@ const baseScoreRowSchema = z.object({
  * obligation to name why something was `not_applicable` or what errored.
  */
 function refineVerdictDetail(
-  row: { verdict: Verdict; notApplicableReason?: string; errorMessage?: string },
+  row: {
+    verdict: Verdict;
+    notApplicableReason?: string;
+    errorMessage?: string;
+  },
   ctx: z.RefinementCtx,
 ): void {
   if (row.verdict === 'not_applicable' && !row.notApplicableReason) {
@@ -291,7 +296,9 @@ function readJsonlRows<T>(
         path,
         lineNumber,
         result.error.issues
-          .map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
+          .map(
+            (issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`,
+          )
           .join('; '),
       );
     }

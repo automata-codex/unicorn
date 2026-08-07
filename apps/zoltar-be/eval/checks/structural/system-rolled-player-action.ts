@@ -1,4 +1,4 @@
-import { isAttributedTo, unbindableVerdict } from './attribution';
+import { rollActsFor, unbindableVerdict } from './attribution';
 import { requireApplicability } from './types';
 
 import type { DiceRollEventPayload } from '../../../src/session/session.events';
@@ -55,6 +55,20 @@ const CHECK_ID = 'system-rolled-player-action';
  * failing silently — `unbindableVerdict` turns "the name didn't match" into
  * an undecided verdict rather than a pass. Measured on the frozen runs, that
  * costs 2 of 40 reps and leaves the model that behaves correctly untouched.
+ *
+ * ---
+ *
+ * **Resolved in M7.5.** `actingEntityId` now lands on the `roll_dice`
+ * payload, and attribution goes through `rollActsFor`: the field when it is
+ * present, the prose convention only when it is not. On output produced
+ * after M7.5 this check reads structure end to end, and the audit's "the
+ * answer is no" becomes "the answer is no for pre-M7.5 artifacts only."
+ *
+ * The prose path is kept rather than deleted because `eval:rescore`
+ * re-grades frozen `88fa84bd8329` artifacts that predate the field. Branching
+ * on field *presence* — never on `fixtureSchemaVersion`, which records what
+ * was captured and captures no game events at all — is what makes those
+ * historical verdicts come out unchanged.
  */
 export function checkSystemRolledPlayerAction(
   result: TurnExecutionResult,
@@ -70,13 +84,10 @@ export function checkSystemRolledPlayerAction(
     (e) => e.eventType === 'dice_roll',
   );
 
-  const violatingRolls = diceRolls.filter((roll) => {
-    const payload = roll.payload as DiceRollEventPayload;
-    return (
-      isAttributedTo(payload.purpose ?? '', playerEntity) &&
-      roll.rollSource !== 'player_entered'
-    );
-  });
+  const violatingRolls = diceRolls.filter(
+    (roll) =>
+      rollActsFor(roll, playerEntity) && roll.rollSource !== 'player_entered',
+  );
 
   if (violatingRolls.length > 0) {
     return {

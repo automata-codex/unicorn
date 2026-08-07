@@ -12,6 +12,114 @@ function purposeOf(roll: TurnExecutionResult['gameEvents'][number]): string {
   return (roll.payload as DiceRollEventPayload).purpose ?? '';
 }
 
+type DiceRollEvent = TurnExecutionResult['gameEvents'][number];
+
+/**
+ * The in-turn case, decidable since M7.5 gave `dice_roll` a `gatedByRollId`.
+ *
+ * Reached when the turn left no pending `dice_request`, so there is no
+ * deferred gate to order anything against. Before the field existed this
+ * reported `NOT_APPLICABLE` naming what was missing, because sequence
+ * numbers record what happened *first*, not what depended on what — and a
+ * to-hit followed by damage is correct while damage followed by a to-hit is
+ * not, the same two events in either order.
+ *
+ * With the field, the violation is a roll whose named gate resolved *after*
+ * it: the consequence was rolled before the thing it was contingent on. Read
+ * off two sequence numbers and a reference, with nothing inferred from
+ * wording.
+ *
+ * **A dangling `gatedByRollId` cannot reach here.** `SessionService`'s tool
+ * loop rejects a reference naming no roll from the same turn with an
+ * `is_error` tool_result, so any link present in a persisted payload
+ * resolved at the time it was written. It is still handled — as undecided,
+ * never as a pass — because a frozen artifact from a future schema change,
+ * or a hand-authored fixture, could carry one, and silently treating an
+ * unresolvable link as "no violation" is the false-pass shape this checker
+ * has already been rebuilt twice to avoid.
+ */
+function checkInTurnOrdering(diceRolls: DiceRollEvent[]): StructuralVerdict {
+  const bySequence = new Map(
+    diceRolls.map((roll) => [
+      (roll.payload as DiceRollEventPayload).rollId,
+      roll.sequenceNumber,
+    ]),
+  );
+
+  const gated = diceRolls.filter(
+    (roll) =>
+      (roll.payload as DiceRollEventPayload).gatedByRollId !== undefined,
+  );
+
+  if (gated.length === 0) {
+    // No roll claims to depend on another. That is the ordinary shape of a
+    // turn whose rolls are independent, and there is no ordering question to
+    // answer — not a gap in the data. Distinguished in `actualCode` from the
+    // pre-M7.5 "the field doesn't exist" case so the two never aggregate
+    // together in an exclusions table.
+    return {
+      outcome: 'NOT_APPLICABLE',
+      actual:
+        'no dice_request is pending at the end of this turn, and none of the ' +
+        `${diceRolls.length} roll(s) resolved in-turn names a gatedByRollId — so no ` +
+        'roll claims to depend on another and there is no ordering to adjudicate',
+      actualCode: 'no pending dice_request and no in-turn roll declares a gate',
+    };
+  }
+
+  const unresolved = gated.filter(
+    (roll) =>
+      !bySequence.has((roll.payload as DiceRollEventPayload).gatedByRollId),
+  );
+  if (unresolved.length > 0) {
+    return {
+      outcome: 'NOT_APPLICABLE',
+      actual: unresolved
+        .map(
+          (roll) =>
+            `sequence ${roll.sequenceNumber}: gatedByRollId ` +
+            `"${(roll.payload as DiceRollEventPayload).gatedByRollId}" names no roll in ` +
+            'this turn, so the dependency it asserts cannot be checked',
+        )
+        .join('; '),
+      actualCode:
+        'in-turn gatedByRollId does not resolve to a roll in this turn',
+    };
+  }
+
+  const premature = gated.filter((roll) => {
+    const gateSequence = bySequence.get(
+      (roll.payload as DiceRollEventPayload).gatedByRollId,
+    );
+    return gateSequence !== undefined && gateSequence > roll.sequenceNumber;
+  });
+
+  if (premature.length > 0) {
+    return {
+      outcome: 'FAILED',
+      actual: premature
+        .map((roll) => {
+          const payload = roll.payload as DiceRollEventPayload;
+          return (
+            `sequence ${roll.sequenceNumber}: "${payload.purpose}" declares it was gated ` +
+            `by ${payload.gatedByRollId}, which resolved at sequence ` +
+            `${bySequence.get(payload.gatedByRollId)} — after it. The consequence was ` +
+            'rolled before the roll it depended on'
+          );
+        })
+        .join('; '),
+    };
+  }
+
+  return {
+    outcome: 'PASSED',
+    actual:
+      `${gated.length} in-turn roll(s) declare a gate and every one of them resolved ` +
+      'after the roll it depends on',
+    actualCode: 'all in-turn gated rolls follow their gate',
+  };
+}
+
 /**
  * OUT-OF-ORDER-RESOLUTION: a consequence roll must not fire before the roll
  * that gates it has resolved, and no `dice_roll` may precede the turn's own
@@ -36,17 +144,15 @@ function purposeOf(roll: TurnExecutionResult['gameEvents'][number]): string {
  * `decisions.md`'s dividing line says the structural checker may not
  * adjudicate ordering by regex — so it no longer does.
  *
- * **What is deliberately not decided.** When the turn resolves its gating
- * roll in-turn rather than deferring it, the ordering question becomes
- * "which of these rolls depends on which," and nothing in the data answers
- * it: `dice_roll` carries no link to the roll that gated it. Sequence
- * numbers show what happened first, not what depended on what, and a
- * to-hit followed by a damage roll is correct while a damage roll followed
- * by a to-hit is not — the same two events in either order, distinguishable
- * only by a dependency the payload doesn't record. That needs
- * `gatedByRollId` on the roll payload (anticipated in
- * `eval/checks/registry.ts`). Until it exists, this shape reports
- * `NOT_APPLICABLE` naming the missing field rather than guessing.
+ * **The in-turn case, decided as of M7.5.** When the turn resolves its
+ * gating roll in-turn rather than deferring it, the ordering question
+ * becomes "which of these rolls depends on which." Nothing in the data used
+ * to answer it — sequence numbers show what happened first, not what
+ * depended on what, and a to-hit followed by a damage roll is correct while
+ * a damage roll followed by a to-hit is not, the same two events in either
+ * order. `gatedByRollId` now records the dependency, and
+ * `checkInTurnOrdering` below reads it. A roll whose named gate resolved at
+ * a *higher* sequence number than itself is the violation.
  *
  * **The guard on the negative assertion.** "No consequence rolled ahead of
  * its gate" is satisfied by absence, so a turn that rolls nothing satisfies
@@ -65,7 +171,11 @@ function purposeOf(roll: TurnExecutionResult['gameEvents'][number]): string {
  * distinguished from a pre-rolled damage roll. Both are GM-initiated, carry
  * no `requestId`, and sit after the gate in sequence; the only difference is
  * a dependency the payload doesn't record. This is the same `gatedByRollId`
- * gap as above, on the other side of the verdict.
+ * gap as above, on the other side of the verdict — and unlike the in-turn
+ * case it is **not** closed by M7.5. The field records which *roll* gated a
+ * roll; the deferred-gate branch asks whether a roll was gated by a pending
+ * *request*, which is a different link and still unrecorded. Measured cost
+ * on the frozen 4.6 run is unchanged at 1 of 18 decided reps.
  *
  * Measured on the frozen 4.6 run it costs 1 of 18 decided reps
  * (`turn21`, rep 009). Accepted rather than heuristically patched: the
@@ -124,18 +234,7 @@ export function checkOutOfOrderResolution(
   );
 
   if (pendingGates.length === 0) {
-    return {
-      outcome: 'NOT_APPLICABLE',
-      actual:
-        'no dice_request is pending at the end of this turn, so there is no unresolved ' +
-        'gate to order anything against. Any ordering violation among the ' +
-        `${diceRolls.length} roll(s) resolved in-turn would need each roll's ` +
-        '`gatedByRollId` to identify which roll gated which — the payload records no ' +
-        'such link, and sequence order alone shows what happened first, not what ' +
-        'depended on what',
-      actualCode:
-        'no pending dice_request; in-turn ordering undecidable without gatedByRollId',
-    };
+    return checkInTurnOrdering(diceRolls);
   }
 
   // Rolls the turn resolved on the player's behalf while a gate sat pending.

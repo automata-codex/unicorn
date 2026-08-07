@@ -9,14 +9,13 @@ import {
   truncateAll,
 } from '../test/db-test-helper';
 
+import { FIXTURE_SCHEMA_VERSION } from './fixture.schema';
 import {
   createHarnessSession,
   runFixtureTurn,
   seedScratchAdventure,
   teardownScratchAdventure,
 } from './harness-runner';
-
-import { FIXTURE_SCHEMA_VERSION } from './fixture.schema';
 
 import type { EvalFixture } from './fixture.schema';
 import type { HarnessSession } from './harness-runner';

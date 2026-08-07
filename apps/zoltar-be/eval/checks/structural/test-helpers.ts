@@ -1,5 +1,6 @@
-import type * as schema from '../../../src/db/schema';
 import { FIXTURE_SCHEMA_VERSION } from '../../fixture.schema';
+
+import type * as schema from '../../../src/db/schema';
 import type { EvalFixture } from '../../fixture.schema';
 import type { TurnExecutionResult } from '../../turn-result';
 
@@ -34,6 +35,17 @@ export function fakeGameEvent(
   };
 }
 
+/**
+ * `rollId` / `rollType` / `actingEntityId` / `gatedByRollId` are omitted
+ * unless a test asks for them, which makes the **pre-M7.5 payload the
+ * default** in every existing test.
+ *
+ * That is deliberate rather than incidental. The checkers branch on field
+ * presence so `eval:rescore` keeps producing identical verdicts against the
+ * frozen `88fa84bd8329` artifacts, and the only way to keep testing that
+ * promise is for most of this file's fixtures to look like those artifacts
+ * do — fieldless.
+ */
 export function fakeDiceRoll(overrides: {
   sequenceNumber: number;
   purpose: string;
@@ -42,6 +54,10 @@ export function fakeDiceRoll(overrides: {
   notation?: string;
   results?: number[];
   total?: number;
+  rollId?: string;
+  rollType?: string;
+  actingEntityId?: string;
+  gatedByRollId?: string;
 }): GameEventRow {
   return fakeGameEvent({
     sequenceNumber: overrides.sequenceNumber,
@@ -55,6 +71,14 @@ export function fakeDiceRoll(overrides: {
       modifier: 0,
       total: overrides.total ?? 5,
       ...(overrides.requestId ? { requestId: overrides.requestId } : {}),
+      ...(overrides.rollId ? { rollId: overrides.rollId } : {}),
+      ...(overrides.rollType ? { rollType: overrides.rollType } : {}),
+      ...(overrides.actingEntityId
+        ? { actingEntityId: overrides.actingEntityId }
+        : {}),
+      ...(overrides.gatedByRollId
+        ? { gatedByRollId: overrides.gatedByRollId }
+        : {}),
     },
   });
 }

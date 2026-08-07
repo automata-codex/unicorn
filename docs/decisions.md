@@ -485,6 +485,10 @@ An earlier version of this criterion also called for extending the `turn19`/`tur
 
 ### `rollType` / `gatedByRollId` / `actingEntityId` on `roll_dice` stay deferred, but they are measurement infrastructure
 
+> **Status: closed 2026-08-07.** The fields landed in M7.5, on the schedule this entry set.
+> The heading is kept in its original wording because several documents link to it by title;
+> read it as the question, and the "Landed" section below as the answer.
+
 These three fields were introduced in the M7.4 spec as a fixture-schema compatibility example and carried forward as a candidate structural fix for the Warden's own sequencing — tighten the tool schema so a dependent roll must name its gate, and out-of-order resolution becomes unrepresentable rather than merely detectable. That framing is incomplete. The checker audit established that the same two fields are what two structural checks need in order to *measure* anything at all:
 
 - `gatedByRollId` — `out-of-order-resolution` can adjudicate the deferred-gate case from a pending `dice_request`, but the in-turn case is undecidable without it. Sequence numbers record what happened first, not what gated what.
@@ -493,6 +497,16 @@ These three fields were introduced in the M7.4 spec as a fixture-schema compatib
 So the fields are not only a possible fix; they are the precondition for knowing whether a fix is needed. Until they land, both checks report `not_applicable` naming the missing field rather than approximating it with a regex — the deliberate cost being denominator, per "Structural checks report undecided rather than guessing" below.
 
 **Still deferred**, and the reason is unchanged: adding fields to `roll_dice` changes the tool schema, which changes what reaches the Warden, which invalidates every frozen artifact and forces a fresh baseline on both models. That is affordable once, not repeatedly, and the rules-ingestion work is already going to force one — both existing baselines ran against an empty `rules_chunk` index. Re-check after M7.5, and land the fields with that re-baseline rather than paying for a second one. (The re-baseline moved from M7.2 to M7.5; M7.2 populated the index but deliberately bought no Warden-level measurement.)
+
+**Landed 2026-08-07, in M7.5, exactly as this entry planned.** Schema and prompt together, ahead of the re-baseline, so the fields ride the one baseline the populated index was already forcing rather than buying a second. `docs/tools.md § roll_dice` documents all three.
+
+What they bought, on the two checks that were waiting:
+
+- `gatedByRollId` — `out-of-order-resolution` now decides the in-turn case by comparing a named gate's sequence number against the roll naming it. See `§ out-of-order-resolution reads the deferred gate` above for the three sub-cases and for the deferred-gate residual this does *not* close.
+- `actingEntityId` — `system-rolled-player-action` attributes without reading `purpose`. This was the last prose dependency in the structural checks; on post-M7.5 output there is none left.
+- `rollType` — **no measurement role, and none was invented for it.** The entry above claims all three were "the precondition for knowing whether a fix is needed"; that was true of the other two and never of this one. Checked during M7.5 planning: it appears in `docs/specs/zoltar/011-eval-harness-multi-run.md § Part 6` only as a *hypothetical example* of a field some future check might need, is absent from the M7.4 spec entirely, and the two bullets above give it no job. It ships as a descriptive enum (`check` / `save` / `damage` / `panic_check` / `table` / `other`) read by no checker — telemetry and a reporting axis. The justification is this entry's own economics rather than a requirement: the re-baseline was being bought anyway, and discovering a use for it later would have meant buying another.
+
+The prose paths are kept rather than deleted, and every consumer branches on field **presence** rather than on `fixtureSchemaVersion` — `eval:rescore` re-grades frozen `88fa84bd8329` artifacts that predate the fields, and version-gating would have been the obvious mechanism and the wrong one, since the fixture version records what `capture-fixture` captured and it captures no game events at all. **No `FIXTURE_SCHEMA_VERSION` bump was needed**, and no migration: `dice_roll` payloads are `jsonb`.
 
 **Provenance note.** During M7.2 implementation planning this conclusion was briefly reversed — a plan document recorded "resolved with Alex: the fields do not ride along, a third baseline gets paid for separately" — and instructed that this entry be rewritten to match. That rewrite never happened here. The reversal was itself reversed during M7.5 spec review: the fields land with M7.5's re-baseline, per the original reasoning above, which was correct throughout. Noted so the now-stale reasoning in that plan document isn't mistaken for a second, independent decision.
 
@@ -726,6 +740,30 @@ interim verdict is `not_applicable` naming the missing field, not a regex approx
 That reframes those fields: they are measurement infrastructure as much as a candidate fix
 for the Warden's own sequencing.
 
+**Closed in M7.5 — the third case had a shelf life, and this is what the end of it looks
+like.** `gatedByRollId` and `actingEntityId` landed on `roll_dice` with the prompt
+instructions to populate them, and both questions moved from the third case into the first:
+`out-of-order-resolution` decides in-turn ordering by comparing a named gate's sequence
+number against the roll that names it, and `system-rolled-player-action` attributes through
+`actingEntityId` without reading `purpose` at all. **On output produced after M7.5 there is
+no prose left in the structural checks.**
+
+Two things about *how* it closed are worth more than the fact that it did. First, the
+interim verdict was the right instrument and not merely an honest one — `not_applicable`
+naming the missing field is what made the gap countable, and a regex approximation would
+have made the same turns read as graded and left nothing pointing at the fix. Second, the
+prose path is **kept, not deleted**, and every consumer branches on field *presence* rather
+than on `fixtureSchemaVersion`. Frozen artifacts from the `88fa84bd8329` runs predate the
+fields entirely, and `eval:rescore` has to keep grading them the way it always did or the
+comparison history `eval:compare` pairs on is silently severed. Version-gating would have
+been the obvious mechanism and the wrong one: the fixture version records what
+`capture-fixture` captured, and it captures no game events at all.
+
+The residual, stated so it is not assumed closed: `out-of-order-resolution`'s deferred-gate
+branch still has its known false FAIL. `gatedByRollId` records which *roll* gated a roll;
+that branch asks whether a roll was gated by a pending *request*, which is a different link
+and still unrecorded.
+
 The line has a second constraint, running the other way. A judged verdict is binary, so a
 judge cannot say "nothing to grade" — asked about a detail the narration never introduced, it
 answers "it didn't" and returns a pass, converting an honest zero denominator into a spurious
@@ -787,13 +825,25 @@ The same audit found that binding a `dice_request` by prose was simply wrong. A 
 
 ### `out-of-order-resolution` reads the deferred gate, and declines the in-turn case
 
+> **Status: the in-turn half closed 2026-08-07**, when `gatedByRollId` landed in M7.5. Title
+> kept for the links that point at it; the resolution is inline below. The deferred-gate
+> branch's known false FAIL is *not* closed.
+
 A *pending* `dice_request` is an unresolved gate as a matter of structure: the backend surfaces it and the turn ends waiting on it, so anything resolved on the player's behalf while it sat pending was resolved ahead of its gate. That replaces `CONDITIONAL_DAMAGE_PATTERN`, the second regex this checker had tried, which failed the way prose matchers here always do — it flagged *NPC* damage rolls that were never gated by the player's request, on 4 of `turn19`'s 10 reps, which is most of why that fixture read 0/9.
 
-When the turn resolves its gating roll in-turn instead, the check reports `not_applicable` naming the missing `gatedByRollId`. Sequence numbers show what happened first, not what depended on what; a to-hit followed by damage is correct and the reverse is not, the same two events either way, separable only by a link the payload does not record. Adjudicating that by regex is what the check was doing and what it stopped doing.
+When the turn resolves its gating roll in-turn instead, the check reported `not_applicable` naming the missing `gatedByRollId`. Sequence numbers show what happened first, not what depended on what; a to-hit followed by damage is correct and the reverse is not, the same two events either way, separable only by a link the payload does not record. Adjudicating that by regex is what the check was doing and what it stopped doing.
+
+**Resolved 2026-08-07 (M7.5).** `gatedByRollId` landed, and the in-turn branch now decides: a roll whose named gate carries a *higher* sequence number than the roll itself had its consequence resolved before the thing it was contingent on. Two sequence numbers and a reference, nothing inferred from wording. The wait was the right call — the field cost one milestone of `not_applicable`, where each of the two regexes that preceded it cost a wrong verdict nobody could see.
+
+Three sub-cases, kept distinct because collapsing any two of them re-creates a false pass:
+
+- **No roll declares a gate** — `not_applicable`, and a *different* `actualCode` from the pre-M7.5 "the field doesn't exist" case, so an exclusions table never aggregates "nothing depended on anything" together with "we couldn't tell".
+- **A `gatedByRollId` resolves to no roll in the turn** — `not_applicable`, never a pass. The tool loop rejects dangling references before they can persist, so this should be unreachable; it is pinned by a test anyway, because "found no violation" is exactly how an unresolvable link would otherwise read.
+- **Otherwise** — a real PASS or FAIL.
 
 **Extending `turn19`/`turn21` through the follow-up turn does not recover the missing half, and the idea is withdrawn wherever this log proposed it.** The reasoning that produced it was that a model deferring a to-hit across a turn boundary puts the ordering evidence outside the captured turn. But the violation window *is* the captured turn: a deferred gate ends the turn, so any dependent roll on the follow-up turn is after the gate resolved by construction. A two-turn fixture would therefore pass structurally no matter what the Warden did, and the pass would look like evidence of correct sequencing. The in-turn case waits on the schema field; it does not wait on a longer fixture.
 
-A known false FAIL is accepted and pinned by a `[known limitation]` test rather than patched: a player stress check triggered by NPC fire that already resolved is properly ordered but structurally identical to a pre-rolled damage roll — both GM-initiated, both without `requestId`, both after the gate in sequence. It costs 1 of 18 decided reps. The available discriminators are notation (1d10 vs 1d100) and purpose wording, and reaching for either would re-import the "works on the data in front of me" failure that produced the regex being removed. A false FAIL also names the offending roll in the report, so it is diagnosable; the alternative readings risk a false PASS, which is not.
+A known false FAIL is accepted and pinned by a `[known limitation]` test rather than patched: a player stress check triggered by NPC fire that already resolved is properly ordered but structurally identical to a pre-rolled damage roll — both GM-initiated, both without `requestId`, both after the gate in sequence. It costs 1 of 18 decided reps. **M7.5 did not close this one**, and it is worth being precise about why: `gatedByRollId` records which *roll* gated a roll, while this branch asks whether a roll was gated by a pending *request*. Different link, still unrecorded. The available discriminators are notation (1d10 vs 1d100) and purpose wording, and reaching for either would re-import the "works on the data in front of me" failure that produced the regex being removed. A false FAIL also names the offending roll in the report, so it is diagnosable; the alternative readings risk a false PASS, which is not.
 
 ### `missing-canon-capture` stays structural, because a judge cannot say "nothing to grade"
 

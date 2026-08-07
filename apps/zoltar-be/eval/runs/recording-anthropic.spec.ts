@@ -14,8 +14,12 @@ function fakeInner(): {
   callSession: ReturnType<typeof vi.fn>;
   callMessages: ReturnType<typeof vi.fn>;
 } {
-  const callSession = vi.fn().mockResolvedValue(fakeMessage('session-response'));
-  const callMessages = vi.fn().mockResolvedValue(fakeMessage('messages-response'));
+  const callSession = vi
+    .fn()
+    .mockResolvedValue(fakeMessage('session-response'));
+  const callMessages = vi
+    .fn()
+    .mockResolvedValue(fakeMessage('messages-response'));
   return {
     service: { callSession, callMessages } as unknown as AnthropicService,
     callSession,
@@ -54,7 +58,10 @@ describe('RecordingAnthropicService', () => {
       1.0,
     );
 
-    await recorder.callSession({ ...BASE_SESSION_PARAMS, model: 'claude-opus-5' });
+    await recorder.callSession({
+      ...BASE_SESSION_PARAMS,
+      model: 'claude-opus-5',
+    });
 
     expect(inner.callSession).toHaveBeenCalledWith(
       expect.objectContaining({ model: 'claude-sonnet-4-6' }),

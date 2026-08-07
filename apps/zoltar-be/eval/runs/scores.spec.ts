@@ -13,12 +13,12 @@ import { appendCompletedRep, createRunDirectory } from './manifest';
 import { repDir, scoresPath } from './paths';
 import {
   RescoreWriter,
-  ScoreRowError,
-  ScoreWriter,
   readRescoreRows,
   readScoreRows,
   readVouchedRows,
   rescoreRowSchema,
+  ScoreRowError,
+  ScoreWriter,
   scoreRowSchema,
 } from './scores';
 
@@ -82,7 +82,7 @@ describe('scoreRowSchema', () => {
         scoreRow({
           verdict: 'not_applicable',
           notApplicableReason:
-            'the turn deferred Alvarez\'s gating roll to a pending dice_request ' +
+            "the turn deferred Alvarez's gating roll to a pending dice_request " +
             '("Alvarez combat roll to hit") rather than resolving it this turn',
           notApplicableReasonCode:
             "deferred Alvarez's gating roll to a pending dice_request",
@@ -181,9 +181,10 @@ describe('the two row kinds never read as each other', () => {
     writer.append(scoreRow());
     await writer.close();
 
-    const written = JSON.parse(
-      readFileSync(path, 'utf-8').trim(),
-    ) as Record<string, unknown>;
+    const written = JSON.parse(readFileSync(path, 'utf-8').trim()) as Record<
+      string,
+      unknown
+    >;
     expect('rowKind' in written).toBe(false);
   });
 
@@ -261,7 +262,10 @@ describe('readVouchedRows', () => {
     writeFileSync(path, rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
   }
 
-  function vouch(runDir: string, entry: Partial<CompletedRep> & { index: number }) {
+  function vouch(
+    runDir: string,
+    entry: Partial<CompletedRep> & { index: number },
+  ) {
     const completed: CompletedRep = {
       harnessVersion: 'abc1234',
       rubricHashes: {},
@@ -298,9 +302,9 @@ describe('readVouchedRows', () => {
 
     expect(rows).toHaveLength(2);
     expect(rows.every((r) => r.repIndex === 1 || r.repIndex === 2)).toBe(true);
-    expect(exclusions.some((e) => e.includes('003') && e.includes('not vouched'))).toBe(
-      true,
-    );
+    expect(
+      exclusions.some((e) => e.includes('003') && e.includes('not vouched')),
+    ).toBe(true);
   });
 
   it('drops rows for a fixture not in the vouched fixtureIds subset', () => {

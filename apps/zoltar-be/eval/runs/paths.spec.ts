@@ -54,7 +54,9 @@ describe('resolveEvalRoot', () => {
 
   it('throws when the path does not exist', () => {
     process.env.ZOLTAR_EVAL_ROOT = join(dir, 'does-not-exist');
-    expect(() => resolveEvalRoot()).toThrow(/does not point at an existing directory/);
+    expect(() => resolveEvalRoot()).toThrow(
+      /does not point at an existing directory/,
+    );
   });
 
   it('succeeds on an existing absolute directory', () => {
@@ -91,9 +93,9 @@ describe('path builders', () => {
     expect(scoresPath(runDir, 1)).toBe(
       join(runDir, 'reps', '001', 'scores.jsonl'),
     );
-    expect(fixtureArtifactDir(runDir, 1, 'turn19-out-of-order-resolution')).toBe(
-      join(runDir, 'reps', '001', 'turn19-out-of-order-resolution'),
-    );
+    expect(
+      fixtureArtifactDir(runDir, 1, 'turn19-out-of-order-resolution'),
+    ).toBe(join(runDir, 'reps', '001', 'turn19-out-of-order-resolution'));
     expect(
       judgeArtifactPath(
         runDir,
@@ -143,8 +145,14 @@ describe('path builders', () => {
     // moves no fixture bytes, so both passes below would land on the same
     // name and the second would silently overwrite the first.
     const runDir = '/evalroot/eval-runs/some-run';
-    const first = rescoreOutputPath(runDir, new Date('2026-07-30T09:00:00.000Z'));
-    const second = rescoreOutputPath(runDir, new Date('2026-07-30T11:15:42.000Z'));
+    const first = rescoreOutputPath(
+      runDir,
+      new Date('2026-07-30T09:00:00.000Z'),
+    );
+    const second = rescoreOutputPath(
+      runDir,
+      new Date('2026-07-30T11:15:42.000Z'),
+    );
 
     expect(first).not.toBe(second);
     expect(first).toBe(join(runDir, 'rescore', '2026-07-30T09-00-00Z.jsonl'));
@@ -160,9 +168,9 @@ describe('resolveRunDirArg', () => {
   });
 
   it('resolves a bare name against $ZOLTAR_EVAL_ROOT/eval-runs/', () => {
-    expect(resolveRunDirArg('/evalroot', 'claude-sonnet-4-6__ab12cd34__x')).toBe(
-      join('/evalroot', 'eval-runs', 'claude-sonnet-4-6__ab12cd34__x'),
-    );
+    expect(
+      resolveRunDirArg('/evalroot', 'claude-sonnet-4-6__ab12cd34__x'),
+    ).toBe(join('/evalroot', 'eval-runs', 'claude-sonnet-4-6__ab12cd34__x'));
   });
 });
 

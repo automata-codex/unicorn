@@ -125,8 +125,14 @@ describe('serializeTurnResult / deserializeTurnResult', () => {
     const original = buildResult();
     const revived = deserializeTurnResult(serializeTurnResult(original));
 
-    const originalVerdict = checkSystemRolledPlayerAction(original, APPLICABLE_FIXTURE);
-    const revivedVerdict = checkSystemRolledPlayerAction(revived, APPLICABLE_FIXTURE);
+    const originalVerdict = checkSystemRolledPlayerAction(
+      original,
+      APPLICABLE_FIXTURE,
+    );
+    const revivedVerdict = checkSystemRolledPlayerAction(
+      revived,
+      APPLICABLE_FIXTURE,
+    );
 
     expect(revivedVerdict).toEqual(originalVerdict);
     expect(revivedVerdict.outcome).toBe('FAILED');
@@ -157,14 +163,18 @@ describe('writeFixtureArtifacts / readTurnResultArtifact', () => {
       turnResult,
     });
 
-    expect(existsSync(wardenRequestPath(runDir, 1, 'turn19-out-of-order-resolution'))).toBe(
-      true,
-    );
-    expect(existsSync(wardenOutputPath(runDir, 1, 'turn19-out-of-order-resolution'))).toBe(
-      true,
-    );
     expect(
-      existsSync(fixtureArtifactDir(runDir, 1, 'turn19-out-of-order-resolution')),
+      existsSync(
+        wardenRequestPath(runDir, 1, 'turn19-out-of-order-resolution'),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(wardenOutputPath(runDir, 1, 'turn19-out-of-order-resolution')),
+    ).toBe(true);
+    expect(
+      existsSync(
+        fixtureArtifactDir(runDir, 1, 'turn19-out-of-order-resolution'),
+      ),
     ).toBe(true);
   });
 
@@ -187,7 +197,10 @@ describe('writeFixtureArtifacts / readTurnResultArtifact', () => {
       turnResult: buildResult(),
     });
 
-    const raw = readFileSync(wardenRequestPath(runDir, 1, 'fixture-a'), 'utf-8');
+    const raw = readFileSync(
+      wardenRequestPath(runDir, 1, 'fixture-a'),
+      'utf-8',
+    );
     expect(JSON.parse(raw)).toHaveLength(1);
     expect(JSON.parse(raw)[0].request.model).toBe('claude-sonnet-4-6');
   });
@@ -219,11 +232,17 @@ describe('writeJudgeArtifact', () => {
   });
 
   it('writes judge-<checkId>.json at the paths.ts layout', () => {
-    writeJudgeArtifact(runDir, 1, 'turn24-hidden-info-leak', 'hidden-info-leak', {
-      verdict: 'fail',
-      rationale: 'leaked a roll value',
-      rubricHash: 'deadbeef',
-    });
+    writeJudgeArtifact(
+      runDir,
+      1,
+      'turn24-hidden-info-leak',
+      'hidden-info-leak',
+      {
+        verdict: 'fail',
+        rationale: 'leaked a roll value',
+        rubricHash: 'deadbeef',
+      },
+    );
 
     const path = judgeArtifactPath(
       runDir,
@@ -243,13 +262,22 @@ describe('writeJudgeArtifact', () => {
 describe('relativeArtifactPath', () => {
   it('never returns an absolute path', () => {
     const runDir = '/evalroot/eval-runs/some-run';
-    const target = wardenOutputPath(runDir, 1, 'turn19-out-of-order-resolution');
+    const target = wardenOutputPath(
+      runDir,
+      1,
+      'turn19-out-of-order-resolution',
+    );
 
     const relativePath = relativeArtifactPath(runDir, target);
 
     expect(isAbsolute(relativePath)).toBe(false);
     expect(relativePath).toBe(
-      join('reps', '001', 'turn19-out-of-order-resolution', 'warden-output.json'),
+      join(
+        'reps',
+        '001',
+        'turn19-out-of-order-resolution',
+        'warden-output.json',
+      ),
     );
   });
 });
