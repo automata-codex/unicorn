@@ -85,12 +85,81 @@ export type SubmitGmResponse = z.infer<typeof submitGmResponseSchema>;
  * Player-facing rolls travel through `diceRequests` on `submit_gm_response`
  * instead.
  */
+/**
+ * What kind of roll this is. **Descriptive, not load-bearing** — no checker
+ * reads it today.
+ *
+ * It ships anyway, and `docs/decisions.md § rollType / gatedByRollId /
+ * actingEntityId…` is the reason: adding a field to `roll_dice` changes the
+ * tool schema, which invalidates every frozen eval artifact and forces a
+ * fresh baseline on both models. That is affordable once. This milestone is
+ * already buying one for the other two fields, so a field with a modest
+ * honest purpose costs an enum here and a whole re-baseline later.
+ *
+ * The M7.4 record gives it no measurement role — it appears there only as a
+ * hypothetical example of a field some future check might need — so this
+ * enum is chosen for reporting value rather than reverse-engineered from a
+ * requirement that was never written down.
+ */
+export const rollTypeSchema = z.enum([
+  'check',
+  'save',
+  'damage',
+  'panic_check',
+  'table',
+  'other',
+]);
+
+export type RollType = z.infer<typeof rollTypeSchema>;
+
 export const rollDiceInputSchema = z.object({
   notation: z.string(),
   purpose: z.string(),
+  /**
+   * The entity this roll is *for*, by its state identifier (`dr_chen`,
+   * `corporate_spy_1`).
+   *
+   * Required, because an omitted field and an absent one are the same thing
+   * at scoring time. `system-rolled-player-action` exists to distinguish a
+   * Warden-side roll standing in for an NPC from one standing in for the
+   * player, and `actorType` is `'gm'` for both — so until this field exists
+   * and is populated, that check has to bind by matching the player's name
+   * in `purpose` prose, which is the last prose dependency in the structural
+   * checks (`eval/checks/structural/attribution.ts`).
+   */
+  actingEntityId: z.string().min(1),
+  rollType: rollTypeSchema,
+  /**
+   * The `rollId` of an earlier roll **this turn** whose outcome determined
+   * whether this roll happens at all — a damage roll naming its to-hit.
+   *
+   * Genuinely optional: most rolls have no gate, and a required field would
+   * make "ungated" indistinguishable from "the model filled in the required
+   * field with something." Absent means ungated.
+   *
+   * This is what lets `out-of-order-resolution` adjudicate the *in-turn*
+   * case. Sequence numbers record what happened first, not what depended on
+   * what, and a to-hit followed by damage is correct while damage followed
+   * by a to-hit is not — the same two events in either order, told apart
+   * only by a dependency the payload had no way to record until now.
+   */
+  gatedByRollId: z.string().min(1).optional(),
 });
 
 export const rollDiceOutputSchema = z.object({
+  /**
+   * Per-turn identifier for this roll, allocated by the backend in issue
+   * order (`roll_1`, `roll_2`, …) — underscores only, per
+   * `docs/decisions.md § Entity and resource pool identifiers use
+   * underscores only`.
+   *
+   * It has to be minted here rather than reusing the `game_events` row id,
+   * because that id is a UUID generated when the turn is written — *after*
+   * the tool loop ends. Claude cannot reference an identifier that does not
+   * exist yet while it is choosing its next call, so `gatedByRollId` needs
+   * an id that is handed back the moment a roll resolves.
+   */
+  rollId: z.string(),
   notation: z.string(),
   results: z.array(z.number().int()),
   modifier: z.number().int().default(0),

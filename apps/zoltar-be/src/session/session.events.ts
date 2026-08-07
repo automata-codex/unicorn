@@ -3,7 +3,7 @@ import { eq, sql } from 'drizzle-orm';
 import * as schema from '../db/schema';
 
 import type { DbOrTx } from '../db/db.provider';
-import type { SubmitGmResponse } from './session.schema';
+import type { RollType, SubmitGmResponse } from './session.schema';
 import type { ThresholdCrossing, ValidationResult } from './session.validator';
 
 /**
@@ -13,11 +13,18 @@ import type { ThresholdCrossing, ValidationResult } from './session.validator';
  * (Part 9), not as part of the turn's atomic write.
  */
 export interface PendingSystemRoll {
+  /** Per-turn synthetic id (`roll_1`, `roll_2`, …), the referent for
+   * `gatedByRollId`. Allocated by the tool loop in issue order; see
+   * `rollDiceOutputSchema` for why it cannot be the `game_events` row id. */
+  rollId: string;
   notation: string;
   purpose: string;
   results: number[];
   modifier: number;
   total: number;
+  rollType: RollType;
+  actingEntityId: string;
+  gatedByRollId?: string;
 }
 
 export interface WriteTurnEventsArgs {
@@ -115,7 +122,13 @@ export async function writeTurnEvents(
         results: roll.results,
         modifier: roll.modifier,
         total: roll.total,
-      },
+        rollId: roll.rollId,
+        rollType: roll.rollType,
+        actingEntityId: roll.actingEntityId,
+        ...(roll.gatedByRollId === undefined
+          ? {}
+          : { gatedByRollId: roll.gatedByRollId }),
+      } satisfies DiceRollEventPayload,
     });
     diceRollSequences.push({
       sequenceNumber: rollSeq,
@@ -194,6 +207,22 @@ function gmPayloadFor(r: SubmitGmResponse): Record<string, unknown> {
   };
 }
 
+/**
+ * `game_events.payload` for a `dice_roll` row.
+ *
+ * `rollId` / `rollType` / `actingEntityId` / `gatedByRollId` are **new keys
+ * in an existing untyped `jsonb` column, not new columns** — `dice_roll`
+ * events store their payload the same way every other event type in that
+ * table does (`docs/schema.md § Game Events`), so this needs no migration
+ * and `docs/schema.md` is unchanged.
+ *
+ * All four are optional *on this type* even though three are required on
+ * `rollDiceInputSchema`, and the difference is load-bearing: rows written
+ * before M7.5 have none of them, and `eval:rescore` re-grades frozen
+ * `warden-output.json` artifacts from the `88fa84bd8329` runs that predate
+ * the fields entirely. Every consumer branches on presence, never on
+ * fixture version.
+ */
 export interface DiceRollEventPayload {
   notation: string;
   purpose: string;
@@ -201,6 +230,10 @@ export interface DiceRollEventPayload {
   modifier: number;
   total: number;
   requestId?: string;
+  rollId?: string;
+  rollType?: RollType;
+  actingEntityId?: string;
+  gatedByRollId?: string;
 }
 
 export interface InsertDiceRollEventArgs {

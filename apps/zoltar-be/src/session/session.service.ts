@@ -833,19 +833,56 @@ export class SessionService {
         content: `Invalid roll_dice input: ${parsed.error.message}`,
       };
     }
+
+    // A `gatedByRollId` pointing at nothing is worse than no gate at all: it
+    // would make `out-of-order-resolution`'s in-turn case look decidable
+    // while the reference dangles, which is a false verdict rather than a
+    // missing one. Rejected at the boundary, with the available ids named so
+    // the model can correct itself in-loop — the same retry path a malformed
+    // `gmUpdates` takes.
+    const { gatedByRollId } = parsed.data;
+    if (
+      gatedByRollId !== undefined &&
+      !executedRolls.some((roll) => roll.rollId === gatedByRollId)
+    ) {
+      const available = executedRolls.map((roll) => roll.rollId).join(', ');
+      return {
+        type: 'tool_result',
+        tool_use_id: use.id,
+        is_error: true,
+        content:
+          `Invalid roll_dice input: gatedByRollId "${gatedByRollId}" does not ` +
+          'match any roll resolved so far this turn. It must name a rollId ' +
+          'returned by an earlier roll_dice call in this same turn. ' +
+          (available
+            ? `Available this turn: ${available}.`
+            : 'No rolls have been resolved yet this turn, so no roll can be ' +
+              'gated — omit gatedByRollId.'),
+      };
+    }
+
     try {
       const result = this.dice.rollForGm(parsed.data);
+      // Issue order, 1-based. Underscores only, per `docs/decisions.md
+      // § Entity and resource pool identifiers use underscores only`.
+      const rollId = `roll_${executedRolls.length + 1}`;
       executedRolls.push({
+        rollId,
         notation: result.notation,
         purpose: parsed.data.purpose,
         results: result.results,
         modifier: result.modifier,
         total: result.total,
+        rollType: parsed.data.rollType,
+        actingEntityId: parsed.data.actingEntityId,
+        ...(gatedByRollId === undefined ? {} : { gatedByRollId }),
       });
       return {
         type: 'tool_result',
         tool_use_id: use.id,
-        content: JSON.stringify(result),
+        // `rollId` first: it is the only field of this result Claude has to
+        // carry forward, and it is useless if it is not noticed.
+        content: JSON.stringify({ rollId, ...result }),
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

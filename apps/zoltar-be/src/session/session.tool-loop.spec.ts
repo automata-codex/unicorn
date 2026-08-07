@@ -146,6 +146,8 @@ describe('SessionService.runInnerToolLoop', () => {
           toolUse('toolu_roll1', 'roll_dice', {
             notation: '1d100',
             purpose: 'Panic check',
+            actingEntityId: 'alvarez',
+            rollType: 'panic_check',
           }),
         ]),
       )
@@ -165,11 +167,14 @@ describe('SessionService.runInnerToolLoop', () => {
     expect(result.iterations).toBe(2);
     expect(result.executedRolls).toEqual([
       {
+        rollId: 'roll_1',
         notation: '1d100',
         purpose: 'Panic check',
         results: [73],
         modifier: 0,
         total: 73,
+        rollType: 'panic_check',
+        actingEntityId: 'alvarez',
       },
     ]);
     expect(rollForGm).toHaveBeenCalledTimes(1);
@@ -194,10 +199,14 @@ describe('SessionService.runInnerToolLoop', () => {
           toolUse('toolu_1', 'roll_dice', {
             notation: '1d100',
             purpose: 'A',
+            actingEntityId: 'alvarez',
+            rollType: 'check',
           }),
           toolUse('toolu_2', 'roll_dice', {
             notation: '2d6',
             purpose: 'B',
+            actingEntityId: 'corporate_spy_1',
+            rollType: 'damage',
           }),
         ]),
       )
@@ -244,6 +253,8 @@ describe('SessionService.runInnerToolLoop', () => {
           toolUse('toolu_r1', 'roll_dice', {
             notation: '1d100',
             purpose: 'Panic',
+            actingEntityId: 'alvarez',
+            rollType: 'panic_check',
           }),
         ]),
       )
@@ -306,11 +317,141 @@ describe('SessionService.runInnerToolLoop', () => {
     ]);
   });
 
+  it('allocates rollIds in issue order and hands each back in its tool_result', async () => {
+    // `gatedByRollId` is useless unless Claude can see the id to reference,
+    // and it cannot be the game_events row id — that UUID is minted when the
+    // turn is written, after this loop has already ended.
+    callSession
+      .mockResolvedValueOnce(
+        message([
+          toolUse('toolu_1', 'roll_dice', {
+            notation: '1d100',
+            purpose: 'To-hit',
+            actingEntityId: 'corporate_spy_1',
+            rollType: 'check',
+          }),
+          toolUse('toolu_2', 'roll_dice', {
+            notation: '2d6',
+            purpose: 'Damage if it hit',
+            actingEntityId: 'corporate_spy_1',
+            rollType: 'damage',
+            gatedByRollId: 'roll_1',
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(message([submitGmBlock()]));
+    let n = 0;
+    const rollForGm = vi.fn((input: { notation: string }) => {
+      n++;
+      return {
+        notation: input.notation,
+        results: n === 1 ? [42] : [3, 4],
+        modifier: 0,
+        total: n === 1 ? 42 : 7,
+      };
+    });
+    const { service } = makeService(callSession, { rollForGm });
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(result.executedRolls.map((r) => r.rollId)).toEqual([
+      'roll_1',
+      'roll_2',
+    ]);
+    expect(result.executedRolls[1].gatedByRollId).toBe('roll_1');
+
+    const secondCall = callSession.mock.calls[1][0] as CallSessionParams;
+    const toolResultTurn = secondCall.messages[
+      secondCall.messages.length - 1
+    ] as { content: Anthropic.ToolResultBlockParam[] };
+    expect(toolResultTurn.content[0].content).toMatch(/"rollId":"roll_1"/);
+    expect(toolResultTurn.content[1].content).toMatch(/"rollId":"roll_2"/);
+  });
+
+  it('rejects a gatedByRollId that names no roll from this turn, listing the ids that exist', async () => {
+    // A dangling reference is worse than no reference: it makes
+    // out-of-order-resolution's in-turn case look decidable while pointing at
+    // nothing, which is a false verdict rather than a missing one.
+    callSession
+      .mockResolvedValueOnce(
+        message([
+          toolUse('toolu_1', 'roll_dice', {
+            notation: '1d100',
+            purpose: 'To-hit',
+            actingEntityId: 'corporate_spy_1',
+            rollType: 'check',
+          }),
+          toolUse('toolu_2', 'roll_dice', {
+            notation: '2d6',
+            purpose: 'Damage',
+            actingEntityId: 'corporate_spy_1',
+            rollType: 'damage',
+            gatedByRollId: 'roll_7',
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(message([submitGmBlock()]));
+    const rollForGm = vi.fn((input: { notation: string }) => ({
+      notation: input.notation,
+      results: [42],
+      modifier: 0,
+      total: 42,
+    }));
+    const { service } = makeService(callSession, { rollForGm });
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    // The first roll still lands; only the dangling one is refused.
+    expect(result.executedRolls.map((r) => r.rollId)).toEqual(['roll_1']);
+
+    const secondCall = callSession.mock.calls[1][0] as CallSessionParams;
+    const toolResultTurn = secondCall.messages[
+      secondCall.messages.length - 1
+    ] as { content: Anthropic.ToolResultBlockParam[] };
+    expect(toolResultTurn.content[1]).toMatchObject({
+      tool_use_id: 'toolu_2',
+      is_error: true,
+    });
+    expect(toolResultTurn.content[1].content).toMatch(/roll_7/);
+    expect(toolResultTurn.content[1].content).toMatch(
+      /Available this turn: roll_1/,
+    );
+  });
+
+  it('tells Claude to omit gatedByRollId when no roll has resolved yet this turn', async () => {
+    callSession
+      .mockResolvedValueOnce(
+        message([
+          toolUse('toolu_1', 'roll_dice', {
+            notation: '2d6',
+            purpose: 'Damage',
+            actingEntityId: 'corporate_spy_1',
+            rollType: 'damage',
+            gatedByRollId: 'roll_1',
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(message([submitGmBlock()]));
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(result.executedRolls).toEqual([]);
+    const secondCall = callSession.mock.calls[1][0] as CallSessionParams;
+    const toolResult = (
+      secondCall.messages[secondCall.messages.length - 1] as {
+        content: Anthropic.ToolResultBlockParam[];
+      }
+    ).content[0];
+    expect(toolResult.is_error).toBe(true);
+    expect(toolResult.content).toMatch(/omit gatedByRollId/);
+  });
+
   it('returns is_error tool_result when roll_dice input is invalid and lets Claude recover', async () => {
     callSession
       .mockResolvedValueOnce(
         message([
-          // Missing `purpose` → Zod reject.
+          // Missing `purpose`, `actingEntityId`, `rollType` → Zod reject.
           toolUse('toolu_bad', 'roll_dice', { notation: '1d100' }),
         ]),
       )
@@ -339,6 +480,8 @@ describe('SessionService.runInnerToolLoop', () => {
           toolUse('toolu_roll', 'roll_dice', {
             notation: '1d7',
             purpose: 'x',
+            actingEntityId: 'alvarez',
+            rollType: 'other',
           }),
         ]),
       )
@@ -390,6 +533,8 @@ describe('SessionService.runInnerToolLoop', () => {
         toolUse('toolu_roll', 'roll_dice', {
           notation: '1d100',
           purpose: 'x',
+          actingEntityId: 'alvarez',
+          rollType: 'check',
         }),
       ]),
     );

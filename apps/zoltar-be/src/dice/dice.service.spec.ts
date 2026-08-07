@@ -6,10 +6,7 @@ import { DiceInvocationError, DiceService } from './dice.service';
 describe('DiceService.rollForGm', () => {
   it('executes a valid notation and returns a structured result', () => {
     const service = new DiceService();
-    const result = service.rollForGm({
-      notation: '1d100',
-      purpose: 'Panic check',
-    });
+    const result = service.rollForGm({ notation: '1d100' });
     expect(result.notation).toBe('1d100');
     expect(result.results.length).toBe(1);
     expect(result.results[0]).toBeGreaterThanOrEqual(1);
@@ -20,10 +17,7 @@ describe('DiceService.rollForGm', () => {
 
   it('applies a modifier to the total', () => {
     const service = new DiceService();
-    const result = service.rollForGm({
-      notation: '2d6+3',
-      purpose: 'Damage',
-    });
+    const result = service.rollForGm({ notation: '2d6+3' });
     expect(result.modifier).toBe(3);
     const sum = result.results.reduce((a, b) => a + b, 0);
     expect(result.total).toBe(sum + 3);
@@ -33,7 +27,7 @@ describe('DiceService.rollForGm', () => {
     const service = new DiceService();
     let thrown: unknown;
     try {
-      service.rollForGm({ notation: 'not-a-notation', purpose: 'x' });
+      service.rollForGm({ notation: 'not-a-notation' });
     } catch (err) {
       thrown = err;
     }
@@ -44,14 +38,14 @@ describe('DiceService.rollForGm', () => {
 
   it('translates an unsupported die size into DiceInvocationError', () => {
     const service = new DiceService();
-    expect(() => service.rollForGm({ notation: '1d7', purpose: 'x' })).toThrow(
+    expect(() => service.rollForGm({ notation: '1d7' })).toThrow(
       DiceInvocationError,
     );
   });
 
   it('translates an out-of-range count into DiceInvocationError', () => {
     const service = new DiceService();
-    expect(() => service.rollForGm({ notation: '0d6', purpose: 'x' })).toThrow(
+    expect(() => service.rollForGm({ notation: '0d6' })).toThrow(
       DiceInvocationError,
     );
   });

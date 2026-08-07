@@ -125,21 +125,59 @@ describe('submitGmResponseSchema', () => {
 });
 
 describe('rollDiceInputSchema', () => {
-  it('accepts notation and purpose', () => {
+  const valid = {
+    notation: '2d6+3',
+    purpose: 'Panic check for Dr. Chen',
+    actingEntityId: 'dr_chen',
+    rollType: 'panic_check',
+  };
+
+  it('accepts a fully populated roll', () => {
+    expect(rollDiceInputSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it('accepts a roll that names the roll it is gated by', () => {
     const result = rollDiceInputSchema.safeParse({
-      notation: '2d6+3',
-      purpose: 'Panic check for Dr. Chen',
+      ...valid,
+      rollType: 'damage',
+      gatedByRollId: 'roll_1',
     });
     expect(result.success).toBe(true);
   });
 
-  it('rejects a payload missing purpose', () => {
-    const result = rollDiceInputSchema.safeParse({ notation: '1d100' });
+  it('treats gatedByRollId as optional, because most rolls have no gate', () => {
+    const result = rollDiceInputSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.gatedByRollId).toBeUndefined();
+    }
+  });
+
+  it.each([
+    'notation',
+    'purpose',
+    'actingEntityId',
+    'rollType',
+  ])('rejects a payload missing %s', (field) => {
+    const { [field]: _omitted, ...rest } = valid as Record<string, unknown>;
+    expect(rollDiceInputSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it('rejects an empty actingEntityId rather than treating it as absent', () => {
+    // An empty string would reach the checkers as a present-but-useless
+    // field, which reads as an attributed roll that matches no entity.
+    const result = rollDiceInputSchema.safeParse({
+      ...valid,
+      actingEntityId: '',
+    });
     expect(result.success).toBe(false);
   });
 
-  it('rejects a payload missing notation', () => {
-    const result = rollDiceInputSchema.safeParse({ purpose: 'Fear save' });
+  it('rejects a rollType outside the enum', () => {
+    const result = rollDiceInputSchema.safeParse({
+      ...valid,
+      rollType: 'initiative',
+    });
     expect(result.success).toBe(false);
   });
 });
@@ -147,6 +185,7 @@ describe('rollDiceInputSchema', () => {
 describe('rollDiceOutputSchema', () => {
   it('accepts a fully populated output', () => {
     const result = rollDiceOutputSchema.safeParse({
+      rollId: 'roll_1',
       notation: '2d6+3',
       results: [4, 2],
       modifier: 3,
@@ -157,6 +196,7 @@ describe('rollDiceOutputSchema', () => {
 
   it('defaults modifier to 0 when omitted', () => {
     const result = rollDiceOutputSchema.safeParse({
+      rollId: 'roll_1',
       notation: '1d100',
       results: [73],
       total: 73,
@@ -169,6 +209,7 @@ describe('rollDiceOutputSchema', () => {
 
   it('rejects a non-integer die result', () => {
     const result = rollDiceOutputSchema.safeParse({
+      rollId: 'roll_1',
       notation: '1d100',
       results: [73.5],
       total: 73,
