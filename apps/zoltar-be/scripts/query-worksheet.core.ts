@@ -363,7 +363,49 @@ export function renderWorksheet(args: {
     '| **E** | Does the query **express what was needed**? | It asks for the thing the situation required |',
   );
   lines.push('');
-  lines.push('Score `y` / `n` / `?`.');
+  lines.push('Score `y` / `n` / `?`, and `—` where a column does not apply.');
+  lines.push('');
+  lines.push(
+    '**`E` is undefined when `N=n`.** If the situation called for no lookup there was no',
+  );
+  lines.push(
+    'need to express, so `E` gets `—`, not `?` and not `n`. Keep those apart: `?` means you',
+  );
+  lines.push(
+    "looked and could not decide, which is a real state worth preserving; `—` means the",
+  );
+  lines.push(
+    'question has no referent. Folding them together makes genuine uncertainty and',
+  );
+  lines.push(
+    'structural non-applicability indistinguishable at analysis time — the same reason this',
+  );
+  lines.push(
+    "repo keeps `NOT_APPLICABLE` out of its pass/fail denominators and treats `error` as a",
+  );
+  lines.push('fourth verdict rather than a failure.');
+  lines.push('');
+  lines.push(
+    '`C` is independent of both. A query can ask clearly (`E=y`) for a mechanic that does',
+  );
+  lines.push(
+    'not exist (`C=n`), and a mechanic is in the book or not regardless of whether this turn',
+  );
+  lines.push('needed it.');
+  lines.push('');
+  lines.push(
+    '**Report every rate with its denominator.** `E` is a rate over `N=y` rows only, and the',
+  );
+  lines.push(
+    'row counts themselves move between before and after — the Warden emits a different',
+  );
+  lines.push(
+    'number of queries under a different prompt. A rate that improved because its hard cases',
+  );
+  lines.push(
+    'dropped out of the denominator is the failure `eval:compare`\'s App/ΔApp columns exist',
+  );
+  lines.push('to make visible; it applies here too.');
   lines.push('');
   lines.push(
     '**C is a factual label, not blame.** The Warden cannot know the book lacks a cover',
