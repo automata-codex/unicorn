@@ -278,12 +278,27 @@ def parse_footer(
 #: and a new marker version adding a type should default to *excluded* rather
 #: than silently injecting a new kind of text into the index.
 #:
-#: ``SectionHeader`` is dropped despite carrying real topic labels: its text
-#: is unreliable as ancestry (``§ S1.7``), and the breadcrumb comes from the
-#: footer chapter instead. Whether to bring headings back in — as breadcrumb
-#: material or as indexable content — is an M7.5 lever, and one that would
-#: re-open the page-17 ordering defect (``§ S10.3``).
+#: ``SectionHeader`` is dropped by default despite carrying real topic
+#: labels: its text is unreliable as *ancestry* (``§ S1.7``), and the
+#: breadcrumb comes from the footer chapter instead. Whether it should
+#: nonetheless be indexable *content* — a different question from ancestry —
+#: is M7.5 lever 3, measured by re-ingesting with ``include_section_headers``
+#: and re-scoring. See :data:`SECTION_HEADER_BLOCK_TYPE`.
 CONTENT_BLOCK_TYPES = frozenset({"Text", "Table", "ListGroup"})
+
+#: Added to :data:`CONTENT_BLOCK_TYPES` when ``include_section_headers`` is
+#: set, rather than the whitelist becoming a blacklist. The distinction
+#: matters for the reason the whitelist exists at all: a future marker
+#: version that adds a block type must still default to *excluded*, and a
+#: flag that admits one named type preserves that while a flag that inverts
+#: the test would not.
+#:
+#: The measured cost of excluding it: ``surprise`` scores as absent from the
+#: whole book across every query using it, because the PSG prints a
+#: ``26.2 SURPRISE`` section whose words live only in the heading — 169
+#: header blocks and 2,632 characters of topic labels are outside the corpus
+#: entirely (``docs/rules-extraction-findings.md § S9.1``).
+SECTION_HEADER_BLOCK_TYPE = "SectionHeader"
 
 #: Tables are the densest and most mechanically load-bearing content in a
 #: rules PDF. Half a panic table is worse than an oversized chunk.
@@ -473,6 +488,7 @@ def chunk_blocks(
     drop_pages: frozenset[int] = frozenset(),
     target_tokens: int = 400,
     overlap_tokens: tuple[int, int] = (50, 100),
+    include_section_headers: bool = False,
     count_tokens: Callable[[str], int] | None = None,
 ) -> list[Chunk]:
     """Merge sorted, attributed blocks into ~``target_tokens`` chunks.
@@ -482,11 +498,21 @@ def chunk_blocks(
     silently by passing the wrong flag. Merging in marker's emitted order
     concatenates roughly half the book's body pages backwards (``§ S6.2``).
 
-    ``drop_pages`` exists so page-level exclusions stay a config change. It is
-    empty for M7.2 deliberately: the character-creation exclusion (physical 4,
-    41, 42) is *decided* in ``docs/decisions.md`` but implemented as an M7.5
-    lever, because applying it here would change the index before the baseline
-    M7.5 iterates against.
+    ``drop_pages`` exists so page-level exclusions stay a config change. It
+    was empty for M7.2 deliberately: the character-creation exclusion
+    (physical 4, 41, 42) is *decided* in ``docs/decisions.md`` but was
+    implemented as an M7.5 lever, because applying it during M7.2 would have
+    changed the index before the baseline M7.5 iterates against existed.
+
+    **Every keyword here is a measured lever, and every one of them is
+    recorded in the ingest manifest.** ``target_tokens``, ``overlap_tokens``,
+    ``drop_pages``, and ``include_section_headers`` all change what lands in
+    the index, so a retrieval score is only comparable against another score
+    built from the same four values. ``ingest.py``'s ``write_manifest``
+    writes what was actually used rather than these defaults — it used to
+    write the literals, which would have reported ``400`` even after a sweep
+    moved it, silently invalidating every round-over-round comparison M7.5's
+    iteration rests on.
     """
     count = count_tokens if count_tokens is not None else _default_count_tokens
     minimum_overlap, maximum_overlap = overlap_tokens
@@ -495,10 +521,16 @@ def chunk_blocks(
     if target_tokens <= 0:
         raise ValueError(f"target_tokens must be positive, got {target_tokens!r}")
 
+    kept_types = (
+        CONTENT_BLOCK_TYPES | {SECTION_HEADER_BLOCK_TYPE}
+        if include_section_headers
+        else CONTENT_BLOCK_TYPES
+    )
+
     kept = [
         block
         for block in blocks
-        if block.block_type in CONTENT_BLOCK_TYPES
+        if block.block_type in kept_types
         and block.page not in drop_pages
         and block.text.strip()
     ]

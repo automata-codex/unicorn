@@ -575,3 +575,108 @@ def test_empty_and_whitespace_only_blocks_produce_no_chunks() -> None:
 def test_invalid_chunking_parameters_are_rejected(kwargs) -> None:
     with pytest.raises(ValueError):
         chunk([content_block("a", "prose")], {19: "STRESS"}, **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# The M7.5 chunking levers
+#
+# Each of these changes what lands in the index, which is why `ingest.py`
+# records all four in the manifest. Tested here because a lever that silently
+# does nothing would show up in M7.5's iteration as "that change didn't help"
+# rather than as a bug.
+# ---------------------------------------------------------------------------
+
+
+def test_drop_pages_excludes_several_pages_and_leaves_the_rest() -> None:
+    """The character-creation exclusion's shape: a set, not a single page."""
+    blocks = [
+        content_block("a", "character creation prose", page=4),
+        content_block("b", "duplicate spread", page=41),
+        content_block("c", "duplicate spread again", page=42),
+        content_block("d", "panic prose", page=20),
+    ]
+
+    result = chunk(
+        blocks,
+        {20: "PANIC CHECKS", 4: "CREATION"},
+        drop_pages=frozenset({4, 41, 42}),
+    )
+
+    assert len(result) == 1
+    assert "panic prose" in result[0].content
+    for dropped in ("character creation", "duplicate spread"):
+        assert dropped not in result[0].content
+
+
+def test_section_headers_are_indexed_when_the_lever_is_on() -> None:
+    """M7.5 lever 3. `surprise` is absent from the whole corpus only because
+    the PSG prints it as a `26.2 SURPRISE` heading and headings are excluded
+    (`§ S9.1`); this is the switch that tests whether including them helps."""
+    blocks = [
+        content_block("h", "26.2 SURPRISE", block_type="SectionHeader"),
+        content_block("t", "body prose here", block_type="Text"),
+    ]
+
+    (result,) = chunk(blocks, {19: "STRESS"}, include_section_headers=True)
+
+    assert "26.2 SURPRISE" in result.content
+    assert "body prose here" in result.content
+
+
+def test_the_section_header_lever_admits_one_type_not_every_type() -> None:
+    """It extends the whitelist rather than inverting it. A marker version
+    that adds a new block type must still default to excluded even with this
+    lever on — otherwise the flag quietly changes the safety property the
+    whitelist exists for."""
+    blocks = [
+        content_block("h", "26.2 SURPRISE", block_type="SectionHeader"),
+        content_block("t", "body prose here", block_type="Text"),
+        content_block("f", "footer junk", block_type="PageFooter"),
+        content_block("hd", "header junk", block_type="PageHeader"),
+        content_block("c", "a caption", block_type="Caption"),
+        content_block("n", "some new marker type", block_type="Equation"),
+    ]
+
+    (result,) = chunk(blocks, {19: "STRESS"}, include_section_headers=True)
+
+    assert "26.2 SURPRISE" in result.content
+    for excluded in ("footer junk", "header junk", "a caption", "some new marker type"):
+        assert excluded not in result.content
+
+
+def test_section_headers_stay_excluded_by_default() -> None:
+    """The M7.2 behaviour, pinned. Round 3 of M7.5's iteration is allowed to
+    flip this default — but only deliberately, with a measurement behind it."""
+    blocks = [
+        content_block("h", "26.2 SURPRISE", block_type="SectionHeader"),
+        content_block("t", "body prose here", block_type="Text"),
+    ]
+
+    (result,) = chunk(blocks, {19: "STRESS"})
+
+    assert "26.2 SURPRISE" not in result.content
+
+
+def test_a_smaller_target_produces_more_chunks() -> None:
+    """`target_tokens` is an inherited heuristic that has never been swept
+    (`docs/rules-ingestion.md § Step 4`). Sweeping it requires that it
+    actually move the output."""
+    # 40 five-token sentences: 200 tokens, so a 200-token target is exactly
+    # one chunk and anything below it must split.
+    blocks = [content_block("a", sentences(40))]
+    band = (5, 10)
+
+    coarse = chunk(blocks, {19: "STRESS"}, target_tokens=100, overlap_tokens=band)
+    fine = chunk(blocks, {19: "STRESS"}, target_tokens=25, overlap_tokens=band)
+
+    assert len(fine) > len(coarse) > 1
+
+
+def test_a_wider_overlap_band_repeats_more_of_the_previous_chunk() -> None:
+    blocks = [content_block("a", sentences(40))]
+
+    narrow = chunk(blocks, {19: "STRESS"}, target_tokens=50, overlap_tokens=(5, 10))
+    wide = chunk(blocks, {19: "STRESS"}, target_tokens=50, overlap_tokens=(20, 40))
+
+    # Compare the second chunk of each: the first never carries an overlap.
+    assert words(wide[1].content) > words(narrow[1].content)

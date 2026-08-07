@@ -84,6 +84,38 @@ rows and reinserts, so you never get duplicates.
 
 \* Required for a real run, but each falls back to its environment variable.
 
+### Chunking levers
+
+Four flags change what lands in the index. Each overrides the same-named key
+in `system.json`, which in turn overrides the built-in default.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--target-tokens <n>` | `400` | Approximate chunk size. An inherited heuristic, never validated — a sweep is cheap |
+| `--overlap <min>,<max>` | `50,100` | Overlap band in tokens. Whole sentences from the end of the previous chunk, accumulated while they fit |
+| `--drop-pages <n>[,<n>...]` | none | **Physical, 0-based** page indices to exclude from the index entirely — the same numbering `Block.page` uses, *not* the printed numbers in the footer |
+| `--include-section-headers` | off | Index `SectionHeader` block text as content. Off by default: heading text is unreliable as *ancestry*, so the breadcrumb comes from the running footer instead |
+
+**Config for decisions, flags for experiments.** A page exclusion that is a
+settled property of the book belongs in `system.json` so it applies on every
+run; a flag is for the one-off measurement you don't want to remember to
+revert. That is the entire reason for the precedence order.
+
+**Every one of these is recorded in `.ingest-manifest.json`**, and the
+retrieval harness copies that into its report. A retrieval score compared
+across two different chunking configurations is not a comparison — this is
+the analogue of `corpusVersion` on the Warden eval side, and it is why the
+manifest reports what actually ran rather than what the defaults say.
+
+```bash
+# Exclude the character-creation spread and index heading text, one run only
+task ingest -- --system mothership --pdf <path> \
+  --drop-pages 4,41,42 --include-section-headers --dry-run
+```
+
+`--drop-pages ''` explicitly means "drop nothing", which is how you turn off
+a configured exclusion for a single measurement round.
+
 ### Exit codes
 
 | Code | Meaning |
@@ -123,9 +155,26 @@ hardcoded in the pipeline:
 {
   "source_label": "Mothership Player's Survival Guide",
   "page_offset": 1,
-  "footer_format": "page-number-then-chapter"
+  "footer_format": "page-number-then-chapter",
+
+  "drop_pages": [4, 41, 42],
+  "target_tokens": 400,
+  "overlap_tokens": [50, 100],
+  "include_section_headers": false
 }
 ```
+
+The first three keys are required. The last four are the chunking levers
+documented above — all optional, and omitting one means the built-in default,
+so a `system.json` written before they existed keeps producing exactly the
+index it produced before.
+
+`drop_pages` is where a *settled* exclusion lives. The Mothership entry above
+carries physical pages 4, 41, and 42: the character-creation spread, which
+`docs/decisions.md § Character-creation content is excluded from the rules
+index` established the Warden structurally cannot reach — `rules_lookup` is
+wired only into the play-loop tool array, and character creation makes no
+Anthropic calls at all.
 
 `page_offset` maps the physical page index to the printed page number
 (`printed = physical + offset`). **Verify it for every new book.** It is the

@@ -106,7 +106,84 @@ def build_parser() -> _ArgumentParser:
         help="extract and chunk only; print a chunk count and preview, then stop "
         "before embedding or inserting. Costs nothing.",
     )
+
+    # Chunking levers. Each overrides the same-named key in system.json,
+    # which in turn overrides the built-in default. They exist as flags so a
+    # sweep is one command rather than an edit to a config file that then has
+    # to be remembered and reverted — see `docs/specs/zoltar/013-m7.5-rules-
+    # retrieval-quality.md § Part 2`. Whatever is resolved here is what
+    # `write_manifest` records, so every score carries the configuration that
+    # produced it.
+    levers = parser.add_argument_group(
+        "chunking levers",
+        "Override system.json. Recorded in the ingest manifest, so a "
+        "retrieval score always names the configuration behind it.",
+    )
+    levers.add_argument(
+        "--target-tokens",
+        type=int,
+        help="approximate chunk size (default 400)",
+    )
+    levers.add_argument(
+        "--overlap",
+        type=parse_overlap,
+        dest="overlap_tokens",
+        metavar="MIN,MAX",
+        help="overlap band in tokens, e.g. 50,100 (default 50,100)",
+    )
+    levers.add_argument(
+        "--drop-pages",
+        type=parse_page_list,
+        metavar="N[,N...]",
+        help="physical (0-based) page indices to exclude from the index entirely",
+    )
+    levers.add_argument(
+        "--include-section-headers",
+        action="store_true",
+        default=None,
+        help="index SectionHeader block text as content, not just as topic "
+        "labels the corpus never sees (default off)",
+    )
     return parser
+
+
+def parse_overlap(raw: str) -> tuple[int, int]:
+    """``"50,100"`` -> ``(50, 100)``.
+
+    Rejects a single value rather than guessing a band around it. The overlap
+    is a *range* — whole sentences are accumulated from the end while they fit
+    — so "50" has no unambiguous reading.
+    """
+    parts = raw.split(",")
+    if len(parts) != 2:
+        raise argparse.ArgumentTypeError(
+            f"--overlap takes MIN,MAX (e.g. 50,100), got {raw!r}"
+        )
+    try:
+        minimum, maximum = (int(part.strip()) for part in parts)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"--overlap values must be integers, got {raw!r}"
+        ) from None
+    return minimum, maximum
+
+
+def parse_page_list(raw: str) -> frozenset[int]:
+    """``"4,41,42"`` -> ``frozenset({4, 41, 42})``.
+
+    **Physical, 0-based page indices** — the same numbering ``Block.page``
+    uses, not the printed numbers in the footer. The two differ by
+    ``page_offset`` and confusing them silently drops the wrong pages, so the
+    flag help, the README, and this docstring all say so.
+    """
+    if not raw.strip():
+        return frozenset()
+    try:
+        return frozenset(int(part.strip()) for part in raw.split(","))
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"--drop-pages takes a comma-separated list of integers, got {raw!r}"
+        ) from None
 
 
 def load_system_config(system_dir: Path) -> dict:
@@ -129,7 +206,72 @@ def load_system_config(system_dir: Path) -> dict:
     return config
 
 
-def build_chunks(args: argparse.Namespace, system_dir: Path, config: dict) -> list[Chunk]:
+#: Built-in defaults for the chunking levers, in one place so that
+#: ``resolve_chunking`` and ``chunk_blocks``' signature cannot drift apart
+#: silently. Keys match both the ``system.json`` keys and the manifest
+#: fields, deliberately: one name per concept, end to end.
+CHUNKING_DEFAULTS = {
+    "target_tokens": 400,
+    "overlap_tokens": (50, 100),
+    "drop_pages": frozenset(),
+    "include_section_headers": False,
+}
+
+
+def resolve_chunking(args: argparse.Namespace, config: dict) -> dict:
+    """Settle each chunking lever: CLI flag, else ``system.json``, else default.
+
+    Precedence is fixed and stated because the two sources have different
+    lifetimes. ``system.json`` is where a *decision* lives — the
+    character-creation exclusion is a settled property of this book, not a
+    thing to retype every run — while a flag is where an *experiment* lives,
+    and an experiment must be able to override a decision for one run without
+    editing (and then forgetting to revert) a config file.
+
+    Returns a dict keyed exactly like :data:`CHUNKING_DEFAULTS`, which is
+    what both ``chunk_blocks`` and ``write_manifest`` consume. The single
+    return value is the point: a manifest built from separate lookups could
+    disagree with the chunker about what actually ran, which is precisely the
+    provenance failure M7.5's iteration cannot tolerate.
+    """
+    resolved = dict(CHUNKING_DEFAULTS)
+
+    for key in resolved:
+        if key in config:
+            resolved[key] = config[key]
+
+    if args.target_tokens is not None:
+        resolved["target_tokens"] = args.target_tokens
+    if args.overlap_tokens is not None:
+        resolved["overlap_tokens"] = args.overlap_tokens
+    if args.drop_pages is not None:
+        resolved["drop_pages"] = args.drop_pages
+    if args.include_section_headers:
+        resolved["include_section_headers"] = True
+
+    # Normalize whatever JSON gave us. `system.json` yields lists where the
+    # chunker wants a tuple and a frozenset, and a mismatch here would surface
+    # as a confusing failure deep in the merge rather than at the boundary.
+    resolved["overlap_tokens"] = tuple(resolved["overlap_tokens"])
+    resolved["drop_pages"] = frozenset(resolved["drop_pages"])
+    resolved["target_tokens"] = int(resolved["target_tokens"])
+    resolved["include_section_headers"] = bool(resolved["include_section_headers"])
+
+    if len(resolved["overlap_tokens"]) != 2:
+        raise ValueError(
+            "overlap_tokens must be exactly two values (min, max), got "
+            f"{resolved['overlap_tokens']!r}"
+        )
+
+    return resolved
+
+
+def build_chunks(
+    args: argparse.Namespace,
+    system_dir: Path,
+    config: dict,
+    chunking: dict,
+) -> list[Chunk]:
     """PDF -> chunks. Everything up to, but not including, spending money."""
     if not args.skip_hash_check:
         check = hashing.verify_pdf(args.pdf, system_dir / "hashes")
@@ -161,8 +303,18 @@ def build_chunks(args: argparse.Namespace, system_dir: Path, config: dict) -> li
         page_chapters=page_chapters,
         source_label=str(config["source_label"]),
         page_offset=page_offset,
+        **chunking,
     )
-    logger.info("chunked into %d chunks", len(chunks))
+    logger.info(
+        "chunked into %d chunks (target %d tokens, overlap %d-%d, dropped pages %s, "
+        "section headers %s)",
+        len(chunks),
+        chunking["target_tokens"],
+        chunking["overlap_tokens"][0],
+        chunking["overlap_tokens"][1],
+        ",".join(str(p) for p in sorted(chunking["drop_pages"])) or "none",
+        "included" if chunking["include_section_headers"] else "excluded",
+    )
     return chunks
 
 
@@ -185,6 +337,7 @@ def _marker_version() -> str | None:
 def write_manifest(
     args: argparse.Namespace,
     config: dict,
+    chunking: dict,
     *,
     chunk_count: int,
     embedding_dim: int,
@@ -198,6 +351,14 @@ def write_manifest(
     ingestion-metadata table and this milestone adds no migration, so it lands
     beside the pipeline as a gitignored file; the retrieval harness copies it
     into its run manifest and records an explicit null when it is absent.
+
+    **The chunking fields come from :func:`resolve_chunking`, not from
+    literals.** They were hardcoded through M7.2 — which was harmless while
+    nothing could change them, and would have become actively misleading the
+    moment a sweep did: a manifest reporting ``targetTokens: 400`` after a
+    run at 250 turns two incomparable scores into an apparent improvement,
+    with nothing anywhere looking wrong. Provenance that can lie is worse
+    than no provenance.
     """
     manifest = {
         "system": args.system,
@@ -209,12 +370,10 @@ def write_manifest(
         "chunkCount": chunk_count,
         "sourceLabel": config.get("source_label"),
         "pageOffset": config.get("page_offset"),
-        # Defaults live in chunk_blocks' signature; recorded explicitly so a
-        # future change to them is visible in the provenance rather than
-        # silently reinterpreting old runs.
-        "targetTokens": 400,
-        "overlapTokens": [50, 100],
-        "droppedPages": [],
+        "targetTokens": chunking["target_tokens"],
+        "overlapTokens": list(chunking["overlap_tokens"]),
+        "droppedPages": sorted(chunking["drop_pages"]),
+        "includeSectionHeaders": chunking["include_section_headers"],
     }
     MANIFEST_PATH.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     logger.info("wrote index provenance to %s", MANIFEST_PATH)
@@ -276,12 +435,16 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         config = load_system_config(system_dir)
+        # Settled before extraction, which costs 20-30 seconds and 1.3 GB of
+        # model weights. A malformed overlap band should fail in the first
+        # instant of the run, not after the expensive part.
+        chunking = resolve_chunking(args, config)
     except (OSError, ValueError, KeyError) as err:
         logger.error("%s", err)
         return EXIT_BAD_ARGS
 
     try:
-        chunks = build_chunks(args, system_dir, config)
+        chunks = build_chunks(args, system_dir, config, chunking)
     except extract.ExtractionError as err:
         logger.error("%s", err)
         return EXIT_EXTRACTION
@@ -359,7 +522,9 @@ def main(argv: list[str] | None = None) -> int:
         connection.close()
 
     elapsed = time.monotonic() - started
-    write_manifest(args, config, chunk_count=inserted, embedding_dim=embedding_dim)
+    write_manifest(
+        args, config, chunking, chunk_count=inserted, embedding_dim=embedding_dim
+    )
 
     logger.info(
         "ingested %d chunks for '%s' (model=%s, dim=%d, rows now %d, null embeddings %d) in %.1fs",
