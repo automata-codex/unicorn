@@ -3140,9 +3140,17 @@ is still `[]` and the block-`id` matcher it needs has been in place since
 M7.2.
 
 The patch is not written here, because its replacement text is transcribed
-table content from the book — `templates/` is gitignored for exactly that
-reason (`docs/rules-ingestion.md § Licensing Posture`), and authoring it is
-a human transcription task, not an automated one.
+table content from the book, and authoring it is a human transcription task
+rather than an automated one.
+
+**Correction, 2026-08-07:** this paragraph originally added that `templates/`
+"is gitignored for exactly that reason." It is not — nothing under
+`ingestion/mothership/` is ignored, and the claim came from misreading a
+directory listing. That makes the licensing question sharper rather than
+softer: a fixup template holds transcribed book text, and
+`docs/rules-ingestion.md § What ships in the repository` says extracted text
+does not ship. **Where that text lives has to be settled before a fixup is
+authored, not after.**
 
 **2. Lever 6's dedup question is no longer low-priority.** The open
 question below has described pages 1 and 43 as "still open, lower priority"
