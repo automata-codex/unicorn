@@ -3193,3 +3193,106 @@ now hold zero. What did *not* move is recall, and the reason is now
 understood rather than assumed: every round so far could only reorder hits,
 because removing a false positive cannot turn a miss into a hit. The two
 misses need different instruments, and the record names both.
+
+### S20 — 2026-08-07 · The similarity floor, re-derived against the final index: still no
+
+M7.5 Part 4. [S15.4](#154-no-similarity-floor-separates-answerable-from-unanswerable--in-either-configuration)
+answered this against the M7.2 index; the spec requires re-deriving it
+against the index that actually ships, since a floor changes what reaches
+the Warden and the whole point of three rounds of iteration was to change
+the index. Run
+`$ZOLTAR_EVAL_ROOT/retrieval-runs/mothership__2026-08-07T14-22-15Z`,
+61 chunks, `drop_pages: [3, 4, 41, 42]`.
+
+#### 20.1 The distributions
+
+| Set | n | min | median | max |
+|---|---|---|---|---|
+| answerable, correct hit | 35 | **0.342** | 0.501 | 0.600 |
+| unanswerable | 12 | 0.270 | 0.348 | **0.416** |
+
+**Overlap zone 0.342 – 0.416**, and the two sets are interleaved inside it
+rather than merely touching at the edges: it contains 5 of the 35 correct
+answers and 6 of the 12 unanswerable queries.
+
+```
+answerable-correct, lowest:  0.342  0.367  0.397  0.398  0.407  0.420 …
+unanswerable, highest:    … 0.350  0.375  0.377  0.396  0.416  0.416
+```
+
+**Three rounds of chunking moved this by 0.001.** S15.4 measured
+0.342–0.601 against 0.270–0.416 on the M7.2 index; the numbers above are
+the same to three decimals. That is not a coincidence and it is the more
+useful half of this session — see 20.3.
+
+#### 20.2 The tempting threshold, and why it is not taken
+
+The overlap is not uniform, and a threshold placed *below* the answerable
+minimum looks free:
+
+| Floor | Correct answers discarded | Unanswerable suppressed |
+|---|---|---|
+| 0.30 | **0 of 35** | 4 of 12 |
+| 0.34 | **0 of 35** | **5 of 12** |
+| 0.35 | 1 of 35 | 6 of 12 |
+| 0.38 | 2 of 35 | 9 of 12 |
+| 0.42 | 5 of 35 | 12 of 12 |
+
+A floor at 0.34 suppresses 42% of unanswerable queries at zero measured
+cost. It is the obvious thing to ship and it is rejected.
+
+**It is fitted to an order statistic on n=35.** 0.342 is not "the lowest
+similarity a correct answer has"; it is the lowest similarity a correct
+answer had *in this sample*, and the sample is 35 points. A floor set just
+under the sample minimum has a measured cost of exactly zero **by
+construction** — it was placed there to have one — and an unmeasured cost
+on every query the fixture set does not contain. The one number that would
+justify it, the distribution's true left tail, is precisely what 35 points
+cannot estimate.
+
+The asymmetry decides it. A suppressed unanswerable query costs the Warden
+nothing: it already handles the empty-result path correctly, with an
+explicit prompt block and a `gmUpdates.notes` convention for recording the
+gap. A suppressed *correct* chunk costs a wrong ruling with no trace that
+anything was withheld. Trading a real risk of the second for a cosmetic
+improvement in the first is a bad trade at any exchange rate, which is what
+the spec means by "a floor that discards good chunks is worse than none."
+
+**Recorded because the table above is genuinely persuasive and will be
+persuasive again.** Anyone re-running this analysis will find the same free
+lunch and should find this paragraph next to it.
+
+#### 20.3 Why chunking was never going to fix this
+
+The distributions did not move because **the excluded pages were almost
+never the top-1 hit for an unanswerable query.** Rounds 1 and 2 removed
+pages that were displacing correct answers on *answerable* queries — real
+value, measured in `§ S17.4` and `§ S18.3` — but an unanswerable query's
+top hit was already a legitimate, topically-adjacent chunk, and removing
+false positives elsewhere does not make it less similar.
+
+The unanswerable queries score 0.27–0.42 because they ask about mechanics
+the book does not have **in vocabulary the book does use**: `suppressive
+fire`, `flanking`, `opposed rolls` are all absent as concepts, but
+`combat`, `armor`, `roll`, and `cover` are not. The embedding is measuring
+real topical proximity. It is not wrong; the question is unanswerable, and
+nothing about how the text is cut into chunks changes that.
+
+**Consequence for whoever picks this up.** A floor becomes derivable when
+the *unanswerable distribution shifts down*, and the only lever that moves
+it is upstream of retrieval entirely: stop the Warden generating
+concept-absent queries. That is the mechanical-model primer in M7.5
+Part 4.6 — `§ S9.3` measured concept-absent at 130 of 344 out-of-corpus
+queries (37.8%), and the floor question is downstream of that number, not
+of the chunker. Re-derive the floor after the primer has been measured, not
+after the next chunking change.
+
+#### 20.4 Decision
+
+**No floor.** `RulesLookupService.lookup()` is unchanged and still returns
+whatever `findByCosineSimilarity` gives back; `docs/tools.md` needs no
+update because `rules_lookup`'s observable behaviour is unchanged.
+Recorded in `docs/decisions.md § No similarity floor for rules_lookup`.
+
+This also removes one intended variable from the M7.5 re-baseline: it
+carries four deliberate changes, not five.
