@@ -3522,3 +3522,117 @@ The cheap fix, for anyone running the next round: **read `recall@3` as the
 verdict and MRR as colour.** Recall was identical across all eight runs here,
 across the three in S15.7, and across every round in S17–S19. It is the
 metric this harness measures reliably.
+
+### S23 — 2026-08-07 · The label audit: the bar clears, and the ruler is what moved
+
+M7.5 open-work Task 1. An audit of every fixture whose expected pages are
+absent from the index or whose verdict looked suspect. **The bar now clears
+on all three metrics. Almost none of that is retrieval getting better.**
+
+#### 23.1 Scope: two fixtures, not a sweep
+
+Of 37 answerable fixtures, only two warranted a verdict — both of them the
+misses. A first pass caught only misses, which is half the job: a *too-broad*
+label shows up as a pass and is invisible in the report, so a second pass
+swept for broad labels, rank-3 hits, and hits arriving via a reference card.
+That surfaced three more (`rq-004`, `rq-020`, `rq-025`), none of which needed
+a change.
+
+Printed pages absent from the index: **12, 13** (the empty-table defect), **1**
+(cover), and **4, 5, 42, 43** (deliberately dropped in rounds 1–2).
+
+#### 23.2 `rq-015` — relabelled
+
+*"ammo tracking weapon fire rate Mothership"*, was `expectedPages: [12, 17]`,
+returning `2, 7, 44`, scored a **miss**.
+
+Adjudicated against `§ S15.6`'s criterion — a page belongs in `expectedPages`
+if a chunk from it would let the Warden *adjudicate*, not merely mention:
+
+- **p.2 added.** The front reference card's `WEAPON` table carries the `SHOTS`
+  column and an `Ammo` row — the same data p.12 would supply. It was returning
+  at **rank 1 the whole time** and being scored a miss.
+- **p.12 kept**, though absent from the index. Labels come from the book, never
+  from the index (`§ S15.1`), and recall counts a hit if *any* listed page
+  returns, so keeping it costs nothing and documents what the page should do.
+- **p.17 removed.** Its ammo-token suggestion is a bottom-of-page sidebar about
+  supplies and accessories carrying no rules text. Confirmed against the
+  physical book by Alex; the indexed p.17 contains no "ammo", "token", or
+  "track" at all.
+- **p.7 rejected.** Loadouts only.
+
+Now `[2, 12]`, hitting at rank 1.
+
+#### 23.3 `rq-024` — left alone, deliberately
+
+*"combat initiative and movement through corridors"*, `[26, 30, 31]`,
+returning `27, 27, 27`, still a **miss**. Not a label artifact, and worth
+keeping broken:
+
+- p.26 carries `26.1 TURN ORDER` — the initiative half's real answer — and it
+  **is in the index**. Retrieval simply never surfaced it.
+- p.27 (`WHAT CAN I DO?`) answers the movement half and the what-happens-on-a-
+  turn part, but not turn order. Partial, and adding it would convert a real
+  failure into a pass.
+- It is the canonical wrong-word case: the query says `initiative`, the book
+  prints `turn order` (`§ S9.3`).
+
+**That last point makes this fixture an asset.** It is exactly what the
+vocabulary-bridging prompt block (Part 4.6) targets, so it should flip on its
+own if that lever works. Relabelling it would destroy the only instrument
+that can show it.
+
+Also noted, not a label problem: all three returned chunks come from p.27, so
+the Warden received one page across three slots. `rq-037` and `rq-038` do the
+same and are currently scored as hits.
+
+#### 23.4 The new numbers, and the accounting that matters
+
+| Metric | Bar | Before audit | After audit |
+|---|---|---|---|
+| `recall@3` all | — | 94.6% (35/37) | **97.3%** (36/37) |
+| `recall@3` `authored` | hold 100.0% | 100.0% | 100.0% ✅ |
+| `recall@3` `warden-observed` | ≥ 95.6% | 91.3% (21/23) | **95.7%** (22/23) ✅ |
+| `MRR` answerable | ≥ 0.85 | 0.842 – 0.856 | **0.869 – 0.883** ✅ |
+
+Three runs at the new labels read 0.883 / 0.869 / 0.869 — the whole band is
+above the bar, so unlike `§ S22`'s straddle this one can be claimed.
+
+**All three metrics clear. The milestone still did not improve retrieval.**
+The accounting:
+
+| Source | `recall@3` movement |
+|---|---|
+| Three chunking rounds (`§ S17`–`§ S19`) | 94.6% → 94.6% — **0.0 pp** |
+| One label correction (this session) | 94.6% → 97.3% — **+2.7 pp** |
+
+This is `§ S15.6` repeating exactly: *the index did not change; the ruler did.*
+It was predicted before the audit ran, which is the only reason it is being
+reported this way rather than as a success.
+
+**What the audit genuinely found** is worth separating from what it did not.
+It did not make retrieval better. It found that retrieval was **better than
+measured** — the index had been answering `rq-015` correctly at rank 1 since
+M7.2, and a wrong label had been recording that as a failure. That is a real
+finding about the measurement apparatus, and it retroactively means M7.2's
+94.6% understated the index.
+
+**Consequence for the stopping rule:** unchanged. It fired on three rounds
+moving aggregate `recall@3` by 0.0 pp (`§ S19.6`), and that is still true. The
+milestone closed on the shortfall condition; the bar clearing afterwards, by a
+ruler fix, does not retroactively convert it into a bar-met close. Recording
+it as one would be the most flattering available reading of a number nobody
+earned.
+
+#### 23.5 What this does to the fixup trigger
+
+`§ S19.5` recorded the fixup-patch condition as fired, on the strength of
+`rq-015` being an extraction-defect miss. **That is withdrawn.** `rq-015` was
+never a real miss, and pp.12-13's stat content is duplicated on p.2, so the
+empty-table defect costs the fixture set nothing measurable.
+
+A real fixup target survives, and it is a different one: pp.14-15 and p.2's
+`ARMOR` tables extract with the **armor names stripped** (`Basic clothing. |
+100cr | 1 | None | Normal` — no name). Present-but-broken, which retrieves
+confidently and looks like an answer. No fixture covers it, which is why the
+scored set never caught it.

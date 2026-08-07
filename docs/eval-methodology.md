@@ -250,7 +250,17 @@ being quietly skipped.
 a populated index and makes real Voyage calls, so it cannot run in CI and does not
 fail a build. Its *scorer* is unit-tested in CI; the score is not.
 
-### Outcome, recorded 2026-08-07: not reached
+### Outcome, recorded 2026-08-07: not reached by the milestone; cleared afterwards by a label fix
+
+> **Update, same day.** A post-milestone label audit (`§ S23`) corrected one
+> fixture and all three metrics now clear: `authored` 100.0%,
+> `warden-observed` **95.7%**, MRR **0.869–0.883**. This does **not** convert
+> the milestone into a bar-met close. Three chunking rounds moved aggregate
+> `recall@3` by 0.0 pp; the entire +2.7 pp came from the relabel. The
+> stopping rule fired on the former and is unaffected by the latter. The
+> table below is the state the milestone actually closed in, and the MRR row
+> remains the methodology lesson regardless of which side of the bar the
+> number later landed on.
 
 Three iteration rounds ran (`docs/rules-extraction-findings.md § S17`–`§ S19`) and the
 milestone closed on the stopping rule, not on the bar.
