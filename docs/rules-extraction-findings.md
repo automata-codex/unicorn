@@ -302,11 +302,12 @@ Current as of 2026-08-05. Each links to the session that established it.
     topic vocabulary. S4's hand-authored trimming helped; the automated
     ceiling is a different intervention and discards the word that names the
     mechanic. ([S15.3](#153-document-frequency-trimming-makes-retrieval-worse-at-every-setting-that-does-anything))
-16. **Retrieval baseline: recall@3 91.9% without preprocessing, and a
-    19-point gap between query styles** (authored 100.0%, warden-observed
-    87.0%). Measuring on authored questions alone would report a quality the
-    Warden's real queries never see.
-    ([S15.2](#152-baseline--preprocessing-at-the-shipped-04-default))
+16. **Retrieval baseline: recall@3 94.6%, MRR 0.811, with an 8.7-point gap
+    between query styles** (authored 100.0%, warden-observed 91.3% — and 0.30
+    of MRR between them). Measuring on authored questions alone would report a
+    perfect score the Warden's real queries never see. recall@3 is stable
+    run-to-run; MRR moves by up to 0.03 on noise alone.
+    ([S15.2](#152-baseline--the-number-m75s-bar-is-set-against), [S15.7](#157-run-to-run-variance--recall-is-stable-mrr-is-not))
 17. **No similarity floor separates answerable from unanswerable at current
     retrieval quality.** On 49 labelled fixtures the distributions overlap in
     both configurations, with unanswerable topping out around 0.416 — above
@@ -2563,18 +2564,25 @@ fire rate` is labelled to pp.12/17 even though **p.12 is absent from the index
 entirely** (all its `Table` blocks extract empty, `§ S3.2`), so a miss there
 measures the known extraction gap rather than a chunking failure.
 
-#### 15.2 Baseline — preprocessing at the shipped 0.4 default
+#### 15.2 Baseline — the number M7.5's bar is set against
 
 | Group | recall@3 | MRR | n |
 |---|---|---|---|
-| **all** | **81.1%** | 0.685 | 37 |
-| authored | 92.9% | 0.929 | 14 |
-| warden-observed | 73.9% | 0.536 | 23 |
+| **all** | **94.6%** | 0.811 | 37 |
+| authored | 100.0% | 1.000 | 14 |
+| warden-observed | 91.3% | 0.696 | 23 |
 
-**The style gap is 19 percentage points**, which is the finding the
-`queryStyle` split was added to make visible. An index measured only on tidy
-authored questions would report 93% and describe a quality the Warden's real
-queries never see.
+These are the numbers at the shipped default after the review pass described
+in 15.6 — i.e. with preprocessing effectively inert. The weakest tags are
+`UNSURFACED-CHECK` (50.0%, n=2) and `OVER-RESOLUTION` (66.7%, n=3); both are
+too small to read as rates, and both contain the exploration/perception
+family `§ S3`–`§ S5` have flagged throughout.
+
+**The style gap is 8.7 percentage points on recall and 0.30 on MRR**, which is
+the finding the `queryStyle` split was added to make visible. Authored
+questions score a perfect 100%; the Warden's own keyword-stuffed phrasing does
+not, and it lands its hits lower in the ranking. An index measured only on
+tidy questions would report a quality the Warden's real queries never see.
 
 #### 15.3 Document-frequency trimming makes retrieval worse, at every setting that does anything
 
@@ -2611,8 +2619,8 @@ the book is about saves*.
 
 | | answerable, correct hit | unanswerable | overlap |
 |---|---|---|---|
-| preprocessing on | 0.296 – 0.600 (n=30) | 0.196 – 0.416 (n=12) | 0.296 – 0.416 |
-| preprocessing off | 0.342 – 0.600 (n=34) | 0.271 – 0.415 (n=12) | 0.342 – 0.415 |
+| shipped default (inert) | 0.342 – 0.601 (n=35) | 0.270 – 0.416 (n=12) | 0.342 – 0.416 |
+| trimming at 0.4 | 0.296 – 0.600 (n=30) | 0.196 – 0.416 (n=12) | 0.296 – 0.416 |
 
 **Both overlap, and neither admits an honest threshold.** The unanswerable
 maximum sits at ~0.416 either way, above the answerable minimum in both
@@ -2639,7 +2647,48 @@ before capping would fix it. Not changed here: the pruning is a one-time cost
 already paid, and changing the sampler now would renumber a fixture set that
 is about to be frozen for M7.5's iteration.
 
-#### 15.6 Teardown
+#### 15.6 Labels corrected during review — and why recall went *up*
+
+Three labels changed under review, and the direction of the change is worth
+recording because it is counter-intuitive.
+
+- `rq-006` and `rq-025` narrowed from `[18, 22, 23]` to `[18, 22]`. p.23 is
+  `23.1 EXPERT SKILLS (+15)` / `23.2 MASTER SKILLS (+20)` — skill lists with no
+  check mechanics on the page, and no listed skill bearing on the queries.
+  p.22 was kept: it carries `22.1 NO SKILL (+0)` / `22.2 TRAINED SKILLS (+10)`
+  and the "add your Skill Bonus … to roll under" rule, so it is mechanics plus
+  a list rather than a list alone.
+- `rq-003` corrected from `[14, 15, 29]` to `[28, 29]`. pp.14-15 are the ARMOR
+  *equipment* chapter (items and their AP values); the mechanic for how armor
+  applies to incoming damage is on p.28, `ATTACK & DEFENSE`.
+
+**The criterion these settle on:** a page belongs in `expectedPages` if a
+chunk from it would let the Warden *adjudicate* the query — not if it merely
+mentions the topic. Too-broad labels convert near-misses into passes and
+inflate recall; too-narrow ones manufacture misses. This is the rule to apply
+when the set is extended.
+
+Recall rose from 91.9% to 94.6% across this pass. Narrowing a label can only
+ever turn a hit into a miss, so the rise came entirely from the `rq-003`
+correction: retrieval had been returning p.28 for that query all along and the
+old label scored it wrong. **The index did not change; the ruler did.** Worth
+remembering when reading round-over-round comparisons in M7.5 — a label fix is
+not an improvement.
+
+#### 15.7 Run-to-run variance — recall is stable, MRR is not
+
+Three consecutive runs at an identical configuration: recall@3 was 94.6% every
+time, while MRR read 0.797, 0.824, 0.797. The 0.027 spread is exactly two
+fixtures swapping ranks 1 and 2 (2 × 0.5/37), i.e. borderline-similarity
+reordering between runs rather than any change in what was retrieved.
+
+**Consequence for M7.5's method.** Its iteration is "change one thing, re-score,
+compare." On a 37-fixture answerable set, a recall@3 movement of one fixture is
+2.7 pp and appears stable; an MRR movement under ~0.03 is within observed
+noise and should not be read as an effect. Either repeat runs before believing
+a small MRR delta, or read recall@3 as the primary signal.
+
+#### 15.8 Teardown
 
 Fixtures committed (queries and page numbers, no rules text). Run artifacts —
 which include returned chunk pages — go to
