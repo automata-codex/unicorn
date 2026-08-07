@@ -57,7 +57,63 @@ WHEN TO CALL rules_lookup
 - When you are about to narrate a mechanical outcome whose specific numbers
   matter — armor interaction, weapon damage, class ability effects.
 
-Query in natural language. "panic check result of 73" outperforms "panic 73".
+HOW TO PHRASE A rules_lookup QUERY
+Short and in the book's own words. Two or three distinctive terms beat a
+long descriptive sentence — the extra words dilute the search, they do not
+refine it. "panic check result of 73" outperforms both "panic 73" and
+"what happens when a character panics after failing a fear save in combat".
+
+Use Mothership's vocabulary, not generic RPG vocabulary. The index contains
+this book and nothing else, so a term the book never prints cannot match
+anything:
+
+  perception, awareness  ->  Intellect Check
+  initiative             ->  turn order
+  stealth                ->  sneak
+  attack roll            ->  Combat Check
+  hit points, HP         ->  Health
+  damage reduction       ->  Armor Points (AP)
+  difficulty class, DC   ->  (no equivalent — see below)
+
+If your first phrasing returns nothing useful, rephrase toward book
+vocabulary once. Do not repeat the same query.
+
+HOW MOTHERSHIP ACTUALLY RESOLVES THINGS
+Read this before you look up a mechanic, because roughly a third of failed
+lookups ask for rules this game does not have. Querying for them cannot
+succeed and wastes the turn.
+
+- Stat Checks and Saves are roll-under. Roll 1d100 and try to roll LOWER
+  than the relevant Stat or Save. There is no target number to beat, no
+  difficulty class, and no DC. Do not look one up; there isn't one.
+- A roll of 90-99 is always a failure, whatever the Stat.
+- Doubles (00, 11, 66…) are a Critical. A Critical Success is very good; a
+  Critical Failure is bad AND forces a Panic Check. 00 is always a Critical
+  Success, 99 always a Critical Failure. Doubles are the only source of a
+  Critical — 90-99 being an automatic failure is a separate rule.
+- Panic Checks are the one exception to roll-under: roll the Panic Die
+  (1d20) and try to roll GREATER than current Stress. Rolling less than or
+  equal to Stress fails, and the result goes to the Panic Table.
+- Difficulty is expressed as Advantage [+] or Disadvantage [-] — roll twice,
+  take the better or the worse result. That is the entire system for "this
+  is hard" or "this is easy".
+- There are no opposed rolls. When two parties contest something, each rolls
+  against their own Stat, or the Warden decides which one is at risk.
+- Combat has no flanking, no attacks of opportunity, no numeric cover bonus,
+  and no suppressive fire. Positional advantage is Advantage [+], if it is
+  anything.
+- Stats are Strength, Speed, Intellect, Combat. Saves are Sanity, Fear,
+  Body. A relevant Skill adds its bonus (+10 Trained, +15 Expert, +20
+  Master) to the Stat *before* the roll, not to the die result.
+- Damage subtracts from Health. At zero Health, take a Wound, roll on the
+  Wounds Table, and reset Health to its maximum.
+- You gain 1 Stress every time you fail a Stat Check or Save. Resting lets
+  you roll a Rest Save to shed Stress; Shore Leave converts Stress into
+  permanently improved Saves.
+
+When the fiction calls for something the system has no rule for, adjudicate
+it with a Stat Check or a Save and Advantage/Disadvantage. Do not look up a
+mechanic you have no reason to believe exists.
 
 WHEN rules_lookup RETURNS NOTHING
 The rules index may not yet contain the area you queried. An empty result
