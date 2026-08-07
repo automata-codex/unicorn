@@ -1,17 +1,25 @@
 #!/usr/bin/env python3
-"""Ingest a rules PDF into the `rules_chunk` vector index.
+"""Ingest a rules book into the `rules_chunk` vector index.
 
     python ingest.py --system mothership --pdf <path> --database-url <url>
+    python ingest.py --system mothership --markdown <path>
 
 Offline job, run by hand. Nothing here is on the GM turn's hot path, and
 nothing here makes an LLM call — reading order is recovered by deterministic
 geometry, not by a model (`docs/decisions.md § Reading order requires an
 explicit column-aware sort; an LLM may validate it, never perform it`).
 
+Two input paths, one back half. `--pdf` runs hash verification, marker
+extraction, fixups, footer parsing, and the reading-order sort. `--markdown`
+takes a hand-curated file that already supplies what all five recover, and
+skips them; from `chunk_blocks` onward the two paths are identical code on
+identical data, so a curated index is structurally indistinguishable from an
+extracted one. See `ingestion/README.md` for the curated format.
+
 Exit codes are part of the interface:
 
     0  success
-    1  PDF not found or unreadable
+    1  input document not found or unreadable
     2  marker extraction failed
     3  Voyage API error, or an embedding whose dimension does not match
        game_system.embedding_dim
@@ -33,7 +41,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import NoReturn
 
-from pipeline import embed, extract, fixup, hash as hashing, store
+from pipeline import embed, extract, fixup, hash as hashing, markdown, store
 from pipeline.chunk import Chunk, chunk_blocks, sort_blocks_by_page
 
 EXIT_OK = 0
@@ -79,7 +87,17 @@ def build_parser() -> _ArgumentParser:
         required=True,
         help="game_system.slug; selects ingestion/<system>/ for fixups, hashes, and config",
     )
-    parser.add_argument("--pdf", required=True, type=Path, help="input PDF")
+    # Exactly one source. `--pdf` stops being unconditionally required, but
+    # a mutually-exclusive *required* group keeps "neither" an argparse error
+    # rather than something main() has to notice later.
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--pdf", type=Path, help="input PDF")
+    source.add_argument(
+        "--markdown",
+        type=Path,
+        help="curated Markdown input; skips extraction, fixups, and hash "
+        "verification. See ingestion/README.md for the expected format",
+    )
     parser.add_argument(
         "--database-url",
         default=os.environ.get("DATABASE_URL"),
@@ -272,7 +290,30 @@ def build_chunks(
     config: dict,
     chunking: dict,
 ) -> list[Chunk]:
-    """PDF -> chunks. Everything up to, but not including, spending money."""
+    """Source document -> chunks. Everything up to, but not including,
+    spending money.
+
+    Two front halves, one back half. The PDF path runs hash verification,
+    marker extraction, fixups, footer parsing, and the column-aware reading
+    order sort; the curated-Markdown path runs none of them, because a
+    curated file supplies by construction what all five exist to recover.
+    From ``chunk_blocks`` onward the two are the same code on the same data.
+    """
+    page_offset = int(config["page_offset"])
+
+    if args.markdown is not None:
+        blocks, page_chapters = markdown.parse_curated_markdown(
+            args.markdown.read_text(encoding="utf-8"),
+            page_offset=page_offset,
+        )
+        logger.info(
+            "parsed %d blocks across %d pages from curated Markdown "
+            "(no marker, no hash check, no fixups)",
+            len(blocks),
+            len({block.page for block in blocks}),
+        )
+        return _merge(blocks, page_chapters, config, chunking, page_offset)
+
     if not args.skip_hash_check:
         check = hashing.verify_pdf(args.pdf, system_dir / "hashes")
         hashing.log_result(check, args.pdf)
@@ -281,8 +322,6 @@ def build_chunks(
             "--skip-hash-check: not verifying the PDF against any recorded "
             "edition. Fixups may not apply cleanly to a different printing."
         )
-
-    page_offset = int(config["page_offset"])
 
     # The temp directory holds marker's output and nothing that outlives the
     # run; cleaned up on failure as well as success.
@@ -297,9 +336,22 @@ def build_chunks(
 
     page_chapters = extract.read_page_chapters(args.pdf, page_offset=page_offset)
 
+    # Marker's emitted order is not reading order on multi-column pages; the
+    # curated path skips this because its file is in reading order already.
     ordered = sort_blocks_by_page(blocks, page_widths)
+    return _merge(ordered, page_chapters, config, chunking, page_offset)
+
+
+def _merge(
+    blocks: list,
+    page_chapters: dict,
+    config: dict,
+    chunking: dict,
+    page_offset: int,
+) -> list[Chunk]:
+    """The half both input paths share, so neither can drift from the other."""
     chunks = chunk_blocks(
-        ordered,
+        blocks,
         page_chapters=page_chapters,
         source_label=str(config["source_label"]),
         page_offset=page_offset,
@@ -360,11 +412,17 @@ def write_manifest(
     with nothing anywhere looking wrong. Provenance that can lie is worse
     than no provenance.
     """
+    curated = args.markdown is not None
     manifest = {
         "system": args.system,
         "ingestedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "pdfSha256": hashing.sha256_file(args.pdf),
-        "markerVersion": _marker_version(),
+        # Which document produced this index, and its hash. `markerVersion`
+        # is null on the curated path because marker genuinely did not run —
+        # recording the installed version would imply it had.
+        "sourceType": "markdown" if curated else "pdf",
+        "pdfSha256": None if curated else hashing.sha256_file(args.pdf),
+        "markdownSha256": hashing.sha256_file(args.markdown) if curated else None,
+        "markerVersion": None if curated else _marker_version(),
         "embedModel": args.voyage_model,
         "embeddingDim": embedding_dim,
         "chunkCount": chunk_count,
@@ -422,8 +480,13 @@ def main(argv: list[str] | None = None) -> int:
         )
         return EXIT_BAD_ARGS
 
-    if not args.pdf.is_file():
-        logger.error("PDF not found or not a file: %s", args.pdf)
+    source_path = args.pdf if args.markdown is None else args.markdown
+    if not source_path.is_file():
+        logger.error(
+            "%s not found or not a file: %s",
+            "PDF" if args.markdown is None else "Markdown file",
+            source_path,
+        )
         return EXIT_BAD_PDF
 
     if not args.dry_run and not args.database_url:
@@ -448,11 +511,17 @@ def main(argv: list[str] | None = None) -> int:
     except extract.ExtractionError as err:
         logger.error("%s", err)
         return EXIT_EXTRACTION
+    except markdown.CuratedMarkdownError as err:
+        # A malformed curated file is the operator's input error, the same
+        # kind as a bad flag — not an extraction failure, which on this path
+        # would name a step that never ran.
+        logger.error("%s: %s", args.markdown, err)
+        return EXIT_BAD_ARGS
     except fixup.FixupError as err:
         logger.error("%s", err)
         return EXIT_BAD_ARGS
-    except OSError as err:
-        logger.error("could not read the PDF: %s", err)
+    except (OSError, UnicodeDecodeError) as err:
+        logger.error("could not read %s: %s", source_path, err)
         return EXIT_BAD_PDF
 
     if args.dry_run:

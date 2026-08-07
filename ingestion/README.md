@@ -75,7 +75,8 @@ rows and reinserts, so you never get duplicates.
 | Flag | Required | Meaning |
 |---|---|---|
 | `--system <slug>` | yes | Matches `game_system.slug`, and selects `ingestion/<slug>/` for this book's config, fixups, and hashes |
-| `--pdf <path>` | yes | The book |
+| `--pdf <path>` | yes† | The book |
+| `--markdown <path>` | yes† | A hand-curated Markdown file instead of a PDF. Skips extraction, hash verification, and fixups — see [Curated Markdown input](#curated-markdown-input) |
 | `--database-url <url>` | yes* | Postgres connection string. Defaults to `$DATABASE_URL`; not needed with `--dry-run` |
 | `--voyage-api-key <key>` | yes* | Defaults to `$VOYAGE_API_KEY`; not needed with `--dry-run` |
 | `--voyage-model <model>` | no | Default `voyage-4-lite`. **Must be the same model the backend uses** — see below |
@@ -83,6 +84,9 @@ rows and reinserts, so you never get duplicates.
 | `--dry-run` | no | Extract and chunk, print a summary, stop before embedding or inserting. Costs nothing |
 
 \* Required for a real run, but each falls back to its environment variable.
+
+† Exactly one of `--pdf` / `--markdown`. Supplying both, or neither, is an
+argument error (exit 5).
 
 ### Chunking levers
 
@@ -225,6 +229,102 @@ for a content matcher to match. An entry that matches nothing logs a warning
 rather than failing silently, since a fixup that quietly stopped applying
 after a marker upgrade is the exact failure it exists to survive.
 
+## Curated Markdown input
+
+```bash
+task ingest -- --system mothership --markdown ~/psg-curated.md
+```
+
+The fallback for a book whose extraction is bad enough that transcribing it
+beats iterating on the chunker. It skips extraction, hash verification, and
+fixups, and feeds the file into the same chunking, embedding, and storage
+path — the resulting index is structurally indistinguishable from one built
+from a PDF.
+
+**The pipeline ships this capability. No curated book ships with it.** A
+curated file is enriched extracted text, which
+[§ Licensing](#licensing) does not permit distributing. Yours lives on your
+disk, is not version-controlled, and nothing in this repository backs it up.
+
+Two consequences worth knowing:
+
+- **It decouples your index from `marker-pdf`.** The pin stays load-bearing
+  for the PDF path; it stops being load-bearing for a curated one.
+- **It makes the pipeline testable without marker's model weights**, which is
+  what `tests/test_markdown.py` exercises end to end in CI.
+
+### The format
+
+The file supplies the structure marker could not: a real heading hierarchy,
+and explicit page markers.
+
+| Markdown | Becomes |
+|---|---|
+| `<!-- page: 21 -->` | Sets the current page for everything after it. See the warning below |
+| `# CHAPTER NAME` | Sets the chapter from here on — the curated equivalent of the running footer, and the `section_path` breadcrumb source. Emits no block of its own |
+| `## …` through `###### …` | A `SectionHeader` block, indexed only with `--include-section-headers`, exactly as on the PDF path |
+| A paragraph | A `Text` block. Wrapped lines stay one block; a blank line starts a new one |
+| A run of `- ` / `* ` / `+ ` lines | One `ListGroup` block |
+| A run of `\|…\|` lines | One `Table` block — atomic, never split, same as marker's |
+
+```markdown
+# STRESS
+
+<!-- page: 20 -->
+
+## 20.1 GAINING STRESS
+
+Whenever a Contractor fails a Save, they gain one Stress.
+
+- Failing a Save: +1 Stress
+- Witnessing a death: +2 Stress
+
+<!-- page: 21 -->
+
+Stress carries between sessions and is only relieved by shore leave.
+
+<!-- page: 22 -->
+
+# PANIC CHECKS
+
+Roll the Panic Die and add your Stress.
+
+| ROLL | EFFECT |
+|---|---|
+| 1-3 | Steady |
+| 4-6 | Shaken |
+```
+
+### Two rules the parser enforces rather than guesses at
+
+**Page markers carry the *printed* page number** — the one on the paper, not
+a 0-based index. The pipeline converts it using this book's `page_offset`, so
+a curated file and a PDF of the same book agree about what "page 21" means
+and you never have to think about physical indices.
+
+**Content before the first page marker is an error, not a warning.** The
+`source` citation (`"<label> p.21"`) is the only provenance the runtime ever
+surfaces, and it is what the retrieval harness reads page labels out of. A
+guessed page would corrupt every citation the Warden shows a player, silently.
+
+**A chapter must begin at a page boundary.** `# CHAPTER` after content on the
+same page is rejected, with the fix in the message. The chapter map is
+page-granular — one chapter per page, the same shape the PDF's running footer
+produces — so a mid-page chapter change cannot be represented, and left
+unguarded it would silently re-label the prose above the heading. A wrong
+breadcrumb is worse than none: it is embedded and read by the Warden, not
+merely displayed.
+
+If a real chapter genuinely starts mid-page, put the page marker at the
+chapter break and accept that the page is cited for both, or leave the
+break to the next page.
+
+### What the manifest records
+
+`sourceType: "markdown"`, a `markdownSha256`, a null `pdfSha256`, and a null
+`markerVersion` — null because marker genuinely did not run, and recording
+the installed version would imply that it had.
+
 ## Verifying the result
 
 ```bash
@@ -289,11 +389,18 @@ Your `page_offset` is wrong, or the book's footer format differs. See
   with no text, which removes printed pages 12–13 (FIREARMS, INDUSTRIAL
   EQUIPMENT) from the index entirely. Equipment stat queries will miss. This
   is a known, unresolved gap — see `docs/rules-extraction-findings.md § S3.2`.
+  Two routes out of it, both available and neither taken yet: a fixup patch
+  supplying the missing table text, or `--markdown` for the affected pages.
+  `§ S19` measured a third (indexing section headings, which recovers p.12 as
+  a side effect) and rejected it for costing more elsewhere than it recovers.
 - **Five pages resolve no chapter** and are indexed with a page citation but
   no chapter breadcrumb.
 - **No web UI.** The CLI is the supported path.
-- **Chunking parameters are unvalidated.** The ~400-token target and 50–100
-  token overlap are inherited heuristics, not tuned values.
+- **Chunking parameters are partly validated now.** `drop_pages` was swept in
+  M7.5 and the character-creation and character-profile pages are excluded as
+  a result; `include_section_headers` was tested and rejected. The ~400-token
+  target and 50–100 token overlap remain inherited heuristics, never tuned —
+  see `docs/rules-extraction-findings.md § S17`–`§ S19`.
 
 ## Licensing
 
