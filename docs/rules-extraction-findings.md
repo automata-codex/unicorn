@@ -2815,3 +2815,109 @@ be read as one.
 
 Nothing spent but 49 query embeddings. Index unchanged: 66 chunks, marker
 2.0.0, `voyage-4-lite`, 400-token target, no dropped pages.
+
+### S17 — 2026-08-07 · Round 1: the character-creation exclusion, implemented at last
+
+**Round 1 of 3** in M7.5's chunking iteration. Not a lever so much as a
+settled decision finally applied: `docs/decisions.md § Character-creation
+content is excluded from the rules index` decided this in M7.2, and
+`chunk_blocks`' own docstring records that it was left unimplemented on
+purpose, so as not to move the index before the baseline M7.5 iterates
+against existed. It exists now ([S16](#s16--2026-08-07--baseline-confirmed-and-the-m75-quality-bar-set)).
+
+#### 17.1 The change
+
+`drop_pages: [4, 41, 42]` in `ingestion/mothership/system.json` — physical,
+0-based indices, so printed pages 5, 42, and 43. Physical 41 and 42 are
+byte-identical duplicates of physical 4's character-creation spread, which
+is why one exclusion resolves three pages and needs no dedup logic
+([S2](#s2--2026-08-05--character-creation-is-unreachable-to-the-warden)).
+
+66 chunks → **63**. Provenance otherwise identical: marker 2.0.0,
+`voyage-4-lite`, 400-token target, 50–100 overlap, section headers excluded.
+Run `$ZOLTAR_EVAL_ROOT/retrieval-runs/mothership__2026-08-07T13-14-07Z`.
+
+#### 17.2 Scores
+
+| Group | recall@3 | MRR | n | vs. S16 |
+|---|---|---|---|---|
+| **all** | **94.6%** | 0.829 | 37 | recall — , MRR +0.027 |
+| authored | 100.0% | 1.000 | 14 | — |
+| warden-observed | 91.3% | 0.725 | 23 | recall — , MRR +0.044 |
+
+**Recall is unchanged on every row, exactly as predicted before the run.**
+These pages answer no fixture, so there was no recall to gain; what was
+being tested is whether removing them changes the *ranking* of everything
+else.
+
+#### 17.3 What actually moved, and how much of it is real
+
+Two fixtures improved, none regressed. Read at the per-fixture level,
+because the aggregate cannot distinguish these two cases and they are not
+the same:
+
+| Fixture | Before | After | Returned |
+|---|---|---|---|
+| `rq-021` | rank 2 | **rank 1** | `43, 23, 22/23` → `23, 22/23, 7` |
+| `rq-023` | rank 2 | **rank 1** | `22, 18, 27` → `18, 22, 27` |
+
+- **`rq-021` is attributable.** Printed p.43 is physical 42 — one of the
+  three pages this round dropped. It held rank 1 for a skills query; with it
+  gone, the correct page took the slot. That is the mechanism this round was
+  testing, caught in the act.
+- **`rq-023` is noise.** Printed pp.18 and 22 simply swapped ranks 1 and 2.
+  Neither is a dropped page, and dropping 4/41/42 cannot alter their chunks:
+  all three sit in their own `_chapter_key` runs, so no other run's merge
+  boundaries move. This is precisely the borderline-similarity reordering
+  [S15.7](#157-run-to-run-variance--recall-is-stable-mrr-is-not) measured
+  across three runs at *identical* configuration, made slightly likelier
+  here because `hnsw` is an approximate index and this round rebuilt it.
+
+**So the honest reading of +0.027 MRR is "about half of it is real."** One
+fixture's worth (0.5/37 = 0.014) is explained; the other is inside the noise
+band S15.7 established at ±0.03. This is why the bar is expressed in
+`recall@3` first and MRR second, and why S15.7's warning to repeat runs
+before believing a small MRR delta is load-bearing rather than decorative.
+
+#### 17.4 The finding worth more than the score: page-4 occupancy
+
+Counting every page cited across all 147 top-3 slots, before and after:
+
+| Page | Before | After |
+|---|---|---|
+| printed 5 / 42 / 43 (physical 4 / 41 / 42 — dropped this round) | 1 / 2 / 4 = **7 slots** | **0** |
+| **printed 4** (physical 3 — the character-profile sheet) | **10 slots** | **10 slots** |
+
+The dropped pages were consuming 7 of 147 slots (4.8%) and now consume
+none. But **printed page 4 alone consumes 10** — more than all three
+character-creation pages combined, unchanged by this round, and tied for
+the second-most-cited page in the entire corpus behind p.27.
+
+Physical page 3 is the character-profile sheet.
+[S3.7](#37-what-the-top-ranked-pages-actually-are) flagged it ranking top-3
+on stat-name density alone with no relevance to what was asked, and
+`docs/decisions.md` records it as "not yet extended to page 3 … tracked in
+`roadmap.md` M7.5 as a check, not yet a confirmed exclusion." It appears in
+the top 3 for `rq-003`, `rq-004`, `rq-007`, `rq-009`, `rq-011`, `rq-012`,
+`rq-017`, and `rq-043` — eight distinct fixtures, seven of them answerable
+queries about combat and stat checks.
+
+That is Round 2's target, and this round has now measured its cost
+precisely rather than leaving it as a suspicion.
+
+**Incidental, filed not chased:** printed p.44 (physical 43, the back-cover
+reference card) also holds 10 slots. That is lever 6's dedup question — the
+page duplicates live body rules — and it is not one of this milestone's
+three rounds.
+
+#### 17.5 Conclusion
+
+Kept. The exclusion was already decided on structural grounds (the Warden
+cannot reach these pages at all), so the measurement was never going to
+overturn it — the question was only whether it *costs* anything, and it
+costs nothing: no recall lost, seven false-positive slots recovered, one
+fixture demonstrably improved.
+
+**Round 1 does not move the bar.** `warden-observed` recall@3 is still
+91.3% against a bar of 95.6%, and MRR 0.829 against 0.85. Two rounds
+remain.

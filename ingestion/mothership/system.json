@@ -3,5 +3,8 @@
 
   "source_label": "Mothership Player's Survival Guide",
   "page_offset": 1,
-  "footer_format": "page-number-then-chapter"
+  "footer_format": "page-number-then-chapter",
+
+  "_drop_pages_comment": "PHYSICAL, 0-based page indices -- not printed page numbers. 4, 41, 42 are the character-creation spread (41 and 42 are byte-identical duplicates of 4), excluded because the Warden structurally cannot reach them: rules_lookup is wired only into the play-loop tool array and character creation makes no Anthropic calls at all. See docs/decisions.md 'Character-creation content is excluded from the rules index' and docs/rules-extraction-findings.md S2, S17.",
+  "drop_pages": [4, 41, 42]
 }
