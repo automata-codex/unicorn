@@ -78,6 +78,28 @@ M7.2's original spec included post-ingestion validation — an eval re-baseline 
 
 **Consequence:** M7.2 ends with a populated index and a way to measure it — not with evidence the Warden is actually better off. That evidence is M7.5's. The three entries below waiting on a populated-index re-baseline (`§ Warden model upgraded to claude-sonnet-5`, `§ Agentic graph decomposition stays deferred`, `§ rollType / gatedByRollId / actingEntityId on roll_dice stay deferred`) stay open one milestone longer than an M7.2-only plan would have implied.
 
+### Rules ingestion is CLI-only in Phase 1
+
+No web upload surface. A self-hosted user installs the Python pipeline, points
+it at a PDF they own, and runs one command; `ingestion/README.md` is the
+supported path.
+
+This follows directly from the licensing posture rather than from effort. The
+model is "the user runs ingestion against a PDF they own, on their own
+infrastructure" (`docs/rules-ingestion.md § Licensing Posture`), and a web
+uploader would put the operator in the position of receiving other people's
+rulebook PDFs — which is the distribution question the whole posture exists to
+avoid, arriving through a different door.
+
+It is also honest about the shape of the job: ingestion is a rare, offline,
+minutes-long batch that pulls 1.3 GB of extraction models and needs a
+per-edition config file checked by hand. That is a CLI's work, not a form's.
+
+**Recorded because the absence of a web UI is the single most likely thing a
+future reader assumes was an oversight.** It is not. Revisit if a hosted
+deployment ever needs non-technical users to add their own books, at which
+point the licensing question has to be answered first, not second.
+
 ### Chunk extraction is block-based with footer-derived provenance, not markdown headings
 
 The design doc's chunking premise — treat each `###` Markdown heading as a candidate chunk boundary — does not survive contact with the actual extraction output. The PSG's whole-book heading histogram is 84 `#`, 3 `##`, 10 `###`, 55 `####` (`docs/rules-extraction-findings.md § S1.5`): 10 `###` headings against a 100–400-chunk target kills the approach on arithmetic alone, and the levels are assigned by font size rather than document structure — `#### ARMOR` and `# 14 ARMOR` are the same section at different levels, and reading order scrambles across the character-creation spread. Markdown output is also the wrong extraction format independent of the heading problem: it discards page attribution entirely, and the only page-marker mechanism it carries (`<span id="page-N-M">` anchors) covers 16 of 44 pages.
@@ -177,11 +199,33 @@ investigation, larger than the FTS-vs-embeddings choice itself (`docs/decisions.
 
 Two separable fixes, with different costs:
 
-- **Term-dropping is mechanical and has no open question attached.** A
+- ~~**Term-dropping is mechanical and has no open question attached.** A
   document-frequency ceiling computed from the index itself (drop query
   terms occurring on more than some threshold share of pages) requires no
   vocabulary knowledge and no LLM call. Proven on both backends. This is now
-  M7.2/M7.5 scope, not a maybe.
+  M7.2/M7.5 scope, not a maybe.~~
+  **Overturned by measurement, 2026-08-06.** The mechanism shipped in M7.2 and
+  was then swept with `task eval:retrieval` against 37 labelled answerable
+  queries. It has **no useful setting on this corpus**: every ceiling that
+  drops anything costs recall (0.4 is −10.8 pp recall@3; 0.55 is −8.1 pp), and
+  every ceiling that costs nothing (0.65 and above) drops nothing, because the
+  measured document frequencies cluster at 47–64% with no gap between filler
+  and topic vocabulary to place a threshold in
+  (`docs/rules-extraction-findings.md § S15.3`).
+
+  What went wrong in the reasoning above is the word *proven*. What S4 proved
+  was that **hand-authored** trimming helps — by someone who already knew the
+  target page, which `§ S4.5` flagged as an upper bound. A frequency ceiling is
+  a different instrument, and on a single-book corpus it discards the word that
+  names the mechanic, because `saving` is frequent precisely *because the book
+  is about saves*. Assuming the automated proxy inherited the manual result's
+  evidence was the error, and it is the one worth remembering.
+
+  **Shipped state:** the mechanism, the `--df-threshold` flag, and the sweep
+  all remain; `DEFAULT_DF_THRESHOLD` is 0.75, deliberately above every observed
+  frequency, so the default costs nothing while a larger or multi-book corpus
+  might yet admit a useful ceiling. The vocabulary half of this entry, below,
+  is untouched and still open.
 - **Vocabulary mapping is the part still open.** Substituting book
   vocabulary for generic-TTRPG terms (`perception` → `Intellect`) is a real,
   separate effect — moved the worst query from 9th to 4th under dense
@@ -262,7 +306,7 @@ Secondary but not minor: **errors dropped from 18 of 150 rows to 4**, almost all
 
 Two failure modes survive the swap with real denominators behind them: `unauditable-mapping` (2 passes across 45 judged inputs spanning both models) and `turn16-narrating-past-a-block` (0/10 under both). Both are now confirmed genuine rather than checker artifacts, which is the useful outcome — they are prompt work, and they are the two places prompt work should go first.
 
-**What this decision does not claim.** All figures are single-grader. Both baselines executed against an empty `rules_chunk` index, so nothing here accounts for how rules availability changes reach-for-dice behaviour; the M7.2 re-baseline is the real test of these numbers. At N=10 the 95% CI half-width at p=0.5 is ~±31pp, so individual rates near the middle are unsettled even where the direction is not. And a first run against a new model audits the harness as much as the model — the two defects that audit surfaced are recorded in `eval-methodology.md`, and the rates above are the post-correction ones.
+**What this decision does not claim.** All figures are single-grader. Both baselines executed against an empty `rules_chunk` index, so nothing here accounts for how rules availability changes reach-for-dice behaviour; the M7.5 re-baseline is the real test of these numbers (moved from M7.2 — see § Rules ingestion pipeline and retrieval quality are separate milestones). At N=10 the 95% CI half-width at p=0.5 is ~±31pp, so individual rates near the middle are unsettled even where the direction is not. And a first run against a new model audits the harness as much as the model — the two defects that audit surfaced are recorded in `eval-methodology.md`, and the rates above are the post-correction ones.
 
 **The judged half of that table is now self-graded, and was already half-way there.** `JUDGE_MODEL` has been `claude-sonnet-5` since the judged checks were built — deliberately above the Warden's 4.6, so a more capable grader sat over the model under test. This decision closes that gap: the Warden and its judge are now the same model. The consequence is retroactive as well as forward-looking, and it is a real confound in the comparison above: on the 4.6 side a Sonnet 5 judge graded a 4.6 generator, while on the Sonnet 5 side it graded itself. Every judged row in the table therefore has an asymmetry the structural rows don't.
 
@@ -369,7 +413,7 @@ The 4.6 → Sonnet 5 baseline is evidence against that theory for at least half 
 Three reasons this doesn't close the question:
 
 - **The residual is not cosmetic.** 2/20 means the Warden takes a player's declared action out of their hands roughly one combat turn in ten. In solo play, where the player has no table to appeal to, that's an agency violation rather than a polish item. "Mostly fixed" is a weaker result here than the rate suggests.
-- **The measurement predates M7.2.** Both runs executed against an empty `rules_chunk` index, and the runaway-lookup errors show a Warden repeatedly unable to resolve what it was looking for. Rules availability plausibly affects when and how it reaches for dice. Re-measure after ingestion before treating 0.90 as the model's actual ceiling.
+- **The measurement predates M7.2.** Both runs executed against an empty `rules_chunk` index, and the runaway-lookup errors show a Warden repeatedly unable to resolve what it was looking for. Rules availability plausibly affects when and how it reaches for dice. Re-measure after M7.5's re-baseline — not M7.2's, which no longer exists — before treating 0.90 as the model's actual ceiling.
 - **The sequencing half is measured, and agrees.** `OUT-OF-ORDER-RESOLUTION` reads 0.39 (7/18)
   on 4.6 and 1.00 (20/20) on Sonnet 5 under the structural deferred-gate rule. Both
   dice-arbitration categories therefore respond to a model swap alone. The caveat is that only
@@ -378,7 +422,7 @@ Three reasons this doesn't close the question:
   model we'd be building against — but that is a property of this model's behaviour, not a
   guarantee, and it will need re-checking whenever roll behaviour moves.
 
-Revised criterion for revisiting: re-baseline after M7.2, and try the cheaper structural option first — the deferred `rollType` / `gatedByRollId` / `actingEntityId` fields on `roll_dice`, which enforce sequencing at the tool schema without decomposing the loop. A graph becomes the right answer only if a measured residual survives both.
+Revised criterion for revisiting: re-baseline after M7.5 (the re-baseline moved there from M7.2), and try the cheaper structural option first — the deferred `rollType` / `gatedByRollId` / `actingEntityId` fields on `roll_dice`, which enforce sequencing at the tool schema without decomposing the loop. A graph becomes the right answer only if a measured residual survives both.
 
 An earlier version of this criterion also called for extending the `turn19`/`turn21` fixtures through the follow-up turn, on the theory that a model which splits a to-hit request from its resolution puts the ordering evidence on a turn the fixture doesn't contain. **That is withdrawn.** The violation window is the captured turn: once a gate is deferred, the turn ends, so any dependent roll landing on the follow-up turn is necessarily *after* the gate resolved. Extending the fixtures would have produced a structurally guaranteed PASS and read as evidence of correct sequencing.
 
@@ -391,7 +435,7 @@ These three fields were introduced in the M7.4 spec as a fixture-schema compatib
 
 So the fields are not only a possible fix; they are the precondition for knowing whether a fix is needed. Until they land, both checks report `not_applicable` naming the missing field rather than approximating it with a regex — the deliberate cost being denominator, per "Structural checks report undecided rather than guessing" below.
 
-**Still deferred**, and the reason is unchanged: adding fields to `roll_dice` changes the tool schema, which changes what reaches the Warden, which invalidates every frozen artifact and forces a fresh baseline on both models. That is affordable once, not repeatedly, and the M7.2 rules-ingestion work is already going to force one — both existing baselines ran against an empty `rules_chunk` index. Re-check after M7.2, and land the fields with that re-baseline rather than paying for a second one.
+**Still deferred**, and the reason is unchanged: adding fields to `roll_dice` changes the tool schema, which changes what reaches the Warden, which invalidates every frozen artifact and forces a fresh baseline on both models. That is affordable once, not repeatedly, and the rules-ingestion work is already going to force one — both existing baselines ran against an empty `rules_chunk` index. Re-check after M7.5, and land the fields with that re-baseline rather than paying for a second one. (The re-baseline moved from M7.2 to M7.5; M7.2 populated the index but deliberately bought no Warden-level measurement.)
 
 **Provenance note.** During M7.2 implementation planning this conclusion was briefly reversed — a plan document recorded "resolved with Alex: the fields do not ride along, a third baseline gets paid for separately" — and instructed that this entry be rewritten to match. That rewrite never happened here. The reversal was itself reversed during M7.5 spec review: the fields land with M7.5's re-baseline, per the original reasoning above, which was correct throughout. Noted so the now-stale reasoning in that plan document isn't mistaken for a second, independent decision.
 

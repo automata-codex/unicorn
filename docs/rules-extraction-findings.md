@@ -102,36 +102,39 @@ Its visual design is the root cause of most of this file: every structural
 signal the extraction tool emits is derived from font size and reading order,
 and both are unreliable here.
 
-### The planned chunking approach
+### The chunking approach, as built
 
-**Not yet built** — this is the design as of 2026-08-04, not something with
-results behind it. Extract typed blocks from marker's `chunks` output
-(`Text`/`Table`/`ListGroup`, dropping headers/footers/pictures), attach the
-printed page number and chapter name from the PDF's running footer, then
-merge blocks in order toward a ~400-token target with 50–100 tokens of
-overlap. Chapter changes force a chunk boundary. Tables are never split. Each
-chunk's text opens with a breadcrumb line naming its chapter. Full contract
-in `docs/plans/012-m7.2-rules-ingestion-implementation-plan.md § Part 2`.
+**Shipped 2026-08-06** — this describes code, not a proposal. Source of truth
+is `ingestion/pipeline/chunk.py`; `ingestion/README.md` is the operational
+guide.
 
-The 400-token target and the 50–100 overlap band are inherited heuristics
-from `docs/rules-ingestion.md § Step 4`. They have never been validated
-against anything.
+Extract typed blocks from marker's `chunks` output. **Sort them into reading
+order** with a column-aware geometric pass (full-width blocks flush the
+current band; the rest are banded by vertical position and split left/right
+at the page midline). Attach the printed page number and chapter name from
+the PDF's running footer. Then merge — `Text`/`Table`/`ListGroup` only —
+toward a ~400-token target with 50–100 tokens of overlap. Chapter changes
+force a boundary. Tables are never split. Every chunk opens with a breadcrumb
+line naming its chapter.
 
-An FTS-based alternative to this whole approach was considered and tested on
-2026-08-05. It did not pan out — see [S3](#s3--2026-08-05--postgres-fts-gut-check-on-page-granular-text).
-This design stands, still unvalidated.
+The sort was **not** in the original design and is the one structural thing
+that changed: without it, merging concatenates roughly half the body pages
+backwards ([S6.2](#62-new-finding--reading-order-scrambling-is-pervasive-not-localised),
+[S7](#s7--2026-08-06--column-aware-block-sort-feasibility-probe),
+[S10](#s10--2026-08-06--column-aware-sort-implemented-and-re-scored)).
 
-**Three caveats this section cannot give you.** S3 found that extraction loses
-14 of 32 tables outright, and that recorded Warden queries use vocabulary the
-book does not contain — both upstream of chunking and untouched by anything
-above. More seriously, **[S6.2](#62-new-finding--reading-order-scrambling-is-pervasive-not-localised)
-found that marker's block order is not reading order on multi-column pages**
-(8 of 16 measurable pages emit numbered sections out of order, including full
-reversals). Merging blocks "in order", as this design specifies, would
-concatenate sections backwards on half the body pages. **The design above
-needs a block sort in front of it** — [S7](#s7--2026-08-06--column-aware-block-sort-feasibility-probe)
-shows a ~25-line geometric sort recovers 15 of 16 measurable pages, so this is
-a prerequisite to implement rather than a question to research.
+**On the real book:** 66 chunks, 26 of 28 chapters, 36 of 44 pages resolving a
+chapter. The `###`-heading design this replaced would have produced about ten.
+
+**The 400-token target and the 50–100 overlap band are still inherited
+heuristics.** They shipped unvalidated and remain so — no sweep has been run
+against them. They are lever 1 on M7.5's list, and `task eval:retrieval` is
+now the instrument for it.
+
+**Two gaps ship with it**, both known and neither resolved: 14 of 32 `Table`
+blocks extract empty, taking printed pages 12–13 out of the index entirely
+([S3.2](#32-new-finding--14-of-32-table-blocks-carry-no-text)); and five pages
+resolve no chapter and carry a page citation with no breadcrumb.
 
 ### Hard constraints
 
@@ -156,39 +159,45 @@ to constrain, and constraint-first framing tends to narrow a brainstorm.
 
 ### What has and hasn't been measured
 
-**Nothing about retrieval quality has been measured *numerically*.** There is
-still no recall number, no MRR, no baseline. Most of this file is about
-getting text out of a PDF, not about whether the resulting chunks retrieve
-well.
+**Retrieval quality now has a number.** As of 2026-08-06, against the shipped
+index and a 49-fixture labelled set: **recall@3 94.6%, MRR 0.811** over 37
+answerable queries, with 12 deliberately-unanswerable ones excluded from the
+denominator. Split by phrasing: **authored 100.0%, warden-observed 91.3%**
+(MRR 1.000 vs 0.696). Full detail and method in
+[S15](#s15--2026-08-06--first-measured-retrieval-baseline-df-trimming-has-no-useful-setting);
+reproduce with `task eval:retrieval`.
 
-The exceptions are [S3](#s3--2026-08-05--postgres-fts-gut-check-on-page-granular-text)
-and [S4](#s4--2026-08-05--vocabulary-vs-verbosity-isolated), deliberately
-qualitative gut-checks: Postgres FTS over page-granular text, judged by hand
-against the three recorded Warden queries. They are evidence about *FTS and
-about query shape*, not about the planned chunker, and three hand-judged
-queries is not a metric. Treat them as a disqualifying result for one
-alternative plus a diagnosis of why, not as a measurement of the design in
-place.
+Read that number with three caveats attached:
 
-S4's finding generalizes beyond FTS and is the more important of the two: the
-Warden's queries are long and keyword-stuffed, and that verbosity — not just
-vocabulary — is what buries the right page.
+- **It measures whether the right *page* came back, not whether the returned
+  text was sufficient to adjudicate.** For chunk-size and boundary changes the
+  two move together, so it is a fair proxy. For anything that changes what a
+  correct result *is* — summarised chunks, parent-child retrieval — they come
+  apart and the metric has to be rethought first.
+- **recall@3 is stable run to run; MRR is not.** Identical configurations vary
+  by up to ~0.03 MRR on borderline rank swaps
+  ([S15.7](#157-run-to-run-variance--recall-is-stable-mrr-is-not)).
+- **A label fix is not an improvement.** Recall moved 91.9% → 94.6% during a
+  review pass that changed only the fixture labels, not the index
+  ([S15.6](#156-labels-corrected-during-review--and-why-recall-went-up)).
 
-[S5](#s5--2026-08-05--voyagepgvector-dense-retrieval-same-corpus-and-queries)
-then ran the real Voyage/pgvector path over the identical corpus and closed
-that question: **dense retrieval is sensitive to the same two axes.** It is
-better than FTS — markedly so on the one query that discriminates — but it
-does not absorb verbosity or vocabulary drift for free, and it still misses
-that query's target page. Shortening the query to its distinctive terms puts
-the target at rank 1 on *both* backends. So the single largest lever measured
-so far is the shape of the query, not the choice of retrieval mechanism.
+**Two things measured along the way, both negative and both useful.**
+Document-frequency query trimming has no useful setting on this corpus —
+every threshold that drops anything costs recall, every threshold that
+doesn't costs nothing because it drops nothing
+([S15.3](#153-document-frequency-trimming-makes-retrieval-worse-at-every-setting-that-does-anything)).
+And **no similarity floor separates answerable from unanswerable queries** at
+current quality: the distributions overlap, with unanswerable topping out
+around 0.416, above the answerable minimum
+([S15.4](#154-no-similarity-floor-separates-answerable-from-unanswerable--in-either-configuration)).
 
-The measurement is planned: page-labeled fixtures scored deterministically
-for recall@3, recall@5, and MRR, with deliberately unanswerable questions
-included to see whether a similarity floor is derivable
-(`docs/plans/012-m7.2-rules-ingestion-implementation-plan.md § Part 5`).
-Fixtures are labeled by **page**, not chunk id, so they survive re-chunking —
-which is what makes iterating on chunking measurable at all.
+The earlier qualitative work still stands and explains *why* the
+warden-observed set lags. [S3](#s3--2026-08-05--postgres-fts-gut-check-on-page-granular-text)
+and [S4](#s4--2026-08-05--vocabulary-vs-verbosity-isolated) were hand-judged
+gut-checks over three recorded queries — evidence about FTS and query shape,
+not a metric. [S5](#s5--2026-08-05--voyagepgvector-dense-retrieval-same-corpus-and-queries)
+closed the backend question: dense retrieval is sensitive to the same
+verbosity and vocabulary axes, better than FTS but not immune.
 
 Practical consequence for brainstorming: an idea's cost is mostly "can we
 score it with the existing fixtures?" Ideas that change what a *correct*
@@ -428,7 +437,15 @@ information** — each cost real time.
   retrieval numbers. Cheap to test: rebuild the corpus with headings included
   and re-run S5's ranking. Note the headings also carry the section numbering
   the S6.2/S7 ordering work depends on.
-- **Is a similarity floor now load-bearing rather than optional?**
+- **~~Is a similarity floor now load-bearing rather than optional?~~ Load-bearing,
+  and not yet derivable — measured 2026-08-06.** On 49 labelled fixtures the
+  answerable and unanswerable top-1 distributions **overlap**, with unanswerable
+  reaching ~0.416 against an answerable minimum of ~0.342
+  ([S15.4](#154-no-similarity-floor-separates-answerable-from-unanswerable--in-either-configuration)).
+  No threshold separates them without discarding correct answers, in either
+  preprocessing configuration. The stakes below are unchanged and the question
+  moves to M7.5 as "improve retrieval until a floor becomes derivable, or record
+  that none is." Original framing:
   `docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md § Part 4` leaves it
   open and there is currently no threshold at all, so the Warden receives three
   chunks for every question including unanswerable ones.
@@ -474,6 +491,14 @@ information** — each cost real time.
   should be measuring — and note the harness cannot detect this class of
   problem at all if its fixture queries are written in book vocabulary by
   hand rather than sampled from real Warden output.
+  **Answered 2026-08-06 — it should not, at least not this way.** Document-frequency
+  trimming shipped and was swept against the labelled fixture set: every ceiling
+  that drops anything costs recall, every ceiling that does not drops nothing
+  ([S15.3](#153-document-frequency-trimming-makes-retrieval-worse-at-every-setting-that-does-anything)).
+  The default is now deliberately inert. S4's effect was real but hand-authored
+  by someone who knew the target page; the automated proxy does not inherit that
+  evidence. The *verbosity* diagnosis stands — what is refuted is the frequency
+  ceiling as its remedy.
 - **~~How should block reading order be recovered?~~ Answered 2026-08-06 — a
   column-aware geometric sort works.** [S7](#s7--2026-08-06--column-aware-block-sort-feasibility-probe)
   took the measurable set from 8/16 to **15/16** with ~25 lines and no new
@@ -484,8 +509,12 @@ information** — each cost real time.
   [S6](#s6--2026-08-06--llm-assisted-fixup-discrepancy-flagging) flagging pass
   is the available instrument. **The sort must stay deterministic** — the LLM
   validates it, never performs it.
-- **Do the `Table` blocks that extract empty need fixing before M7.2 ships?**
-  14 of 32 carry no text ([S3.2](#32-new-finding--14-of-32-table-blocks-carry-no-text)),
+- **~~Do the `Table` blocks that extract empty need fixing before M7.2 ships?~~
+  No — M7.2 shipped without them, deliberately.** The gap is recorded in
+  `ingestion/README.md § Known limitations` and tracked on `roadmap.md` M7.2 as
+  unresolved-by-design, so equipment queries miss rather than silently
+  returning something wrong. Still open as *work*, just not as a release
+  blocker. 14 of 32 carry no text ([S3.2](#32-new-finding--14-of-32-table-blocks-carry-no-text)),
   taking physical pages 11 and 12 (`FIREARMS`, `INDUSTRIAL EQUIPMENT`) out of
   the index entirely. Equipment stats are plausible Warden queries, so this
   is probably a fixup-file case (`docs/rules-ingestion.md § Step 2`) or an
@@ -498,29 +527,19 @@ information** — each cost real time.
   a free precision win on either retrieval path.
 ---
 
-## Corrections owed to `docs/rules-ingestion.md`
+## Corrections owed to `docs/rules-ingestion.md` — discharged 2026-08-07
 
-The design doc predates any real extraction run. These are wrong, not merely
-imprecise, and should be corrected when Part 5 of the implementation plan
-touches that file:
+**All four are corrected; this section is kept as a record, not a to-do.**
+The design doc predated any real extraction run, and these were wrong rather
+than merely imprecise. Each is now fixed in `docs/rules-ingestion.md`, and the
+implementation matches:
 
-- **§ Step 1** — the sample invocation `marker_single rulebook.pdf output/
-  --langs English` uses a flag that no longer exists, and omits
-  `--disable_ocr`, without which the command fails on a stock macOS install.
-- **§ Step 4** — "Each `###` section is a candidate chunk" is not
-  implementable against marker's output. The whole heading-tree premise
-  needs replacing with the block-based approach in
-  [S1.6](#16-chunks-output-format-carries-typed-blocks)/[S1.8](#18-the-running-footer-is-the-reliable-provenance-source).
-- **§ Step 4** — `source` is described as e.g. `"Mothership Player's Survival
-  Guide p.34"`, which is achievable, but only via the footer-derived page
-  number. Worth stating where the number comes from, since the obvious
-  candidates are all wrong (see Dead ends).
-- **§ Step 2** — the fixup `match` schema (`{section, contains}`) cannot
-  express either confirmed extraction defect. `contains` needs text, and the
-  14 defective `Table` blocks hold exactly `<p></p>`; `section` derives from
-  `section_hierarchy`, a Dead end. The schema needs a positional matcher on
-  the block `id` (`/page/11/Table/5`) alongside the content one.
-  ([S6.5](#65-the-fixup-schema-cannot-express-the-defect-it-exists-for))
+| Was wrong | Now |
+|---|---|
+| **§ Step 1** — `marker_single rulebook.pdf output/ --langs English`: a flag marker 2.0 does not have, and no `--disable_ocr`, without which the command fails outright | Step 1 shows the real invocation, `--output_format chunks --disable_ocr --disable_image_extraction`, and `extract.py` runs exactly that |
+| **§ Step 4** — "each `###` section is a candidate chunk", not implementable against marker's output | Step 4 is block-based (4a sort, 4b merge, 4c attribute), matching `chunk.py` |
+| **§ Step 4** — `source` described without saying where the page number comes from, when every intuitive candidate is wrong | Step 4c names the running footer as the source and marks the alternatives as rejected |
+| **§ Step 2** — the `{section, contains}` fixup matcher, which cannot express either confirmed defect | Step 2 matches on block `id`; `fixup.py` rejects the old schema loudly rather than matching nothing |
 
 ---
 

@@ -34,6 +34,15 @@ tasks:
     cmds:
       - ./infra/db/restore.sh {{.CLI_ARGS}}
 
+  ingest:
+    desc: 'Ingest a rules PDF into the rules_chunk vector index (M7.2). Requires ingestion/.venv (see ingestion/README.md) and VOYAGE_API_KEY. Makes real, billable Voyage calls and replaces the system''s existing rows — use --dry-run to check chunking for free. Usage — task ingest -- --system mothership --pdf <path> [--dry-run] [--skip-hash-check]'
+    dir: ingestion
+    dotenv: ['../.env']
+    cmds:
+      # The venv interpreter explicitly, rather than assuming an activated
+      # venv — this is the only task that runs outside apps/zoltar-be.
+      - .venv/bin/python ingest.py {{.CLI_ARGS}}
+
   playtest:review:
     desc: Render a markdown playtest-review report for an adventure. Usage — task playtest:review -- <adventure-id>
     dir: apps/zoltar-be
