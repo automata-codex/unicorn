@@ -250,6 +250,34 @@ being quietly skipped.
 a populated index and makes real Voyage calls, so it cannot run in CI and does not
 fail a build. Its *scorer* is unit-tested in CI; the score is not.
 
+### Outcome, recorded 2026-08-07: not reached
+
+Three iteration rounds ran (`docs/rules-extraction-findings.md § S17`–`§ S19`) and the
+milestone closed on the stopping rule, not on the bar.
+
+| Metric | Bar | Shipped index (61 chunks) | |
+|---|---|---|---|
+| `recall@3`, `authored` | hold 100.0% | 100.0% | met |
+| `recall@3`, `warden-observed` | ≥ 95.6% | 91.3% | **missed by one fixture** |
+| `MRR`, answerable | ≥ 0.85 | 0.842 – 0.856 | **indeterminate** |
+
+**The MRR row is the methodology lesson, and it is about the bar rather than the
+index.** Eight scorings at one unchanged configuration alternate between 0.842 and
+0.856 — a spread of 0.0135, which is 0.5/37 exactly: one fixture swapping ranks 1 and
+2, because `hnsw` is an approximate index and two chunks whose similarity differs in
+the third decimal have no guaranteed order between traversals (`§ S22`).
+
+So the bar sits *inside* the noise band, and a run that clears it and a run that does
+not are the same index observed twice. It was set at 0.85 precisely to sit outside the
+±0.03 band measured on the M7.2 index; the shipped index's band is narrower (±0.007)
+but the improvement is smaller too, and the final margin is 0.001. **A threshold
+chosen to exceed yesterday's noise is not automatically outside tomorrow's.**
+
+`recall@3` had no such problem — identical on all eight runs, and on every run of every
+round. **Set retrieval bars on recall; report MRR as colour.** The next bar should
+either be set on recall alone or state a required number of repeat runs as part of the
+criterion.
+
 ---
 
 ## Structural check migrations (2026-07-31)

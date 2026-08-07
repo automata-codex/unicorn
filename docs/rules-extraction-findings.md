@@ -2949,13 +2949,18 @@ section headers excluded. Run
 | authored | 100.0% | 1.000 | 14 | — | — |
 | warden-observed | 91.3% | **0.768** | 23 | MRR +0.043 | MRR **+0.087** |
 
-**MRR 0.856 clears the 0.85 bar**, and it is not a lucky run: three
-consecutive scorings at this configuration read **0.856, 0.856, 0.856** —
-identical, where [S15.7](#157-run-to-run-variance--recall-is-stable-mrr-is-not)
-measured 0.797 / 0.824 / 0.797 on the M7.2 index. The variance S15.7 found
-appears to have *been* the false-positive pages: ties between a real answer
-and a stat-density match are exactly the borderline pairs that reorder
-between runs, and both rounds so far have removed them.
+**MRR reads 0.856 against the 0.85 bar.** Three consecutive scorings at this
+configuration read 0.856, 0.856, 0.856 — identical, where
+[S15.7](#157-run-to-run-variance--recall-is-stable-mrr-is-not) measured
+0.797 / 0.824 / 0.797 on the M7.2 index.
+
+> **Correction, [S22](#s22--2026-08-07--the-mrr-variance-did-not-go-away-and-the-bar-straddles-it).**
+> Three identical readings were luck, not stability. Eight scorings at this
+> exact configuration alternate between **0.842 and 0.856**, and the bar sits
+> between them. The paragraph originally here went on to conclude that the
+> variance S15.7 found "appears to have *been* the false-positive pages" —
+> that inference was drawn from three samples and does not survive eight.
+> **The MRR bar is not met**; see S22 for the corrected verdict.
 
 `recall@3` is unchanged at 94.6% / 100.0% / 91.3% for the third round
 running.
@@ -3026,10 +3031,10 @@ array, harm has to be measured.
 | Metric | Bar | Now | Met? |
 |---|---|---|---|
 | recall@3, `authored` | hold 100.0% | 100.0% | ✅ |
-| MRR, answerable | ≥ 0.85 | **0.856** | ✅ |
+| MRR, answerable | ≥ 0.85 | 0.842 – 0.856 | ❓ straddles — see [S22](#s22--2026-08-07--the-mrr-variance-did-not-go-away-and-the-bar-straddles-it) |
 | recall@3, `warden-observed` | ≥ 95.6% | 91.3% | ❌ |
 
-Two of three. The outstanding one needs a *miss* to become a hit, and both
+The outstanding recall bar needs a *miss* to become a hit, and both
 rounds so far have only reordered hits — which is exactly what excluding
 false positives can do and all it can do. The two misses are unchanged:
 `rq-015`, which needs p.12's tables to extract at all, and `rq-024`.
@@ -3173,10 +3178,13 @@ Aggregate `recall@3` across three rounds: **94.6% → 94.6%, a movement of
 | Metric | Bar | Shipped | |
 |---|---|---|---|
 | recall@3, `authored` | hold 100.0% | 100.0% | ✅ |
-| MRR, answerable | ≥ 0.85 | 0.856 | ✅ |
+| MRR, answerable | ≥ 0.85 | 0.842 – 0.856 | ❓ straddles ([S22](#s22--2026-08-07--the-mrr-variance-did-not-go-away-and-the-bar-straddles-it)) |
 | recall@3, `warden-observed` | ≥ 95.6% | 91.3% | ❌ |
 
-**Two of three met; the milestone closes on the shortfall condition.**
+**One of three met, one indeterminate, one missed; the milestone closes on
+the shortfall condition.** An earlier version of this table read "two of
+three" on a 0.856 MRR reading; S22 shows that number is one of two values the
+same configuration alternates between, so it cannot be claimed.
 
 The shortfall is honest and it is small: `warden-observed` recall@3 is 21 of
 23, and the bar asks for 22. Both misses are now diagnosed rather than
@@ -3185,9 +3193,10 @@ a chunking change, and `rq-024` is the only genuinely open retrieval miss
 in the whole set.
 
 **What three rounds actually bought**, since "the bar was not met" reads
-worse than the record deserves: MRR from 0.802 to 0.856 (+0.054) with the
-run-to-run variance S15.7 measured now gone entirely — three consecutive
-scorings at the shipped configuration read 0.856, 0.856, 0.856. Seventeen
+worse than the record deserves: MRR from 0.802 to roughly 0.849 (the midpoint
+of the 0.842/0.856 band S22 measures), so about +0.047 — real, and about
+three times the run-to-run noise, though not the clean +0.054 an unlucky
+single reading suggested. Seventeen
 of 147 top-3 slots were being consumed by pages that answer nothing; they
 now hold zero. What did *not* move is recall, and the reason is now
 understood rather than assumed: every round so far could only reorder hits,
@@ -3420,3 +3429,88 @@ One caution against a plausible misreading. This rate is computed over query
 rounds of page exclusion cannot move it, and a better index shrinks the
 *consequence* of an out-of-corpus query without shrinking the rate. It
 measures the Warden, and only the Warden.
+
+### S22 — 2026-08-07 · The MRR variance did not go away, and the bar straddles it
+
+A correction to [S18.2](#182-scores), caught while refreshing the ingest
+manifest at the end of the milestone. Cheap to find, and it changes the
+milestone's recorded verdict, so it gets its own session rather than a
+footnote.
+
+#### 22.1 What S18 claimed, and why it was wrong
+
+S18 reported MRR 0.856 at the round-2 configuration and supported it with
+three consecutive identical scorings — against
+[S15.7](#157-run-to-run-variance--recall-is-stable-mrr-is-not)'s 0.797 /
+0.824 / 0.797 on the M7.2 index. From that it inferred that the run-to-run
+variance S15.7 measured "appears to have *been* the false-positive pages":
+ties between a real answer and a stat-density match are the borderline pairs
+that reorder between runs, and rounds 1 and 2 had removed them.
+
+Eight scorings at that exact configuration, `drop_pages: [3, 4, 41, 42]`,
+61 chunks, nothing else changed:
+
+```
+0.856  0.856  0.856  0.842  0.856  0.842  0.856  0.842
+```
+
+**The three identical readings were luck.** The inference drawn from them was
+a three-sample generalisation that does not survive eight, and it happened to
+run in the direction that made the milestone look better — which is the
+reason to write this up rather than quietly edit the number.
+
+#### 22.2 What the variance actually is
+
+The spread is 0.0135, which is 0.5/37 to three decimals: **exactly one
+fixture alternating between rank 1 and rank 2.** The same signature S15.7
+identified, at the same magnitude, on a smaller index.
+
+Recall@3 was 94.6% on every one of the eight runs, and per-style recall never
+moved. Only the ranking of a single borderline pair does.
+
+The mechanism is `hnsw`. It is an *approximate* nearest-neighbour index
+(`V18__rules_chunk_hnsw_index.sql`, [S14](#s14--2026-08-06--the-vector-index-swapped-to-hnsw-under-return-fixed)),
+so two chunks whose cosine similarity differs in the third decimal are not
+guaranteed a stable order between traversals. Removing false-positive pages
+reduced how many such pairs exist; it did not and could not make the index
+exact.
+
+#### 22.3 The corrected bar verdict
+
+| Metric | Bar | Shipped | Met? |
+|---|---|---|---|
+| recall@3, `authored` | hold 100.0% | 100.0%, all 8 runs | ✅ |
+| recall@3, `warden-observed` | ≥ 95.6% | 91.3%, all 8 runs | ❌ |
+| MRR, answerable | ≥ 0.85 | 0.842 – 0.856 (mean ≈ 0.851) | **❓ cannot be claimed** |
+
+**One met, one missed, one indeterminate.** The MRR bar sits inside the noise
+band, so a run that clears it and a run that does not are the same
+configuration observed twice. Reporting "0.856 ≥ 0.85, met" would be
+selecting the favourable half of a coin flip.
+
+That the mean (≈0.851) is a hair above the bar does not rescue it. The bar
+was set at 0.85 *specifically* to sit outside the ±0.03 band S15.7 measured
+([S16.2](#162-the-bar)), on the assumption that clearing it would therefore
+be an effect rather than a lucky run. On the shipped index the band is
+narrower (±0.007) but the improvement is smaller too, and the margin is
+0.001. The bar's own design criterion is not satisfied.
+
+**This does not change what the milestone closes on.** The stopping rule had
+already fired on `recall@3` moving 0.0 pp across three rounds
+([S19.6](#196-stopping-rule-status-after-three-rounds)), and
+`warden-observed` recall was short by one fixture either way. It changes the
+honesty of the summary: one bar metric met, not two.
+
+#### 22.4 Method note
+
+**Repeat a run before believing an MRR delta** — S15.7 said this in as many
+words, and S18 did repeat it, three times, and still drew a conclusion the
+data did not support. Three samples is not enough to establish stability when
+the quantity you are testing for is *occasional* reordering; it is enough to
+get three of the same value by chance better than half the time if one value
+dominates.
+
+The cheap fix, for anyone running the next round: **read `recall@3` as the
+verdict and MRR as colour.** Recall was identical across all eight runs here,
+across the three in S15.7, and across every round in S17–S19. It is the
+metric this harness measures reliably.
