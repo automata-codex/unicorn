@@ -123,6 +123,13 @@ tasks:
       # Plain tsx, as with eval:report — no Nest DI container.
       - npx tsx --env-file=.env scripts/retrieval-probe.ts {{.CLI_ARGS}}
 
+  eval:query-worksheet:
+    desc: 'Generate a hand-scoring worksheet for the rules_lookup queries a Warden emitted, grouped by the turn that produced them (M7.5 Task 2). Complements eval:query-vocab (which measures query vocabulary mechanically and carries no turn context) and the tier-2 probe (which measures what a query retrieved): this produces the input for the judgment neither can reach — was the lookup warranted, and does it express what the Warden needed. No Anthropic calls, no Voyage calls; needs DATABASE_URL and a populated index to resolve the absent-term hints. Run it once per model per prompt revision — a before/after pair is only valid if both came out of this script. Usage — task eval:query-worksheet -- <run-dir> [--system mothership] [--fixtures-dir <dir>] [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx, as with eval:report — no Nest DI container.
+      - npx tsx --env-file=.env scripts/query-worksheet.ts {{.CLI_ARGS}}
+
   eval:judge-variance:
     desc: 'Re-run judged checks N times against frozen warden-output.json artifacts already on disk — no Warden calls, no DB (M7.4.1). Makes real, token-costing Anthropic calls: every vouched (rep, fixture) pair is one frozen input and --trials is how many times each is re-graded, so cost is frozen-inputs x --trials. --trials does NOT subsample source reps — the run fixes those. Requires ANTHROPIC_API_KEY and ZOLTAR_EVAL_ROOT. Usage — task eval:judge-variance -- <run-dir> [--trials 3] [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--output <path>]'
     dir: apps/zoltar-be
