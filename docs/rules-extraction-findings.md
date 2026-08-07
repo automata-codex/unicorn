@@ -388,7 +388,12 @@ information** — each cost real time.
   cards rather than unreachable content. If both the reference card and the
   body page it duplicates stay in the index, near-duplicate chunks compete
   with each other in cosine ranking — whether to dedupe before embedding is
-  still undecided for this pair.
+  still undecided for this pair. **No longer low-priority, as of
+  [S19.5](#195-two-follow-ups-this-round-earned-neither-of-them-a-fourth-round).**
+  Printed p.44 (physical 43) holds 14 of 147 top-3 slots at the shipped
+  configuration, and round 3 measured it taking rank 1 outright from body
+  pages as soon as section headings were indexed. The cost is now a number
+  rather than a suspicion.
 - **Does the footer heuristic generalize?** Verified only against the PSG 1e.
   The `printed = physical + 1` offset is certainly edition-specific and
   probably printing-specific. Any second Mothership book (Warden's Operations
@@ -3029,3 +3034,162 @@ rounds so far have only reordered hits — which is exactly what excluding
 false positives can do and all it can do. The two misses are unchanged:
 `rq-015`, which needs p.12's tables to extract at all, and `rq-024`.
 One round remains.
+
+### S19 — 2026-08-07 · Round 3: `SectionHeader` inclusion makes things worse, informatively
+
+**Round 3 of 3**, and the round this file exists for. It made retrieval
+worse and is kept in the record at full length, because *why* it failed
+identifies two follow-ups that no round which merely worked would have
+surfaced.
+
+#### 19.1 The change
+
+`--include-section-headers`: the 169 `SectionHeader` blocks
+(2,632 characters of topic labels) admitted to the corpus as indexable
+content rather than excluded outright. 61 chunks → **63**. `drop_pages`
+held at 3,4,41,42; everything else identical. Run
+`$ZOLTAR_EVAL_ROOT/retrieval-runs/mothership__2026-08-07T13-22-18Z`.
+
+The motivating cost was measured in
+[S9.1](#91-two-corrections-to-s8s-method): `surprise` scores as absent from
+the entire book across every query using it, because the PSG prints a
+`26.2 SURPRISE` section whose words survive extraction only in the heading.
+
+#### 19.2 Scores — a regression on every axis but one
+
+| Group | recall@3 | MRR | n | vs. S18 |
+|---|---|---|---|---|
+| **all** | **91.9%** | 0.833 | 37 | **−2.7 pp**, MRR −0.023 |
+| authored | 100.0% | 0.964 | 14 | recall — , **MRR −0.036** |
+| warden-observed | **87.0%** | 0.754 | 23 | **−4.3 pp**, MRR −0.014 |
+
+The `authored` MRR drop is the one to notice: that set had been at a
+perfect 1.000 since M7.2, so this is the first change in the project's
+history to knock a hand-authored question off rank 1.
+
+#### 19.3 Seven fixtures moved — and the two mechanisms are opposite
+
+| Fixture | Style | Before | After | Returned |
+|---|---|---|---|---|
+| `rq-015` | warden-obs | **miss** | **2** | `2, 7, 44` → `2, 12, 7` |
+| `rq-019` | warden-obs | 2 | **1** | `3, 21, 16` → `21, 3, 17` |
+| `rq-005` | warden-obs | 2 | 3 | `10, 22, 10` → `10, 10, 22` |
+| `rq-010` | warden-obs | 1 | 2 | `19, 28, 19` → `28, 19, 44` |
+| `rq-026` | **authored** | 1 | 2 | `21, 21, 44` → **`44`**`, 21, 21` |
+| `rq-020` | warden-obs | 3 | **miss** | `28, 31, 19` → `28, 31, `**`44`** |
+| `rq-025` | warden-obs | 3 | **miss** | `27, 19, 18` → **`44`**`, 27, 19` |
+
+Net recall: +1, −2.
+
+**Mechanism A — a page returns from the dead.** `rq-015` had been an
+unfixable miss since the fixture set was authored: it expects pp.12/17, and
+**printed page 12 was absent from the index entirely** because all of its
+`Table` blocks extract as `<p></p>`
+([S3.2](#32-the-corpus), flagged in [S15.1](#151-the-fixture-set) when the
+label was written). Heading inclusion put it back. Confirmed directly in
+the index — the p.12 chunk's entire content is heading text:
+
+> `FIREARMS | F20 "ARBITER" 2.4KCR PULSE RIFLE | ARMA 29 1KCR SUBMACHINE GUN | FN SLUG 750CR REVOLVER | …`
+
+No prose, no table rows: on that page the headings were the *only* text
+that survived extraction. This is S9.1's `surprise` problem, caught fixing
+itself on a different page.
+
+**Mechanism B — the reference card learns the vocabulary.** Three of the
+four regressions are printed p.44 (physical 43, the back-cover reference
+card) displacing a body page, twice taking rank 1 outright. Its chunks now
+open with the exact words queries are made of:
+
+> `Stat Checks | Saves | Roll 1d100 less than your Strength, Speed, Intellect, or Combat…`
+> `Panic Checks | Roll 1d100 less than your Sanity, Fear, or Body…`
+
+`Stat Checks`, `Saves`, and `Panic Checks` are section headings this round
+admitted. p.44 is a *compressed restatement* of pp.18–21, so it was always
+a near-duplicate competing in cosine ranking — heading inclusion handed it
+the topic labels and let it win.
+
+**So the lever does exactly what it says, in both directions.** Headings
+are the highest-signal topic labels in a rulebook. That helps a page whose
+body text didn't extract and hurts a page that is *nothing but* labels.
+The PSG has one of each, and the second is more numerous.
+
+#### 19.4 Conclusion: reverted
+
+Not adopted. `CONTENT_BLOCK_TYPES` keeps `SectionHeader` excluded by
+default and `--include-section-headers` stays an opt-in flag. The index is
+back at round 2's configuration — 61 chunks, `drop_pages: [3, 4, 41, 42]`,
+headings excluded — which remains the best measured state.
+
+#### 19.5 Two follow-ups this round earned, neither of them a fourth round
+
+**1. `rq-015` is now a demonstrated extraction defect, not a chunking
+problem — which is the exact condition the milestone's fixup-patch clause
+waits on.** `docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md` scopes
+in "fixup patches for Mothership, **if and only if** iteration shows
+extraction defects that patches fix better than chunking changes do." That
+condition has now fired with evidence on both halves: a chunking change
+*can* recover p.12 (mechanism A) but costs two fixtures to do it
+(mechanism B), while a fixup patch supplying p.12's table text would
+recover it at no cost to anything else. `ingestion/mothership/fixups.json`
+is still `[]` and the block-`id` matcher it needs has been in place since
+M7.2.
+
+The patch is not written here, because its replacement text is transcribed
+table content from the book — `templates/` is gitignored for exactly that
+reason (`docs/rules-ingestion.md § Licensing Posture`), and authoring it is
+a human transcription task, not an automated one.
+
+**2. Lever 6's dedup question is no longer low-priority.** The open
+question below has described pages 1 and 43 as "still open, lower priority"
+since S1. Round 3 measured what they cost: p.44 alone holds **14 of 147
+top-3 slots** at round 2's configuration and takes rank 1 from body pages
+the moment it is given topic labels. Whether the right treatment is
+dropping physical 43, deduping it against pp.18–21, or leaving it, it is
+now a question with numbers attached rather than a suspicion.
+
+**Neither is run as a fourth round here.** Three rounds was the budget, and
+the stopping rule is evaluated on what three rounds produced — see 19.6.
+A combined "headings on, physical 43 dropped" configuration is the obvious
+next experiment and is *predicted* to clear the outstanding bar metric
+(recovering `rq-015` while returning `rq-020`/`rq-025`/`rq-026`), but that
+prediction is precisely why it needs to be someone's deliberate decision
+rather than one more round appended because the last one was interesting.
+
+#### 19.6 Stopping-rule status after three rounds
+
+| | recall@3 all | recall@3 warden-obs | MRR |
+|---|---|---|---|
+| S16 baseline | 94.6% | 91.3% | 0.802 |
+| Round 1 | 94.6% | 91.3% | 0.829 |
+| Round 2 | 94.6% | 91.3% | **0.856** |
+| Round 3 | 91.9% | 87.0% | 0.833 |
+| **Shipped (round 2)** | **94.6%** | **91.3%** | **0.856** |
+
+Aggregate `recall@3` across three rounds: **94.6% → 94.6%, a movement of
+0.0 pp** — far short of the 5 pp the rule asks for.
+
+**The stopping rule fires.** Against the bar:
+
+| Metric | Bar | Shipped | |
+|---|---|---|---|
+| recall@3, `authored` | hold 100.0% | 100.0% | ✅ |
+| MRR, answerable | ≥ 0.85 | 0.856 | ✅ |
+| recall@3, `warden-observed` | ≥ 95.6% | 91.3% | ❌ |
+
+**Two of three met; the milestone closes on the shortfall condition.**
+
+The shortfall is honest and it is small: `warden-observed` recall@3 is 21 of
+23, and the bar asks for 22. Both misses are now diagnosed rather than
+mysterious — `rq-015` is an extraction defect with a known fix that is not
+a chunking change, and `rq-024` is the only genuinely open retrieval miss
+in the whole set.
+
+**What three rounds actually bought**, since "the bar was not met" reads
+worse than the record deserves: MRR from 0.802 to 0.856 (+0.054) with the
+run-to-run variance S15.7 measured now gone entirely — three consecutive
+scorings at the shipped configuration read 0.856, 0.856, 0.856. Seventeen
+of 147 top-3 slots were being consumed by pages that answer nothing; they
+now hold zero. What did *not* move is recall, and the reason is now
+understood rather than assumed: every round so far could only reorder hits,
+because removing a false positive cannot turn a miss into a hit. The two
+misses need different instruments, and the record names both.
