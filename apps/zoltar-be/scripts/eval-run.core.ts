@@ -48,8 +48,8 @@ import type { EvalFixture } from '../eval/fixture.schema';
 import type {
   CreateHarnessSessionOptions,
   HarnessSession,
-  ScratchAdventure,
   runFixtureTurn,
+  ScratchAdventure,
   seedScratchAdventure,
   teardownScratchAdventure,
 } from '../eval/harness-runner';
@@ -100,7 +100,12 @@ export interface RunEvalSummary {
  * possibly-slow Anthropic call — can report progress instead of appearing
  * to hang. Omitted by tests/callers that don't care. */
 export type RunEvalProgressEvent =
-  | { type: 'rep-start'; repIndex: number; repNumber: number; totalReps: number }
+  | {
+      type: 'rep-start';
+      repIndex: number;
+      repNumber: number;
+      totalReps: number;
+    }
   | {
       type: 'rep-done';
       repIndex: number;
@@ -211,9 +216,7 @@ export async function runEval(
   }
   const manifest = readManifest(runDir);
 
-  const { fixtures, errors: loadErrors } = await loadFixtures(
-    args.fixturesDir,
-  );
+  const { fixtures, errors: loadErrors } = await loadFixtures(args.fixturesDir);
   const warnings = loadErrors.map((e) => `fixture load error: ${e.message}`);
 
   const selectedFixtures = args.fixtureIds
@@ -276,7 +279,8 @@ export async function runEval(
 
       const relativeRepNumber = repIndex - startIndex + 1;
       const fixturesForThisRep = selectedFixtures.filter(
-        (fixture) => relativeRepNumber <= (repsForFixture.get(fixture.id) ?? args.reps),
+        (fixture) =>
+          relativeRepNumber <= (repsForFixture.get(fixture.id) ?? args.reps),
       );
 
       mkdirSync(repDir(runDir, repIndex), { recursive: true });

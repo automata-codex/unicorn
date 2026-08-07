@@ -109,6 +109,13 @@ tasks:
       # Plain tsx, as with eval:report — no Nest DI container.
       - npx tsx --env-file=.env scripts/retrieval-eval.ts {{.CLI_ARGS}}
 
+  eval:query-vocab:
+    desc: 'Score the rules_lookup queries a Warden emitted against the vocabulary the rules corpus actually contains (M7.5). Reads queries out of a completed eval:run''s own warden-output.json artifacts (telemetry.payload.rulesLookups) — no Anthropic calls, no Voyage calls, local Postgres only, so the before-number for a prompt change is available from runs that finished months ago. Complements eval:retrieval, which scores frozen fixture queries and so measures the index rather than the Warden. Requires a populated rules_chunk index and ZOLTAR_EVAL_ROOT. Usage — task eval:query-vocab -- <run-dir> [--system mothership] [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx, as with eval:report — no Nest DI container.
+      - npx tsx --env-file=.env scripts/query-vocab.ts {{.CLI_ARGS}}
+
   eval:judge-variance:
     desc: 'Re-run judged checks N times against frozen warden-output.json artifacts already on disk — no Warden calls, no DB (M7.4.1). Makes real, token-costing Anthropic calls: every vouched (rep, fixture) pair is one frozen input and --trials is how many times each is re-graded, so cost is frozen-inputs x --trials. --trials does NOT subsample source reps — the run fixes those. Requires ANTHROPIC_API_KEY and ZOLTAR_EVAL_ROOT. Usage — task eval:judge-variance -- <run-dir> [--trials 3] [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--output <path>]'
     dir: apps/zoltar-be

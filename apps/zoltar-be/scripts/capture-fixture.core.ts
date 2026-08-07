@@ -1,9 +1,9 @@
 import { and, asc, eq, gte, isNull, lt, or } from 'drizzle-orm';
 
 import {
-  FIXTURE_SCHEMA_VERSION,
   type EvalFixture,
   type FailureModeTag,
+  FIXTURE_SCHEMA_VERSION,
   judgedFailureModeTags,
 } from '../eval/fixture.schema';
 import * as schema from '../src/db/schema';

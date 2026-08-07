@@ -1,17 +1,24 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-
 import { sql } from 'drizzle-orm';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'vitest';
 
+import * as schema from '../src/db/schema';
 import {
   getTestDb,
   setupTestDb,
   teardownTestDb,
   truncateAll,
 } from '../test/db-test-helper';
-import * as schema from '../src/db/schema';
 
 import {
   queryCorrections,
@@ -249,7 +256,9 @@ describe('playtest-review CLI — snapshot', () => {
     // Seed a temp prompts dir that matches the recorded hash so the appendix
     // embeds without a mismatch warning. The recorded hash must equal the
     // sha256-8-char prefix of the fixture text.
-    promptsDirOverride = mkdtempSync(join(tmpdir(), 'playtest-review-prompts-'));
+    promptsDirOverride = mkdtempSync(
+      join(tmpdir(), 'playtest-review-prompts-'),
+    );
     writeFileSync(
       join(promptsDirOverride, 'mothership-m7.txt'),
       'Fixture Warden prompt.\n\nBody paragraph.',
@@ -277,9 +286,12 @@ describe('playtest-review CLI — snapshot', () => {
       telemetryPayload: makeTelemetryPayload({
         playerMessage: 'I check the airlock.',
         originalResponse: {
-          playerText: 'You approach the inner hatch. The indicator panel is dark.',
+          playerText:
+            'You approach the inner hatch. The indicator panel is dark.',
           stateChanges: {},
-          gmUpdates: { notes: 'Player is circling — hint next turn if they stall.' },
+          gmUpdates: {
+            notes: 'Player is circling — hint next turn if they stall.',
+          },
           diceRequests: [],
           adventureMode: null,
         },
@@ -290,7 +302,12 @@ describe('playtest-review CLI — snapshot', () => {
         applied: {
           resourcePools: {},
           entities: {},
-          flags: { airlock_inspected: { value: true, trigger: 'Player examined the airlock controls' } },
+          flags: {
+            airlock_inspected: {
+              value: true,
+              trigger: 'Player examined the airlock controls',
+            },
+          },
           scenarioState: {},
           worldFacts: {},
         },
@@ -365,7 +382,9 @@ describe('playtest-review CLI — snapshot', () => {
           entities: {},
           flags: {},
           scenarioState: {},
-          worldFacts: { inner_door: 'reinforced composite, not a standard airlock latch' },
+          worldFacts: {
+            inner_door: 'reinforced composite, not a standard airlock latch',
+          },
         },
         thresholds: [],
         rulesLookups: [],
@@ -399,7 +418,8 @@ describe('playtest-review CLI — snapshot', () => {
         },
       ],
       playerMessage: 'I try to calm myself.',
-      narration: 'Your breathing hitches. The hum of the fluorescents feels like it is inside your skull.',
+      narration:
+        'Your breathing hitches. The hum of the fluorescents feels like it is inside your skull.',
       telemetryPayload: makeTelemetryPayload({
         playerMessage: 'I try to calm myself.',
         originalResponse: {
@@ -559,6 +579,7 @@ describe('playtest-review CLI — zero-turn guard', () => {
 // here so the fixture is self-contained and a reader can verify the recorded
 // hashes match their source text without jumping modules.
 import { createHash } from 'node:crypto';
+
 function hashOf(text: string): string {
   return createHash('sha256').update(text).digest('hex').slice(0, 8);
 }

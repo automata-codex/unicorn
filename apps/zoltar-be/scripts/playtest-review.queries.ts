@@ -1,7 +1,6 @@
 import { sql } from 'drizzle-orm';
 
 import type { Db } from '../src/db/db.provider';
-
 import type {
   CorrectionRow,
   HeaderRow,
@@ -157,7 +156,8 @@ export async function queryCorrections(
     // game_event.payload for a gm_response carries the raw `SubmitGmResponse`.
     // Casting through unknown: this is the boundary between jsonb and TS.
     originalResponse: r.original_response as CorrectionRow['originalResponse'],
-    correctedResponse: r.corrected_response as CorrectionRow['correctedResponse'],
+    correctedResponse:
+      r.corrected_response as CorrectionRow['correctedResponse'],
     rejections: (r.rejections ?? []) as CorrectionRow['rejections'],
     correctionPromptTokens: r.correction_prompt_tokens,
     correctionCompletionTokens: r.correction_completion_tokens,

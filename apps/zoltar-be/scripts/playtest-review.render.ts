@@ -160,10 +160,7 @@ function formatSeqRange(seqs: number[]): string {
 // Per-turn rendering.
 // ---------------------------------------------------------------------------
 
-function renderTurns(
-  turns: TurnRow[],
-  corrections: CorrectionRow[],
-): string {
+function renderTurns(turns: TurnRow[], corrections: CorrectionRow[]): string {
   const lines = ['## Turns'];
   const correctionsBySeq = new Map<number, CorrectionRow>();
   for (const c of corrections) {
@@ -171,7 +168,9 @@ function renderTurns(
   }
   turns.forEach((t, i) => {
     lines.push('');
-    lines.push(renderSingleTurn(t, i + 1, correctionsBySeq.get(t.gmResponseSeq)));
+    lines.push(
+      renderSingleTurn(t, i + 1, correctionsBySeq.get(t.gmResponseSeq)),
+    );
   });
   return lines.join('\n');
 }
@@ -195,7 +194,11 @@ function renderSingleTurn(
 
   const playerMessage = (p.playerMessage ?? '').trim();
   parts.push('**Player:**');
-  parts.push(playerMessage.length > 0 ? blockQuote(playerMessage) : '> _(auto-advance from dice results — no narrative input)_');
+  parts.push(
+    playerMessage.length > 0
+      ? blockQuote(playerMessage)
+      : '> _(auto-advance from dice results — no narrative input)_',
+  );
   parts.push('');
 
   const finalNarration =
@@ -241,11 +244,14 @@ function renderSingleTurn(
 
 function renderDiceRolls(rolls: ExecutedRollRecord[]): string {
   if (rolls.length === 0) return '_(none)_';
-  const ordered = [...rolls].sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+  const ordered = [...rolls].sort(
+    (a, b) => a.sequenceNumber - b.sequenceNumber,
+  );
   return ordered
     .map((r) => {
       const tag = r.source === 'player_entered' ? '[player]' : '[system]';
-      const modifierPart = r.modifier !== 0 ? `, mod ${formatSignedInt(r.modifier)}` : '';
+      const modifierPart =
+        r.modifier !== 0 ? `, mod ${formatSignedInt(r.modifier)}` : '';
       const resultsPart = `[${r.results.join(', ')}]`;
       const totalPart = `total ${r.total}`;
       const idPart =
@@ -271,7 +277,9 @@ function renderRulesLookups(lookups: RulesLookupRecord[]): string {
         return `- \`"${l.query}"\` — 0 results ⚠️${trimmed}`;
       }
       const sim =
-        l.topSimilarity !== null ? `, top sim ${l.topSimilarity.toFixed(3)}` : '';
+        l.topSimilarity !== null
+          ? `, top sim ${l.topSimilarity.toFixed(3)}`
+          : '';
       return `- \`"${l.query}"\` — ${l.resultCount} result${l.resultCount === 1 ? '' : 's'}${sim}${trimmed}`;
     })
     .join('\n');
@@ -317,7 +325,8 @@ function renderNotes(
 ): string {
   const lines: string[] = [];
   if (original) lines.push(`**Warden notes:** "${original}"`);
-  if (correction) lines.push(`**Warden notes (post-correction):** "${correction}"`);
+  if (correction)
+    lines.push(`**Warden notes (post-correction):** "${correction}"`);
   return lines.join('\n');
 }
 
@@ -380,7 +389,9 @@ function renderCorrectionEvents(corrections: CorrectionRow[]): string {
 function formatRejection(r: ValidationRejection): string {
   const prefix = r.path ? `\`${r.path}\` ` : '';
   const receivedRepr =
-    r.received === undefined ? '' : ` (received: ${JSON.stringify(r.received)})`;
+    r.received === undefined
+      ? ''
+      : ` (received: ${JSON.stringify(r.received)})`;
   return `${prefix}${r.reason}${receivedRepr}`.trim();
 }
 
@@ -388,17 +399,12 @@ function formatRejection(r: ValidationRejection): string {
 // Summary.
 // ---------------------------------------------------------------------------
 
-function renderSummary(
-  turns: TurnRow[],
-  corrections: CorrectionRow[],
-): string {
+function renderSummary(turns: TurnRow[], corrections: CorrectionRow[]): string {
   const lines = ['## Summary'];
   const totalTurns = turns.length;
   const totalCorrections = corrections.length;
   const correctionPct =
-    totalTurns === 0
-      ? 0
-      : Math.round((totalCorrections / totalTurns) * 100);
+    totalTurns === 0 ? 0 : Math.round((totalCorrections / totalTurns) * 100);
 
   let totalPromptTokens = 0;
   let totalCompletionTokens = 0;
@@ -407,12 +413,12 @@ function renderSummary(
   for (const t of turns) {
     const req = t.telemetryPayload.originalRequest;
     if (req.promptTokens !== null) totalPromptTokens += req.promptTokens;
-    if (req.completionTokens !== null) totalCompletionTokens += req.completionTokens;
+    if (req.completionTokens !== null)
+      totalCompletionTokens += req.completionTokens;
     iterationSum += t.telemetryPayload.toolLoopIterations;
     iterationDen++;
   }
-  const meanIterations =
-    iterationDen === 0 ? 0 : iterationSum / iterationDen;
+  const meanIterations = iterationDen === 0 ? 0 : iterationSum / iterationDen;
 
   lines.push('');
   lines.push(`- **Total turns:** ${totalTurns}`);
@@ -434,7 +440,9 @@ function renderSummary(
       }
     }
   }
-  lines.push('- **Rules lookups with zero results:**  ← M7.2 ingestion priority signal');
+  lines.push(
+    '- **Rules lookups with zero results:**  ← M7.2 ingestion priority signal',
+  );
   if (zeroResultCounts.size === 0) {
     lines.push('  - _(none)_');
   } else {

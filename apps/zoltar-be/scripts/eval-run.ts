@@ -63,8 +63,8 @@
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { defaultRunEvalDeps } from './eval-run.default-deps';
 import { runEval } from './eval-run.core';
+import { defaultRunEvalDeps } from './eval-run.default-deps';
 
 import type { RunEvalProgressEvent } from './eval-run.core';
 

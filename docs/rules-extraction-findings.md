@@ -3296,3 +3296,127 @@ Recorded in `docs/decisions.md § No similarity floor for rules_lookup`.
 
 This also removes one intended variable from the M7.5 re-baseline: it
 carries four deliberate changes, not five.
+
+### S21 — 2026-08-07 · The query-side instrument, and the before-number for M7.5's prompt levers
+
+M7.5 Part 4.6. Two prompt-only levers landed this milestone — vocabulary
+bridging and the mechanical-model primer — and neither can be measured by
+`task eval:retrieval`, which scores *frozen fixture queries* and is therefore
+structurally blind to a change in what the Warden asks. This session builds
+the instrument that can, and takes the before-reading.
+
+#### 21.1 The instrument was already on disk
+
+`task eval:query-vocab <run-dir>` reports the share of emitted `rules_lookup`
+queries carrying at least one term absent from the corpus.
+
+The queries did not need a new run to collect. `warden-output.json` is the
+full serialized `TurnExecutionResult` (`docs/decisions.md § warden-output.json
+is the full serialized TurnExecutionResult`), its `telemetry` field is the
+`adventure_telemetry` row, and `payload.rulesLookups` records the query text
+of every `rules_lookup` call in that turn. **Every eval run ever completed
+already contains its own query corpus.**
+
+That the M7 baselines ran against an *empty* index is no obstacle:
+`RulesLookupService.lookup()` embeds and queries regardless of whether the
+index has rows — deliberately, "because every lookup attempt is telemetry
+input for ingestion prioritization." A design choice made for ingestion
+prioritisation turns out to have been recording the before-picture for a
+prompt experiment nobody had planned yet.
+
+**The corpus is held constant across before and after.** Both readings below
+score against the final 61-chunk index, not against the empty index those
+runs actually queried. The question is "would this query find anything in the
+corpus we ship" — so the corpus must not be a variable, or the comparison
+measures two things at once.
+
+#### 21.2 Before — both frozen `88fa84bd8329` runs
+
+| | `claude-sonnet-4-6` | `claude-sonnet-5` |
+|---|---|---|
+| Distinct queries | 257 | 102 |
+| Total lookups | 352 | 134 |
+| **Out-of-corpus rate** | **61.9%** | **66.7%** |
+| Weighted by lookups | 50.3% | 73.1% |
+
+Comparable in kind to [S9](#s9--2026-08-06--wrong-word-vs-concept-absent-across-all-596-queries)'s
+57.6% over 596 queries from `unicorn-artifacts`, and better evidence: same
+fixtures, same corpus, paired against the after-reading rather than sampled
+from a different population.
+
+**The two rates differ in a way worth not over-reading.** Sonnet 5 makes far
+fewer lookups (134 vs 352) and a higher share of them are out of corpus. That
+is consistent with it querying more selectively and only reaching for
+`rules_lookup` on the harder mechanical questions — which are exactly the ones
+whose vocabulary the book does not have — but the distinct/weighted split
+points the other way for 4.6 (50.3% weighted vs 61.9% distinct means its
+*repeated* queries are mostly in-corpus). Two models, one run each: not a
+finding, just a shape to check again after.
+
+#### 21.3 The absent-term table is the design review the prompt levers wanted
+
+Top corpus-absent lexemes across the 4.6 run, with the Part 4.6 block that
+targets each:
+
+| lexeme | queries | as written | addressed by |
+|---|---|---|---|
+| `difficulti` | 24 | difficulty | primer — roll-under, no DC |
+| `initi` | 19 | initiative | bridging — `initiative` → turn order |
+| `suppress` | 19 | suppressing, suppression, suppressive | primer — no suppressive fire |
+| `stealth` | 18 (24 on Sonnet 5) | stealth | bridging — `stealth` → sneak |
+| `threshold` | 18 | threshold, thresholds | primer — no target number |
+| `percept` | 17 | perception | bridging — `perception` → Intellect Check |
+| `oppos` | 7 | opposed | primer — no opposed rolls |
+| `target` | 6 | target | primer — no target number |
+| `flank` | 4 | flanking | primer — no flanking |
+
+Nine of the eleven most common absent terms are named explicitly in one block
+or the other. That is corroboration rather than luck — both blocks were
+written from `§ S8.3`/`§ S9.3`'s buckets — but it is the first time the two
+have been checked against each other term by term, and it is the reason to
+expect this rate to move at all.
+
+`npc`, `rpg`, `threat`, `background`, and `cautious` are the residue neither
+lever targets: generic framing words the Warden pads a query with. Nothing in
+the book prints `RPG`.
+
+**`surpris` (7 queries) is a false absent in the honest sense**, and a useful
+check that the instrument is measuring what it claims. The PSG *does* have a
+surprise rule; its words live only in a `26.2 SURPRISE` heading, and headings
+are excluded from the corpus ([S9.1](#91-two-corrections-to-s8s-method),
+[S19](#s19--2026-08-07--sectionheader-inclusion-makes-things-worse-informatively)).
+The term is absent from the *index*, which is what this scores, and it is
+absent for a reason that is now understood and deliberate.
+
+#### 21.4 The `§ S9.1` hazard, guarded by a test rather than by memory
+
+S8 checked term presence with `to_tsquery('english', lexeme)` on lexemes
+`websearch_to_tsquery` had already stemmed. Postgres stems them a second
+time — `surpris` → `surpri`, `oppos` → `oppo` — so a term can fail to match
+its own tsvector entry and report as absent from a book that prints it. Three
+of 100 terms were false absents before it was found, and the failure is
+silent: every number stays plausible.
+
+This scorer reuses `RulesRepository.queryTermFrequencies`, which matches with
+`plainto_tsquery('simple', …)` and does not re-stem, and presence is decided
+by `documentFrequency === 0` with no second pass anywhere. A regression test
+pins it, because "we remembered not to do the thing" is not a guard.
+
+#### 21.5 What happens next, and what would count as a result
+
+Re-run against the M7.5 re-baseline's own directories once they exist. The
+prompt hash moves `97feadbd` → `ce9984a7`; the corpus, the fixtures, and this
+scorer are unchanged, so the query distribution is the only variable on this
+particular measurement even though the re-baseline as a whole carries four.
+
+A fall in the rate is the effect both levers exist to produce. **A flat rate
+is also a result**: it says prompt-side guidance is insufficient and the
+per-system synonym table — real ongoing authoring cost, deferred in M7.5 — is
+the remaining option, which is precisely the decision `docs/roadmap.md`'s
+vocabulary-bridging bullet defers to this number.
+
+One caution against a plausible misreading. This rate is computed over query
+*text* against the corpus lexeme set, so it is insensitive to chunking: three
+rounds of page exclusion cannot move it, and a better index shrinks the
+*consequence* of an out-of-corpus query without shrinking the rate. It
+measures the Warden, and only the Warden.
