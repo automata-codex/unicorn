@@ -2,7 +2,14 @@
 <module type="WEB_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/.idea/dataSources" />
+      <excludeFolder url="file://$MODULE_DIR$/apps/zoltar-be/playtest-reports" />
+      <excludeFolder url="file://$MODULE_DIR$/apps/zoltar-be/synthesis-saves" />
       <excludeFolder url="file://$MODULE_DIR$/apps/zoltar-fe/.svelte-kit" />
+      <excludeFolder url="file://$MODULE_DIR$/infra/db/backups" />
+      <excludeFolder url="file://$MODULE_DIR$/infra/traefik/certs" />
+      <excludeFolder url="file://$MODULE_DIR$/ingestion/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/ingestion/.venv/lib/python3.12/site-packages/pip/_internal/operations/build" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

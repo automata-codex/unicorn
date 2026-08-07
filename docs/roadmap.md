@@ -4,8 +4,8 @@ This document tracks planned work by phase. Per-feature specs live in `docs/spec
 
 Phase 1 is organized in two sections:
 
-- **Feature Requirements** — the full inventory of what needs to be built, organized by domain. These are the canonical task lists.
-- **Delivery Milestones** — the sequence in which work is built and shipped. Each milestone is independently testable and represents a meaningful step toward the phase target. Most milestones include both frontend and backend work.
+- **Feature Requirements** — the inventory of *product* scope, organized by domain. These are the canonical task lists for what the application does. Development tooling — playtest review, replay infrastructure, the eval harness, rules ingestion — is deliberately not inventoried here; it appears only as delivery milestones, because it is scope that exists to support building the product rather than scope the product ships.
+- **Delivery Milestones** — the sequence in which work is built and shipped. Each milestone is independently testable and represents a meaningful step toward the phase target. Most milestones include both frontend and backend work. Unplanned work that extends a shipped milestone is noted in that milestone's summary rather than given an entry of its own.
 
 ---
 
@@ -197,7 +197,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 
 #### M6 — GmService & State Management
 
-*Apply GM responses to game state and close the play loop. Spec: [`docs/specs/zoltar/m6-state-management.md`](specs/zoltar/006-m6-state-management.md).*
+*Apply GM responses to game state and close the play loop. Spec: [`docs/specs/zoltar/006-m6-state-management.md`](specs/zoltar/006-m6-state-management.md).*
 
 - [x] `GmService` orchestrating request/response cycle (lives on `SessionService`; the `GmService` name is retired — one session service, not two)
 - [x] Backend state change validation (resource deductions, HP thresholds, flag changes) + application to DB
@@ -223,21 +223,39 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [x] SQL views joining `game_events` and `adventure_telemetry` (per-turn, per-state-history, per-correction)
 - [x] CLI script that produces a turn-by-turn markdown report for a given adventure id
 - [x] Sanity-check the `adventure_telemetry` payload shape against a real Mothership run and adjust if fields are missing or redundant
-- [x] Warden prompt versioning in production: persist version on each telemetry row, surface in M7.1 review output (parity with the playtest app's Setup dropdown — deferred from M7, see `docs/specs/zoltar/m7-ai-tools.md § Deferrals Introduced in M7`). Versioning is filename + content-hash rather than a semantic version number.
+- [x] Warden prompt versioning in production: persist version on each telemetry row, surface in M7.1 review output (parity with the playtest app's Setup dropdown — deferred from M7, see `docs/specs/zoltar/007-m7-ai-tools.md § Deferrals Introduced in M7`). Versioning is filename + content-hash rather than a semantic version number.
 
 #### M7.2 — Rules Ingestion Pipeline
 
-*Populate the `rules_chunk` index for Mothership. M7 ships runtime plumbing (`rules_lookup` tool, `VoyageService`, pgvector query) but leaves the index empty so playtest evidence from M7 can prioritize ingestion coverage. Separate milestone because the pipeline is Python, not TypeScript, and is independently testable.*
+*Populate the `rules_chunk` index for Mothership. M7 ships runtime plumbing (`rules_lookup` tool, `VoyageService`, pgvector query) but leaves the index empty so playtest evidence from M7 can prioritize ingestion coverage. Separate milestone because the pipeline is Python, not TypeScript, and is independently testable. Spec: [`docs/specs/zoltar/012-m7.2-rules-ingestion.md`](specs/zoltar/012-m7.2-rules-ingestion.md).*
 
-- [ ] Python ingestion pipeline under `ingestion/` (marker extraction → heading-aware chunking → Voyage document-mode embedding → SQL insert)
-- [ ] One-time local seed of Mothership rules chunks from the PDF
-- [ ] Fixup patch scaffolding for chunk-level corrections
-- [ ] Hash-verification step to detect source-document drift between re-ingestions
-- [ ] Ingestion smoke tests (chunk count, embedding dimensions, system_id tagging)
+- [x] Python ingestion pipeline under `ingestion/` (marker extraction, `chunks` output format → column-aware block sort → footer-derived page/chapter attribution → block-based merge toward a ~400-token target → Voyage document-mode embedding → SQL insert). Supersedes the original `###`-heading-boundary design, a confirmed dead end at 10 headings against a 100–400 chunk target (`docs/rules-extraction-findings.md § S1.5`)
+- [x] One-time local seed of Mothership rules chunks from the PDF
+- [x] Column-aware block sort ahead of chunk merging — marker's emitted block order is not reading order on multi-column pages, scrambled (including full reversals) on roughly half the measurable pages (`docs/rules-extraction-findings.md § S6.2`); a geometric sort on each block's bbox recovers 15 of 16 measurable pages (`§ S7`). Blocking: the chunker's "merge in order" step is wrong without it
+- [x] Query preprocessing for `rules_lookup` — document-frequency-based term-dropping before matching, per `docs/decisions.md § Query preprocessing for rules_lookup promoted from optional to critical path`. Mechanical, no LLM call, proven on both FTS and dense retrieval (`docs/rules-extraction-findings.md § S4`, `§ S5.3`) — the largest retrieval-quality effect measured in the whole M7.2 investigation
+- [x] Fixup patch scaffolding for chunk-level corrections, matched on block `id` (e.g. `/page/11/Table/5`), not `{section, contains}` — `contains` has no text to match on empty `Table` blocks, and `section` derives from `section_hierarchy`, a confirmed dead end (`docs/rules-extraction-findings.md § S6.5`)
+- [ ] **Deliberately unresolved in M7.2 — shipped as a known gap, not an oversight.** Resolve the 14/32 empty `Table` blocks (physical pp. 11–12, FIREARMS and INDUSTRIAL EQUIPMENT, lost entirely) — fixup-file entry vs. a second extraction pass on table regions; not yet scoped (`docs/rules-extraction-findings.md § S3.2`)
+- [ ] **Deliberately unresolved in M7.2 — a placeholder policy ships (page citation, no chapter breadcrumb).** Fallback chapter attribution for the 5 footer-less pages (physical 0, 1, 2, 10, 43) — page 10 (equipment continuation) is reachable body content and most needs an answer before ingestion can attribute it correctly (`docs/rules-extraction-findings.md § Open questions`)
+- [x] Hash-verification step to detect source-document drift between re-ingestions
+- [x] Ingestion smoke tests (chunk count, embedding dimensions, system_id tagging)
+- [x] Retrieval eval harness — page-labeled fixtures scored deterministically for recall@3/@5 and MRR, with unanswerable questions included so a similarity floor is derivable. Voyage calls only, no judge, so it is cheap enough to run on every chunking change. This is the ruler M7.5 iterates against; without it, "did that chunking change help?" is unanswerable. **Fixture queries must reflect real Warden phrasing (verbose, sometimes off-vocabulary), not hand-authored tidy questions — a harness built on idealized queries cannot detect the failure mode `docs/rules-extraction-findings.md § S4`–`S5` found, and would report a quality bar the Warden's actual queries never clear.** 596 real `rules_lookup` queries are already recorded in `unicorn-artifacts` (`§ S8`) and are the intended source — they need page labels added, and the eval-run sample skews toward combat (fixture design, not play), so draw across fixture tags rather than by raw frequency
+
+**M7.2 closed 2026-08-07.** Shipped: the Python pipeline (`ingestion/`, `task
+ingest`), 66 chunks indexed for Mothership, query preprocessing, and the
+retrieval eval harness (`task eval:retrieval`) with a 49-fixture labelled set.
+**Baseline handed to M7.5: recall@3 94.6%, MRR 0.811 over 37 answerable
+queries — authored 100.0%, warden-observed 91.3%** (`docs/rules-extraction-findings.md § S15`).
+
+Three results M7.5 inherits rather than has to rediscover: document-frequency
+query trimming has no useful setting on this corpus, so the shipped threshold
+is deliberately inert (`§ S15.3`); no similarity floor separates answerable
+from unanswerable queries at current quality (`§ S15.4`); and one migration was
+needed after all — `V18__rules_chunk_hnsw_index.sql`, because an ivfflat index
+built by a migration against an empty table silently under-returned (`§ S14`).
 
 #### M7.3 — Turn-State Replay Infrastructure
 
-*Prerequisite for M7.4 (Warden Eval Harness): automatic, no-action-required capture of an adventure's true starting state, plus a way to fold that state forward through the existing event log to reconstruct any later turn. Replaces the M7.1 `save-synthesis` script, which only ever handled the zero-turn case. Spec: [`docs/specs/zoltar/010-m7.3-turn-state-replay-spec.md`](specs/zoltar/010-m7.3-turn-state-replay-spec.md).*
+*Prerequisite for M7.4 (Warden Eval Harness): automatic, no-action-required capture of an adventure's true starting state, plus a way to fold that state forward through the existing event log to reconstruct any later turn. Replaces the M7.1 `save-synthesis` script, which only ever handled the zero-turn case. Spec: [`docs/specs/zoltar/009-m7.3-turn-state-replay-spec.md`](specs/zoltar/009-m7.3-turn-state-replay-spec.md).*
 
 - [x] Automatic turn-0 capture — new `adventure_synthesis_snapshots` table, written once per adventure inside the existing synthesis-commit transaction; `save-synthesis` removed as redundant
 - [x] `load-synthesis` sources its starting state from `adventure_synthesis_snapshots` by adventure id, not a hand-supplied JSON file
@@ -248,15 +266,33 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 
 #### M7.4 — Warden Eval Harness
 
-*Regression suite for Warden prompt candidates against known failure modes surfaced by real playtests (out-of-order tool resolution, hidden-info leaks, unauditable state changes, etc.). Drives the real turn pipeline in-process rather than reimplementing it; seeds each fixture's starting state via M7.3's `reconstructStateAsOfTurn` rather than any bespoke save/load mechanism. Spec: [`docs/specs/zoltar/011-m7.4-eval-harness-spec.md`](specs/zoltar/011-m7.4-eval-harness-spec.md).*
+*Regression suite for Warden prompt candidates against known failure modes surfaced by real playtests (out-of-order tool resolution, hidden-info leaks, unauditable state changes, etc.). Drives the real turn pipeline in-process rather than reimplementing it; seeds each fixture's starting state via M7.3's `reconstructStateAsOfTurn` rather than any bespoke save/load mechanism. Spec: [`docs/specs/zoltar/010-m7.4-eval-harness-spec.md`](specs/zoltar/010-m7.4-eval-harness-spec.md). **Extended after shipping** by unplanned multi-run infrastructure — reps, machine-readable score rows, paired comparison, and re-scoring of frozen artifacts — spec: [`docs/specs/zoltar/011-eval-harness-multi-run.md`](specs/zoltar/011-eval-harness-multi-run.md), referred to as M7.4.1 in `Taskfile.yml` and `docs/eval-methodology.md`. That work was never a planned milestone and deliberately has no entry of its own.*
 
-- [ ] `EvalFixture` format — `savePointRef` (adventure id + target sequence number), player input, structural and/or judge-graded assertions, failure-mode tag
-- [ ] Structural assertion checkers — deterministic, no second LLM call (e.g. tool-call ordering)
-- [ ] Judge-graded assertions — single grading call per fixture, Claude Sonnet 5, one rubric per failure-mode tag (not per fixture)
-- [ ] Harness CLI (`npm run eval:harness -- --fixtures ... --tag ... --prompt-variant ... --output ...`); A/B prompt comparison is two invocations plus a manual diff, not a built-in feature
-- [ ] Markdown output report (summary by tag, per-fixture failure detail)
-- [ ] Fixtures for each failure-mode tag identified in real playtests, at least 2 confirmed instances per tag where the fixture-count bar requires it
-- [ ] One deliberately-broken counterexample per structural checker, to prove the checker actually fails bad behavior and isn't silently passing everything
+- [x] `EvalFixture` format — adventure id + target sequence number, player input, structural and/or judge-graded assertions, failure-mode tag. Shipped as `sourceAdventureId` / `sourceSequenceNumber` plus a `seededState` block captured statically at authoring time, rather than a live `savePointRef` the harness re-derives per run — see `eval/fixture.schema.ts`. Also carries fixture-authored `applicability`, `fixtureSchemaVersion`, and `repOverride`, none of which the spec anticipated
+- [x] Structural assertion checkers — deterministic, no second LLM call (e.g. tool-call ordering)
+- [x] Judge-graded assertions — single grading call per fixture, Claude Sonnet 5, one rubric per failure-mode tag (not per fixture)
+- [x] Harness CLI — shipped as `eval:run` (execution) + `eval:report` (rendering), not the single `eval:harness` named here; see `docs/decisions.md § eval:harness retired, not kept alongside eval:run`. `--fixtures` and `--output` as specified, `--prompt` rather than `--prompt-variant`, and no `--tag` — a second overlapping selector was deliberately not built (`scripts/eval-run.ts`). A/B comparison is still two invocations, though `eval:compare` now renders the diff instead of leaving it manual
+- [x] Markdown output report (summary by tag, per-fixture failure detail) — `eval/runs/report-multi.ts`: per-fixture rates, per-tag rollup, errors, exclusions, applicability findings
+- [ ] Fixtures for each failure-mode tag identified in real playtests, at least 2 confirmed instances per tag where the fixture-count bar requires it — 15 fixtures cover all 9 tags, but `MISSING-CANON-CAPTURE`, `UNSURFACED-CHECK`, `OVER-RESOLUTION`, and `SCENE-JUMP` each still sit at a single instance. The first three are the ones the spec flagged as needing a second confirmed instance before the category counts as covered; `SCENE-JUMP` was added after the spec and inherits the same bar. Blocked on playtest evidence, not on code
+- [x] One deliberately-broken counterexample per structural checker, to prove the checker actually fails bad behavior and isn't silently passing everything
+
+#### M7.5 — Rules Retrieval Quality
+
+*Takes the populated-but-unmeasured index from M7.2 and makes retrieval good enough to trust, then buys the Warden-level measurement once, against an index that is not about to change again. Separate from M7.2 because the two have different kinds of completion criteria — M7.2's are binary (the CLI runs, rows land, the harness scores), M7.5's is a quality bar, and quality-bar milestones absorb whatever is adjacent to them. Spec: [`docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md`](specs/zoltar/013-m7.5-rules-retrieval-quality.md).*
+
+- [ ] Retrieval quality bar set against M7.2's first measurement rather than guessed in advance, with separate targets for authored and Warden-observed query styles, recorded in `docs/eval-methodology.md`
+- [ ] Chunking iteration against `task eval:retrieval` — one change per round, each logged in `docs/rules-extraction-findings.md`, including the rounds that made things worse. Closes on the bar or on the stopping rule, whichever comes first
+- [ ] Exclude the character-creation spread (physical pp. 4, 41–42) from the rules index — confirmed unreachable by the Warden: `rules_lookup` is wired only into the play-loop tool array, and character creation makes no Anthropic calls at all. Removes the worst-provenanced pages in the corpus (page 4's footer doesn't resolve; 41–42 are byte-identical duplicates of it) without needing the fallback-chapter question answered for them. (`docs/rules-extraction-findings.md § S2`)
+- [ ] Check whether physical page 3 (character profile sheet) belongs in the same exclusion as pp. 4/41–42 — not yet confirmed unreachable like those were, but a likely false-positive magnet if left in: it ranked top-3 for two of three queries in `§ S3.7` on pure stat-name density alone (`§ S2`, `§ Open questions`)
+- [ ] Vocabulary bridging for `rules_lookup` — test whether prompt-side guidance (steering the Warden's query phrasing toward book vocabulary) closes enough of the gap `docs/rules-extraction-findings.md § S5.3` measured, before committing to a per-system synonym/thesaurus table. Per `docs/decisions.md § Query preprocessing for rules_lookup...`, the prompt-side option is free; the synonym table is real ongoing per-system authoring cost. Not yet decided which is needed
+- [ ] Mechanical-model primer for the Warden's system prompt — teach Mothership's actual resolution model (roll-under-stat, no DC/target number, no opposed rolls, no flanking) so the Warden stops generating concept-absent `rules_lookup` queries in the first place, rather than merely rephrasing them toward book vocabulary. Distinct from the vocabulary-bridging item above: that targets the wrong-word bucket (S5.3); this targets the concept-absent bucket, which S9 measured at 130 of 344 out-of-corpus queries (37.8%) and found no vocabulary mapping can retrieve (`docs/rules-extraction-findings.md § S8.3`, `§ S9.4`). Evaluate via concept-absent query rate (applicability-style measurement), same pattern already used for `unauditable-mapping` tracking in M8.1
+- [ ] Test whether including `SectionHeader` blocks in the corpus changes retrieval ranking — currently excluded (169 blocks, 2,632 chars of topic labels), and an untested confound in every `S3`–`S5` measurement so far (`docs/rules-extraction-findings.md § S9.1`). Cheap: rerun `S5`'s ranking method with headers included
+- [ ] Decide whether to dedupe the page 1/43 reference-card duplicates against the body pages they restate, to avoid near-duplicate chunks competing in cosine ranking — still open, lower priority (`docs/rules-extraction-findings.md § Open questions`)
+- [ ] `--markdown` curated-input path on `ingest.py`, bypassing extraction. The capability ships; a curated Mothership Markdown cannot, per `docs/rules-ingestion.md § Licensing Posture`
+- [ ] Similarity floor for `rules_lookup` derived from the answerable/unanswerable distributions — or a recorded finding that they do not separate and no honest floor exists yet. Must land before the re-baseline, since it changes what reaches the Warden
+- [ ] `rollType`/`gatedByRollId`/`actingEntityId` fields on `roll_dice`, plus Warden prompt instructions for populating them — the deferred structural-checker fields from `docs/decisions.md § rollType / gatedByRollId / actingEntityId on roll_dice stay deferred, but they are measurement infrastructure`. Schema and prompt land together: a field the prompt doesn't instruct Claude to populate would still read `not_applicable` at re-baseline, forcing a second one later — exactly the repeated cost the batching was meant to avoid. Must land before the re-baseline
+- [ ] Re-baseline both models against the final index — full corpus, uniform N, compared against the re-scored `88fa84bd8329` runs. A populated index changes what the Warden sees (tool results, and plausibly its roll behaviour), so every rate measured against the empty index is provisional. Update `Current baseline N` in `docs/eval-methodology.md` if applicability or variance shifted
+- [ ] Dedicated playtest against the final index — confirms the index actually helped, and is the source of the second confirmed instances `MISSING-CANON-CAPTURE`, `UNSURFACED-CHECK`, `OVER-RESOLUTION`, and `SCENE-JUMP` need to close M7.4's remaining item. Harness-only validation stays provisional without it
 
 #### M8 — Multiplayer Foundation
 
@@ -266,6 +302,16 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [ ] Narrative transfer via `caller_transfer` in `submit_gm_response`
 - [ ] Initiative mode (adventure mode flip, order stored in record, `advance_initiative` handling in `GmService`)
 - [ ] Frontend: caller indicator and transfer UI, initiative order display and active player highlighting
+- [ ] Multi-PC / caller model dedicated playtest, then author fixtures for whatever caller and initiative failure modes it surfaces. The current corpus has no coverage for caller transfer or initiative sequencing at all — these are new failure modes, not new instances of existing tags, so this is corpus expansion rather than a re-run. Do not combine with mechanical coverage playtests (see Phase 2 requirements)
+
+#### M8.1 — Warden Prompt Iteration
+
+*Prompt-only changes to the Warden system prompt, sequenced after M8 rather than earlier so iteration runs against the complete Phase 1 fixture corpus — including whatever caller/initiative failure modes M8's own playtest surfaces, not just the pre-multiplayer corpus. Runs on M7.4's existing `eval:run`/`eval:compare`. A schema change that grows out of a validated experiment here does not land in this milestone — it goes wherever the next tool-schema batch is, per the `decisions.md` principle of paying the rebaseline cost once.*
+
+- [ ] Pilot a hidden per-`dice_request` contingency field as a prompt-only instruction (no schema change) — Claude states "if this fails, X" without narrating it, to relieve the pressure behind OVER-RESOLUTION / OUT-OF-ORDER-RESOLUTION. Evaluated against existing fixtures for those tags plus `unauditable-mapping`. If it validates, formalizing it as an actual `dice_requests` field is a separate schema-change decision for the next tool-schema batch — not committed here
+- [ ] `unauditable-mapping` prompt fix: any GM-side roll selecting among narrative outcomes must state the outcome mapping in `purpose` before the roll fires. Prose-in-`purpose`, not a schema field — the outcome table is free text that varies per roll. Track GM-side spontaneous-roll *frequency* (via the check's applicability rate) alongside pass rate — the failure mode is compliance-by-suppression, not just non-compliance
+- [ ] `status`-field-overload prompt fix: `status` is strictly the `'alive'|'dead'|'unknown'` enum; tactical and narrative detail moves to `npcState`
+- [ ] Static character-sheet build data (stats, saves) into the snapshot — Strength/Speed/Intellect/Combat and saves are already structured fields on `character_sheets.data`, populated at character creation; render them into context so Claude can adjudicate checks without asking the player to re-enter their own stats. No schema change, no synthesis write path — narrower than the deferred `<character_attributes>` block (armor mode/loadout/conditions), which stays deferred per `docs/decisions.md` pending the schema work it actually needs
 
 #### M9 — Self-Hosted Deployment
 
@@ -277,8 +323,11 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - [ ] Environment variable documentation
 - [ ] Signup mode implementation (`SIGNUP_MODE` / `INVITE_TOKEN` enforcement in `AuthService`)
 - [ ] Self-hosted setup guide + DigitalOcean Droplet walkthrough
+- [ ] Verify rules text ingestion pipeline in target environment
 - [ ] Signup mode documented in self-hosted setup guide
 - [ ] Responsive polish pass (thumb reach, viewport refinement)
+- [ ] Full-corpus eval run before tagging, compared against the M7.5 re-baseline. This is release discipline rather than milestone scope — it belongs on the release checklist alongside the setup guide and env-var docs, and it recurs at every tagged release, not just this one. Listed here explicitly to establish the habit
+- [ ] Comprehensive release checklist authored for future releases
 - [ ] First tagged release (`v0.1.0`)
 
 ---

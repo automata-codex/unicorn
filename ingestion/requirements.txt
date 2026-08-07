@@ -1,0 +1,30 @@
+# Runtime dependencies for the rules ingestion pipeline.
+#
+# Install into ingestion/.venv — see ingestion/README.md. Python 3.11+.
+# This file is NOT what CI installs; see requirements-dev.txt.
+#
+# Pin policy:
+#   marker-pdf is pinned exactly and the pin is load-bearing. Extraction
+#   varies across marker versions, and that variance changes which fixup
+#   patches in <system>/fixups.json still apply. Bumping it is a deliberate
+#   decision that should be re-verified against ingestion/<system>/hashes/,
+#   not a routine dependency refresh.
+#
+#   voyageai is pinned exactly because the embedding call is the one step
+#   whose output silently changes meaning rather than failing loudly.
+#
+#   psycopg and tiktoken float above a floor. Neither affects what lands in
+#   the index: psycopg is a driver over plain SQL, and tiktoken only counts
+#   tokens for the ~400-token chunking heuristic, which has no hard boundary.
+#
+#   pypdfium2 is pinned exactly. It arrives transitively via marker-pdf, but
+#   extract.py imports and calls it directly to read the running footer —
+#   the only source of page number and chapter name in the whole pipeline —
+#   and a direct import deserves a direct pin rather than inheriting whatever
+#   marker happens to resolve.
+
+marker-pdf==2.0.0
+voyageai==0.5.0
+pypdfium2==5.10.1
+psycopg[binary]>=3.2
+tiktoken>=0.8

@@ -1,5 +1,5 @@
 # Zoltar — Design Document
-*Draft 7 — April 2026*
+*Draft 8 — August 2026*
 
 ---
 
@@ -602,7 +602,7 @@ Results are computed outside Claude's narration, logged server-side before Claud
 
 A vector-embedded rules index for each supported system. Claude calls this rather than confabulating rules from training data.
 
-The index is built by an offline ingestion pipeline: PDF → Markdown (via marker) → heading-aware chunking → Voyage AI embeddings → pgvector. Chunks carry source citations (`"Mothership Player's Survival Guide p.34"`) and section path metadata that Claude can use in narration.
+The index is built by an offline ingestion pipeline: PDF → typed content blocks (via marker) → sorted into reading order and attributed to a page/chapter → block-based chunking → Voyage AI embeddings → pgvector. Chunks carry a source citation (`"Mothership Player's Survival Guide p.34"`) — the only citation the lookup tool actually returns to Claude. A chapter label is stored per chunk for provenance and debugging, but is not currently surfaced at query time.
 
 The pipeline runs on user infrastructure against a PDF they own. Pre-built indexes are only distributed for systems covered by a permissive SRD (D&D 5e SRD 5.1 under CC-BY 4.0; others where licensing permits). Distributing a pre-built index for a non-SRD system is equivalent to distributing the rules text itself — the vectors are useless without the text they represent — and is not done without an appropriate license.
 

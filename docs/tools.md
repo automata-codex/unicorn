@@ -178,10 +178,10 @@ const rollDiceOutputSchema = z.object({
 **Example:**
 ```json
 // Input
-{ "notation": "1d100", "purpose": "Panic check for Dr. Chen" }
+{ "notation": "1d20", "purpose": "Panic check for Dr. Chen" }
 
 // Output
-{ "notation": "1d100", "results": [73], "modifier": 0, "total": 73 }
+{ "notation": "1d20", "results": [15], "modifier": 0, "total": 15 }
 ```
 
 ---
@@ -192,7 +192,7 @@ Semantic search against the vector-embedded rules index for the active game syst
 
 ```typescript
 const rulesLookupInputSchema = z.object({
-  query:  z.string(),       // natural language query: 'panic table result 73'
+  query:  z.string(),       // natural language query: 'panic table result 15'
   limit:  z.number().int().min(1).max(5).default(3),
 });
 
@@ -209,6 +209,7 @@ const rulesLookupOutputSchema = z.object({
 - Query with natural language, not keyword search. "What happens when a character reaches 0 HP" outperforms "HP 0 death".
 - Call this before making any mechanical ruling Claude is uncertain about.
 - The index is system-specific — it contains only rules for the active campaign's game system.
+- The backend preprocesses the query before embedding — dropping high-document-frequency terms via a ceiling computed from the index itself — so a longer, natural-language query isn't penalized the way it would be under raw keyword matching. Even so, shorter and more specific beats longer and vaguer: the single largest retrieval-quality effect measured against this tool came from cutting a verbose query down to its distinctive terms (`docs/rules-extraction-findings.md § S4`, `§ S5.3`).
 
 ---
 

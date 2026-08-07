@@ -1,6 +1,6 @@
 # Multi-Run Eval Harness — Implementation Plan
 
-Multipart implementation plan for `docs/specs/zoltar/012-eval-harness-multi-run.md`.
+Multipart implementation plan for `../specs/zoltar/011-eval-harness-multi-run.md`.
 Each part is sized for a manual code review and a single commit. Pause after each part
 for review before starting the next.
 

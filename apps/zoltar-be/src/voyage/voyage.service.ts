@@ -21,7 +21,9 @@ export class VoyageError extends Error {
  *
  * The configured `VOYAGE_EMBED_MODEL` must match whatever model was used to
  * embed the `rules_chunk` rows. Mismatched models produce meaningless cosine
- * distances.
+ * distances, and a model with a different output dimension makes the pgvector
+ * comparison fail outright — `rules_chunk.embedding` is `vector(1024)`, so the
+ * model must emit 1024 dimensions. Default is `voyage-4-lite` (1024).
  */
 @Injectable()
 export class VoyageService {

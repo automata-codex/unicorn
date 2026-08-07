@@ -6,7 +6,7 @@ import { VoyageError, VoyageService } from './voyage.service';
 function makeConfig(overrides: Record<string, string> = {}): ConfigService {
   const values: Record<string, string> = {
     VOYAGE_API_KEY: 'pa-voyage-test',
-    VOYAGE_EMBED_MODEL: 'voyage-3-lite',
+    VOYAGE_EMBED_MODEL: 'voyage-4-lite',
     ...overrides,
   };
   return {
@@ -51,7 +51,7 @@ describe('VoyageService.embed', () => {
     });
     expect(JSON.parse(init.body as string)).toEqual({
       input: ['panic check result of 73'],
-      model: 'voyage-3-lite',
+      model: 'voyage-4-lite',
       input_type: 'query',
     });
   });
@@ -70,12 +70,12 @@ describe('VoyageService.embed', () => {
     fetchMock.mockResolvedValueOnce(stubEmbeddingResponse([0.1]));
 
     const service = new VoyageService(
-      makeConfig({ VOYAGE_EMBED_MODEL: 'voyage-3' }),
+      makeConfig({ VOYAGE_EMBED_MODEL: 'voyage-4' }),
     );
     await service.embed('hello', 'query');
 
     const init = fetchMock.mock.calls[0][1];
-    expect(JSON.parse(init.body as string).model).toBe('voyage-3');
+    expect(JSON.parse(init.body as string).model).toBe('voyage-4');
   });
 
   it('throws VoyageError on a non-2xx response', async () => {

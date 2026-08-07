@@ -34,6 +34,15 @@ tasks:
     cmds:
       - ./infra/db/restore.sh {{.CLI_ARGS}}
 
+  ingest:
+    desc: 'Ingest a rules PDF into the rules_chunk vector index (M7.2). Requires ingestion/.venv (see ingestion/README.md) and VOYAGE_API_KEY. Makes real, billable Voyage calls and replaces the system''s existing rows — use --dry-run to check chunking for free. Usage — task ingest -- --system mothership --pdf <path> [--dry-run] [--skip-hash-check]'
+    dir: ingestion
+    dotenv: ['../.env']
+    cmds:
+      # The venv interpreter explicitly, rather than assuming an activated
+      # venv — this is the only task that runs outside apps/zoltar-be.
+      - .venv/bin/python ingest.py {{.CLI_ARGS}}
+
   playtest:review:
     desc: Render a markdown playtest-review report for an adventure. Usage — task playtest:review -- <adventure-id>
     dir: apps/zoltar-be
@@ -92,6 +101,13 @@ tasks:
       # Plain tsx is fine here — no Nest DI container, AnthropicService is
       # constructed directly.
       - npx tsx --env-file=.env scripts/eval-rescore.ts {{.CLI_ARGS}}
+
+  eval:retrieval:
+    desc: 'Score the rules index against page-labeled retrieval fixtures — recall@3/@5, MRR, and the answerable-vs-unanswerable similarity distributions (M7.2). Makes real Voyage calls (one per fixture) but NO Anthropic calls, so it is cheap enough to run on every chunking change. Requires a populated rules_chunk index and ZOLTAR_EVAL_ROOT. --no-preprocess measures query preprocessing''s own effect; --df-threshold sweeps its ceiling. Usage — task eval:retrieval -- [--system mothership] [--fixtures <path>] [--limit 3] [--no-preprocess] [--df-threshold 0.6] [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx, as with eval:report — no Nest DI container.
+      - npx tsx --env-file=.env scripts/retrieval-eval.ts {{.CLI_ARGS}}
 
   eval:judge-variance:
     desc: 'Re-run judged checks N times against frozen warden-output.json artifacts already on disk — no Warden calls, no DB (M7.4.1). Makes real, token-costing Anthropic calls: every vouched (rep, fixture) pair is one frozen input and --trials is how many times each is re-graded, so cost is frozen-inputs x --trials. --trials does NOT subsample source reps — the run fixes those. Requires ANTHROPIC_API_KEY and ZOLTAR_EVAL_ROOT. Usage — task eval:judge-variance -- <run-dir> [--trials 3] [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--output <path>]'

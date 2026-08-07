@@ -188,9 +188,12 @@ number rather than assuming it still holds.
 > fixtures that lost half their reps to errors under 4.6 now complete. Both moves change
 > which fixture is the noisiest one N is supposed to cover — which is the whole basis of
 > the number. **N=10 is carried forward unchanged for now**, because re-calibrating
-> against an empty `rules_chunk` index would only have to be redone after M7.2. Re-derive
-> it from the M7.2 re-baseline, and treat the current value as inherited rather than
-> estimated until then.
+> against an empty `rules_chunk` index would only have to be redone once the index was
+> populated. **Repointed 2026-08-07:** M7.2 populated the index but deliberately bought no
+> Warden-level measurement — the re-baseline moved to M7.5 (`docs/decisions.md § Rules
+> ingestion pipeline and retrieval quality are separate milestones`). Re-derive N from the
+> **M7.5** re-baseline, and treat the current value as inherited rather than estimated
+> until then.
 
 ---
 

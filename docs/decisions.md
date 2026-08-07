@@ -52,6 +52,231 @@ Auth.js (`@auth/sveltekit`) requires SvelteKit's server-side hooks infrastructur
 
 SvelteKit's SSR and routing conventions add complexity without meaningful benefit for this product: the GM pipeline is entirely backend-driven, there is no SEO requirement, and the auth flow is owned by the backend. A plain Svelte 5 + Vite SPA is simpler to reason about, has no server-side rendering surface, and makes the frontend/backend boundary explicit. The tech stack entry in the design doc and README reflects this: "Svelte 5 (SPA)" not "SvelteKit."
 
+### Embedding model: `voyage-4-lite`, chosen together with the column dimension
+
+M7 shipped with `VOYAGE_EMBED_MODEL` defaulting to `voyage-3-lite` on the stated assumption that it matched the `vector(1024)` declaration on `rules_chunk.embedding`. It does not — `voyage-3-lite` emits 512 dimensions; `voyage-3` is the 1024-dimensional model of that generation. The error was invisible for the whole of M7 because the index is empty: `RulesRepository.findByCosineSimilarity` filters `embedding IS NOT NULL`, so pgvector never evaluated `<=>` against a row and never raised the dimension mismatch. It would have surfaced on the first M7.2 ingestion run.
+
+The default is now `voyage-4-lite`, which emits 1024 dimensions by default and leaves the column, the `game_system.embedding_dim` seed, and every existing migration unchanged. Choosing it over `voyage-3` also avoids adopting a model Voyage now lists as legacy; the voyage-4 family is current, `voyage-4-lite` is the same $0.02/M as `voyage-3-lite`, and legacy models no longer carry a free-token allowance. `voyage-4` and `voyage-4-large` are drop-in step-ups if retrieval quality warrants the cost — same default dimension, no migration.
+
+Two constraints follow, and neither is enforced by the type system: the ingestion model and the runtime `VOYAGE_EMBED_MODEL` must be the *same model*, not merely two models of the same width, or similarity scores are meaningless while looking healthy; and any future model swap must be checked against the column dimension before ingesting rather than after. M7.2's pipeline should validate the returned vector length against `game_system.embedding_dim` before insert — that check is the cheap guard that would have caught this at M7 time.
+
+No eval re-baseline is owed for this change on its own. Both existing baselines ran against an empty index, so no graded turn ever consumed an embedding; the re-baseline that `docs/decisions.md § Warden model upgraded to claude-sonnet-5` anticipates is owed to ingestion itself, not to the model swap.
+
+---
+
+## Rules Ingestion
+
+### Rules ingestion pipeline and retrieval quality are separate milestones
+
+M7.2's original spec included post-ingestion validation — an eval re-baseline and a dedicated playtest — as its own Part 6. Both moved out to a new milestone, M7.5 (Rules Retrieval Quality), during M7.2 implementation.
+
+**Why.** M7.5 exists to iterate on chunking quality, potentially as far as a hand-curated Markdown replacement for automated extraction. That iteration changes what's in the index. The re-baseline costs roughly 300 Warden turns plus judge calls (2 models × 15 fixtures × N=10) — buying it against an index about to be re-chunked means buying it twice. Same shape of waste the `roll_dice` schema-field deferral (below) was already guarding against, except worse: that was an unavoidable confound between two things worth measuring together; this would be pure waste, re-measuring the same thing after changing it out from under the measurement.
+
+**What makes deferring the re-baseline safe rather than merely postponing it:** the retrieval eval harness (`task eval:retrieval`) reads index quality for the price of a few Voyage calls — no Anthropic spend at all. "Is this index worth baselining?" gets answered long before anyone pays to baseline it. Without that harness the deferral would just be procrastination with an extra step.
+
+**The completion-criteria split, not just the reasoning, is why they're separate milestones rather than one milestone with a later Part 6.** M7.2's criteria are binary — the CLI runs, rows land, the harness scores. M7.5's is a quality bar — chunking iteration continues until the bar is met or a stopping rule fires. Milestones with quality-bar criteria absorb whatever is adjacent to them; folding the re-baseline into M7.2 would have made M7.2 itself open-ended, defeating the reason for having Done-When criteria at all.
+
+**Consequence:** M7.2 ends with a populated index and a way to measure it — not with evidence the Warden is actually better off. That evidence is M7.5's. The three entries below waiting on a populated-index re-baseline (`§ Warden model upgraded to claude-sonnet-5`, `§ Agentic graph decomposition stays deferred`, `§ rollType / gatedByRollId / actingEntityId on roll_dice stay deferred`) stay open one milestone longer than an M7.2-only plan would have implied.
+
+### Rules ingestion is CLI-only in Phase 1
+
+No web upload surface. A self-hosted user installs the Python pipeline, points
+it at a PDF they own, and runs one command; `ingestion/README.md` is the
+supported path.
+
+This follows directly from the licensing posture rather than from effort. The
+model is "the user runs ingestion against a PDF they own, on their own
+infrastructure" (`docs/rules-ingestion.md § Licensing Posture`), and a web
+uploader would put the operator in the position of receiving other people's
+rulebook PDFs — which is the distribution question the whole posture exists to
+avoid, arriving through a different door.
+
+It is also honest about the shape of the job: ingestion is a rare, offline,
+minutes-long batch that pulls 1.3 GB of extraction models and needs a
+per-edition config file checked by hand. That is a CLI's work, not a form's.
+
+**Recorded because the absence of a web UI is the single most likely thing a
+future reader assumes was an oversight.** It is not. Revisit if a hosted
+deployment ever needs non-technical users to add their own books, at which
+point the licensing question has to be answered first, not second.
+
+### Chunk extraction is block-based with footer-derived provenance, not markdown headings
+
+The design doc's chunking premise — treat each `###` Markdown heading as a candidate chunk boundary — does not survive contact with the actual extraction output. The PSG's whole-book heading histogram is 84 `#`, 3 `##`, 10 `###`, 55 `####` (`docs/rules-extraction-findings.md § S1.5`): 10 `###` headings against a 100–400-chunk target kills the approach on arithmetic alone, and the levels are assigned by font size rather than document structure — `#### ARMOR` and `# 14 ARMOR` are the same section at different levels, and reading order scrambles across the character-creation spread. Markdown output is also the wrong extraction format independent of the heading problem: it discards page attribution entirely, and the only page-marker mechanism it carries (`<span id="page-N-M">` anchors) covers 16 of 44 pages.
+
+**Decided:** ingestion runs marker with `--output_format chunks`, not `markdown` — typed blocks (`Text`/`Table`/`ListGroup`, dropping headers/footers/pictures) carrying page and bbox metadata, merged toward a ~400-token chunk target with 50–100 tokens of overlap (`docs/rules-extraction-findings.md § S1.6`). Chapter boundaries force a chunk break.
+
+Provenance is derived, not read from any marker field. `blocks[].page` is an internal id, not a page number (physical page 0 → `'7'`, 1 → `'512'` — plausible-looking and wrong, the exact failure mode worth guarding against in any future extraction work). The physical page number comes from the `/page/N/` prefix on each block's `id`; the printed page number and chapter name are read from the PDF's running footer via `pypdfium2` directly, which resolves chapter on 36 of 44 pages (`docs/rules-extraction-findings.md § S1.8`). `section_hierarchy`, marker's own structural field, was tested and rejected as a breadcrumb source — it records the last header seen at each visual level, which turns siblings into parents on scrambled multi-column pages (`STEP 5. GAIN STRESS > STEP 6. NOTE TRAUMA RESPONSE`).
+
+**Edition-specific, not general.** The `printed page = physical page + 1` offset and the footer-parsing approach are verified only against the PSG 1e. Any second Mothership book needs its own check before ingestion (`docs/rules-extraction-findings.md § Open questions`).
+
+### Reading order requires an explicit column-aware sort; an LLM may validate it, never perform it
+
+Marker's emitted block order is not reading order on multi-column pages. Of the 16 pages carrying two or more numbered section headers, 8 emit them out of order, including full reversals (`docs/rules-extraction-findings.md § S6.2`); the true rate is plausibly higher since that test can't see unnumbered headings. A chunker that merges blocks in emitted order — the design doc's implicit assumption — would concatenate roughly half the book's body pages backwards.
+
+Two approaches were on the table: an LLM pass that reads the page image and proposes correct ordering, or a deterministic geometric sort using the bbox coordinates every block already carries. LLM-assisted flagging was piloted first for a different purpose (auditing extraction defects generally) and, as a side effect, demonstrated it could recover correct order by eye — but that's the wrong place for the capability to live: routing per-page ordering through an LLM call at ingestion time would make a Python-only, no-LLM-calls pipeline (`docs/rules-ingestion.md`, hard constraint) depend on a model call for every multi-column page, forever, on every re-ingestion.
+
+**Decided:** a ~25-line deterministic sort. Full-width blocks (≥60% of page width) flush the current column band and stand alone; everything else is banded by `y0` position and split left/right by bbox x-centre against the page midline (`docs/rules-extraction-findings.md § S7.2`). This recovered 15 of 16 measurable pages with nothing regressed. The one residual failure (physical page 17, a boxed callout whose heading is narrower than its full-width body) is understood and local, not a case against the approach.
+
+**The boundary that follows from this:** the sort must be deterministic and live in `ingest.py`. An LLM may validate the result — flagging pages where the sort still looks wrong, informed by the page image rather than geometry alone — but must never perform the reordering itself. Where geometry genuinely can't resolve a page, the escape hatch is a hand-blessed ordering recorded once per edition in `fixups.json`, keyed on block `id`; that's an explicit, reviewed exception, not a runtime dependency.
+
+**Coverage caveat carried forward, not resolved here.** The numbered-header test that validates the sort only sees 16 of 44 pages. The LLM-flagging pass is the intended instrument for validating the other 28 (unnumbered headings), not yet run at that scope.
+
+### Character-creation content is excluded from the rules index — structurally unreachable by the Warden
+
+Physical pages 4, 41, and 42 cover Mothership character creation. Confirmed via tool-array and query-log inspection that `rules_lookup` is wired only into the play-loop tool array — character creation runs its own flow and makes no Anthropic calls at all, so nothing the Warden does can retrieve these pages regardless of what the index contains (`docs/rules-extraction-findings.md § S2`).
+
+**Decided:** exclude physical pages 4, 41, 42 from the rules index. This also resolves the duplicate-spread question for that trio without needing dedup logic: 41 and 42 are byte-identical duplicates of page 4's character-creation spread, and both drop with it. Page 4 also carries the worst provenance in the corpus — its footer doesn't resolve to a chapter — so exclusion removes a hard case rather than requiring a fallback-chapter decision for it.
+
+**Not yet extended to page 3** (the character-profile sheet), which looks like the same category but wasn't covered by the S2 analysis that confirmed the other three. It's a live false-positive risk if left in — ranked top-3 for two of three test queries in `§ S3.7` on stat-name density alone, with no real relevance to what was asked. Tracked in `roadmap.md` M7.5 as a check, not yet a confirmed exclusion.
+
+### Fixup match schema keyed on block `id`, not `{section, contains}`
+
+`docs/rules-ingestion.md § Step 2` specifies fixup entries matched by `{section, contains}` — e.g. `{"section": ["Combat", "Panic"], "contains": "1-10Roll"}`. Neither key can express the confirmed extraction defects. `contains` needs text to match against, and the defect is 14 of 32 `Table` blocks extracting as empty (`<p></p>`) — there's nothing there to match on. `section` was meant to derive from `section_hierarchy`, already rejected above as unreliable ancestry.
+
+**Decided:** match fixup entries on the block `id` (e.g. `/page/11/Table/5`) instead — stable, unique, and already the fallback every other part of this pipeline uses once `page` and `section_hierarchy` proved unreliable (`docs/rules-extraction-findings.md § S6.5`). `ingestion/mothership/fixups.json` remains empty pending the table-defect scoping decision in `roadmap.md` M7.2; this entry fixes the schema those fixups will eventually use, not the defects themselves.
+
+---
+
+## Rules Retrieval
+
+### Rules retrieval mechanism: dense embeddings over FTS or LLM-authored regex
+
+Raised as an alternative to the planned Voyage/pgvector pipeline: have an LLM
+translate a `rules_lookup` query into a regex, grep the extracted rules text,
+and let the Warden parse ±200 words of context around hits. Investigated
+across three spikes against the real Mothership PSG 1e extraction
+(`docs/rules-extraction-findings.md § S3–S5`), run in the current M7.2
+branch before any chunking work went in, specifically to decide before
+building M7.2's block-merge chunker if it turned out to be unnecessary.
+
+**Regex was rejected as a mechanism before it was tested, and S5 later
+confirmed the reasoning empirically.** The Voyage query-time round trip
+alone is ~98% of the ~100–200ms query budget (`docs/rules-ingestion.md §
+Query Time`, measured in `docs/rules-extraction-findings.md § S5.4`), so a
+second network hop — an LLM call to author a regex, or any other synchronous
+model call at query time — does not fit that budget. Postgres full-text
+search (`tsvector`/`ts_rank`/`ts_headline`) was tested instead, as the
+mechanism that captures the same lexical-matching intuition without the
+extra round trip or the ReDoS surface of an LLM-generated pattern.
+
+**FTS lost to dense retrieval on the query that discriminates.** Against an
+identical 38-page, page-granular corpus and the three real recorded
+`rules_lookup` queries (keyword-stuffed, generic-TTRPG phrasing —
+`perception check looking around environment, noticing details`), FTS never
+placed the correct page in the top 3 for the query whose most distinctive
+term the book doesn't use (`perception` occurs on zero pages). Dense
+retrieval, run against the identical corpus and the identical unmodified
+queries, ranked that page 9th instead of 24th — meaningfully better, though
+still outside the top-3 budget on its own.
+
+| | FTS (best config, S3/S4) | Dense retrieval (S5) |
+|---|---|---|
+| Q1 (out-of-corpus term) | 24th → 18th with vocab swap | **9th**, unmodified |
+| Q2 | 1st | 1st |
+| Q3 | 2nd | 3rd |
+
+**Decided:** Voyage/pgvector dense retrieval is confirmed as the
+`rules_lookup` mechanism. M7.2 continues on its existing design — no rebuild
+of the ingestion path, no FTS index added in parallel. This was not a
+foregone conclusion going in; three spikes were run specifically because
+regex/FTS were live enough to be worth deciding before more chunker work
+landed.
+
+**What this does not settle.** Dense retrieval is not vocabulary-agnostic —
+sensitive to the same two axes (verbosity, vocabulary) that broke FTS, just
+less brittle about it. That's a separate decision, below.
+
+### Query preprocessing for `rules_lookup` promoted from optional to critical path
+
+Shortening a `rules_lookup` query to its 2–3 distinctive terms puts the
+correct page at rank 1 on *both* FTS and dense retrieval, for all three real
+recorded queries — including the one query no other configuration on either
+backend ever retrieved (`docs/rules-extraction-findings.md § S4`, `§ S5.3`).
+This is the single largest effect measured across the whole retrieval
+investigation, larger than the FTS-vs-embeddings choice itself (`docs/decisions.md
+§ Rules retrieval mechanism`, above).
+
+Two separable fixes, with different costs:
+
+- ~~**Term-dropping is mechanical and has no open question attached.** A
+  document-frequency ceiling computed from the index itself (drop query
+  terms occurring on more than some threshold share of pages) requires no
+  vocabulary knowledge and no LLM call. Proven on both backends. This is now
+  M7.2/M7.5 scope, not a maybe.~~
+  **Overturned by measurement, 2026-08-06.** The mechanism shipped in M7.2 and
+  was then swept with `task eval:retrieval` against 37 labelled answerable
+  queries. It has **no useful setting on this corpus**: every ceiling that
+  drops anything costs recall (0.4 is −10.8 pp recall@3; 0.55 is −8.1 pp), and
+  every ceiling that costs nothing (0.65 and above) drops nothing, because the
+  measured document frequencies cluster at 47–64% with no gap between filler
+  and topic vocabulary to place a threshold in
+  (`docs/rules-extraction-findings.md § S15.3`).
+
+  What went wrong in the reasoning above is the word *proven*. What S4 proved
+  was that **hand-authored** trimming helps — by someone who already knew the
+  target page, which `§ S4.5` flagged as an upper bound. A frequency ceiling is
+  a different instrument, and on a single-book corpus it discards the word that
+  names the mechanic, because `saving` is frequent precisely *because the book
+  is about saves*. Assuming the automated proxy inherited the manual result's
+  evidence was the error, and it is the one worth remembering.
+
+  **Shipped state:** the mechanism, the `--df-threshold` flag, and the sweep
+  all remain; `DEFAULT_DF_THRESHOLD` is 0.75, deliberately above every observed
+  frequency, so the default costs nothing while a larger or multi-book corpus
+  might yet admit a useful ceiling. The vocabulary half of this entry, below,
+  is untouched and still open.
+- **Vocabulary mapping is the part still open.** Substituting book
+  vocabulary for generic-TTRPG terms (`perception` → `Intellect`) is a real,
+  separate effect — moved the worst query from 9th to 4th under dense
+  retrieval — but the reformulations tested were authored by someone who
+  already knew the target page (`docs/rules-extraction-findings.md § S4.5`),
+  so this is an upper bound, not a validated fix. Two candidate approaches,
+  not yet chosen between: a per-system synonym/thesaurus table (real ongoing
+  authoring cost, one per supported game system), or prompt-side guidance
+  steering the Warden's own query phrasing toward book vocabulary. The
+  latter is free — the Warden is already the LLM making the tool call, so
+  shaping its query costs no additional latency or API call, unlike a
+  dedicated query-rewriting model call, which the latency finding above
+  rules out.
+
+**Consequence for the M7.2 retrieval eval harness.** Fixtures written by
+hand in tidy, correct-vocabulary phrasing cannot detect this failure mode at
+all — the harness needs query fixtures that reflect real Warden output
+(verbose, sometimes off-vocabulary), not idealized questions, or it will
+report a retrieval quality bar the Warden's actual queries never clear.
+
+**Not yet decided:** whether prompt-side guidance alone closes enough of the
+vocabulary gap to skip a synonym table, or whether both are needed. Prompt
+guidance is untested; only the oracle-authored upper bound has been
+measured.
+
+**Amendment — the vocabulary gap splits into two problems, not one, and the
+floor is more load-bearing than it looked.** Measured against the 596 real
+`rules_lookup` queries recorded in `unicorn-artifacts` (`docs/rules-extraction-findings.md
+§ S8`), not just the original three. The "vocabulary mapping" fix above
+assumed a single problem — the Warden's word, the book's word — but at scale
+it splits into two with different fixes:
+
+- **Wrong word** (`initiative`→`turn order`, `stealth`→`sneak`): the book has
+  the concept under different vocabulary. A synonym table or prompt-side
+  phrasing guidance genuinely fixes this. 157 of the 344 out-of-corpus-term
+  queries (45.6%) fall here.
+- **Concept absent** (suppressive fire, flanking, opposed rolls, difficulty
+  numbers): the PSG resolves everything by rolling under a stat, so these
+  mechanics have no referent in the book at all. No mapping — synonym table
+  or otherwise — can retrieve a rule the book doesn't contain. 130 of 344
+  (37.8%) fall here, and the correct behaviour is returning nothing, which
+  the design already treats as a supported outcome (`docs/rules-extraction-findings.md
+  § S8.3`, `§ S9`).
+
+**Consequence:** the similarity floor (`docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md
+§ Part 4`, left open) is not an optional refinement alongside the vocabulary
+work — it's the only mechanism that correctly handles over a third of real
+queries, at a rate the original three-query sample gave no way to see. Both
+fixes are now confirmed necessary and non-overlapping, not alternatives to
+weigh against each other.
+
 ---
 
 ## Claude Integration — Tool Schemas & State
@@ -81,7 +306,7 @@ Secondary but not minor: **errors dropped from 18 of 150 rows to 4**, almost all
 
 Two failure modes survive the swap with real denominators behind them: `unauditable-mapping` (2 passes across 45 judged inputs spanning both models) and `turn16-narrating-past-a-block` (0/10 under both). Both are now confirmed genuine rather than checker artifacts, which is the useful outcome — they are prompt work, and they are the two places prompt work should go first.
 
-**What this decision does not claim.** All figures are single-grader. Both baselines executed against an empty `rules_chunk` index, so nothing here accounts for how rules availability changes reach-for-dice behaviour; the M7.2 re-baseline is the real test of these numbers. At N=10 the 95% CI half-width at p=0.5 is ~±31pp, so individual rates near the middle are unsettled even where the direction is not. And a first run against a new model audits the harness as much as the model — the two defects that audit surfaced are recorded in `eval-methodology.md`, and the rates above are the post-correction ones.
+**What this decision does not claim.** All figures are single-grader. Both baselines executed against an empty `rules_chunk` index, so nothing here accounts for how rules availability changes reach-for-dice behaviour; the M7.5 re-baseline is the real test of these numbers (moved from M7.2 — see § Rules ingestion pipeline and retrieval quality are separate milestones). At N=10 the 95% CI half-width at p=0.5 is ~±31pp, so individual rates near the middle are unsettled even where the direction is not. And a first run against a new model audits the harness as much as the model — the two defects that audit surfaced are recorded in `eval-methodology.md`, and the rates above are the post-correction ones.
 
 **The judged half of that table is now self-graded, and was already half-way there.** `JUDGE_MODEL` has been `claude-sonnet-5` since the judged checks were built — deliberately above the Warden's 4.6, so a more capable grader sat over the model under test. This decision closes that gap: the Warden and its judge are now the same model. The consequence is retroactive as well as forward-looking, and it is a real confound in the comparison above: on the 4.6 side a Sonnet 5 judge graded a 4.6 generator, while on the Sonnet 5 side it graded itself. Every judged row in the table therefore has an asymmetry the structural rows don't.
 
@@ -188,7 +413,7 @@ The 4.6 → Sonnet 5 baseline is evidence against that theory for at least half 
 Three reasons this doesn't close the question:
 
 - **The residual is not cosmetic.** 2/20 means the Warden takes a player's declared action out of their hands roughly one combat turn in ten. In solo play, where the player has no table to appeal to, that's an agency violation rather than a polish item. "Mostly fixed" is a weaker result here than the rate suggests.
-- **The measurement predates M7.2.** Both runs executed against an empty `rules_chunk` index, and the runaway-lookup errors show a Warden repeatedly unable to resolve what it was looking for. Rules availability plausibly affects when and how it reaches for dice. Re-measure after ingestion before treating 0.90 as the model's actual ceiling.
+- **The measurement predates M7.2.** Both runs executed against an empty `rules_chunk` index, and the runaway-lookup errors show a Warden repeatedly unable to resolve what it was looking for. Rules availability plausibly affects when and how it reaches for dice. Re-measure after M7.5's re-baseline — not M7.2's, which no longer exists — before treating 0.90 as the model's actual ceiling.
 - **The sequencing half is measured, and agrees.** `OUT-OF-ORDER-RESOLUTION` reads 0.39 (7/18)
   on 4.6 and 1.00 (20/20) on Sonnet 5 under the structural deferred-gate rule. Both
   dice-arbitration categories therefore respond to a model swap alone. The caveat is that only
@@ -197,7 +422,7 @@ Three reasons this doesn't close the question:
   model we'd be building against — but that is a property of this model's behaviour, not a
   guarantee, and it will need re-checking whenever roll behaviour moves.
 
-Revised criterion for revisiting: re-baseline after M7.2, and try the cheaper structural option first — the deferred `rollType` / `gatedByRollId` / `actingEntityId` fields on `roll_dice`, which enforce sequencing at the tool schema without decomposing the loop. A graph becomes the right answer only if a measured residual survives both.
+Revised criterion for revisiting: re-baseline after M7.5 (the re-baseline moved there from M7.2), and try the cheaper structural option first — the deferred `rollType` / `gatedByRollId` / `actingEntityId` fields on `roll_dice`, which enforce sequencing at the tool schema without decomposing the loop. A graph becomes the right answer only if a measured residual survives both.
 
 An earlier version of this criterion also called for extending the `turn19`/`turn21` fixtures through the follow-up turn, on the theory that a model which splits a to-hit request from its resolution puts the ordering evidence on a turn the fixture doesn't contain. **That is withdrawn.** The violation window is the captured turn: once a gate is deferred, the turn ends, so any dependent roll landing on the follow-up turn is necessarily *after* the gate resolved. Extending the fixtures would have produced a structurally guaranteed PASS and read as evidence of correct sequencing.
 
@@ -210,7 +435,9 @@ These three fields were introduced in the M7.4 spec as a fixture-schema compatib
 
 So the fields are not only a possible fix; they are the precondition for knowing whether a fix is needed. Until they land, both checks report `not_applicable` naming the missing field rather than approximating it with a regex — the deliberate cost being denominator, per "Structural checks report undecided rather than guessing" below.
 
-**Still deferred**, and the reason is unchanged: adding fields to `roll_dice` changes the tool schema, which changes what reaches the Warden, which invalidates every frozen artifact and forces a fresh baseline on both models. That is affordable once, not repeatedly, and the M7.2 rules-ingestion work is already going to force one — both existing baselines ran against an empty `rules_chunk` index. Re-check after M7.2, and land the fields with that re-baseline rather than paying for a second one.
+**Still deferred**, and the reason is unchanged: adding fields to `roll_dice` changes the tool schema, which changes what reaches the Warden, which invalidates every frozen artifact and forces a fresh baseline on both models. That is affordable once, not repeatedly, and the rules-ingestion work is already going to force one — both existing baselines ran against an empty `rules_chunk` index. Re-check after M7.5, and land the fields with that re-baseline rather than paying for a second one. (The re-baseline moved from M7.2 to M7.5; M7.2 populated the index but deliberately bought no Warden-level measurement.)
+
+**Provenance note.** During M7.2 implementation planning this conclusion was briefly reversed — a plan document recorded "resolved with Alex: the fields do not ride along, a third baseline gets paid for separately" — and instructed that this entry be rewritten to match. That rewrite never happened here. The reversal was itself reversed during M7.5 spec review: the fields land with M7.5's re-baseline, per the original reasoning above, which was correct throughout. Noted so the now-stale reasoning in that plan document isn't mistaken for a second, independent decision.
 
 ---
 
@@ -247,6 +474,14 @@ This is not a question of whether the concept is right — it clearly is, and th
 The block becomes genuinely useful when the game engine starts reading armor/conditions mechanically — that's M6 (state-change application of condition toggles) or M7 (roll resolution that consults armor). Reactivate at the milestone that first needs the data. At that point the schema, the write path, and the snapshot rendering can be designed together against concrete usage, rather than guessed at now.
 
 The three doc references stand unchanged — they describe the intended end state. The M5 snapshot builder simply does not render this block. When the data source lands, the builder is a two-line addition (one render function, one call site) following the same pattern as the other blocks.
+
+**Amendment — the deferral scope was too broad; static build data was never blocked**
+
+This entry conflated two different claims under one deferral: the qualitative `characterAttributes` block (armor mode, loadout, conditions), which genuinely lacks a data source, and character-sheet *build* data — stats, saves — which does not. `character_sheets.data` already carries `Strength`/`Speed`/`Intellect`/`Combat` and the saves as structured fields, populated at character creation (see `§ Player resource pools are derived at character creation, not at synthesis`), and rendering them into the snapshot requires no schema addition and no synthesis write path — only a render function and a call site, the same shape already anticipated above for the qualitative block.
+
+"Reactivate at the milestone that first needs the data" was the intended trigger, and for this narrower slice it already fired: Phase 1 has no rule evaluator, so Claude adjudicates every stat check itself, and without these fields in the snapshot its only source for the check target is the player stating their own stat in the action text — the system asking the player for data the system already has. That gap has existed since M6/M7 started resolving checks, not from some future milestone.
+
+Scheduled for M8.1. The qualitative block — armor mode, loadout, conditions — remains deferred exactly as described above; it is the part that actually needs new schema and a character-sheet shape extension to separate armor/loadout/conditions.
 
 ### Message ordering relies on `createdAt` only; no shared sequence key with `game_events`
 
@@ -519,7 +754,7 @@ The real defect is in the fixture, which asks about a detail neither model repro
 
 The framing is what made it hard to see: the statistical confidence was entirely real and completely beside the point, because a large n does not make a checker correct. The practical rule is the same one already recorded for large rate jumps after a model swap, extended to its mirror image — a fixture sitting at exactly 0.0 or 1.0 across every rep more likely indicates a checker that cannot move than a model that never varies, and should be treated as a harness suspect before being recorded as a finding.
 
-**This entry was written from `turn16`, so it reads as being about zeros. It is not.** A rate pinned at 1.00 is exactly as suspect and *materially less likely to be investigated*, because nobody audits good news. The asymmetry is worse than indifference: a pinned zero at least announces itself as a problem worth opening, and it tends to present with a shrunken or lopsided denominator that draws a second look. A pinned 1.00 presents with full applicability, a healthy denominator, and an `App` column reading `1.00` — the healthiest-looking row in the report. Every diagnostic built so far watches for denominators collapsing; none of them can see a verdict that cannot be reached. `turn21-narrating-past-a-block` (1.00 on both models) and `turn{19,21}-out-of-order-resolution` under Sonnet 5 (1.00, 20/20) are the current instances, and the reason each is currently believed is hand-review, not tooling. `docs/plans/013-fixture-check-reachability-design.md` is the design for closing that gap and is deferred, so for now the ceiling half of this rule is enforced by remembering it.
+**This entry was written from `turn16`, so it reads as being about zeros. It is not.** A rate pinned at 1.00 is exactly as suspect and *materially less likely to be investigated*, because nobody audits good news. The asymmetry is worse than indifference: a pinned zero at least announces itself as a problem worth opening, and it tends to present with a shrunken or lopsided denominator that draws a second look. A pinned 1.00 presents with full applicability, a healthy denominator, and an `App` column reading `1.00` — the healthiest-looking row in the report. Every diagnostic built so far watches for denominators collapsing; none of them can see a verdict that cannot be reached. `turn21-narrating-past-a-block` (1.00 on both models) and `turn{19,21}-out-of-order-resolution` under Sonnet 5 (1.00, 20/20) are the current instances, and the reason each is currently believed is hand-review, not tooling. `docs/plans/900-fixture-check-reachability-design.md` is the design for closing that gap and is deferred, so for now the ceiling half of this rule is enforced by remembering it.
 
 ### Applicability is reported alongside every rate, and errors are not in its denominator
 

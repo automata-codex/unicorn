@@ -67,13 +67,13 @@ describe('validateEnv', () => {
     expect(() => validateEnv(withoutKey)).toThrow(/VOYAGE_API_KEY/);
   });
 
-  it('defaults VOYAGE_EMBED_MODEL to voyage-3-lite', () => {
+  it('defaults VOYAGE_EMBED_MODEL to voyage-4-lite', () => {
     const result = validateEnv(validEnv);
-    expect(result.VOYAGE_EMBED_MODEL).toBe('voyage-3-lite');
+    expect(result.VOYAGE_EMBED_MODEL).toBe('voyage-4-lite');
   });
 
   it('accepts a VOYAGE_EMBED_MODEL override', () => {
-    const result = validateEnv({ ...validEnv, VOYAGE_EMBED_MODEL: 'voyage-3' });
-    expect(result.VOYAGE_EMBED_MODEL).toBe('voyage-3');
+    const result = validateEnv({ ...validEnv, VOYAGE_EMBED_MODEL: 'voyage-4' });
+    expect(result.VOYAGE_EMBED_MODEL).toBe('voyage-4');
   });
 });
