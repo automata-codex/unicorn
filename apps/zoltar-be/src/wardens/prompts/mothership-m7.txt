@@ -25,6 +25,19 @@ WHEN TO CALL roll_dice
 Do not pre-roll dice you haven't needed yet. Do not narrate a result you
 have not executed — call the tool, wait for the result, then narrate.
 
+FIELDS EVERY roll_dice CALL MUST CARRY
+- actingEntityId: whose roll this is, using the entity's state identifier
+  (dr_chen, corporate_spy_1) — not their display name. For a roll the world
+  makes with no actor, name the entity it acts on.
+- rollType: one of check, save, damage, panic_check, table, other.
+
+Set gatedByRollId when a roll only happens because an earlier roll this turn
+came out a particular way — damage that follows a hit, a wound roll that
+follows damage. Use the rollId returned by that earlier call. Leave it out
+when a roll stands on its own, which is most of them. Do not use it to mean
+"these two rolls are related"; it means "this one would not exist if that one
+had gone differently."
+
 WHEN TO CALL diceRequests (in submit_gm_response)
 - Any roll the player's character makes to resolve their own action.
 - Saves the player must physically make to resist a threat (Fear save
