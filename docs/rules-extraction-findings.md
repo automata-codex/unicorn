@@ -2921,3 +2921,111 @@ fixture demonstrably improved.
 **Round 1 does not move the bar.** `warden-observed` recall@3 is still
 91.3% against a bar of 95.6%, and MRR 0.829 against 0.85. Two rounds
 remain.
+
+### S18 — 2026-08-07 · Round 2: page 3 excluded; the MRR bar clears
+
+**Round 2 of 3.** The spec's cheapest lever and the open question
+`docs/decisions.md` left when it excluded pages 4/41/42: physical page 3,
+the character-profile sheet, "not yet extended … tracked in `roadmap.md`
+M7.5 as a check, not yet a confirmed exclusion."
+
+#### 18.1 The change
+
+`drop_pages` 4,41,42 → **3,4,41,42**. 63 chunks → **61**. Everything else
+identical: marker 2.0.0, `voyage-4-lite`, 400-token target, 50–100 overlap,
+section headers excluded. Run
+`$ZOLTAR_EVAL_ROOT/retrieval-runs/mothership__2026-08-07T13-17-31Z`.
+
+#### 18.2 Scores
+
+| Group | recall@3 | MRR | n | vs. S17 | vs. S16 baseline |
+|---|---|---|---|---|---|
+| **all** | **94.6%** | **0.856** | 37 | MRR +0.027 | MRR **+0.054** |
+| authored | 100.0% | 1.000 | 14 | — | — |
+| warden-observed | 91.3% | **0.768** | 23 | MRR +0.043 | MRR **+0.087** |
+
+**MRR 0.856 clears the 0.85 bar**, and it is not a lucky run: three
+consecutive scorings at this configuration read **0.856, 0.856, 0.856** —
+identical, where [S15.7](#157-run-to-run-variance--recall-is-stable-mrr-is-not)
+measured 0.797 / 0.824 / 0.797 on the M7.2 index. The variance S15.7 found
+appears to have *been* the false-positive pages: ties between a real answer
+and a stat-density match are exactly the borderline pairs that reorder
+between runs, and both rounds so far have removed them.
+
+`recall@3` is unchanged at 94.6% / 100.0% / 91.3% for the third round
+running.
+
+#### 18.3 What moved, and this time all of it is attributable
+
+| Fixture | Before | After | Returned |
+|---|---|---|---|
+| `rq-003` | rank 2 | **rank 1** | `4, 28, 4` → `28, 29, 44` |
+| `rq-017` | rank 2 | **rank 1** | `4, 28, 29` → `28, 29, 44`* |
+
+\* `28, 29, 29`.
+
+Both had printed p.4 — physical 3, this round's exclusion — sitting at
+**rank 1 ahead of the correct page**, and both promoted the correct page
+when it was removed. No fixture regressed. Unlike S17, there is no
+unexplained second movement: the mechanism is visible in both rows.
+
+Printed p.4's share of the 147 top-3 slots: **10 → 0.** The most-cited
+pages are now p.27 (23), p.44 (14), p.29 (11), p.22 (10).
+
+#### 18.4 The pre-stated decision criterion was half-wrong, and saying so matters
+
+S17's plan for this round fixed the criterion **before** the run: *exclude
+if recall holds and unanswerable top-1 similarity falls; keep it and record
+why if recall drops on any fixture.*
+
+Recall held. **Unanswerable top-1 similarity did not fall** — it is flat to
+three decimals on 11 of 12 fixtures, and the distribution max is 0.417
+either way. By the letter of the criterion, the second clause never fired.
+
+The criterion was aimed at the wrong fixtures. It used unanswerable
+similarity as a *proxy* for false-positive pressure, on the theory that a
+page attracting spurious matches would be attracting them from queries the
+book cannot answer. It isn't: only `rq-043` retrieved p.4 among the twelve
+unanswerable fixtures. **Page 3's false positives were landing on
+*answerable* queries** — combat and stat-check questions where it displaced
+a page that genuinely answered — which the proxy cannot see at all.
+
+The decision is still to exclude, on evidence that is *stronger* than the
+criterion asked for: two answerable fixtures directly displaced, ten slots
+consumed, zero recall cost. But the criterion is recorded as written and as
+missed, because a criterion quietly reinterpreted after the fact is worth
+nothing, and the failure mode it exhibits — an aggregate proxy that cannot
+see the effect it stands in for — is the same one
+[S15.6](#156-labels-corrected-during-review--and-why-recall-went-up) and
+[S17.3](#173-what-actually-moved-and-how-much-of-it-is-real) keep finding
+in different clothes. **Read the per-fixture table.**
+
+#### 18.5 Conclusion, and what page 3 turned out to be
+
+Excluded. `ingestion/mothership/system.json` carries `drop_pages: [3, 4,
+41, 42]`; `docs/decisions.md § Character-creation content is excluded from
+the rules index` is updated to close its page-3 caveat.
+
+**But not for the reason the caveat guessed.** It read page 3 as "probably
+the same unreachable category" as 4/41/42. That is not what the evidence
+says. Pages 4/41/42 are excluded because the Warden *cannot reach them* —
+a structural argument that holds no matter what the index does. Page 3 is
+reachable and is excluded because it is *actively harmful*: it is a
+false-positive magnet whose stat-name density outranks real mechanics for
+real queries. Same action, different justification, and the difference
+matters for any future page — reachability is checked by reading the tool
+array, harm has to be measured.
+
+#### 18.6 Bar status after two rounds
+
+| Metric | Bar | Now | Met? |
+|---|---|---|---|
+| recall@3, `authored` | hold 100.0% | 100.0% | ✅ |
+| MRR, answerable | ≥ 0.85 | **0.856** | ✅ |
+| recall@3, `warden-observed` | ≥ 95.6% | 91.3% | ❌ |
+
+Two of three. The outstanding one needs a *miss* to become a hit, and both
+rounds so far have only reordered hits — which is exactly what excluding
+false positives can do and all it can do. The two misses are unchanged:
+`rq-015`, which needs p.12's tables to extract at all, and `rq-024`.
+One round remains.
