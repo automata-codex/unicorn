@@ -2713,3 +2713,105 @@ Fixtures committed (queries and page numbers, no rules text). Run artifacts —
 which include returned chunk pages — go to
 `$ZOLTAR_EVAL_ROOT/retrieval-runs/`, outside this repository. Index unchanged:
 66 chunks, marker 2.0.0, `voyage-4-lite`, 400-token target.
+
+### S16 — 2026-08-07 · Baseline confirmed and the M7.5 quality bar set
+
+The first session of M7.5. No index change, no code change: this run exists
+to confirm [S15](#s15--2026-08-06--first-measured-retrieval-baseline-df-trimming-has-no-useful-setting)
+reproduces before iteration starts, and to fix the bar in place *before*
+any result is seen. A bar chosen after seeing the results you want is not a
+bar.
+
+#### 16.1 The confirmation run
+
+Identical configuration to S15's shipped default — 66 chunks, marker 2.0.0,
+`voyage-4-lite`, 400-token target, no dropped pages, preprocessing on at the
+inert default threshold. Run
+`$ZOLTAR_EVAL_ROOT/retrieval-runs/mothership__2026-08-07T12-56-17Z`.
+
+| Group | recall@3 | MRR | n | S15 | 
+|---|---|---|---|---|
+| **all** | **94.6%** | 0.802 | 37 | 94.6% / 0.811 |
+| authored | 100.0% | 1.000 | 14 | 100.0% / 1.000 |
+| warden-observed | 91.3% | 0.681 | 23 | 91.3% / 0.696 |
+
+**Recall is identical on every row; MRR reads 0.802 against S15's 0.811.**
+That is inside the noise band [S15.7](#157-run-to-run-variance--recall-is-stable-mrr-is-not)
+established at 0.797–0.824 across three identical runs — two fixtures
+swapping ranks 1 and 2, not a change in what was retrieved. S15 reproduces.
+
+The two misses are unchanged and both are already understood:
+
+- **`rq-015`** (`ammo tracking weapon fire rate`, expected pp.12/17) returned
+  pp.2/7/44. p.12 is absent from the index entirely — all its `Table` blocks
+  extract empty ([S3.2](#32-the-corpus)) — so this fixture measures the known
+  extraction gap, not chunking. S15.1 flagged it as such when it was labelled.
+- **`rq-024`** (expected pp.26/30/31) returned p.27 three times over. The
+  only genuinely open miss in the set.
+
+`UNSURFACED-CHECK` (50.0%, n=2) and `OVER-RESOLUTION` (66.7%, n=3) remain the
+weakest tags and remain too small to read as rates.
+
+#### 16.2 The bar
+
+Recorded in full, with its justification, in `docs/eval-methodology.md`.
+Restated here because this file is where the rounds that chase it are logged.
+
+| Metric | Baseline | Bar |
+|---|---|---|
+| recall@3, `authored` | 100.0% (n=14) | **hold at 100.0%** — a regression floor, not a growth target |
+| recall@3, `warden-observed` | 91.3% (n=23) | **≥ 95.6%** — 2 misses down to at most 1 |
+| MRR, answerable | 0.802 (n=37) | **≥ 0.85** |
+
+The `warden-observed` bar is deliberately the *smallest* target that is not
+noise: one fixture is 4.3 pp on n=23, so asking for less than one fixture's
+movement would be asking for nothing. The MRR bar sits 0.048 above this run
+and 0.039 above S15's, outside the ±0.03 spread S15.7 measured — so clearing
+it is an effect rather than a lucky re-run.
+
+Of the two misses, only `rq-024` is reachable by chunking work. `rq-015`
+needs p.12's tables to extract at all, which is a fixup-patch problem rather
+than a chunking one. **So the `warden-observed` bar is, concretely, "fix
+`rq-024` or find something that helps it."** Worth saying plainly, because a
+bar expressed as a percentage on n=23 obscures how few events it actually
+turns on.
+
+No `recall@5` target, per the spec: it is worth reporting and tuning against
+it optimizes for a `limit` the Warden rarely uses. Note this run has
+recall@5 == recall@3 on every row — at 66 chunks, ranks 4 and 5 add nothing
+that ranks 1–3 missed.
+
+#### 16.3 The stopping rule's axis was wrong, and is corrected before round 1
+
+As written, the spec's stopping rule closed the milestone "after three full
+iteration rounds that do not improve `recall@3` on the `authored` set by
+more than 5 percentage points."
+
+**`authored` recall@3 is 100.0%.** It cannot improve by any amount, so that
+condition fires after round three unconditionally — including after a round
+that took `warden-observed` from 91.3% to 100%. The rule was measuring
+progress on the one axis with no headroom.
+
+Corrected in the spec before any round ran: the no-progress test is
+evaluated on `recall@3` over the answerable set as a whole and on
+`warden-observed` specifically, with `authored` held as a regression floor.
+Threshold (5 pp) and budget (three rounds) unchanged — only the axis moves.
+Recorded in `docs/decisions.md § The retrieval stopping rule is measured on
+the metrics with headroom, not on the saturated one`.
+
+#### 16.4 The fixture set is frozen from here
+
+49 fixtures, unchanged for the duration of Part 2's iteration. No additions,
+no label corrections. If a label is found wrong mid-round it is recorded as
+an observation and fixed after the milestone closes.
+
+The reason is [S15.6](#156-labels-corrected-during-review--and-why-recall-went-up):
+that pass raised recall from 91.9% to 94.6% **without the index changing at
+all** — the ruler moved, not the thing being measured. Mid-iteration, a label
+fix is indistinguishable in the report from a chunking improvement, and would
+be read as one.
+
+#### 16.5 Teardown
+
+Nothing spent but 49 query embeddings. Index unchanged: 66 chunks, marker
+2.0.0, `voyage-4-lite`, 400-token target, no dropped pages.
