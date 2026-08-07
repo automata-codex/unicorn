@@ -294,23 +294,33 @@ Current as of 2026-08-05. Each links to the session that established it.
     overlap between 0.355 and 0.380 — enough to be encouraging about a
     similarity floor, nowhere near enough to set one.
     ([S12.2](#122-the-similarity-distribution--11-queries), [S12.3](#123-the-two-distributions-do-separate--narrowly))
-15. **Automated document-frequency trimming is not the same intervention as
-    S4's hand-authored trimming, and does not obviously help.** It fires on
-    answerable queries almost exclusively — unanswerable ones are built from
-    terms the corpus lacks, so nothing clears the ceiling — which compresses
-    the answerable similarity band *downward into* the unanswerable one. On a
-    single-book corpus the topic words are also the frequent words, so the
-    ceiling discards `saving` from a query about saves. Settle the threshold
-    before deriving any floor.
-    ([S13.3](#133-the-structural-problem--it-shortens-answerable-queries-and-not-unanswerable-ones), [S13.4](#134-why-a-document-frequency-ceiling-struggles-on-a-single-book-corpus))
-16. **A vector index built by migration must not be ivfflat.** ivfflat derives
+15. **Automated document-frequency trimming has no useful setting on this
+    corpus — measured.** Every threshold that drops anything hurts recall
+    (0.4: −10.8 pp, 0.55: −8.1 pp against no preprocessing), and every
+    threshold that doesn't hurt (0.65+) drops nothing at all, because the
+    measured frequencies cluster at 47–64% with no gap between filler and
+    topic vocabulary. S4's hand-authored trimming helped; the automated
+    ceiling is a different intervention and discards the word that names the
+    mechanic. ([S15.3](#153-document-frequency-trimming-makes-retrieval-worse-at-every-setting-that-does-anything))
+16. **Retrieval baseline: recall@3 91.9% without preprocessing, and a
+    19-point gap between query styles** (authored 100.0%, warden-observed
+    87.0%). Measuring on authored questions alone would report a quality the
+    Warden's real queries never see.
+    ([S15.2](#152-baseline--preprocessing-at-the-shipped-04-default))
+17. **No similarity floor separates answerable from unanswerable at current
+    retrieval quality.** On 49 labelled fixtures the distributions overlap in
+    both configurations, with unanswerable topping out around 0.416 — above
+    the answerable minimum either way. Any floor excluding the worst
+    unanswerable query would discard correct answers.
+    ([S15.4](#154-no-similarity-floor-separates-answerable-from-unanswerable--in-either-configuration))
+18. **A vector index built by migration must not be ivfflat.** ivfflat derives
     its centroids from the rows present at build time, and migrations run
     against empty tables; the resulting index silently returned 1 row for
     `LIMIT 2`. `REINDEX` cannot fix it and no `lists` value chosen against
     zero rows can either. **Fixed** in `V18__rules_chunk_hnsw_index.sql` by
     switching to hnsw, which builds incrementally and needs no per-corpus
     tuning. ([S13.7](#137-incidental--the-ivfflat-index-under-returns-at-small-limit), [S14](#s14--2026-08-06--the-vector-index-swapped-to-hnsw-under-return-fixed))
-17. **The sort's one residual failure is invisible to the corpus — for now.**
+19. **The sort's one residual failure is invisible to the corpus — for now.**
     Page 17's misordering is confined to a `SectionHeader` block, and
     `SectionHeader` is dropped before chunking; its content blocks sort
     correctly. Two M7.5 levers (breadcrumb composition, `SectionHeader` as
@@ -2516,3 +2526,122 @@ requirement.
 Migration applied to the dev database and left applied; the index is a
 permanent part of the schema. `docs/schema.md` updated to match, including
 why the swap happened. No rulebook text.
+
+
+### S15 — 2026-08-06 · First measured retrieval baseline; DF trimming has no useful setting
+
+The M7.2 retrieval harness (`task eval:retrieval`) run against a labelled
+fixture set for the first time. **This is the baseline M7.5's quality bar is
+set against**, and the first retrieval-quality number this project has ever
+had.
+
+#### 15.1 The fixture set
+
+49 fixtures: **37 answerable, 12 unanswerable; 25 warden-observed, 24
+authored.**
+
+The 25 warden-observed queries were sampled from real recorded `rules_lookup`
+calls in `unicorn-artifacts` (`§ S8`), capped at 5 per M7.4 failure-mode tag
+and then pruned — see 15.5 for why pruning was needed. The 14 authored
+queries cover one or two per major chapter. The 12 unanswerable ones are the
+concept-absent bucket `§ S9.3` identified.
+
+**Labelling basis, stated because it determines what the numbers mean.**
+Pages come from the book, never from the index: the chapter→page map is the
+PDF's own running footer, and every "unanswerable" label was verified by
+confirming the mechanic's vocabulary appears on **zero** pages — `suppressive`,
+`flank`, `opposed`, `difficulty`, `grappl`, `opportunit`, `spell`, `magic`,
+`starship combat`, `shutdown`, `autofire` all check out. `expectedPages` lists
+every page that would legitimately answer, not only the best one; labelling
+narrowly would manufacture false misses.
+
+Two labels are worth flagging as judgement calls rather than lookups. The
+`Instinct save` queries are **answerable** — `Instinct` is real, but it is the
+Contractor/NPC catchall Stat (p.40), not a player Stat, and the "difficulty
+threshold" half of those queries is concept-absent. And `ammo tracking weapon
+fire rate` is labelled to pp.12/17 even though **p.12 is absent from the index
+entirely** (all its `Table` blocks extract empty, `§ S3.2`), so a miss there
+measures the known extraction gap rather than a chunking failure.
+
+#### 15.2 Baseline — preprocessing at the shipped 0.4 default
+
+| Group | recall@3 | MRR | n |
+|---|---|---|---|
+| **all** | **81.1%** | 0.685 | 37 |
+| authored | 92.9% | 0.929 | 14 |
+| warden-observed | 73.9% | 0.536 | 23 |
+
+**The style gap is 19 percentage points**, which is the finding the
+`queryStyle` split was added to make visible. An index measured only on tidy
+authored questions would report 93% and describe a quality the Warden's real
+queries never see.
+
+#### 15.3 Document-frequency trimming makes retrieval worse, at every setting that does anything
+
+| `--df-threshold` | recall@3 | MRR | vs. off |
+|---|---|---|---|
+| 0.40 (shipped default) | 81.1% | 0.685 | **−10.8 pp** |
+| 0.55 | 83.8% | 0.716 | −8.1 pp |
+| 0.65 | 91.9% | 0.784 | — |
+| 0.80 | 91.9% | 0.784 | — |
+| **off (`--no-preprocess`)** | **91.9%** | **0.784** | baseline |
+
+Per style, off vs. the 0.4 default: authored **100.0%** vs. 92.9%,
+warden-observed **87.0%** vs. 73.9%.
+
+**0.65 and 0.80 reproduce "off" exactly** — at those ceilings the mechanism
+drops nothing, because the measured document frequencies cluster at 47–64%
+(`check` 47%, `makes` 56%, `saves`/`saving` 58%, `roll` 61%, `character` 64%).
+There is no gap between "filler" and "topic vocabulary" to put a threshold in.
+
+So the range is not narrow, as [S13.4](#134-why-a-document-frequency-ceiling-struggles-on-a-single-book-corpus)
+guessed — **it is empty**. Every setting is either harmful or inert. This
+supersedes S13's "unproven, with a known structural downside": it is now
+measured, on 37 labelled answerable queries, and the direction is negative.
+
+The mechanism is not absurd — [S4](#s4--2026-08-05--vocabulary-vs-verbosity-isolated)'s
+trimming really did help. But S4 trimmed by hand, knowing the target page, and
+[S4.5](#45-caveats--read-before-citing-this) flagged that as an upper bound.
+The automated ceiling picks different words: it turns `saving throws stats how
+to roll checks` into `throws stats`, discarding the word that names the
+mechanic, because in a one-book corpus `saving` is frequent *precisely because
+the book is about saves*.
+
+#### 15.4 No similarity floor separates answerable from unanswerable — in either configuration
+
+| | answerable, correct hit | unanswerable | overlap |
+|---|---|---|---|
+| preprocessing on | 0.296 – 0.600 (n=30) | 0.196 – 0.416 (n=12) | 0.296 – 0.416 |
+| preprocessing off | 0.342 – 0.600 (n=34) | 0.271 – 0.415 (n=12) | 0.342 – 0.415 |
+
+**Both overlap, and neither admits an honest threshold.** The unanswerable
+maximum sits at ~0.416 either way, above the answerable minimum in both
+configurations. Any floor that excluded the worst unanswerable query would
+also discard correct answers.
+
+This is the sample [S5.5](#55-incidental--a-similarity-floor-may-be-derivable-after-all)
+wanted and [S12.3](#123-the-two-distributions-do-separate--narrowly) could only
+gesture at with eleven hand-picked points. On 49 labelled fixtures the answer
+is: **not yet.** Retrieval quality has to improve before a floor is worth
+adding — which is a finding M7.5 can act on, not a gap in the measurement.
+
+#### 15.5 Incidental — the sampler clusters near-duplicates
+
+`sample-retrieval-fixtures.ts` sorts distinct queries alphabetically and caps
+per tag. On this corpus that draws adjacent near-duplicates: eight variants of
+`armor damage reduction…` across five tags, five of `Instinct save
+difficulty…`, and two one-word queries (`Mothership`, `Combat`) carrying no
+information. 45 stubs pruned to 25 usable.
+
+Deterministic sampling is right — re-running must not churn a half-labelled
+set — but the ordering key is wrong. Deduplicating by normalised token set
+before capping would fix it. Not changed here: the pruning is a one-time cost
+already paid, and changing the sampler now would renumber a fixture set that
+is about to be frozen for M7.5's iteration.
+
+#### 15.6 Teardown
+
+Fixtures committed (queries and page numbers, no rules text). Run artifacts —
+which include returned chunk pages — go to
+`$ZOLTAR_EVAL_ROOT/retrieval-runs/`, outside this repository. Index unchanged:
+66 chunks, marker 2.0.0, `voyage-4-lite`, 400-token target.

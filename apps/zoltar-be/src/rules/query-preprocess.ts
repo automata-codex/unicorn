@@ -26,13 +26,31 @@
  * Drop lexemes occurring in more than this share of the active system's
  * chunks.
  *
- * **A proposed starting value, not a measured one.** The investigation showed
- * the qualitative effect — dropping high-frequency terms helps, sometimes
- * substantially — not a tuned cutoff. `task eval:retrieval` is the tool that
- * should sweep it, and treating 0.4 as settled before that sweep would waste
- * the harness's first and easiest use.
+ * **0.75 is deliberately inert on the Mothership corpus, and that is the
+ * measured result rather than a hedge.** The spec proposed 0.4 as a starting
+ * value; `task eval:retrieval` swept it against 37 labelled answerable
+ * queries and found every setting that drops anything makes retrieval worse
+ * (0.4: −10.8 pp recall@3, 0.55: −8.1 pp) while every setting that does not
+ * hurt drops nothing at all. The measured document frequencies cluster at
+ * 47–64% — `check` 47%, `saves` 58%, `roll` 61%, `character` 64% — so there
+ * is no gap between filler and topic vocabulary to put a ceiling in
+ * (`docs/rules-extraction-findings.md § S15.3`).
+ *
+ * Why keep the mechanism at all, if the default disables it in practice: the
+ * effect it was built for is real — trimming a verbose query to its
+ * distinctive terms put the correct page at rank 1 on both backends
+ * (`§ S4`, `§ S5.3`) — but that trimming was hand-authored by someone who
+ * already knew the target page (`§ S4.5`), and a frequency ceiling is a
+ * different instrument. On a larger or multi-book corpus the frequency
+ * distribution changes shape and a ceiling may separate filler from topic
+ * again. The mechanism, the flag, and the sweep stay; the default stops
+ * costing recall in the meantime.
+ *
+ * Above the highest frequency observed on this corpus, so nothing is dropped
+ * today. A value below ~0.65 re-enables trimming and is a measurable
+ * regression until something changes about the corpus.
  */
-export const DEFAULT_DF_THRESHOLD = 0.4;
+export const DEFAULT_DF_THRESHOLD = 0.75;
 
 /**
  * Never trim below this many words. A query preprocessed into an empty string

@@ -36,6 +36,7 @@ describe('preprocessQuery', () => {
         ['panic', 0.06],
         ['stress', 0.12],
       ),
+      { threshold: 0.4 },
     );
 
     expect(result.applied).toBe(true);
@@ -50,6 +51,7 @@ describe('preprocessQuery', () => {
     const result = preprocessQuery(
       'make a check roll for panic',
       terms(['make', 0.72], ['check', 0.61], ['roll', 0.55], ['panic', 0.06]),
+      { threshold: 0.4 },
     );
 
     expect(result.query).toBe('roll panic');
@@ -90,6 +92,7 @@ describe('preprocessQuery', () => {
     const result = preprocessQuery(
       'stress panic trauma',
       terms(['stress', 0.05], ['panic', 0.02], ['trauma', 0.9]),
+      { threshold: 0.4 },
     );
 
     expect(result.query).toBe('stress panic');
@@ -114,6 +117,7 @@ describe('preprocessQuery', () => {
     const result = preprocessQuery(
       'the character makes a check',
       terms(['character', 0.95], ['makes', 0.88], ['check', 0.61]),
+      { threshold: 0.4 },
     );
 
     expect(result.query).not.toBe('');
@@ -185,6 +189,30 @@ describe('preprocessQuery', () => {
 
     expect(result.query).toBe('alpha');
     expect(result.dropped).toEqual(['beta']);
+  });
+
+  it('leaves the measured Mothership frequency band untouched by default', () => {
+    // The shipped default is deliberately above every frequency observed on
+    // the real corpus, because a sweep found each active setting costs recall
+    // (`docs/rules-extraction-findings.md § S15.3`). If someone lowers the
+    // constant without new evidence, this test is what should stop them.
+    const measured = terms(
+      ['check', 0.47],
+      ['makes', 0.56],
+      ['saves', 0.58],
+      ['roll', 0.61],
+      ['character', 0.64],
+      ['panic', 0.24],
+    );
+
+    const result = preprocessQuery(
+      'character makes a saves roll check panic',
+      measured,
+    );
+
+    expect(DEFAULT_DF_THRESHOLD).toBeGreaterThan(0.64);
+    expect(result.applied).toBe(false);
+    expect(result.dropped).toEqual([]);
   });
 
   it('breaks frequency ties by position so output is deterministic', () => {
