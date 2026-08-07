@@ -116,6 +116,13 @@ tasks:
       # Plain tsx, as with eval:report — no Nest DI container.
       - npx tsx --env-file=.env scripts/query-vocab.ts {{.CLI_ARGS}}
 
+  eval:retrieval-probe:
+    desc: 'Push the rules_lookup queries a Warden emitted back through the real retrieval path and report what came back, bucketed against the § S20.1 similarity distributions (M7.5 tier 2). Sits between eval:query-vocab (does the query use words the book prints — free) and hand-scoring (was the retrieved text sufficient — an evening): this asks whether the query retrieved anything at all. Makes real Voyage calls, ONE PER DISTINCT QUERY (~360 across both M7.5 before-runs), but NO Anthropic calls — use --limit-queries to smoke-test the wiring cheaply. Goes through RulesLookupService at the shipped defaults, so preprocessing is on and there is deliberately no flag to turn it off. Pass several run dirs to get a per-model split in one report and pay once for a shared query. Requires a populated rules_chunk index and ZOLTAR_EVAL_ROOT. NOT the M7.5 before-number — read Trap 3 in docs/plans/013-m7.5-open-work.md first. Usage — task eval:retrieval-probe -- <run-dir> [<run-dir>...] [--system mothership] [--limit 3] [--limit-queries 10] [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx, as with eval:report — no Nest DI container.
+      - npx tsx --env-file=.env scripts/retrieval-probe.ts {{.CLI_ARGS}}
+
   eval:judge-variance:
     desc: 'Re-run judged checks N times against frozen warden-output.json artifacts already on disk — no Warden calls, no DB (M7.4.1). Makes real, token-costing Anthropic calls: every vouched (rep, fixture) pair is one frozen input and --trials is how many times each is re-graded, so cost is frozen-inputs x --trials. --trials does NOT subsample source reps — the run fixes those. Requires ANTHROPIC_API_KEY and ZOLTAR_EVAL_ROOT. Usage — task eval:judge-variance -- <run-dir> [--trials 3] [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--output <path>]'
     dir: apps/zoltar-be
