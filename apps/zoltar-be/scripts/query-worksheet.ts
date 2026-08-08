@@ -17,7 +17,11 @@
  *
  * Usage:
  *   npx tsx --env-file=.env scripts/query-worksheet.ts <run-dir> \
- *     [--system mothership] [--fixtures-dir <dir>] [--output <path>]
+ *     [--system mothership] [--fixtures-dir <dir>] [--output <path>] [--force]
+ *
+ * **Refuses to overwrite an existing `--output`.** Unlike every other report
+ * in `scripts/`, this file is meant to be filled in by hand, so clobbering it
+ * destroys labels that cannot be regenerated. `--force` overrides.
  *
  * Or via the task wrapper:
  *   task eval:query-worksheet -- <run-dir> --output <path>
@@ -27,7 +31,7 @@
  * terms). No Anthropic calls, no Voyage calls. Plain `tsx` — no Nest DI.
  */
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { sql } from 'drizzle-orm';
@@ -39,7 +43,11 @@ import { resolveEvalRoot } from '../eval/runs/paths';
 import { RulesRepository } from '../src/rules/rules.repository';
 
 import { harvestQueries, scoreQueries } from './query-vocab.core';
-import { buildWorksheet, renderWorksheet } from './query-worksheet.core';
+import {
+  buildWorksheet,
+  overwriteRefusal,
+  renderWorksheet,
+} from './query-worksheet.core';
 
 import type { Db } from '../src/db/db.provider';
 
@@ -54,6 +62,7 @@ async function main(): Promise<number> {
       system: { type: 'string' },
       'fixtures-dir': { type: 'string' },
       output: { type: 'string' },
+      force: { type: 'boolean' },
     },
   });
 
@@ -61,7 +70,7 @@ async function main(): Promise<number> {
   if (!runDirArg) {
     process.stderr.write(
       'usage: query-worksheet.ts <run-dir> [--system mothership] ' +
-        '[--fixtures-dir <dir>] [--output <path>]\n',
+        '[--fixtures-dir <dir>] [--output <path>] [--force]\n',
     );
     return 2;
   }
@@ -171,6 +180,19 @@ async function main(): Promise<number> {
     );
 
     if (values.output) {
+      const exists = await stat(values.output).then(
+        () => true,
+        () => false,
+      );
+      const refusal = overwriteRefusal({
+        path: values.output,
+        exists,
+        force: values.force ?? false,
+      });
+      if (refusal) {
+        process.stderr.write(refusal);
+        return 2;
+      }
       await mkdir(dirname(values.output), { recursive: true });
       await writeFile(values.output, report, 'utf8');
       process.stderr.write(`worksheet written to ${values.output}\n`);

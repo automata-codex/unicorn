@@ -315,6 +315,40 @@ export function buildWorksheet(args: {
     });
 }
 
+/**
+ * Whether writing to `path` would clobber something, and what to say if so.
+ *
+ * **This worksheet is the one artifact in the eval tooling that is *designed*
+ * to be hand-edited.** Every other `--output` in `scripts/` writes a derived
+ * report that can be regenerated at no cost, so overwriting one loses
+ * nothing. Regenerating this one over a scored copy destroys an evening of
+ * judgment that exists nowhere else — the labels are not derivable from
+ * anything, which is the entire reason a human is producing them.
+ *
+ * It nearly happened: the before-set worksheet was regenerated three times in
+ * one session while scoring was in progress, and only survived because the
+ * scoring started after the last regeneration. A guard that depends on
+ * whoever runs the command remembering the hazard is not a guard.
+ *
+ * Pure so the policy is testable without touching a filesystem; the runner
+ * supplies `exists`. Returns the message to print, or `null` to proceed.
+ */
+export function overwriteRefusal(args: {
+  path: string;
+  exists: boolean;
+  force: boolean;
+}): string | null {
+  if (!args.exists || args.force) return null;
+  return (
+    `refusing to overwrite ${args.path}\n\n` +
+    'This worksheet is meant to be filled in by hand, and regenerating it ' +
+    'would discard any scoring already in the file. Labels are not derivable ' +
+    'from anything else.\n\n' +
+    'Write the new worksheet somewhere else with --output, or pass --force if ' +
+    'you are certain the existing file holds nothing you want.\n'
+  );
+}
+
 /** Markdown table cells are pipe-delimited, so a pipe in a query breaks the row. */
 function escapeCell(text: string): string {
   return text.replace(/\|/g, '\\|');
@@ -372,7 +406,7 @@ export function renderWorksheet(args: {
     'need to express, so `E` gets `—`, not `?` and not `n`. Keep those apart: `?` means you',
   );
   lines.push(
-    "looked and could not decide, which is a real state worth preserving; `—` means the",
+    'looked and could not decide, which is a real state worth preserving; `—` means the',
   );
   lines.push(
     'question has no referent. Folding them together makes genuine uncertainty and',
@@ -381,7 +415,7 @@ export function renderWorksheet(args: {
     'structural non-applicability indistinguishable at analysis time — the same reason this',
   );
   lines.push(
-    "repo keeps `NOT_APPLICABLE` out of its pass/fail denominators and treats `error` as a",
+    'repo keeps `NOT_APPLICABLE` out of its pass/fail denominators and treats `error` as a',
   );
   lines.push('fourth verdict rather than a failure.');
   lines.push('');
@@ -403,7 +437,7 @@ export function renderWorksheet(args: {
     'number of queries under a different prompt. A rate that improved because its hard cases',
   );
   lines.push(
-    'dropped out of the denominator is the failure `eval:compare`\'s App/ΔApp columns exist',
+    "dropped out of the denominator is the failure `eval:compare`'s App/ΔApp columns exist",
   );
   lines.push('to make visible; it applies here too.');
   lines.push('');

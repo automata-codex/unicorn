@@ -4,6 +4,7 @@ import {
   buildWorksheet,
   clusterNearDuplicates,
   normalizeTokens,
+  overwriteRefusal,
   renderWorksheet,
 } from './query-worksheet.core';
 
@@ -301,5 +302,40 @@ describe('retry detection', () => {
     expect(sampling[0].rows).toHaveLength(3);
     expect(cascade[0].maxSameFamilyInOneRep).toBe(3);
     expect(sampling[0].maxSameFamilyInOneRep).toBe(1);
+  });
+});
+
+describe('overwriteRefusal', () => {
+  const path = '/runs/worksheet.md';
+
+  it('permits writing when the file does not exist', () => {
+    expect(overwriteRefusal({ path, exists: false, force: false })).toBeNull();
+  });
+
+  it('refuses when the file exists, because scoring is not regenerable', () => {
+    // The hazard this exists for: the before-set worksheet was regenerated
+    // three times in one session while scoring was in progress. Every other
+    // --output in scripts/ writes a derived report that costs nothing to
+    // rebuild; this one holds human judgment that exists nowhere else.
+    const refusal = overwriteRefusal({ path, exists: true, force: false });
+
+    expect(refusal).not.toBeNull();
+    expect(refusal).toContain(path);
+    expect(refusal).toMatch(/--force/);
+  });
+
+  it('permits writing when --force is given', () => {
+    expect(overwriteRefusal({ path, exists: true, force: true })).toBeNull();
+  });
+
+  it('offers a different --output before it offers --force', () => {
+    // Overwriting is the destructive way out and should not be the first
+    // thing a hurried reader sees.
+    const refusal =
+      overwriteRefusal({ path, exists: true, force: false }) ?? '';
+
+    expect(refusal.indexOf('--output')).toBeLessThan(
+      refusal.indexOf('--force'),
+    );
   });
 });
