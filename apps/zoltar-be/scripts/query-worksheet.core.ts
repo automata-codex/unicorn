@@ -49,6 +49,12 @@ import type { HarvestedQuery, ScoredQuery } from './query-vocab.core';
  * - **N** — did the *situation* call for a lookup? Judged from the player
  *   input alone, so it needs no rules knowledge.
  * - **E** — does the query express what was needed?
+ * - **P** — does the *primer* answer this? Added once the mechanical-model
+ *   primer made the question non-circular: before it existed, "should the
+ *   Warden have known better" had no answer, because nothing had told it.
+ *   Scored on the before-set, `P` is a **prediction** — the queries the
+ *   primer ought to eliminate — which Part H then confirms or refutes. It is
+ *   pinned to a specific prompt revision and goes stale when the primer moves.
  * - **R** — near-duplicate family, computed here rather than scored.
  */
 
@@ -357,7 +363,10 @@ function escapeCell(text: string): string {
 export function renderWorksheet(args: {
   turns: WorksheetTurn[];
   model: string;
+  /** Prompt hash the run executed under — from its manifest. */
   promptHash: string;
+  /** Hash of the primer `P` is scored against, i.e. the prompt as it is now. */
+  primerHash: string;
   runDir: string;
   generatedAt: string;
 }): string {
@@ -371,6 +380,14 @@ export function renderWorksheet(args: {
   lines.push('');
   lines.push(`- Run: ${args.runDir}`);
   lines.push(`- Generated: ${args.generatedAt}`);
+  lines.push(
+    `- Queries emitted under prompt \`${args.promptHash}\`; **\`P\` is scored against the ` +
+      `primer as of \`${args.primerHash}\`**${
+        args.promptHash === args.primerHash
+          ? ' — the same revision, so this is an after-set'
+          : ' — a later revision, so `P` is a prediction'
+      }.`,
+  );
   lines.push(
     `- **${rowCount} query rows across ${turns.length} turns.** A query repeated across reps is one row.`,
   );
@@ -396,6 +413,9 @@ export function renderWorksheet(args: {
   lines.push(
     '| **E** | Does the query **express what was needed**? | It asks for the thing the situation required |',
   );
+  lines.push(
+    '| **P** | Does the **primer** answer this? | The Warden had already been told, and need not have asked |',
+  );
   lines.push('');
   lines.push('Score `y` / `n` / `?`, and `—` where a column does not apply.');
   lines.push('');
@@ -420,12 +440,69 @@ export function renderWorksheet(args: {
   lines.push('fourth verdict rather than a failure.');
   lines.push('');
   lines.push(
-    '`C` is independent of both. A query can ask clearly (`E=y`) for a mechanic that does',
+    '`C` and `P` are independent of `N` and of each other, and of the `E` rule above. A',
   );
   lines.push(
-    'not exist (`C=n`), and a mechanic is in the book or not regardless of whether this turn',
+    'query can ask clearly (`E=y`) for a mechanic that does not exist (`C=n`) which the',
   );
-  lines.push('needed it.');
+  lines.push(
+    'primer already rules out (`P=y`), on a turn that needed no lookup at all (`N=n`).',
+  );
+  lines.push('Score each on its own terms.');
+  lines.push('');
+  lines.push('## What `C` and `P` are each scored against');
+  lines.push('');
+  lines.push(
+    'These are **two different corpora and they never mix.** `rules_lookup` embeds the query',
+  );
+  lines.push(
+    'and searches `rules_chunk`, which `ingest.py` populates from the book alone. The primer',
+  );
+  lines.push(
+    'lives in the Warden system prompt, assembled by a separate path. Nothing embeds or',
+  );
+  lines.push('indexes it.');
+  lines.push('');
+  lines.push(
+    '- **`C` is the extracted text only** — could retrieval *ever* have succeeded? A query',
+  );
+  lines.push(
+    '  for a mechanic the corpus lacks is unanswerable at any chunking quality, which is the',
+  );
+  lines.push('  whole reason this column exists.');
+  lines.push(
+    '- **`P` is the primer** — had the Warden already been told? The book often answers only',
+  );
+  lines.push(
+    '  *by omission* (it never says "narrate what a character sees instead of rolling"),',
+  );
+  lines.push(
+    '  while the primer says so outright. That gap is exactly what `P` measures.',
+  );
+  lines.push('');
+  lines.push(
+    '**`C` cannot show the primer working.** The corpus is held constant across before and',
+  );
+  lines.push(
+    'after, so `C` for a given query is the same in both. What moves is *which queries get',
+  );
+  lines.push(
+    "emitted*, so the primer's effect appears as a falling `C=n` **rate**, never as a label",
+  );
+  lines.push('changing.');
+  lines.push('');
+  lines.push(
+    '**`P` on this sheet is a prediction, and it has a shelf life.** It is scored against one',
+  );
+  lines.push(
+    'prompt revision, named in the header. If the primer changes again these labels are stale',
+  );
+  lines.push(
+    'and must be re-scored. In the after-set the two readings diverge usefully: a `P=y` query',
+  );
+  lines.push(
+    'still emitted is a primer that was ignored; a `P=n` query still emitted is a primer gap.',
+  );
   lines.push('');
   lines.push(
     '**Report every rate with its denominator.** `E` is a rate over `N=y` rows only, and the',
@@ -561,13 +638,13 @@ export function renderWorksheet(args: {
           : ''),
     );
     lines.push('');
-    lines.push('| row | n | R | query | absent | C | N | E |');
-    lines.push('|---|---|---|---|---|---|---|---|');
+    lines.push('| row | n | R | query | absent | C | P | N | E |');
+    lines.push('|---|---|---|---|---|---|---|---|---|');
     for (const row of turn.rows) {
       lines.push(
         `| ${row.rowId.split('/')[1]} | ${row.occurrences} | ${row.family ?? '—'} | ${escapeCell(
           row.query,
-        )} | ${row.absentTerms.join(', ') || '—'} |  |  |  |`,
+        )} | ${row.absentTerms.join(', ') || '—'} |  |  |  |  |`,
       );
     }
     lines.push('');

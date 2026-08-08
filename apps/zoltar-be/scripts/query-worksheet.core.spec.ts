@@ -163,6 +163,7 @@ describe('renderWorksheet', () => {
   const base = {
     model: 'claude-sonnet-5',
     promptHash: '97feadbd',
+    primerHash: 'fc830097',
     runDir: '/runs/x',
     generatedAt: '2026-08-07T00:00:00.000Z',
   };
@@ -194,8 +195,8 @@ describe('renderWorksheet', () => {
       .split('\n')
       .find((l) => l.includes('damage'));
     expect(row).toContain('damage \\| armor');
-    // 8 columns → 9 pipes; an unescaped one would make 10 and shift C/N/E.
-    expect((row?.match(/(?<!\\)\|/g) ?? []).length).toBe(9);
+    // 9 columns → 10 pipes; an unescaped one would make 11 and shift C/P/N/E.
+    expect((row?.match(/(?<!\\)\|/g) ?? []).length).toBe(10);
   });
 
   it('says so explicitly when a turn has no situation', () => {
@@ -217,6 +218,37 @@ describe('renderWorksheet', () => {
 
     expect(out).toContain('claude-sonnet-5');
     expect(out).toContain('97feadbd');
+  });
+
+  it("distinguishes the run's prompt from the primer P is scored against", () => {
+    // They are usually different: a before-set is scored against a later
+    // primer, which makes P a prediction rather than an observation. A reader
+    // who cannot tell them apart cannot tell which they are looking at.
+    const out = renderWorksheet({ ...base, turns: [] });
+
+    expect(out).toContain('fc830097');
+    expect(out).toMatch(/P` is a prediction/);
+  });
+
+  it('says so when the run and the primer are the same revision', () => {
+    const out = renderWorksheet({
+      ...base,
+      promptHash: 'fc830097',
+      turns: [],
+    });
+
+    expect(out).toMatch(/after-set/);
+  });
+
+  it('carries a P column for every row', () => {
+    const turns = buildWorksheet({
+      harvested: harvest(['turn19-x', 'a']),
+      scored: scored(['a', []]),
+      fixtures: [fixture('turn19-x', 'I shoot.')],
+    });
+
+    const out = renderWorksheet({ ...base, turns });
+    expect(out).toContain('| row | n | R | query | absent | C | P | N | E |');
   });
 });
 

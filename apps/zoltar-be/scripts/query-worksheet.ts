@@ -18,6 +18,7 @@
  * Usage:
  *   npx tsx --env-file=.env scripts/query-worksheet.ts <run-dir> \
  *     [--system mothership] [--fixtures-dir <dir>] [--output <path>] [--force]
+ *     [--primer <path>]
  *
  * **Refuses to overwrite an existing `--output`.** Unlike every other report
  * in `scripts/`, this file is meant to be filled in by hand, so clobbering it
@@ -41,6 +42,7 @@ import { Pool } from 'pg';
 import { loadFixtures } from '../eval/fixture-loader';
 import { resolveEvalRoot } from '../eval/runs/paths';
 import { RulesRepository } from '../src/rules/rules.repository';
+import { hashPromptText } from '../src/wardens/prompt-paths';
 
 import { harvestQueries, scoreQueries } from './query-vocab.core';
 import {
@@ -53,6 +55,14 @@ import type { Db } from '../src/db/db.provider';
 
 const DEFAULT_SYSTEM = 'mothership';
 const DEFAULT_FIXTURES_DIR = join(__dirname, '..', 'eval', 'fixtures');
+const DEFAULT_PRIMER = join(
+  __dirname,
+  '..',
+  'src',
+  'wardens',
+  'prompts',
+  'mothership-m7.txt',
+);
 
 async function main(): Promise<number> {
   const { values, positionals } = parseArgs({
@@ -63,6 +73,7 @@ async function main(): Promise<number> {
       'fixtures-dir': { type: 'string' },
       output: { type: 'string' },
       force: { type: 'boolean' },
+      primer: { type: 'string' },
     },
   });
 
@@ -70,7 +81,7 @@ async function main(): Promise<number> {
   if (!runDirArg) {
     process.stderr.write(
       'usage: query-worksheet.ts <run-dir> [--system mothership] ' +
-        '[--fixtures-dir <dir>] [--output <path>] [--force]\n',
+        '[--fixtures-dir <dir>] [--output <path>] [--force] [--primer <path>]\n',
     );
     return 2;
   }
@@ -113,6 +124,20 @@ async function main(): Promise<number> {
       `warning: no readable manifest.json in ${runDir}; model and prompt hash ` +
         'will read "unknown" in the worksheet header\n',
     );
+  }
+
+  // `P` asks whether the primer already answered a query, so the worksheet has
+  // to name *which* primer — the run's own prompt hash is a different thing and
+  // usually a different value. Scoring a before-set against a later primer is
+  // the intended use (P is then a prediction), but a reader must be able to
+  // tell that from the header, and the labels go stale when the primer moves.
+  const primerPath = values.primer ?? DEFAULT_PRIMER;
+  let primerHash: string;
+  try {
+    primerHash = hashPromptText(await readFile(primerPath, 'utf8'));
+  } catch {
+    process.stderr.write(`cannot read the primer at ${primerPath}\n`);
+    return 2;
   }
 
   const pool = new Pool({ connectionString: databaseUrl });
@@ -170,6 +195,7 @@ async function main(): Promise<number> {
       turns,
       model,
       promptHash,
+      primerHash,
       runDir,
       generatedAt: new Date().toISOString(),
     });
