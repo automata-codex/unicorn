@@ -440,15 +440,25 @@ export function renderWorksheet(args: {
   lines.push('fourth verdict rather than a failure.');
   lines.push('');
   lines.push(
-    '`C` and `P` are independent of `N` and of each other, and of the `E` rule above. A',
+    '`C`, `P`, and `N` are independent of one another — whether the book has the mechanic,',
   );
   lines.push(
-    'query can ask clearly (`E=y`) for a mechanic that does not exist (`C=n`) which the',
+    'whether the primer already rules it out, and whether this turn needed a lookup are three',
   );
   lines.push(
-    'primer already rules out (`P=y`), on a turn that needed no lookup at all (`N=n`).',
+    'separate facts. `E` is the exception, defined only when `N=y`, per the rule above.',
   );
-  lines.push('Score each on its own terms.');
+  lines.push('');
+  lines.push('Both of these are coherent, and they differ only in `N`:');
+  lines.push('');
+  lines.push(
+    '- `C=n` `P=y` `N=y` `E=y` — asks clearly for something the book lacks and the primer had',
+  );
+  lines.push('  already ruled out, on a turn that did need a rule.');
+  lines.push(
+    '- `C=n` `P=y` `N=n` `E=—` — the same query on a turn where no lookup was called for, so',
+  );
+  lines.push('  there was no need for it to express.');
   lines.push('');
   lines.push('## What `C` and `P` are each scored against');
   lines.push('');
