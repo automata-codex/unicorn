@@ -3422,9 +3422,14 @@ pins it, because "we remembered not to do the thing" is not a guard.
 #### 21.5 What happens next, and what would count as a result
 
 Re-run against the M7.5 re-baseline's own directories once they exist. The
-prompt hash moves `97feadbd` → `ce9984a7`; the corpus, the fixtures, and this
-scorer are unchanged, so the query distribution is the only variable on this
-particular measurement even though the re-baseline as a whole carries four.
+prompt hash moves `97feadbd` → **`fc830097`**; the corpus, the fixtures, and
+this scorer are unchanged, so the query distribution is the only variable on
+this particular measurement even though the re-baseline as a whole carries
+four.
+
+*(The primer was revised once more on 2026-08-08 — `ce9984a7` → `fc830097` —
+after Task 2's hand-scoring found it teaching a house convention as though it
+were RAW. See `§ S24`.)*
 
 A fall in the rate is the effect both levers exist to produce. **A flat rate
 is also a result**: it says prompt-side guidance is insufficient and the
@@ -3636,3 +3641,90 @@ A real fixup target survives, and it is a different one: pp.14-15 and p.2's
 100cr | 1 | None | Normal` — no name). Present-but-broken, which retrieves
 confidently and looks like an answer. No fixture covers it, which is why the
 scored set never caught it.
+
+### S24 — 2026-08-08 · The primer was teaching a house rule as though it were RAW
+
+Found during Task 2's hand-scoring, before a single number was measured — which
+is the argument for doing that scoring by hand and doing it early.
+
+#### 24.1 What the primer said
+
+The mechanical-model primer added in Part 4.6 ended:
+
+> When the fiction calls for something the system has no rule for, adjudicate
+> it with a Stat Check or a Save and Advantage/Disadvantage.
+
+That instructs the Warden to convert **everything** into a roll. It omits both
+halves of the book's actual model.
+
+#### 24.2 What the book says
+
+`HOW TO PLAY` (printed p.17) states it positively:
+
+> You can attempt to do anything you want… **Most things you want to do just
+> happen.**
+>
+> You should ask a lot of questions. **The more information you have, the less
+> likely you'll have to make risky rolls** like Stat Checks and Saves.
+>
+> Stat Checks are made when you want to do something and **the price for
+> failure is high**.
+
+So a Stat Check is *gated* on consequence, and information-gathering is the
+thing players do **instead of** rolling — it reduces rolls rather than being
+one.
+
+**There is no perception, awareness, spot, or search mechanic in the PSG.**
+Checked exhaustively against the index: every hit for `notice`, `search`,
+`spot`, `examine`, and `investigate` is non-mechanical — equipment blurbs
+(scanner, sample kit), the safety-tools paragraph, a Skill *description*
+("Exobiology: the study of and search for intelligent alien life"), p.27's
+list of things you can do on a turn, and NPC-table motivations. `awareness` and
+`observe` return zero. The one play example that looks perception-shaped
+resolves as a **Strength** Check to force a jammed door.
+
+#### 24.3 How it surfaced, and why the instrument found it
+
+`turn01-unauditable-mapping`'s player input is *"open the emergency bulkhead
+and scan the surroundings."* The Warden emitted `perception check scan
+surroundings skill`. Scoring that row forced the question the project had
+never actually asked: **is there a perception check in Mothership?**
+
+There is not. The project had been treating "what do I see" as an Intellect
+check — a perfectly good house rule, which the book explicitly blesses — but
+it had drifted into being treated as rules-as-written, and the primer then
+taught the drift back to the Warden.
+
+**The fixture's own tag is the tell.** `UNAUDITABLE-MAPPING` catches a
+spontaneous GM-side roll whose `purpose` never states what the results mean.
+A Warden told to convert every ruleless situation into a Stat Check will
+manufacture exactly those rolls — so the primer was pushing the Warden toward
+the failure mode the fixture exists to detect.
+
+#### 24.4 The revision
+
+A new `MOST THINGS ARE NOT A ROLL` block, and a fallback that gates rather
+than converts: *first ask whether it needs a roll at all; if the price of
+failure is high, adjudicate with a Stat Check or Save; otherwise narrate.*
+The perception line names four synonyms and then says "not under any other,"
+because naming three invites a fourth. And it supplies the alternative —
+gate detail behind the fiction, equipment, time, and light — since the old
+text said don't-look-it-up without saying what to do instead, which is how a
+stretched Intellect check gets invented.
+
+Prompt hash `ce9984a7` → **`fc830097`**. Free now; after Part H it would have
+cost another baseline.
+
+#### 24.5 The generalisable lesson
+
+This is the third primer error in two days, after `Sensors` (a term appearing
+in zero chunks) and the roll-under/Panic-Check and Critical-Failure mistakes
+(`§ S21` commit trail). The first two were caught by checking claims against
+the index. **This one could not have been**: every word of "adjudicate it with
+a Stat Check" is in the corpus, and the sentence is wrong about the *model*
+rather than about any term.
+
+That is precisely the gap `task eval:query-vocab` cannot see and the reason
+Task 2 is a human pass. It also means **a prompt that teaches a game's
+mechanics needs the same verification discipline as a retrieval claim, and
+has one fewer automated check available to it.**
