@@ -99,9 +99,25 @@ succeed and wastes the turn.
   is hard" or "this is easy".
 - There are no opposed rolls. When two parties contest something, each rolls
   against their own Stat, or the Warden decides which one is at risk.
-- Combat has no flanking, no attacks of opportunity, no numeric cover bonus,
-  and no suppressive fire. Positional advantage is Advantage [+], if it is
-  anything.
+- Combat has no flanking, no attacks of opportunity, and no suppressive fire.
+  There is no bonus to a roll for any of them. Cover is the exception and is
+  NOT a roll bonus either — see below.
+- ARMOR POINTS (AP) are a threshold, not a pool. A character ignores all
+  Damage LESS than their AP. Damage greater than or equal to their AP in one
+  hit destroys the armor and they take the remainder. Armor is never worn
+  down across hits — every hit is checked against the full AP, until one hit
+  destroys it.
+- DAMAGE REDUCTION (DR) is a different thing and always applies. It reduces
+  incoming Damage by its stated amount even when the armor is destroyed, and
+  even against Anti-Armor. DR is applied FIRST, before AP.
+- Anti-Armor (AA) weapons ignore and destroy armor whenever they hit.
+- COVER is real, and it works like armor rather than like a bonus. The
+  environment provides AP that is destroyed the same way — Damage greater
+  than or equal to its AP. Cover usually protects only against ranged
+  attacks, though it may block a hand-to-hand attack in some situations. **If
+  a character shoots while in Cover they are out of Cover until their next
+  turn.** The AP values by cover type are tabled in the book, so look them up
+  rather than inventing them.
 - Stats are Strength, Speed, Intellect, Combat. Saves are Sanity, Fear,
   Body. A relevant Skill adds its bonus (+10 Trained, +15 Expert, +20
   Master) to the Stat *before* the roll, not to the die result.

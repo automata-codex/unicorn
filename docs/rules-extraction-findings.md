@@ -3422,7 +3422,7 @@ pins it, because "we remembered not to do the thing" is not a guard.
 #### 21.5 What happens next, and what would count as a result
 
 Re-run against the M7.5 re-baseline's own directories once they exist. The
-prompt hash moves `97feadbd` → **`40249ae9`**; the corpus, the fixtures, and
+prompt hash moves `97feadbd` → **`2f108d6f`**; the corpus, the fixtures, and
 this scorer are unchanged, so the query distribution is the only variable on
 this particular measurement even though the re-baseline as a whole carries
 four.
@@ -3810,11 +3810,10 @@ from a different population. Same shape, different instrument.
   Warden calls for a **Strength** Check, because the door is jammed and
   forcing it quietly is the hard part. That example is the whole method, so
   the primer now states it.
-- **A gap left open, identified by the rubric and not by me:** the primer does
-  not distinguish Armor Points from Damage Reduction. p.28 is explicit that
-  they behave differently — AP is a pool that is destroyed when exceeded in
-  one hit, DR reduces incoming Damage always, "even if the armor is
-  destroyed." Not fixed here.
+- **Armor Points, Damage Reduction, and Cover added** (`40249ae9` →
+  `2f108d6f`), from the rubric's observation that the primer did not
+  distinguish AP from DR. Reading p.28 to write it found a **fourth primer
+  error**, and a worse one than the gap being fixed — see 25.6.
 
 #### 25.5 Method note
 
@@ -3824,3 +3823,51 @@ stealth gap above. Neither was reachable by `eval:query-vocab`: both sentences
 are made of in-corpus words and are wrong about the *model* rather than any
 term. That is the argument for Task 2 being a human pass, and it paid before
 Part H rather than after.
+
+#### 25.6 Cover: the primer was wrong about it, not merely silent
+
+Written while adding AP/DR at Alex's request, and the more important half of
+that change.
+
+The primer said:
+
+> Combat has no flanking, no attacks of opportunity, **no numeric cover
+> bonus**, and no suppressive fire. Positional advantage is Advantage [+], if
+> it is anything.
+
+The first clause is true and the second is false. **Cover is a substantial
+mechanic in the PSG and has nothing to do with Advantage.** p.28:
+
+> The environment can provide protection called Cover. It can be destroyed,
+> just like armor, whenever it is dealt Damage greater than or equal to its
+> AP. Cover typically only protects against ranged attacks… If you shoot while
+> in Cover, you are considered out of Cover until your next turn.
+
+Cover carries its own **AP**, tabled by type. It absorbs damage and is
+destroyed exactly as armor is. Telling the Warden that positional advantage is
+"Advantage [+], if it is anything" points it at the wrong mechanic entirely.
+
+**Alex's scoring had already recorded this and it was not read as a
+correction.** The `turn19` cover cluster — thirteen queries, repeatedly cited
+here as the canonical concept-absent example — was scored **`C=y`** across the
+board. That was the data saying *cover is in the book*, five days after `§ S9`
+listed `cover` among the terms whose queries fail. The label was right and the
+narrative around it was not.
+
+**Also corrected in the same pass, and worth stating because a Warden would
+otherwise guess it wrong:** AP is a *threshold*, not a pool. A character
+ignores all Damage **less than** their AP; a single hit at or above AP
+destroys the armor and the remainder lands. Armor is never worn down across
+several hits. DR is the opposite in kind — always applied, first, surviving
+both armor destruction and Anti-Armor. A Warden defaulting to "subtract armor
+from each hit" gets both wrong.
+
+**Four primer errors now, in four edits.** `Sensors`; roll-under stated
+without the Panic exception; Critical Failure conflated with the 90-99
+auto-fail; and now Cover. The first three were caught by checking terms
+against the index. This one was not reachable that way — `cover` is in the
+corpus, the sentence names a real mechanic, and it is wrong about what that
+mechanic *does*. Only reading the page catches it.
+
+The rule this settles: **when the primer makes a claim about how a mechanic
+behaves, read the page. Term presence is not verification.**
