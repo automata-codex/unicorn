@@ -3422,7 +3422,7 @@ pins it, because "we remembered not to do the thing" is not a guard.
 #### 21.5 What happens next, and what would count as a result
 
 Re-run against the M7.5 re-baseline's own directories once they exist. The
-prompt hash moves `97feadbd` → **`fc830097`**; the corpus, the fixtures, and
+prompt hash moves `97feadbd` → **`40249ae9`**; the corpus, the fixtures, and
 this scorer are unchanged, so the query distribution is the only variable on
 this particular measurement even though the re-baseline as a whole carries
 four.
@@ -3728,3 +3728,99 @@ That is precisely the gap `task eval:query-vocab` cannot see and the reason
 Task 2 is a human pass. It also means **a prompt that teaches a game's
 mechanics needs the same verification discipline as a retrieval claim, and
 has one fewer automated check available to it.**
+
+### S25 — 2026-08-08 · Task 2's hand-scoring: the primer's predicted ceiling, and where it misses
+
+All 106 distinct Sonnet 5 queries from
+`claude-sonnet-5__97feadbd__2026-07-29T15-40-17Z`, hand-scored by Alex against
+the rubric at `$ZOLTAR_EVAL_ROOT/eval-runs/query-worksheet-rubric.md`. 4.6's
+287-row set was deliberately not scored — Sonnet 5 is the shipped Warden, 4.6
+is the retained comparison baseline, and `eval:query-vocab` plus the tier-2
+probe still cover both models automatically.
+
+Columns: **C** — is the mechanic in the book (the extracted corpus, which is
+what `rules_lookup` searches). **P** — does the primer answer it. **N** — did
+the situation call for a lookup. **E** — does the query express the need,
+defined only where `N=y`.
+
+#### 25.1 The prediction
+
+| | rows | share |
+|---|---|---|
+| `C=n` — the book lacks the mechanic | 58 | 54.7% |
+| `P=y` — the primer answers it | 58 | 54.7% |
+| `P=y`, weighted by actual lookups | 83 of 134 | **61.9%** |
+
+So the primer as written should eliminate or redirect **about three fifths of
+this run's lookups**. That is the ceiling Part H measures against, obtained
+before spending anything.
+
+#### 25.2 `C` and `P` are the same *count* and not the same *set*
+
+| | `P=y` | `P=n` |
+|---|---|---|
+| **`C=n`** | 31 | **27** |
+| **`C=y`** | 27 | 21 |
+
+Both diagonals are findings.
+
+**27 concept-absent queries the primer does not cover.** They cluster hard:
+`turn14` and `turn16` are almost entirely stealth — *"opposed rolls for
+avoiding detection"*, *"stealth check contested by NPC awareness"*, *"evasion
+checks"*. The primer said there are no opposed rolls; it never said what
+stealth *is*. Fixed the same day (25.4).
+
+**27 queries where the book has the mechanic but the primer already answered
+it.** The primer's reach is not limited to futile lookups — it also removes
+lookups that would have succeeded, which is a saving `C` alone cannot show.
+
+#### 25.3 The automated proxy, measured against human judgement
+
+`eval:query-vocab`'s out-of-corpus term signal against hand-scored `C`:
+
+| | `C=n` | `C=y` |
+|---|---|---|
+| query has an absent term | 55 | **17** |
+| every word in corpus | **3** | 31 |
+
+**The proxy's larger error is over-flagging, not under-flagging.** 17 of the 72
+queries it flags ask for a mechanic the book *does* have, in off-book
+vocabulary — the wrong-word bucket, which is what vocabulary bridging fixes,
+not the primer.
+
+**And the blind spot is small: 3 rows.** This corrects a claim made repeatedly
+while building the instrument — that "every word of *cover bonus to attack
+rolls in combat* is in the corpus, so it scores clean" was a systemic hole.
+It is real (`turn28`'s two *melee combat close quarters* queries are exactly
+it) but rare here, and the claim was asserted from one vivid example rather
+than measured. The whole `turn19` cover cluster, cited as the canonical case,
+was scored **`C=y`** — cover exists and grants Advantage `[+]`; it is "cover
+*bonus*" that does not.
+
+Not directly comparable to [S9.3](#93-three-buckets-not-two)'s 45.6%
+wrong-word / 37.8% concept-absent, which classified *terms* across 344 queries
+from a different population. Same shape, different instrument.
+
+#### 25.4 What the scoring changed
+
+- **Stealth added to the primer** (hash `fc830097` → `40249ae9`), on 27 rows
+  of evidence. There is no stealth skill, check, or opposed detection roll:
+  `stealth` appears in **zero** chunks and `sneak` in exactly one — a play
+  example on p.19 where a player asks to sneak out through an airlock and the
+  Warden calls for a **Strength** Check, because the door is jammed and
+  forcing it quietly is the hard part. That example is the whole method, so
+  the primer now states it.
+- **A gap left open, identified by the rubric and not by me:** the primer does
+  not distinguish Armor Points from Damage Reduction. p.28 is explicit that
+  they behave differently — AP is a pool that is destroyed when exceeded in
+  one hit, DR reduces incoming Damage always, "even if the armor is
+  destroyed." Not fixed here.
+
+#### 25.5 Method note
+
+**The hand pass found two prompt defects before producing a single measured
+number** — the primer teaching a house convention as RAW (`§ S24`) and the
+stealth gap above. Neither was reachable by `eval:query-vocab`: both sentences
+are made of in-corpus words and are wrong about the *model* rather than any
+term. That is the argument for Task 2 being a human pass, and it paid before
+Part H rather than after.

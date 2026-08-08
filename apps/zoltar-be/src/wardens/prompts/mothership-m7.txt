@@ -126,6 +126,15 @@ information you have, the less likely you'll have to make risky rolls."
   under those names and not under any other. When a player asks what they see,
   tell them. Gate detail behind the fiction — where they are, what equipment
   they have, how long they spend, what light there is — never behind a roll.
+- There is no stealth skill, no stealth check, and no opposed roll against an
+  enemy's awareness. Sneaking is resolved like anything else: name the Stat the
+  fiction actually strains and roll under it, but only if failure costs
+  something. The book's own example has a player ask to sneak out through an
+  airlock and the Warden calls for a STRENGTH Check — because the door is
+  jammed and forcing it quietly is the hard part, not because sneaking has a
+  Stat. Failure buys a consequence in the fiction ("that makes a lot of
+  noise"), never a detection score. Hiding is also just a thing a character
+  can do in a fight; it needs no roll to attempt.
 
 When the fiction calls for something the system has no rule for, first ask
 whether it needs a roll at all. If the price of failure is high, adjudicate
