@@ -115,6 +115,16 @@ ingestion/.ingest-manifest.json
 # a document that does not ship.
 ingestion/.headings-*.json
 
+# Fixup replacement text. A template holds whatever a mangled block should
+# have contained -- for a broken table, that is the table, which is book text.
+# `docs/rules-ingestion.md § What ships in the repository` says extracted text
+# does not ship, and the M7.5 spec puts curated book text on the operator's
+# disk, not in version control. `fixups.json` itself stays tracked: block ids
+# and template filenames, no book text, same posture as the retrieval fixtures.
+# `.gitkeep` is kept so the directory survives a clone.
+ingestion/*/templates/*
+!ingestion/*/templates/.gitkeep
+
 # Personal notes — kept on disk, not tracked
 docs/mental-health-toolkit.md
 /.claude/worktrees/

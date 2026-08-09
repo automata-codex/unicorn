@@ -4001,3 +4001,62 @@ Its boundary rule is worth stating: a **leading** word boundary only.
 Boundaries at both ends stop `handcuffs` matching `DC` but also stop `checks`
 matching `check`, which would report the panic-check section as uncovered by a
 primer that discusses panic checks at length. Leading-only handles both.
+
+### S27 — 2026-08-09 · The armor table, and enforcing a posture that was only stated
+
+#### 27.1 What the ARMOR table actually loses
+
+Alex compared the printed table on p.2 against the index. The defect is worse
+than "armor names are missing":
+
+| Printed | In the index |
+|---|---|
+| **Standard Crew Attire** / Basic clothing. | name gone |
+| **Vaccsuit** / Designed for outer space operations. | name gone |
+| **Hazard Suit** / Environmental protection… | **name and description gone** — the row begins at `4kcr` |
+| **Standard Battle Dress** / Lightly-plated… | name gone |
+| **Advanced Battle Dress** / Heavy armor… | **name and description gone** |
+
+**The `SPECIAL` column is truncated mid-sentence rather than dropped**, which
+is the more dangerous failure. The Vaccsuit row reads:
+
+> `Includes short-range comms, headlamp, and radiation`
+
+That looks like a finished list. It is missing `shielding.` and the whole of
+`Decompression within 1d5 rounds if punctured.` A Warden retrieving it would
+tell a player a punctured Vaccsuit carries no risk — a wrong answer with no
+signal that anything is missing.
+
+**Two mechanics are absent from the index, not just labels:** the Vaccsuit's
+decompression clause, and the Advanced Battle Dress's `exoskeletal weave
+(Strength Checks [+])`. `Damage Reduction: 3` survives but is orphaned onto a
+row with no armor attached, so it can be read as belonging to the wrong suit.
+
+Fixup target: **`/page/1/Table/3`** (printed p.2, 517 chars). The body ARMOR
+chapter on pp.14-15 is broken differently — the table decomposed into orphaned
+feature labels (`BODY CAM`, `ARMOR POINTS 10`) with no rows at all — and needs
+its own entry.
+
+#### 27.2 The posture was stated but never enforced
+
+`ingestion/README.md` claimed of the fixup templates: *"No rules text is
+authored or distributed here."* Nothing enforced it. `templates/` was tracked,
+so authoring the armor fixup would have committed transcribed PSG table text
+on the next `git add`.
+
+`ingestion/*/templates/*` is now gitignored, `.gitkeep` excepted so the
+directory survives a clone. `fixups.json` stays tracked — block ids and
+template filenames carry no book text, the same posture that keeps the
+retrieval fixtures in version control while their run artifacts stay out.
+
+The README's claim is now true rather than aspirational, and it says so along
+with the consequence: **templates are not backed up by anything in this
+repository.** They live on the operator's disk, exactly as a curated Markdown
+file does.
+
+**Worth generalising.** This is the second licensing claim in two days found
+asserted-but-unenforced, after the `.gitignore` that did not exist
+(`§ 013-m7.5-open-work.md § Trap 7`). Both were discovered by acting on the
+claim rather than reading it. A posture stated in prose and enforced by
+nothing is indistinguishable from an enforced one right up until someone
+relies on it.

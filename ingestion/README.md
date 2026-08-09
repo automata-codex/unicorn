@@ -149,7 +149,7 @@ ingestion/mothership/
   system.json      # edition-specific facts (below)
   fixups.json      # per-block corrections; currently []
   hashes/          # SHA-256 of known printings, one .txt each
-  templates/       # replacement text referenced by fixups
+  templates/       # replacement text referenced by fixups — GITIGNORED
 ```
 
 `system.json` holds the facts that differ per edition and must not be
@@ -218,10 +218,22 @@ on the block's stable `id`:
 ]
 ```
 
-Templates live in `<system>/templates/` and hold structural scaffolding —
-column headers, row labels — that **you** populate from your own extraction.
-No rules text is authored or distributed here. `docs/rules-ingestion.md §
-Step 2` is the canonical spec.
+Templates live in `<system>/templates/` and hold whatever the mangled block
+should have contained, which for a broken table is the table itself — book
+text, transcribed by **you** from your own copy.
+
+**`templates/*` is gitignored, and that is enforced rather than merely
+intended.** `docs/rules-ingestion.md § What ships in the repository` says
+extracted text does not ship, and a fixup template is extracted text that a
+human retyped. An earlier version of this section claimed "no rules text is
+authored or distributed here" while nothing stopped `git add` from committing
+it; the ignore rule is what makes the claim true. `fixups.json` stays tracked —
+block ids and template filenames carry no book text, the same posture as the
+retrieval fixtures.
+
+Consequence worth stating plainly: **your templates are not backed up by
+anything in this repository.** They live on your disk, exactly as a curated
+Markdown file does. `docs/rules-ingestion.md § Step 2` is the canonical spec.
 
 Matching is on block `id` rather than on content because the defect this
 exists for is blocks that extract with *no text at all* — there is nothing
