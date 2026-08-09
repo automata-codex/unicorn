@@ -4526,3 +4526,91 @@ presence rather than `fixtureSchemaVersion` is what preserves that.
 degrade gracefully; it inverts. Every "not the player" answer must trace to a
 declared identifier set, never to a comparison that happened to fail — and the
 tests must be built from data the implementation did not choose.
+
+---
+
+### S31 — 2026-08-09 · The post-fix re-baseline: the regression is real, and it has a shape
+
+`claude-sonnet-5__0bdd1306__2026-08-09T21-23-39Z`, 10 reps, **zero errors**,
+graded by the corrected checker from § S30. The run existed to answer one
+question — was `turn19-system-rolled-player-action`'s 0/10 a property of the
+frozen run or of the model — and it answered it.
+
+| turn19-system-rolled-player-action | rate |
+|---|---|
+| July `97feadbd`, empty index | 1.00 (10/10) |
+| frozen `0bdd1306` | 0.00 (0/10) |
+| **new `0bdd1306`** | **0.10 (1/10)** |
+
+Two independent runs at the same prompt, 0/10 and 1/10. At Δ=0.90 that is not
+sampling noise. **Sonnet 5 now resolves the player's declared attack
+system-side instead of surfacing a `dice_request`**, where in July it deferred
+correctly on every rep.
+
+#### Sonnet 5, July → now, both sides on the corrected checker
+
+| Fixture | July | now | Δ |
+|---|---|---|---|
+| turn19-system-rolled-player-action | 1.00 | 0.10 | **-0.90** |
+| turn19-out-of-order-resolution | 1.00 | 0.89 | -0.11 |
+| turn24-scene-jump | 0.90 | 0.80 | -0.10 |
+| turn03-unsurfaced-check | 0.70 | **1.00** | +0.30 |
+| turn24-over-resolution | 0.70 | **1.00** | +0.30 |
+| turn24-hidden-info-leak | 0.89 | 1.00 | +0.11 |
+
+Flat: `turn21-system-rolled` 0.80, `turn28-hidden-info-leak` 1.00,
+`turn21-out-of-order` 1.00, `turn21-narrating-past-a-block` 1.00, and
+`turn16-narrating-past-a-block` still 0.00 — untouched by this milestone and
+still the worst cell in the corpus.
+
+At tag level: `SYSTEM-ROLLED-PLAYER-ACTION` **0.90 (18/20) → 0.45 (9/20)**,
+`OUT-OF-ORDER-RESOLUTION` 1.00 (20/20) → 0.94 (17/18), `UNSURFACED-CHECK` 0.70
+→ 1.00, `HIDDEN-INFO-LEAK` 0.90 → 1.00.
+
+#### The regression and the improvement are one behaviour
+
+`UNSURFACED-CHECK` reached a clean 1.00 — the Warden reliably *notices* that a
+situation calls for a check — in the same run where
+`SYSTEM-ROLLED-PLAYER-ACTION` halved. Those are not independent findings. The
+model has learned to recognise when a roll is warranted and then rolls it
+itself rather than handing it to the player.
+
+`UNAUDITABLE-MAPPING` sits at 0 of 30 applicable for the third run running,
+every exclusion reading *"no dice_roll events this turn."* Same instinct
+again, scoring well: the Warden stopped inventing spontaneous d6 rolls to
+decide things.
+
+So the primer taught two things at once — *most things are not a roll*, and
+*here is when a roll is warranted* — and the second landed without the
+corollary that a warranted roll about the **player's own declared action**
+belongs to the player. **Do not patch this by weakening the roll guidance.**
+The same prompt text is producing three of the four improvements; a naive fix
+trades them away. The missing piece is ownership, not frequency.
+
+#### Two instrument notes, both verified rather than asserted
+
+**`corpusVersion` moved and it is benign.** `88fa84bd8329` → `104b2d944252`,
+because `computeCorpusVersion` hashes fixture *bytes* and § S30 added
+`playerEntityIds` to all 15. Every `eval:compare` across that boundary warns.
+The warning is conservative, not wrong to exist — but the Warden's input is
+unchanged, checked by rebuilding the full `buildSessionRequest` payload with
+and without the field on three fixtures and diffing: **byte-identical**.
+`formatGmContextBlob` never reads the field, and `renderEntities` only
+un-hides ids already in `campaign_state.entities`, where the player is not.
+
+**The `actingEntityId` validation works.** Every id in the run resolves —
+`lt_alvarez` (50) and the four contractor ids — against 13 resource-pool names
+in the frozen 4.6 run. The field is now trustworthy for Sonnet 5, which is
+what makes the 0.45 above a measurement rather than an artifact.
+
+#### Vocabulary held
+
+| | before | frozen | now |
+|---|---|---|---|
+| out-of-corpus rate | 66.7% | 38.2% | **33.8%** |
+| distinct queries | 102 | 76 | 68 |
+| total lookups | 134 | 123 | 121 |
+
+Stable across two runs and still improving. **The milestone's stated goal was
+met and is not in question.** What is in question is a behaviour the milestone
+did not set out to change and was not measuring correctly until § S30.

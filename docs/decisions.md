@@ -365,6 +365,23 @@ Two failure modes survive the swap with real denominators behind them: `unaudita
 
 **What this decision does not claim.** All figures are single-grader. Both baselines executed against an empty `rules_chunk` index, so nothing here accounts for how rules availability changes reach-for-dice behaviour; the M7.5 re-baseline is the real test of these numbers (moved from M7.2 — see § Rules ingestion pipeline and retrieval quality are separate milestones). At N=10 the 95% CI half-width at p=0.5 is ~±31pp, so individual rates near the middle are unsettled even where the direction is not. And a first run against a new model audits the harness as much as the model — the two defects that audit surfaced are recorded in `eval-methodology.md`, and the rates above are the post-correction ones.
 
+**The M7.5 re-baseline answered that, 2026-08-09, and the decision stands — but one number in the table above has to be retired.** Sonnet 5 against the populated index at prompt `0bdd1306`, both sides re-scored under the corrected checker:
+
+| Tag | Sonnet 5, July (`97feadbd`, empty index) | Sonnet 5, now (`0bdd1306`, populated) |
+|---|---|---|
+| `SYSTEM-ROLLED-PLAYER-ACTION` | 0.90 (18/20) | **0.45 (9/20)** |
+| `OUT-OF-ORDER-RESOLUTION` | 1.00 (20/20) | 0.94 (17/18) |
+| `UNSURFACED-CHECK` | 0.70 (7/10) | **1.00 (10/10)** |
+| `HIDDEN-INFO-LEAK` | 0.90 (18/20) | **1.00 (20/20)** |
+| `SCENE-JUMP` | 0.90 (9/10) | 0.80 (8/10) |
+| `NARRATING-PAST-A-BLOCK` | 0.50 (10/20) | 0.50 (10/20) |
+
+The upgrade rationale is unaffected — every one of these is Sonnet 5 against Sonnet 5, and 4.6 was not re-run (its arm carried 10 tool-loop-cap errors on the M7.5 attempt, and the upgrade question was settled in July; see `docs/rules-extraction-findings.md § S31`).
+
+What must be retired is the reading that `SYSTEM-ROLLED-PLAYER-ACTION` at 0.90 was "the model's ceiling." It halved once the index was populated and the primer taught when a check is warranted, and the two moves are one behaviour: `UNSURFACED-CHECK` reached 1.00 in the same run. The Warden learned to recognise that a roll is called for and then rolls it itself. That is a prompt target, and it is now the largest one in the corpus.
+
+Also retired: 0.90 was measured with a checker that could not see the failure. The M7.5 `actingEntityId` integration shipped a false pass that graded ten violations clean (§ `actingEntityId` must resolve against a declared identifier set, below). The July figure is unaffected — those artifacts predate the field and take the prose path, verified bit-identical on re-score — but every figure produced between 2026-08-07 and 2026-08-09 on this tag was wrong.
+
 **The judged half of that table is now self-graded, and was already half-way there.** `JUDGE_MODEL` has been `claude-sonnet-5` since the judged checks were built — deliberately above the Warden's 4.6, so a more capable grader sat over the model under test. This decision closes that gap: the Warden and its judge are now the same model. The consequence is retroactive as well as forward-looking, and it is a real confound in the comparison above: on the 4.6 side a Sonnet 5 judge graded a 4.6 generator, while on the Sonnet 5 side it graded itself. Every judged row in the table therefore has an asymmetry the structural rows don't.
 
 Two things bound the damage. `out-of-order-resolution` and `system-rolled-player-action` — which happen to be the two largest and cleanest gains, 0.39 → 1.00 and 0.18 → 0.90 — are structural and reach a verdict with no model in the loop at all. And `eval:judge-variance` measures grader stability against frozen input, which is unaffected by which model produced that input. The judged rows should still be read as directional rather than as clean measurements until an independent grader confirms them.
@@ -481,6 +498,16 @@ Three reasons this doesn't close the question:
 
 Revised criterion for revisiting: re-baseline after M7.5 (the re-baseline moved there from M7.2), and try the cheaper structural option first — the deferred `rollType` / `gatedByRollId` / `actingEntityId` fields on `roll_dice`, which enforce sequencing at the tool schema without decomposing the loop. A graph becomes the right answer only if a measured residual survives both.
 
+**Both conditions of that criterion have now been met, and the answer is: still no graph, but the case has stopped weakening.** (2026-08-09, `docs/rules-extraction-findings.md § S31`.)
+
+The criterion was explicit that 0.90 should not be treated as a ceiling until re-measured against a populated index. Re-measured, `SYSTEM-ROLLED-PLAYER-ACTION` reads **0.45 (9/20)** — half what the deferral rested on. The second condition also fired: the structural fields landed in M7.5, and they did *not* fix this. `gatedByRollId` closed the in-turn sequencing case as designed, and `OUT-OF-ORDER-RESOLUTION` holds at 0.94; but no tool-schema field can express "this roll belongs to the player," because the tool being called is `roll_dice` and the correct behaviour is *not calling it*. A schema constrains the shape of an action taken, not the choice to take it.
+
+So the residual survived both cheaper options, which is exactly the trigger this entry set. It still does not justify a graph, for a reason the criterion did not anticipate:
+
+**The failure is not a control-flow failure.** The evidence for that is `UNSURFACED-CHECK` moving 0.70 → 1.00 in the same run. The Warden is not losing track of sequencing or forgetting to route a request; it correctly identifies that a check is warranted and then resolves it in the wrong place. Decomposing the turn loop into graph nodes would give that misjudgement a more elaborate structure to happen inside. The missing concept is *ownership of a declared action* — which is prompt content, and untried, because M7.5's primer taught when to roll without teaching whose roll it is.
+
+**Revised criterion, third iteration.** Try the ownership rule in the primer first, and re-measure `SYSTEM-ROLLED-PLAYER-ACTION` against `UNSURFACED-CHECK` **as a pair** — the two moved in opposite directions on one prompt change and must be read together, or a fix that trades one for the other will read as progress. A graph becomes the right answer only if an explicit, unambiguous ownership rule fails to move the rate, because that would be the first evidence that the model understands the rule and cannot act on it. Nothing measured so far distinguishes "cannot" from "was never told."
+
 An earlier version of this criterion also called for extending the `turn19`/`turn21` fixtures through the follow-up turn, on the theory that a model which splits a to-hit request from its resolution puts the ordering evidence on a turn the fixture doesn't contain. **That is withdrawn.** The violation window is the captured turn: once a gate is deferred, the turn ends, so any dependent roll landing on the follow-up turn is necessarily *after* the gate resolved. Extending the fixtures would have produced a structurally guaranteed PASS and read as evidence of correct sequencing.
 
 ### `rollType` / `gatedByRollId` / `actingEntityId` on `roll_dice` stay deferred, but they are measurement infrastructure
@@ -503,12 +530,28 @@ So the fields are not only a possible fix; they are the precondition for knowing
 What they bought, on the two checks that were waiting:
 
 - `gatedByRollId` — `out-of-order-resolution` now decides the in-turn case by comparing a named gate's sequence number against the roll naming it. See `§ out-of-order-resolution reads the deferred gate` above for the three sub-cases and for the deferred-gate residual this does *not* close.
-- `actingEntityId` — `system-rolled-player-action` attributes without reading `purpose`. This was the last prose dependency in the structural checks; on post-M7.5 output there is none left.
+- `actingEntityId` — `system-rolled-player-action` attributes without reading `purpose`. This was the last prose dependency in the structural checks; on post-M7.5 output there is none left. **The first integration of this field was defective and shipped a false pass — see the entry immediately below, which is a correction to this bullet, not a footnote on it.**
 - `rollType` — **no measurement role, and none was invented for it.** The entry above claims all three were "the precondition for knowing whether a fix is needed"; that was true of the other two and never of this one. Checked during M7.5 planning: it appears in `docs/specs/zoltar/011-eval-harness-multi-run.md § Part 6` only as a *hypothetical example* of a field some future check might need, is absent from the M7.4 spec entirely, and the two bullets above give it no job. It ships as a descriptive enum (`check` / `save` / `damage` / `panic_check` / `table` / `other`) read by no checker — telemetry and a reporting axis. The justification is this entry's own economics rather than a requirement: the re-baseline was being bought anyway, and discovering a use for it later would have meant buying another.
 
 The prose paths are kept rather than deleted, and every consumer branches on field **presence** rather than on `fixtureSchemaVersion` — `eval:rescore` re-grades frozen `88fa84bd8329` artifacts that predate the fields, and version-gating would have been the obvious mechanism and the wrong one, since the fixture version records what `capture-fixture` captured and it captures no game events at all. **No `FIXTURE_SCHEMA_VERSION` bump was needed**, and no migration: `dice_roll` payloads are `jsonb`.
 
 **Provenance note.** During M7.2 implementation planning this conclusion was briefly reversed — a plan document recorded "resolved with Alex: the fields do not ride along, a third baseline gets paid for separately" — and instructed that this entry be rewritten to match. That rewrite never happened here. The reversal was itself reversed during M7.5 spec review: the fields land with M7.5's re-baseline, per the original reasoning above, which was correct throughout. Noted so the now-stale reasoning in that plan document isn't mistaken for a second, independent decision.
+
+### `actingEntityId` must resolve against a declared identifier set, and an unresolvable id is undecided
+
+M7.5's first integration of `actingEntityId` compared it against `applicability.playerEntity` for equality. The field carries an entity **id** (`lt_alvarez`); `playerEntity` carries a display **name** (`Alvarez`). Nothing ever matched, and because "no roll belongs to the player" is `system-rolled-player-action`'s PASS condition, the check did not report *less* — it inverted. It graded ten violations clean, including a rep whose payload reads `system_generated` / `lt_alvarez` / `"Alvarez Combat Check to shoot contractor alpha"`. Full account in `docs/rules-extraction-findings.md § S30`.
+
+Three rules come out of it, and they generalise past this field.
+
+**An identifier comparison must name both namespaces.** The bug was not a typo; it was comparing two things that had never been the same kind of thing, in a codebase whose own convention (`docs/decisions.md § Entity and resource pool identifiers use underscores only`) makes ids and display names visibly distinct. `rollActsFor` now takes an explicit `AttributionContext` carrying `playerEntityIds`, `knownEntityIds`, and the display name for the legacy prose path, so the comparison cannot be written without stating which set is being consulted.
+
+**A resolution failure is a third state, not a negative answer.** `rollActsFor` returns `'player' | 'other' | 'unknown'`. An id matching neither the declared player set nor the fixture's seeded entities is `'unknown'` — `NOT_APPLICABLE`, excluded from the denominator, never a pass. This is the same discipline as "Structural checks report undecided rather than guessing" above, applied to structured data rather than prose: the shipped bug's mechanism was a resolution failure silently collapsing into `'other'`. It is load-bearing, not defensive — Sonnet 4.6 emitted resource *pool* names in this field 13 times across one run.
+
+**The runtime enforces one canonical id; the checker tolerates aliases.** `roll_dice` rejects an `actingEntityId` naming no known entity, modelled on the existing dangling-`gatedByRollId` rejection, with the valid ids named so the model corrects in-loop — and **skipped entirely when the known set is empty**, because `getPlayerEntityIds` reads `character_sheet` and a campaign without one would otherwise have every player roll rejected. The checker deliberately resolves against *every* declared id, because it also grades frozen artifacts from runs predating the validation that legitimately used an alias. The asymmetry is intentional and mirrors the prose fallback for pre-M7.5 payloads.
+
+**Root cause, and what is still open.** The Warden is never told the player's entity id: `campaign_state.entities` holds NPCs, threats and features only, `gmContextBlob.playerEntityIds` exists for exactly this but is fed from a `character_sheet` table with zero rows, and `renderEntities` only *un-hides* ids already in the entities map — it is a filter override, not a source. So the model infers an id from resource pool names, which in the captured adventure carry two prefixes for one character. Seeding fixtures closes this for the eval; **the product path is not closed**, and rendering player entities into `<entities>` from `playerEntityIds` remains the real fix.
+
+**Why the tests did not catch it.** All 60 structural specs passed throughout, because they pair `actingEntityId: 'alvarez'` with `playerEntity: 'Alvarez'` — the one id form that collides with the display name under `toLowerCase()`. The specs were written from the same misunderstanding as the implementation and were therefore not independent evidence. Regression tests now use the real captured id forms, taken from run artifacts rather than authored alongside the code.
 
 ---
 
