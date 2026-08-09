@@ -4060,3 +4060,73 @@ asserted-but-unenforced, after the `.gitignore` that did not exist
 claim rather than reading it. A posture stated in prose and enforced by
 nothing is indistinguishable from an enforced one right up until someone
 relies on it.
+
+#### 27.3 The WEAPONS & DAMAGE table on p.2
+
+Same page as the ARMOR table, same fixup session, five defects.
+
+**① Two weapons lose their stats to a split row.** `Frag Grenade` and
+`Rigging Gun` each have their data orphaned onto an unnamed continuation:
+
+```
+Frag Grenade | 400cr |       |          |   |                 |
+         ea. | Close | 3d10 DMG | 1 | Fire/Explosives | On a hit, damages all Adjacent…
+```
+
+The printed cost is evidently `400cr / ea.`, and the `/ ea.` broke the row. So
+Frag Grenade has **no range, damage, shots, or wound type** in the index, and
+a nameless row carries them. `Rigging Gun`'s `+ 2d10 DMG when removed` is
+stranded the same way.
+
+**② Four `SPECIAL` entries truncated mid-sentence** — the ARMOR failure again,
+and dangerous for the same reason: they read as complete.
+
+| Weapon | Ends at |
+|---|---|
+| Crowbar | `Grants [+] on Strength Checks to open` |
+| Machine Gun | `Two-handed. Heavy. Barrel can be` |
+| Smart Rifle | `[-] on Combat Check when fired at Close` |
+| Tranq Pistol | `If DMG dealt: enemy must Body Save or` |
+
+The Tranq Pistol is the worst of them: it states a trigger and stops before
+the effect, so a Warden must invent the consequence.
+
+**③ Reading order is scrambled.** `Frag Grenade → Machine Gun → Hand Welder`
+breaks the table's alphabetical order — `Machine Gun` has been lifted out of
+its place between `Laser Cutter` and `Nail Gun`. Not text loss, but row
+adjacency in the index does not match the page.
+
+**④ `Vibechete` ends `Bleeding +`** where every other row uses `[+]`.
+
+**⑤ The table's title does not exist anywhere.** It is printed
+**`WEAPONS & DAMAGE`**; the extracted block begins at the column header
+`WEAPON | COST | …`. The string appears in **zero chunks and in none of the
+152 headings** — so unlike the other excluded titles, this one was lost at
+extraction rather than filtered afterwards. The `ARMOR` banner on the same
+page did survive as a heading, which is what makes this a defect rather than
+the known heading exclusion.
+
+That has a retrieval cost beyond naming: `damage` is among the most frequent
+words in the Warden's real queries (`§ S25`), and the one place on this page
+pairing it with `weapons` is absent. The table is reachable only through its
+row contents, never its title.
+
+**Correction to `§ S23`.** That session concluded p.2 made `rq-015` a
+non-miss because it carries the `SHOTS` column — which still holds; `SHOTS` is
+intact on every row. But the broader reading that "p.2 covers the equipment
+content" was too generous: two weapons have no stats at all and four carry
+truncated rules text.
+
+Fixup targets, both on printed p.2:
+
+```
+/page/1/Table/1   WEAPONS & DAMAGE   1760 chars
+/page/1/Table/3   ARMOR               517 chars
+```
+
+Transcribe the weapon rows in **printed** order, so the fixup corrects ③ as a
+side effect.
+
+**pp.14-15 need no fixup.** Alex's call: the p.2 reference card is a better
+restatement of the same content, and the body chapter is a graphical treatment
+that extracts badly by construction.
