@@ -3422,7 +3422,7 @@ pins it, because "we remembered not to do the thing" is not a guard.
 #### 21.5 What happens next, and what would count as a result
 
 Re-run against the M7.5 re-baseline's own directories once they exist. The
-prompt hash moves `97feadbd` → **`2f108d6f`**; the corpus, the fixtures, and
+prompt hash moves `97feadbd` → **`0bdd1306`**; the corpus, the fixtures, and
 this scorer are unchanged, so the query distribution is the only variable on
 this particular measurement even though the re-baseline as a whole carries
 four.
@@ -3871,3 +3871,91 @@ mechanic *does*. Only reading the page catches it.
 
 The rule this settles: **when the primer makes a claim about how a mechanic
 behaves, read the page. Term presence is not verification.**
+
+### S26 — 2026-08-09 · A claim-by-claim primer audit, and the heading list that finally grounds the absence claims
+
+`§ S25.6` set the rule that a primer claim about *how a mechanic behaves* has
+to be checked against the page, because term presence is not verification.
+This applies it to all 35 claims in `mothership-m7.txt` lines 60–158, at hash
+`2f108d6f`. Side-by-side evidence in
+`$ZOLTAR_EVAL_ROOT/primer-verification.md` — that file quotes book text, so it
+lives outside this repository.
+
+**26 supported, 4 confirmed absent, 5 problems, all 5 fixed.**
+
+#### 26.1 The problems
+
+1. **`damage reduction → Armor Points (AP)` was wrong.** The book prints
+   `Damage Reduction (DR)` verbatim as a mechanic distinct from AP (p.28). The
+   mapping redirected a term the book uses literally, pointed at a different
+   mechanic, and contradicted the AP/DR bullets added the same day in
+   `§ S25.6`. Row deleted; the primer now says outright that DR needs no
+   translation and is not AP.
+2. **`initiative → turn order` hid a real rule.** p.26 carries an optional
+   strict-ordering mechanic: *"we recommend everyone make a Speed Check at the
+   start of the encounter. Those who succeed go before the enemy hostiles, and
+   those who fail go after."* A vocabulary mapping tells the Warden what word
+   to search; it does not tell it that a Speed Check **is** initiative when a
+   table wants one. Bullet added.
+3. **`perception, awareness → Intellect Check` contradicted the primer's own
+   line 140**, which says there is no perception check "not under those names
+   and not under any other." Both could not be followed.
+4. **`stealth → sneak` contradicted line 145** the same way, and pointed at a
+   word appearing once in the corpus, inside a play example.
+5. **The stealth bullet missed the ambush rule** — see 26.3.
+
+3 and 4 are now handled by a single list of *absent mechanics* that the
+Warden is told not to translate and not to look up, separate from the
+genuine vocabulary swaps.
+
+#### 26.2 The heading list, and what it settles
+
+Every absence claim in the primer previously rested on a term not appearing in
+`rules_chunk`. That is the weakest evidence in this milestone, and it had
+already failed once: `surprise` reads as absent because the PSG's
+`26.2 SURPRISE` **heading** is excluded from the corpus along with all 152
+other `SectionHeader` blocks (`§ S9.1`, `§ S19`).
+
+So the headings were extracted directly and read. **No heading names
+`flanking`, `opposed`, `suppressive`, `perception`, `stealth`, `search`,
+`awareness`, `initiative`, or `difficulty`.** The absence claims now rest on
+the book's own table of contents rather than on a corpus with a known hole in
+it.
+
+The list also confirms the two pages missing from the corpus entirely,
+printed 12 and 13, are weapon and equipment stat blocks (`F20 "ARBITER"`,
+`RAMHORN 1`, `13 INDUSTRIAL EQUIPMENT`) — equipment, not resolution mechanics,
+so their absence bears on no primer claim.
+
+**Worth keeping as a technique.** `extract.extract_blocks` on the PDF prints
+all 152 headings in about thirty seconds without touching the index. It is the
+cheapest available check on "does this book have a rule for X," and strictly
+better than querying the corpus, which cannot see them.
+
+#### 26.3 `26.2 SURPRISE` resolved
+
+The heading is absent from the corpus; **the rule is not.** p.26:
+
+> If there is a chance that characters are ambushed or stunned by a horrific
+> encounter, the Warden calls for a **Fear Save**. Those who succeed are able
+> to react, those who fail are too shocked to react until the next round.
+
+So the ten `surprise` queries `§ S9.1` recorded as unanswerable were
+answerable all along — they simply could not match on the word. The primer now
+teaches the ambush rule as part of the stealth bullet, which is where a Warden
+needs it.
+
+This also revises `§ S19.3`'s reading. That session cited `surprise` as the
+motivating cost of excluding headings — a term "absent from the book" across
+every query using it. It is absent from the *index* and present in the
+*book*, and the distinction is the whole point of this session.
+
+#### 26.4 Standing
+
+Prompt hash `2f108d6f` → **`0bdd1306`**. Five primer revisions in three days,
+six errors found. The errors have not been getting easier to find: `Sensors`
+fell to a term count, the Panic and Critical mistakes to reading one page,
+Cover to reading the page a claim was about, and these five only to a
+systematic pass over every claim. **The audit should be repeated whenever the
+primer is edited, not only when something looks wrong** — three of the five
+here were in text that read fine.

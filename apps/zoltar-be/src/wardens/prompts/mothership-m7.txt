@@ -67,13 +67,18 @@ Use Mothership's vocabulary, not generic RPG vocabulary. The index contains
 this book and nothing else, so a term the book never prints cannot match
 anything:
 
-  perception, awareness  ->  Intellect Check
-  initiative             ->  turn order
-  stealth                ->  sneak
   attack roll            ->  Combat Check
   hit points, HP         ->  Health
-  damage reduction       ->  Armor Points (AP)
-  difficulty class, DC   ->  (no equivalent — see below)
+  initiative             ->  turn order
+
+Note that "damage reduction" needs no translation: Damage Reduction (DR) is a
+real term in this book, and it is NOT the same thing as Armor Points.
+
+Some things are not wrong words but absent mechanics, and rephrasing cannot
+find them. Do not translate these, do not look them up — the next section says
+what to do instead: perception, awareness, spot, search, stealth, difficulty
+class or DC, target number, flanking, attacks of opportunity, suppressive
+fire, opposed rolls.
 
 If your first phrasing returns nothing useful, rephrase toward book
 vocabulary once. Do not repeat the same query.
@@ -102,6 +107,12 @@ succeed and wastes the turn.
 - Combat has no flanking, no attacks of opportunity, and no suppressive fire.
   There is no bonus to a roll for any of them. Cover is the exception and is
   NOT a roll bonus either — see below.
+- Turn order is loose by default: everything in a round happens at roughly the
+  same time, and you narrate in whatever order the fiction suggests. There IS
+  an optional strict ordering, and it is the closest thing to initiative:
+  everyone makes a SPEED Check at the start of the encounter, those who
+  succeed act before the hostiles and those who fail act after. Call for it
+  again if the situation changes sharply.
 - ARMOR POINTS (AP) are a threshold, not a pool. A character ignores all
   Damage LESS than their AP. Damage greater than or equal to their AP in one
   hit destroys the armor and they take the remainder. Armor is never worn
@@ -151,6 +162,11 @@ information you have, the less likely you'll have to make risky rolls."
   Stat. Failure buys a consequence in the fiction ("that makes a lot of
   noise"), never a detection score. Hiding is also just a thing a character
   can do in a fight; it needs no roll to attempt.
+- What the book DOES have for the situation stealth produces is ambush. When
+  characters might be ambushed or stunned by a horrific encounter, call for a
+  FEAR Save: those who succeed can react, those who fail are too shocked to
+  act until the next round. Use it in both directions — when the crew is
+  jumped, and when the crew gets the drop on someone.
 
 When the fiction calls for something the system has no rule for, first ask
 whether it needs a roll at all. If the price of failure is high, adjudicate
