@@ -4252,3 +4252,91 @@ MRR now reads 0.883 on three consecutive runs where `§ S22` measured a
 reading that borderline ties are what produced the variance — but three runs
 is exactly the sample size `§ S22` warned against trusting, so this is an
 observation and not a finding.
+
+### S28 — 2026-08-09 · Round 4: headings plus reference-card dedup. Aggregate-neutral, reverted on the stated criterion
+
+The experiment `§ S19.5` predicted and deliberately declined to run at the
+time. Run now because the index was about to freeze ahead of Part H, which is
+the last moment an index change is free.
+
+**Criterion fixed before the run**, per the discipline `§ S18.4` established
+after getting this wrong once: *keep only if `recall@3` holds at 97.3% or
+better and no fixture regresses.*
+
+#### 28.1 The configuration
+
+`--include-section-headers` with `drop_pages` extended to `3,4,41,42,43` —
+physical 43 being printed p.44, the back-cover cheat sheet. The pairing is the
+whole point: `§ S19` measured headings alone as a net loss, because the good
+half (recovering pages whose body text did not extract) came with a bad half
+(handing the cheat sheet the topic vocabulary to outrank the body pages it
+restates). Round 4 keeps the first and removes the second.
+
+61 chunks either way — headings add text to existing chunks while dropping
+p.44 removes some, and the two happened to cancel.
+
+#### 28.2 Result: a clean one-for-one trade
+
+| | Before | Round 4 |
+|---|---|---|
+| `recall@3` all | 97.3% | **97.3%** |
+| `recall@3` `warden-observed` | 95.7% | **95.7%** |
+| MRR | 0.883 | **0.883** |
+
+Every aggregate identical. Underneath, exactly two fixtures moved and they
+cancelled:
+
+| Fixture | Before | Round 4 |
+|---|---|---|
+| `rq-010` *advantage disadvantage cover modifier combat* | **1** | 2 |
+| `rq-019` | 2 | **1** |
+
+**Not noise, and this is the part worth recording.** The obvious reading was
+the rank-1↔2 reordering `§ S22` measured as run-to-run variance. It is not:
+across five pre-round-4 runs `rq-010` read 1 and `rq-019` read 2 every time,
+and across three round-4 runs they read 2 and 1 every time. The split is clean
+along the configuration boundary, so both movements are deterministic effects
+of the change.
+
+Checking that took one command and inverted the conclusion — the same
+three-samples-is-not-stability error `§ S22` was written about, caught this
+time before it was acted on rather than after.
+
+Printed p.44's share of the 147 top-3 slots went 14 → 0, as intended.
+
+#### 28.3 Reverted, and the tension is real
+
+The criterion fires: `recall@3` held, `rq-010` regressed. Index restored to
+headings-excluded, `drop_pages: [3, 4, 41, 42]`.
+
+**The call is closer than the criterion makes it sound**, and pretending
+otherwise would be dishonest. The change is neutral on every aggregate, it
+recovers 14 top-3 slots from a cheat sheet that restates body pages, and it
+adds 152 topic labels the corpus has never contained — value the fixture set
+is structurally unable to see, exactly as with the table fixups in `§ S27.5`.
+A one-for-one trade with unmeasurable upside is not obviously worse than the
+status quo.
+
+It is reverted anyway, because the criterion was fixed in advance precisely so
+that a close call would not be decided by whoever most wants the result.
+`§ S18.4` records the alternative: a criterion quietly reinterpreted after the
+numbers are in is worth nothing. **The correct way to overturn this is to
+argue the criterion was wrong and say so, not to notice afterwards that the
+outcome is inconvenient.**
+
+Standing decision, therefore: the shipped index is headings-excluded, four
+tables fixed, `drop_pages: [3, 4, 41, 42]`, 61 chunks. **The index is frozen
+for Part H.**
+
+#### 28.4 What would settle it properly
+
+`rq-010` expects p.19 and asks about cover; the fixed `28.4 COVER` heading now
+competes. That is one fixture deciding a change whose real effects are mostly
+invisible to a 49-query set with no equipment coverage and one remaining miss.
+
+The honest conclusion is not "headings are bad" but **"this fixture set can no
+longer discriminate at this level."** At 97.3% with 36 of 37 passing, there is
+one fixture of headroom, and changes now trade fixtures rather than improving
+them. Re-run round 4 after the set is extended — equipment fixtures per
+`§ S27.5`, and whatever the Part 6 playtest surfaces — when there is enough
+signal to tell a real regression from a swap.
