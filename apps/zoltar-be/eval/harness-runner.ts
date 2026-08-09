@@ -163,12 +163,17 @@ interface SeededDiceRequestRow {
 }
 
 /**
- * The player entity ids a fixture declares, or `[]`.
+ * The player entity ids a fixture declares, in declaration order, or `[]`.
  *
  * Reads the same `gmContextBlob.playerEntityIds` the checkers read via
  * `attributionContext`, deliberately: one declaration drives what the Warden
  * is validated against at run time and what the checker resolves against at
  * scoring time, so the two cannot disagree about who the player is.
+ *
+ * **Order is significant** — the first entry is the canonical id, the one
+ * seeded into `character_sheet` and therefore the only one the running Warden
+ * is allowed to use. Later entries are aliases the checker tolerates when
+ * grading older artifacts.
  */
 function seededPlayerEntityIds(fixture: EvalFixture): string[] {
   const blob = fixture.seededState.gmContextBlob as {
@@ -293,17 +298,33 @@ export async function seedScratchAdventure(
     // `gmContextBlob.playerEntityIds` with the repository's answer. Without a
     // sheet the answer is `[]`, which disables the `actingEntityId` validation
     // in the tool loop and leaves the run measuring a code path production
-    // does not take. One synthetic row per declared id restores it.
+    // does not take.
+    //
+    // **Exactly one row, and the schema is why.** `character_sheet` is unique
+    // on `(campaign_id, user_id)`: one sheet per player per campaign, so one
+    // player has one entity id. A fixture may *declare* several because the
+    // captured adventure refers to the player by two prefixes (`alvarez_*`
+    // and `lt_alvarez_*` — a state defect, not a modelling choice), but that
+    // ambiguity must not be pushed into the runtime. The first declared id is
+    // canonical, and an alias the Warden emits instead gets rejected by the
+    // tool loop and corrected in-loop, which is the behaviour we want.
+    //
+    // The checker stays deliberately more lenient than this: `rollActsFor`
+    // resolves against *every* declared id, because it also grades frozen
+    // artifacts from runs that predate the validation and legitimately used
+    // the alias. Same asymmetry, same reason, as the prose fallback for
+    // pre-M7.5 payloads.
     //
     // The id is not guessed: the fixture declares it (see
     // `attributionContext`), which is what makes this seeding possible now
     // and did not before.
-    for (const entityId of seededPlayerEntityIds(fixture)) {
+    const [canonicalPlayerEntityId] = seededPlayerEntityIds(fixture);
+    if (canonicalPlayerEntityId !== undefined) {
       await tx.insert(schema.characterSheets).values({
         campaignId: campaign.id,
         userId,
         system: 'mothership',
-        data: { entityId },
+        data: { entityId: canonicalPlayerEntityId },
       });
     }
 
