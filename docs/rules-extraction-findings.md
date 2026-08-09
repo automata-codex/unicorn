@@ -4188,3 +4188,67 @@ dropped or orphaned onto a leading-`|` row: `WEAPONS & DAMAGE`, `ARMOR`,
 `EQUIPMENT` ×2, and `PETS` on p.11 looks the same. It is a property of wide
 tables in this book's layout, not of any one page, and any future book should
 be checked for it before its index is trusted.
+
+#### 27.5 The fixups ingested: four tables repaired, retrieval unmoved
+
+All four templates authored by Alex; `apply_fixups` applied 4 of 4; the index
+re-ingested at 61 chunks, unchanged in count because a fixup replaces a
+block's text rather than adding blocks.
+
+**Verified present after the fix**, each having been absent or truncated
+before:
+
+| Recovered | Was |
+|---|---|
+| `Cybernetic Diagnostic Scanner` | `Scanner` |
+| `Heads-Up Display (HUD)` | `(HUD)` |
+| `Explosives & Detonator` | `Detonator` |
+| `Portable Computer Terminal` | `Terminal` |
+| `Decompression within 1d5 rounds if punctured` | absent |
+| `exoskeletal weave (Strength Checks [+])` | absent |
+| `WEAPONS & DAMAGE` | absent from corpus **and** headings |
+| `Salvage Drone` / `Stimpak` descriptions | orphaned onto unnamed rows |
+
+The ten leading-pipe orphan rows still in the corpus are all on the TRINKETS
+and PATCHES tables (pp.8-9), which no fixup targeted.
+
+**Retrieval did not move**, and that is the expected result rather than a
+disappointment:
+
+| | Before fixups | After |
+|---|---|---|
+| `recall@3` all | 97.3% | 97.3% |
+| `recall@3` `warden-observed` | 95.7% | 95.7% |
+| MRR | 0.869 – 0.883 | **0.883, 0.883, 0.883** |
+
+One fixture changed rank — `rq-023` from 2 to 1 — and it is the same
+borderline p.18/p.22 pair `§ S17.3` identified as reordering between runs at
+identical configuration. Not attributable to the fixups.
+
+**Why no movement was the right expectation.** The fixture set has 37
+answerable queries and **not one of them targets equipment**. `rq-015`, the
+only equipment-adjacent fixture, already hit at rank 1 on the p.2 card before
+any of this (`§ S23`). So the fixtures cannot see these repairs: the harness
+measures the questions it was given, and nobody gave it a question about what a
+Vaccsuit does when punctured.
+
+That is worth stating carefully, because the shape is by now familiar from
+`§ S19.6` and `§ S23.4`: **a measurement that cannot move is not evidence that
+nothing improved.** Four tables that were silently wrong are now right, two
+mechanics that did not exist in the index now do, and four item names that
+could never have been matched now can. What is missing is a fixture that would
+notice.
+
+**Consequence, and it is a gap in the ruler rather than the index.** The
+retrieval fixture set has no equipment coverage, so equipment quality is
+currently unmeasured in both directions — it could regress tomorrow and no
+number would move. Adding two or three equipment fixtures is cheap and would
+close that, but it must happen **after** M7.5 closes: `§ S16.4` froze the set
+for the milestone, and `§ S15.6` is explicit that changing the ruler
+mid-measurement is indistinguishable from an improvement.
+
+MRR now reads 0.883 on three consecutive runs where `§ S22` measured a
+0.842/0.856 alternation. The band has narrowed, consistent with `§ S18.2`'s
+reading that borderline ties are what produced the variance — but three runs
+is exactly the sample size `§ S22` warned against trusting, so this is an
+observation and not a finding.
