@@ -235,6 +235,47 @@ Consequence worth stating plainly: **your templates are not backed up by
 anything in this repository.** They live on your disk, exactly as a curated
 Markdown file does. `docs/rules-ingestion.md § Step 2` is the canonical spec.
 
+#### Naming a template
+
+Lowercase, underscores, `.md`, and named for **what the block contains, not
+where it sits**: `armor_table.md`, `weapons_and_damage_table.md`.
+
+Location-based names go stale. A block id is `/page/<n>/<Type>/<k>` where `k`
+is an index into that page's blocks, so a marker upgrade that adds or drops a
+block renumbers everything after it — and then `page_01_table_01.md` names a
+block it no longer patches. `fixups.json` already carries the id-to-template
+link, so the filename does not need to.
+
+Avoid a bare page number for the same reason the rest of this pipeline does:
+`armor_table_p2.md` does not say whether `2` is printed or physical, and that
+ambiguity has caused real errors here. If you need to disambiguate two tables
+of the same kind, spell it out — `armor_table_printed_p2.md`.
+
+#### What goes inside a template
+
+Whatever the block's text should have been. `apply_fixups` replaces the
+block's `text` verbatim and keeps its `id`, type, page, and bbox — so a
+template for a `Table` block should be the table as text, pipe-delimited in
+the same shape the extractor produces for tables that came out intact:
+
+```
+WEAPONS & DAMAGE
+WEAPON | COST | RANGE | DAMAGE | SHOTS | WOUND | SPECIAL
+Ammo | 50cr | N/A | | | N/A | Per magazine/container.
+```
+
+Two things follow from `Table` blocks being atomic (`chunk.py` never splits
+one): the whole template lands in a single chunk regardless of length, and
+anything you omit is unreachable. Include the table's printed title if the
+extraction lost it — `WEAPONS & DAMAGE` is absent from the corpus *and* from
+the heading list, so nothing else will restore it.
+
+**A missing template is a hard error, not a warning.** Adding an entry to
+`fixups.json` before writing its template makes `ingest.py` fail with exit 5
+until the file exists. That is deliberate — a fixup you meant to write and
+forgot should stop the pipeline rather than quietly ingest the broken block —
+but it does mean the two land together.
+
 Matching is on block `id` rather than on content because the defect this
 exists for is blocks that extract with *no text at all* — there is nothing
 for a content matcher to match. An entry that matches nothing logs a warning
