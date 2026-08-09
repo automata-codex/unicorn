@@ -3959,3 +3959,45 @@ Cover to reading the page a claim was about, and these five only to a
 systematic pass over every claim. **The audit should be repeated whenever the
 primer is edited, not only when something looks wrong** — three of the five
 here were in text that read fine.
+
+#### 26.5 The audit is scripted — `task eval:primer-audit`
+
+`§ 26.4` concluded the audit should run on every primer edit rather than when
+something looks wrong. Doing that by hand would not survive contact with a
+busy week, so it is a script.
+
+**It checks invariants, not prose.** No script decides whether "AP is a
+threshold, not a pool" is a fair reading of p.28. It decides whether the
+primer maps a term the book uses verbatim, whether a mapping's target exists,
+whether a term is both mapped and declared absent, and whether a mechanic
+declared absent has a section heading. Those four are exactly the shapes that
+got past human review.
+
+`ingest.py --dump-headings <path>` supplies the input the corpus cannot:
+`SectionHeader` blocks are excluded from the index, so a heading naming a
+mechanic is invisible to every query. Without it the absence checks still run
+against the corpus and the report says they are **weak**.
+
+**Validated against the real pre-fix primer.** Run against `2f108d6f`, it
+finds `damage reduction → Armor Points (AP)` and exits non-zero — problem ① of
+this session, caught mechanically.
+
+**What it would not have caught, stated because the temptation is to
+overclaim.** Problems ③ and ④ — `perception` and `stealth` mapped *and*
+declared absent — are invisible in the old text, because the absent-mechanics
+list those invariants compare against is something the fix introduced. The
+audit checks the structure the primer has now. And problems ② and ⑤ were
+*incompleteness*, which no invariant can detect; they surface only in the
+"book sections the primer never mentions" list, which is a review prompt and
+explicitly not a defect list.
+
+**Two false positives on its first live run, both the same bug.** `DC` matched
+inside `Handcuffs` and `search` inside `research`, because the corpus check
+used substring matching while the heading scan had already been fixed to use
+word boundaries. One rule, two implementations, and the older one kept the
+bug. Now a single exported `usesTerm`, tested, used by both.
+
+Its boundary rule is worth stating: a **leading** word boundary only.
+Boundaries at both ends stop `handcuffs` matching `DC` but also stop `checks`
+matching `check`, which would report the panic-check section as uncovered by a
+primer that discusses panic checks at length. Leading-only handles both.

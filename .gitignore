@@ -109,6 +109,11 @@ __pycache__/
 # Index provenance from the last local ingestion run — describes one machine's
 # index build, read by task eval:retrieval to stamp its run manifests.
 ingestion/.ingest-manifest.json
+# Section headings dumped by `ingest.py --dump-headings`, consumed by
+# `eval:primer-audit`. A per-machine cache of the book's structure, keyed to
+# the source PDF -- same posture as the manifest above, and it is derived from
+# a document that does not ship.
+ingestion/.headings-*.json
 
 # Personal notes — kept on disk, not tracked
 docs/mental-health-toolkit.md

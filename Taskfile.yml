@@ -130,6 +130,13 @@ tasks:
       # Plain tsx, as with eval:report — no Nest DI container.
       - npx tsx --env-file=.env scripts/query-worksheet.ts {{.CLI_ARGS}}
 
+  eval:primer-audit:
+    desc: 'Check the Warden primer''s declarations against the book (M7.5). Verifies invariants -- a vocabulary mapping must not redirect a term the book already uses, its target must exist, and a mechanic declared absent must not have a section heading -- and lists book sections the primer never mentions. Exits non-zero on a violation so it can gate a commit. No Anthropic calls, no Voyage calls. PASS --headings OR THE ABSENCE CHECKS ARE WEAK: SectionHeader blocks are excluded from the index, so no corpus query can see them; produce the file once with "task ingest -- --system mothership --pdf <path> --dump-headings <path>". Usage -- task eval:primer-audit -- [--primer <path>] [--headings <path>] [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx, as with eval:report — no Nest DI container.
+      - npx tsx --env-file=.env scripts/primer-audit.ts {{.CLI_ARGS}}
+
   eval:judge-variance:
     desc: 'Re-run judged checks N times against frozen warden-output.json artifacts already on disk — no Warden calls, no DB (M7.4.1). Makes real, token-costing Anthropic calls: every vouched (rep, fixture) pair is one frozen input and --trials is how many times each is re-graded, so cost is frozen-inputs x --trials. --trials does NOT subsample source reps — the run fixes those. Requires ANTHROPIC_API_KEY and ZOLTAR_EVAL_ROOT. Usage — task eval:judge-variance -- <run-dir> [--trials 3] [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--output <path>]'
     dir: apps/zoltar-be

@@ -119,6 +119,16 @@ def build_parser() -> _ArgumentParser:
         help="skip PDF hash verification entirely (it only warns in any case)",
     )
     parser.add_argument(
+        "--dump-headings",
+        type=Path,
+        metavar="PATH",
+        help="extract the book's SectionHeader blocks to a JSON file and stop. "
+        "These are excluded from the index by default, so they are the one "
+        "thing a corpus query can never see — which makes them the cheapest "
+        "check on whether the book has a rule for something. Costs no Voyage "
+        "calls and touches no database.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="extract and chunk only; print a chunk count and preview, then stop "
@@ -370,6 +380,58 @@ def _merge(
     return chunks
 
 
+def dump_headings(args: argparse.Namespace, source_path: Path) -> int:
+    """Write the book's `SectionHeader` text to JSON, then stop.
+
+    **Why this exists as a first-class flag.** `CONTENT_BLOCK_TYPES` excludes
+    headings, so no query against `rules_chunk` can ever see them — and a
+    heading is exactly where a rulebook names a mechanic most compactly. That
+    blind spot has already produced one wrong conclusion: `surprise` was
+    recorded as absent from the book across every query using it
+    (``docs/rules-extraction-findings.md § S9.1``, ``§ S19``) when the PSG
+    prints a `26.2 SURPRISE` heading and the rule itself is on the page.
+
+    So this is the check to run before asserting a book *lacks* a rule. It is
+    strictly better evidence than the corpus for that question, and it costs
+    marker's extraction pass and nothing else — no embedding, no database.
+
+    The output is a cache keyed to the source document, not a measurement:
+    headings change only when the book or marker does.
+    """
+    if args.markdown is not None:
+        logger.error(
+            "--dump-headings reads a PDF's structure via marker; there is "
+            "nothing to extract from curated Markdown, whose headings you "
+            "wrote yourself."
+        )
+        return EXIT_BAD_ARGS
+
+    with tempfile.TemporaryDirectory(prefix="zoltar-headings-") as tmp:
+        blocks, _ = extract.extract_blocks(source_path, Path(tmp))
+
+    headings = [
+        {"physicalPage": block.page, "text": " ".join(block.text.split())}
+        for block in blocks
+        if block.block_type == "SectionHeader" and block.text.strip()
+    ]
+
+    payload = {
+        "system": args.system,
+        "sourceSha256": hashing.sha256_file(source_path),
+        "markerVersion": _marker_version(),
+        "extractedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "headings": headings,
+    }
+    args.dump_headings.parent.mkdir(parents=True, exist_ok=True)
+    args.dump_headings.write_text(
+        json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+    )
+    logger.info(
+        "wrote %d section headings to %s", len(headings), args.dump_headings
+    )
+    return EXIT_OK
+
+
 def _marker_version() -> str | None:
     try:
         completed = subprocess.run(
@@ -488,6 +550,9 @@ def main(argv: list[str] | None = None) -> int:
             source_path,
         )
         return EXIT_BAD_PDF
+
+    if args.dump_headings is not None:
+        return dump_headings(args, source_path)
 
     if not args.dry_run and not args.database_url:
         logger.error(
