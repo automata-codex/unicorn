@@ -130,16 +130,30 @@ const REQUIRES_FIXTURE_SCHEMA: Partial<Record<string, number>> = {
  * A check id missing from this map is a hard error at registry build time,
  * so adding a check forces the question to be answered.
  *
- * The two `'fixture'` entries are the checks re-gated onto fixture-authored
- * `applicability`; the `'artifact'` entries gate on the turn's own output
- * and carry the selection hazard named on `EvalCheck.applicabilitySource`;
- * the judged four reach a verdict on every rep and gate on nothing. That
- * last group is `'ungated'`, not "judged" — the overlap with `mode` is
- * coincidental and ends with the first hybrid check.
+ * `system-rolled-player-action` is the one check re-gated purely onto
+ * fixture-authored `applicability`; the `'artifact'` entries gate on the
+ * turn's own output and carry the selection hazard named on
+ * `EvalCheck.applicabilitySource`; the judged four reach a verdict on every
+ * rep and gate on nothing. That last group is `'ungated'`, not "judged" —
+ * the overlap with `mode` is coincidental and ends with the first hybrid
+ * check.
+ *
+ * **`out-of-order-resolution` is the first hybrid, and it is declared by its
+ * weakest link.** It gates on fixture-authored `applicability` *first*, then
+ * on the artifact: a turn that leaves no pending `dice_request` and whose
+ * rolls declare no `gatedByRollId` has no ordering to adjudicate, and that is
+ * a fact about what the Warden did. This entry read `'fixture'` until the
+ * 2026-08-09 re-baseline, which was always wrong — the pre-`gatedByRollId`
+ * path was artifact-gated too — but it went unnoticed because every rep of
+ * every frozen run happened to leave a gate pending. The first run that
+ * didn't tripped the report's own "fixture-gated but applicability is 0.70"
+ * defect line. Where a check gates on both, declare `'artifact'`: `'fixture'`
+ * asserts every rep must agree, and a single artifact-dependent branch makes
+ * that false.
  */
 const APPLICABILITY_SOURCE: Record<string, EvalCheck['applicabilitySource']> = {
   'system-rolled-player-action': 'fixture',
-  'out-of-order-resolution': 'fixture',
+  'out-of-order-resolution': 'artifact',
   'unauditable-mapping': 'artifact',
   // Judged, but with a structural pre-filter that only ever FAILs or
   // falls through — it never reports not_applicable, and the judge

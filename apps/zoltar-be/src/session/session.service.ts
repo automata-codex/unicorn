@@ -276,6 +276,16 @@ export class SessionService {
       initialRequest: request,
       systemId,
       adventureId: args.adventureId,
+      // Exactly what the snapshot can show: `campaign_state.entities` holds
+      // NPCs/threats/features, and player entities live only in
+      // `playerEntityIds` because they are never written to that map. The
+      // union is therefore the set of ids the Warden could legitimately have
+      // read, and validating against anything narrower would reject ids it
+      // was shown.
+      knownEntityIds: [
+        ...Object.keys(campaignStateData.entities ?? {}),
+        ...playerEntityIds,
+      ],
     });
     const originalResponse = innerLoop.finalResponse;
     const originalParsed = innerLoop.finalParsed;
@@ -681,6 +691,16 @@ export class SessionService {
     initialRequest: CallSessionParams;
     systemId: string;
     adventureId: string;
+    /**
+     * Every entity id `actingEntityId` may name — seeded NPCs, threats and
+     * features plus the player character's own ids. Used only to reject
+     * garbage at the tool boundary; see `handleRollDice`.
+     *
+     * Optional so existing callers and tests that don't care about
+     * attribution keep working; an omitted or empty set disables the check
+     * rather than rejecting everything.
+     */
+    knownEntityIds?: readonly string[];
   }): Promise<InnerToolLoopResult> {
     let request = args.initialRequest;
     let iteration = 0;
@@ -744,7 +764,12 @@ export class SessionService {
       for (const use of toolUses) {
         if (use.name === 'roll_dice') {
           toolResultBlocks.push(
-            this.handleRollDice(use, executedRolls, args.adventureId),
+            this.handleRollDice(
+              use,
+              executedRolls,
+              args.adventureId,
+              args.knownEntityIds ?? [],
+            ),
           );
           continue;
         }
@@ -823,6 +848,7 @@ export class SessionService {
     use: Anthropic.ToolUseBlock,
     executedRolls: PendingSystemRoll[],
     adventureId: string,
+    knownEntityIds: readonly string[],
   ): Anthropic.ContentBlockParam {
     const parsed = rollDiceInputSchema.safeParse(use.input);
     if (!parsed.success) {
@@ -831,6 +857,39 @@ export class SessionService {
         tool_use_id: use.id,
         is_error: true,
         content: `Invalid roll_dice input: ${parsed.error.message}`,
+      };
+    }
+
+    // An `actingEntityId` naming nothing is the same class of defect as a
+    // dangling `gatedByRollId` below, and rejected the same way: it makes the
+    // attribution checks look decidable while the reference points at
+    // nothing. Measured on the frozen 2026-08-09 runs, Sonnet 4.6 filled this
+    // field with *resource pool* names (`lt_alvarez_hp`, `alvarez_armor`) 13
+    // times — id-shaped strings lifted from the state snapshot, which is the
+    // only place it sees ids at all, because player entities are absent from
+    // `<entities>` (see `docs/rules-extraction-findings.md § S30`).
+    //
+    // **Skipped entirely when the set is empty**, which is not a formality:
+    // `getPlayerEntityIds` reads `character_sheet.data.entityId` and there are
+    // campaigns with no character sheet at all. Rejecting against a set that
+    // is missing the player would reject every one of the player's rolls, so
+    // no set means no opinion.
+    const { actingEntityId } = parsed.data;
+    if (
+      knownEntityIds.length > 0 &&
+      !knownEntityIds.some(
+        (id) => id.toLowerCase() === actingEntityId.toLowerCase(),
+      )
+    ) {
+      return {
+        type: 'tool_result',
+        tool_use_id: use.id,
+        is_error: true,
+        content:
+          `Invalid roll_dice input: actingEntityId "${actingEntityId}" is not a known ` +
+          'entity. It must name the entity acting, exactly as that entity is identified ' +
+          'in the state snapshot — not a resource pool name and not a display name. ' +
+          `Known entities: ${knownEntityIds.join(', ')}.`,
       };
     }
 

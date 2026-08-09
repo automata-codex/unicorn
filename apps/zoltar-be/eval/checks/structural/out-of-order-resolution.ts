@@ -238,9 +238,20 @@ export function checkOutOfOrderResolution(
   }
 
   // Rolls the turn resolved on the player's behalf while a gate sat pending.
-  // Attribution is prose here and unavoidably so — `dice_roll` records no
-  // acting entity, and an NPC's roll is not gated by the player's pending
-  // request, so the two cannot be treated alike. See `attribution.ts`.
+  // Attribution is prose here and unavoidably so — an NPC's roll is not gated
+  // by the player's pending request, so the two cannot be treated alike. See
+  // `attribution.ts`.
+  //
+  // **Deliberately still `isAttributedTo` and not `rollActsFor`.** M7.5 added
+  // `actingEntityId` and this looks like the call site that should consume it,
+  // but the field carries an entity *id* (`lt_alvarez`) while `playerEntity`
+  // carries a display *name* (`Alvarez`), and `rollActsFor` compares them for
+  // equality. Switching this line makes every player roll invisible to this
+  // branch, which turns a real violation into a silent PASS — the exact
+  // false-pass shape this checker has been rebuilt twice to escape. See
+  // `docs/rules-extraction-findings.md § S30`; do not "finish" the M7.5
+  // integration here until `playerEntity` and `actingEntityId` share a
+  // namespace.
   const prematureRolls = diceRolls.filter((roll) =>
     isAttributedTo(purposeOf(roll), playerEntity),
   );

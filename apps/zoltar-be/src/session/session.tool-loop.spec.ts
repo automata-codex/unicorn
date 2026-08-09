@@ -115,6 +115,19 @@ const loopArgs = {
   adventureId: 'adv-1',
 };
 
+/**
+ * `loopArgs` with a known-entity set, so `actingEntityId` is validated.
+ *
+ * Kept separate rather than folded into `loopArgs` because the empty-set case
+ * is a real production state — a campaign with no `character_sheet` row makes
+ * `getPlayerEntityIds` return `[]` — and every other test in this file should
+ * keep exercising it.
+ */
+const loopArgsWithEntities = {
+  ...loopArgs,
+  knownEntityIds: ['corporate_spy_1', 'lt_alvarez'],
+};
+
 // --- tests ---------------------------------------------------------------
 
 describe('SessionService.runInnerToolLoop', () => {
@@ -593,6 +606,89 @@ describe('SessionService.runInnerToolLoop', () => {
       ),
     });
     expect(callSession).toHaveBeenCalledTimes(INNER_TOOL_LOOP_CAP);
+  });
+
+  it('rejects an actingEntityId that names no known entity and lets Claude recover', async () => {
+    // Sonnet 4.6 filled this field with resource pool names 13 times across
+    // the frozen 2026-08-09 run — `lt_alvarez_hp`, `alvarez_armor` — because
+    // the state snapshot shows it pool names and no player entity, so those
+    // are the only id-shaped strings it has to copy. Rejected at the boundary
+    // like a dangling gatedByRollId, with the valid ids named so the model can
+    // correct itself in-loop.
+    callSession
+      .mockResolvedValueOnce(
+        message([
+          toolUse('toolu_1', 'roll_dice', {
+            notation: '1d10',
+            purpose: 'Damage',
+            actingEntityId: 'lt_alvarez_hp',
+            rollType: 'damage',
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(message([submitGmBlock()]));
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgsWithEntities);
+
+    expect(result.iterations).toBe(2);
+    // Rejected before rolling: a roll that cannot be attributed must not
+    // reach `executedRolls`, or it lands in game_events anyway.
+    expect(result.executedRolls).toHaveLength(0);
+
+    const secondCall = callSession.mock.calls[1][0] as CallSessionParams;
+    const toolResult = (
+      secondCall.messages[secondCall.messages.length - 1] as {
+        content: Anthropic.ContentBlockParam[];
+      }
+    ).content[0] as Anthropic.ToolResultBlockParam;
+    expect(toolResult.is_error).toBe(true);
+    expect(toolResult.content).toMatch(/is not a known entity/);
+    // The recovery path is only usable if the message says what to use.
+    expect(toolResult.content).toMatch(/corporate_spy_1/);
+  });
+
+  it('accepts an actingEntityId naming a player entity, case-insensitively', async () => {
+    callSession
+      .mockResolvedValueOnce(
+        message([
+          toolUse('toolu_1', 'roll_dice', {
+            notation: '1d100',
+            purpose: 'Panic check',
+            actingEntityId: 'LT_Alvarez',
+            rollType: 'panic_check',
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(message([submitGmBlock()]));
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgsWithEntities);
+
+    expect(result.executedRolls).toHaveLength(1);
+  });
+
+  it('does not validate actingEntityId when no known entities are supplied', async () => {
+    // A campaign with no `character_sheet` row yields `playerEntityIds: []`,
+    // and validating against a set that is missing the player would reject
+    // every one of the player's own rolls. No set, no opinion.
+    callSession
+      .mockResolvedValueOnce(
+        message([
+          toolUse('toolu_1', 'roll_dice', {
+            notation: '1d10',
+            purpose: 'Damage',
+            actingEntityId: 'whoever_this_is',
+            rollType: 'damage',
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(message([submitGmBlock()]));
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(result.executedRolls).toHaveLength(1);
   });
 
   it('throws SessionOutputError when Claude returns a message with no tool_use blocks', async () => {

@@ -163,19 +163,43 @@ interface SeededDiceRequestRow {
 }
 
 /**
+ * The player entity ids a fixture declares, or `[]`.
+ *
+ * Reads the same `gmContextBlob.playerEntityIds` the checkers read via
+ * `attributionContext`, deliberately: one declaration drives what the Warden
+ * is validated against at run time and what the checker resolves against at
+ * scoring time, so the two cannot disagree about who the player is.
+ */
+function seededPlayerEntityIds(fixture: EvalFixture): string[] {
+  const blob = fixture.seededState.gmContextBlob as {
+    playerEntityIds?: unknown;
+  };
+  return Array.isArray(blob.playerEntityIds)
+    ? blob.playerEntityIds.filter((v): v is string => typeof v === 'string')
+    : [];
+}
+
+/**
  * Seeds a fully self-contained scratch campaign + adventure from a
  * fixture's frozen `seededState`, ready for `runFixtureTurn` to drive one
  * real turn through. Tagged `campaign.name = "__eval__<fixture.id>__<runId>"`
  * so scratch rows are identifiable in the database and never collide with
  * real campaigns; `teardownScratchAdventure` deletes by that campaign id.
  *
- * Does not seed `character_sheet` rows — `SessionService.sendMessage` only
- * uses them to populate `gmContextBlob.playerEntityIds`, a per-request
- * prompt-building hint (never persisted, never read by any structural or
- * judged checker). A fixture's frozen `campaignState`/`gmContextBlob`
- * already carry whatever entity data actually matters; seeding a synthetic
- * character sheet on top would be guessing at an entity id this milestone
- * has no reliable way to derive from a captured fixture.
+ * Seeds one `character_sheet` row per entity id the fixture declares in
+ * `seededState.gmContextBlob.playerEntityIds`.
+ *
+ * This reverses an earlier decision here, and the reason is worth keeping.
+ * The original note said seeding would mean "guessing at an entity id this
+ * milestone has no reliable way to derive from a captured fixture," and that
+ * `playerEntityIds` was a prompt-building hint "never read by any structural
+ * or judged checker." Both premises have since changed: fixtures now declare
+ * the ids outright, and `rollActsFor` resolves `actingEntityId` against them.
+ *
+ * Not seeding is no longer neutral. `SessionService` overwrites the blob's
+ * `playerEntityIds` with the repository's answer, so an unseeded run reports
+ * `[]`, which silently disables `actingEntityId` validation in the tool loop
+ * — the run would grade a code path production does not take.
  */
 export async function seedScratchAdventure(
   db: Db,
@@ -263,6 +287,25 @@ export async function seedScratchAdventure(
       adventureId: adventure.id,
       blob: fixture.seededState.gmContextBlob,
     });
+
+    // `SessionService.sendMessage` reads player entity ids from
+    // `character_sheet`, not from the seeded blob — it *overwrites*
+    // `gmContextBlob.playerEntityIds` with the repository's answer. Without a
+    // sheet the answer is `[]`, which disables the `actingEntityId` validation
+    // in the tool loop and leaves the run measuring a code path production
+    // does not take. One synthetic row per declared id restores it.
+    //
+    // The id is not guessed: the fixture declares it (see
+    // `attributionContext`), which is what makes this seeding possible now
+    // and did not before.
+    for (const entityId of seededPlayerEntityIds(fixture)) {
+      await tx.insert(schema.characterSheets).values({
+        campaignId: campaign.id,
+        userId,
+        system: 'mothership',
+        data: { entityId },
+      });
+    }
 
     for (const raw of fixture.seededState.messages) {
       const row = raw as unknown as SeededMessageRow;

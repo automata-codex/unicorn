@@ -1,4 +1,8 @@
-import { rollActsFor, unbindableVerdict } from './attribution';
+import {
+  attributionContext,
+  rollActsFor,
+  unbindableVerdict,
+} from './attribution';
 import { requireApplicability } from './types';
 
 import type { DiceRollEventPayload } from '../../../src/session/session.events';
@@ -58,17 +62,28 @@ const CHECK_ID = 'system-rolled-player-action';
  *
  * ---
  *
- * **Resolved in M7.5.** `actingEntityId` now lands on the `roll_dice`
- * payload, and attribution goes through `rollActsFor`: the field when it is
- * present, the prose convention only when it is not. On output produced
- * after M7.5 this check reads structure end to end, and the audit's "the
- * answer is no" becomes "the answer is no for pre-M7.5 artifacts only."
+ * **Resolved in M7.5, on the second attempt.** `actingEntityId` now lands on
+ * the `roll_dice` payload, and attribution goes through `rollActsFor`: the
+ * field when it is present, the prose convention only when it is not. On
+ * output produced after M7.5 this check reads structure end to end, and the
+ * audit's "the answer is no" becomes "the answer is no for pre-M7.5
+ * artifacts only."
  *
  * The prose path is kept rather than deleted because `eval:rescore`
  * re-grades frozen `88fa84bd8329` artifacts that predate the field. Branching
  * on field *presence* — never on `fixtureSchemaVersion`, which records what
  * was captured and captures no game events at all — is what makes those
  * historical verdicts come out unchanged.
+ *
+ * **The first attempt made this check worse, and the tests did not notice.**
+ * It compared `actingEntityId` against `applicability.playerEntity` — an id
+ * against a display name — so no player roll ever matched and this check
+ * reported 20/20 on a Sonnet 5 run containing the violation verbatim. The
+ * lesson worth keeping: a structural check that silently stops matching does
+ * not report less, it reports *wrong*, and the only defence is that every
+ * "not the player" answer must be traceable to a declared id set rather than
+ * to a comparison that happened to fail. See `attribution.ts` and
+ * `docs/rules-extraction-findings.md § S30`.
  */
 export function checkSystemRolledPlayerAction(
   result: TurnExecutionResult,
@@ -84,9 +99,16 @@ export function checkSystemRolledPlayerAction(
     (e) => e.eventType === 'dice_roll',
   );
 
+  const ctx = attributionContext(fixture, playerEntity);
+
+  // `'player'` only. An `'unknown'` roll is *not* treated as a violation here
+  // — it is handled by `unbindableVerdict` below, which turns it into an
+  // undecided rep rather than a FAIL, because "the id resolves to nothing"
+  // is not evidence that the system rolled the player's action.
   const violatingRolls = diceRolls.filter(
     (roll) =>
-      rollActsFor(roll, playerEntity) && roll.rollSource !== 'player_entered',
+      rollActsFor(roll, ctx) === 'player' &&
+      roll.rollSource !== 'player_entered',
   );
 
   if (violatingRolls.length > 0) {
@@ -136,7 +158,7 @@ export function checkSystemRolledPlayerAction(
   // structure rather than on a prose match having failed — see
   // `unbindableVerdict`, which returns a verdict here when the turn contains
   // rolls or requests that couldn't be attributed to anyone.
-  const undecided = unbindableVerdict(result, playerEntity);
+  const undecided = unbindableVerdict(result, ctx);
   if (undecided) return undecided;
 
   return {

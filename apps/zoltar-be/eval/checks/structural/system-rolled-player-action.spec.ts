@@ -79,6 +79,93 @@ describe('checkSystemRolledPlayerAction', () => {
     expect(verdict.outcome).toBe('FAILED');
   });
 
+  it('fails on the real captured id form, not just the one that happens to match the display name', () => {
+    // **The regression this check shipped with.** `actingEntityId` carries an
+    // entity id (`lt_alvarez`) and `applicability.playerEntity` carries a
+    // display name (`Alvarez`); the first M7.5 cut compared them for equality,
+    // so no player roll ever matched and this returned PASSED. It scored
+    // 20/20 on a Sonnet 5 run whose turn19 rep 001 is reproduced below almost
+    // verbatim — the violation stated in the payload, graded clean.
+    //
+    // Every test above passed throughout, because they all use `alvarez`,
+    // the one id form that collides with the display name under
+    // `toLowerCase()`. Hence this case.
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeDiceRoll({
+          sequenceNumber: 1,
+          rollId: 'roll_1',
+          rollSource: 'system_generated',
+          purpose: 'Alvarez Combat Check to shoot contractor alpha',
+          actingEntityId: 'lt_alvarez',
+        }),
+      ],
+    });
+
+    const verdict = checkSystemRolledPlayerAction(result, APPLICABLE_FIXTURE);
+    expect(verdict.outcome).toBe('FAILED');
+  });
+
+  it('reports undecided when actingEntityId resolves to no declared entity', () => {
+    // Sonnet 4.6 puts resource pool names in this field — `lt_alvarez_hp`,
+    // `alvarez_armor` — 13 times across the frozen run. Sorting those into
+    // "an NPC did it" would manufacture passes out of malformed output, so an
+    // id in neither the player set nor the seeded entity set costs a
+    // denominator instead.
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeDiceRoll({
+          sequenceNumber: 1,
+          rollId: 'roll_1',
+          purpose: 'Damage roll',
+          actingEntityId: 'lt_alvarez_hp',
+        }),
+      ],
+    });
+
+    const verdict = checkSystemRolledPlayerAction(result, APPLICABLE_FIXTURE);
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
+    expect(verdict.actual).toMatch(/neither a declared player entity id nor/);
+  });
+
+  it('reports undecided when the fixture declares no player entity ids at all', () => {
+    // The fail-open that produced the shipped bug, pinned shut. A fixture
+    // that never says who the player is cannot answer "was this the player's
+    // roll", and the honest verdict is undecided rather than PASSED.
+    const fixtureWithoutIds = fakeFixture({
+      tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
+      seededState: {
+        campaignState: {},
+        gmContextBlob: {},
+        pendingCanon: [],
+        messages: [],
+        pendingDiceRequests: [],
+        capturedAt: '2026-07-15T00:00:00.000Z',
+      },
+      applicability: {
+        [CHECK_ID]: {
+          applies: true,
+          playerEntity: 'Alvarez',
+          situation: 'Alvarez declares an attack on the contractor.',
+        },
+      },
+    });
+
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeDiceRoll({
+          sequenceNumber: 1,
+          rollId: 'roll_1',
+          purpose: 'Alvarez Combat Check to shoot contractor alpha',
+          actingEntityId: 'lt_alvarez',
+        }),
+      ],
+    });
+
+    const verdict = checkSystemRolledPlayerAction(result, fixtureWithoutIds);
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
+  });
+
   it('passes on an actingEntityId naming an NPC, without consulting the purpose text', () => {
     // The mirror case, and the one that shows the field is authoritative
     // rather than an extra signal: the purpose *does* lead with the player's

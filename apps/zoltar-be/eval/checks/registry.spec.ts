@@ -38,14 +38,27 @@ describe('evalChecks', () => {
     }
   });
 
-  it('marks the two re-gated checks as fixture-sourced', () => {
-    // These are the checks moved off "did the model happen to roll?" onto
-    // fixture-authored applicability — the fix `decisions.md` records.
+  it('marks the purely fixture-gated check as fixture-sourced', () => {
+    // Moved off "did the model happen to roll?" onto fixture-authored
+    // applicability — the fix `decisions.md` records.
     expect(evalChecks['system-rolled-player-action'].applicabilitySource).toBe(
       'fixture',
     );
+  });
+
+  it('marks a check that gates on both the fixture and the artifact as artifact-sourced', () => {
+    // `out-of-order-resolution` consults fixture applicability first and then
+    // the turn's own output — a turn that leaves no pending dice_request and
+    // declares no gatedByRollId has no ordering to adjudicate. It was
+    // declared 'fixture' until the 2026-08-09 re-baseline produced the first
+    // run where reps disagreed, which tripped the report's own "fixture-gated
+    // but applicability is 0.70" defect line.
+    //
+    // The rule the label encodes: 'fixture' asserts every rep must agree, so
+    // a single artifact-dependent branch makes it false. Declare the weakest
+    // link.
     expect(evalChecks['out-of-order-resolution'].applicabilitySource).toBe(
-      'fixture',
+      'artifact',
     );
   });
 

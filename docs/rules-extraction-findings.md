@@ -4421,3 +4421,108 @@ locks the staleness in.** State the rule, name the inputs, let the reader
 check. This is the third asserted-but-unverified claim this milestone has
 turned up, after the `.gitignore` that did not exist and the `templates/`
 posture nothing enforced.
+
+---
+
+### S30 — 2026-08-09 · The attribution field shipped, and it made the check worse
+
+M7.5 added `actingEntityId` to the `roll_dice` payload so
+`system-rolled-player-action` could stop inferring who acted from prose. The
+integration compared the new field against `applicability.playerEntity`:
+
+```ts
+return payload.actingEntityId.toLowerCase() === playerEntity.toLowerCase();
+```
+
+Those are different namespaces. The field carries an entity **id**
+(`lt_alvarez`); `playerEntity` carries a display **name** (`Alvarez`). Nothing
+matched. The check did not report *less* — it reported **wrong**, because "no
+roll belongs to the player" is the check's PASS condition.
+
+Measured on the frozen `0bdd1306` Sonnet 5 run, re-graded by the corrected
+checker against the same artifacts:
+
+| Fixture | as shipped | corrected |
+|---|---|---|
+| turn19-system-rolled-player-action | 1.00 (10/10) | **0.00 (0/10)** |
+| turn21-system-rolled-player-action (4.6) | 1.00 (4/4) | 0.75 (3/4) |
+
+turn19 rep 001 contains, in the payload:
+
+```
+rollSource   system_generated
+actingEntityId  lt_alvarez
+purpose      "Alvarez Combat Check to shoot contractor alpha"
+```
+
+That is the violation the check exists to catch, stated in the data, graded
+clean ten times out of ten. The reported "+0.20 improvement" on turn21 and
+"+0.70" on 4.6's turn19 were instrument artifacts and are retracted.
+
+**The 60 structural tests passed throughout.** They pair
+`actingEntityId: 'alvarez'` with `playerEntity: 'Alvarez'` — the one id form
+that collides with the display name under `toLowerCase()`. The specs encoded
+the bug's precondition as their fixture, so they could not see it. A test
+suite written from the same misunderstanding as the code is not independent
+evidence.
+
+**`unbindableVerdict` was disarmed by the same mismatch.** It excluded any
+roll carrying `actingEntityId` on the reasoning that naming an entity is an
+answer rather than a failure to match — true only if the id is comparable to
+something. The one guard positioned to catch this was switched off by the
+defect it was guarding against.
+
+#### Root cause is upstream of both
+
+The Warden was never told the player's entity id.
+
+- `campaign_state.entities` holds NPCs, threats and features only. Alvarez is
+  absent from all 15 fixtures.
+- `gmContextBlob.playerEntityIds` exists for exactly this, populated from
+  `character_sheet.data.entityId` — and the table has **zero rows**. Every
+  eval run and every playtest on this database has passed `[]`.
+- `renderEntities` only *un-hides* ids already in the entities map, so
+  populating `playerEntityIds` alone would still not put the player in
+  `<entities>`. It is a filter override, not a source.
+
+So the model reverse-engineers an id from resource pool names — which carry
+**two prefixes for one character**, `alvarez_*` and `lt_alvarez_*`. Sonnet 5
+picked `lt_alvarez`, 4.6 picked `alvarez`, and 4.6 handed back the pool name
+`lt_alvarez_hp` verbatim 10 times and `alvarez_armor` 3 times. The model was
+doing the best it could with what it was shown.
+
+#### What changed
+
+- `rollActsFor` returns `'player' | 'other' | 'unknown'`. An id resolving to
+  neither the declared player set nor the seeded entity set is `'unknown'` —
+  undecided, costing a denominator, never a pass.
+- Fixtures declare `seededState.gmContextBlob.playerEntityIds`. Verified not
+  to alter snapshot text, so the re-run stays input-comparable.
+- `seedScratchAdventure` seeds `character_sheet` rows from that declaration,
+  reversing its own earlier note — the note's premise ("no reliable way to
+  derive an entity id") stopped being true when the fixtures started
+  declaring one.
+- `roll_dice` rejects an `actingEntityId` naming no known entity, modelled on
+  the existing dangling-`gatedByRollId` rejection, and **skipped when the
+  known set is empty** so a campaign without a character sheet is not made
+  unplayable.
+- `out-of-order-resolution` is re-declared `applicabilitySource: 'artifact'`.
+  It was always artifact-gated in part; the first run where reps disagreed
+  tripped the report's own defect line.
+
+`out-of-order-resolution`'s pending-gate branch **deliberately still uses
+prose**. Switching it to `rollActsFor` was the obvious-looking completion of
+the M7.5 work and would have propagated the identical false pass into a
+second check.
+
+#### Verified back-compat
+
+Re-graded by the corrected checker, the frozen pre-M7.5 `97feadbd` artifacts
+return bit-identical verdicts — turn19 10/10, turn21 8/10 — because they carry
+no `actingEntityId` and take the prose path unchanged. Branching on field
+presence rather than `fixtureSchemaVersion` is what preserves that.
+
+**The lesson.** A structural checker that silently stops matching does not
+degrade gracefully; it inverts. Every "not the player" answer must trace to a
+declared identifier set, never to a comparison that happened to fail — and the
+tests must be built from data the implementation did not choose.

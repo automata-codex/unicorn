@@ -145,6 +145,26 @@ export function fakeTurnExecutionResult(
   };
 }
 
+/**
+ * Entity ids the default `fakeFixture` declares.
+ *
+ * **Not cosmetic.** `rollActsFor` resolves `actingEntityId` against these
+ * sets, and an id in neither is `'unknown'` — undecided, never a pass. The
+ * defaults therefore have to cover the ids the specs actually emit, or every
+ * test asserting a PASSED on a field-carrying payload silently converts into
+ * a test asserting NOT_APPLICABLE and stops checking what it was written to
+ * check.
+ *
+ * `alvarez` and `lt_alvarez` both appear because the captured adventure
+ * carries both prefixes for one character — see
+ * `docs/rules-extraction-findings.md § S30`. The specs inherit that so they
+ * exercise the same ambiguity the real fixtures have.
+ */
+const DEFAULT_PLAYER_ENTITY_IDS = ['lt_alvarez', 'alvarez'];
+const DEFAULT_SEEDED_ENTITIES = {
+  corporate_spy_1: { status: 'alive', visible: true },
+};
+
 export function fakeFixture(overrides: Partial<EvalFixture> = {}): EvalFixture {
   return {
     id: 'test-fixture',
@@ -153,8 +173,8 @@ export function fakeFixture(overrides: Partial<EvalFixture> = {}): EvalFixture {
     sourceSequenceNumber: 1,
     fixtureSchemaVersion: FIXTURE_SCHEMA_VERSION,
     seededState: {
-      campaignState: {},
-      gmContextBlob: {},
+      campaignState: { entities: { ...DEFAULT_SEEDED_ENTITIES } },
+      gmContextBlob: { playerEntityIds: [...DEFAULT_PLAYER_ENTITY_IDS] },
       pendingCanon: [],
       messages: [],
       pendingDiceRequests: [],
