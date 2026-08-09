@@ -4130,3 +4130,61 @@ side effect.
 **pp.14-15 need no fixup.** Alex's call: the p.2 reference card is a better
 restatement of the same content, and the body chapter is a graphical treatment
 that extracts badly by construction.
+
+#### 27.4 EQUIPMENT, and the third table nobody had looked at
+
+Alex asked to fix "the equipment table" while the fixup session was open. It
+is **two** tables, and looking for them surfaced a third defect that is not
+equipment at all.
+
+**EQUIPMENT is split across two blocks**, one per printed page, because the
+list runs alphabetically from `Assorted Tools` to `Water Filtration Device`
+across pp.10-11:
+
+| Block | Printed | Rows | Defects |
+|---|---|---|---|
+| `/page/9/Table/3` | p.10 | 34 | 15 truncated descriptions, 6 orphan continuation rows, 3 mangled names |
+| `/page/10/Table/1` | p.11 | 24 | Salvage Drone and Stimpak lose their descriptions **entirely**, several truncations, 1 mangled name |
+
+**Four item names lost their leading words**, which is the most damaging part
+because a name is what a query matches on:
+
+| In the index | Should be |
+|---|---|
+| `Scanner` | Cybernetic Diagnostic Scanner |
+| `(HUD)` | Heads-Up Display (HUD) |
+| `Detonator` | Explosives & Detonator |
+| `Terminal` | Portable Computer Terminal |
+
+**All four are recoverable from inside the corpus**, which is a useful
+transcription check: the loadout tables on printed p.7 name three of them
+(`SCIENTIST 05` has both the scanner and the terminal, `TEAMSTER 04` has the
+explosives), and the armor feature labels on pp.14-15 carry `HEADS-UP
+DISPLAY`. Each was confirmed present before being asserted here.
+
+Alphabetical order is also the tell for each: `Scanner` sits between `Crowbar`
+and `Electronic Tool Set`, `(HUD)` between `Geiger Counter` and `Infrared
+Goggles`, `Detonator` between `Exoloader` and `First Aid Kit`, `Terminal`
+between `Pet (Synthetic)` and `Radiation Pills`. A name that breaks the sort
+is a name that lost its front.
+
+**The third finding: printed pp.12-13 are worse than "absent".** Every `Table`
+block on physical page 11 extracts at **0 characters** — eight of them — while
+their `SectionHeader` blocks survive intact and name each weapon (`F20
+"ARBITER" 2.4KCR PULSE RIFLE`, `KANO X9 1.4KCR COMBAT SHOTGUN`, and six more).
+This is the `§ S3.2` empty-table defect seen at block level for the first time.
+It means the firearms pages are not merely missing from the corpus: the book
+*does* tell us exactly which eight weapons belong there, in the headings, which
+would make a fixup straightforward to scope.
+
+Not scheduled. `§ S23` established that the weapon stat data is duplicated on
+the p.2 reference card, which is now fixed, so pp.12-13 carry flavour and
+per-weapon detail rather than unique mechanics. Recorded so the decision is
+deliberate rather than forgotten.
+
+**A defect class, not three coincidences.** Four tables now show the same
+signature — truncation at the same visual width, with the remainder either
+dropped or orphaned onto a leading-`|` row: `WEAPONS & DAMAGE`, `ARMOR`,
+`EQUIPMENT` ×2, and `PETS` on p.11 looks the same. It is a property of wide
+tables in this book's layout, not of any one page, and any future book should
+be checked for it before its index is trusted.
