@@ -4340,3 +4340,84 @@ one fixture of headroom, and changes now trade fixtures rather than improving
 them. Re-run round 4 after the set is extended — equipment fixtures per
 `§ S27.5`, and whatever the Part 6 playtest surfaces — when there is enough
 signal to tell a real regression from a swap.
+
+### S29 — 2026-08-09 · Tier 2: what the Warden's real queries actually retrieve
+
+M7.5 open-work Task 5, run against the **frozen** index (61 chunks, four
+tables fixed, `drop_pages: [3, 4, 41, 42]`, headings excluded). Report:
+`$ZOLTAR_EVAL_ROOT/eval-runs/retrieval-probe-before.md`.
+
+356 distinct queries harvested from both frozen `88fa84bd8329` runs and pushed
+through `RulesLookupService` at the shipped defaults — real preprocessing, real
+query embedding, real pgvector — so what is measured is what the Warden would
+actually receive. 356 Voyage calls, no Anthropic.
+
+#### 29.1 The before-number
+
+| | distinct | lookups | above 0.416 | overlap | below 0.342 | **no results** |
+|---|---|---|---|---|---|---|
+| all | 356 | 486 | 284 | 53 | 19 | **0** |
+| `claude-sonnet-5` | 102 | 134 | 80 | 19 | 3 | **0** |
+| `claude-sonnet-4-6` | 257 | 352 | 205 | 36 | 16 | **0** |
+
+**Not one query in 486 lookups returned nothing.** That is `§ S20`'s "no
+honest floor exists yet" restated from the query side rather than the fixture
+side: the index answers everything, including the questions it cannot answer,
+and nothing in what the Warden receives distinguishes the two.
+
+#### 29.2 The 19 low-similarity queries agree with the hand labels
+
+They are not a random tail:
+
+```
+0.261  android memory wipe remote shutdown command mechanics
+0.301  combat initiative order surprise
+0.308  outnumbered flanking combat penalty
+0.311  scanning surveying environment perception check
+0.315  grapple rules wrestling grabbing an opponent
+0.316  stealth check hiding avoiding detection Mothership
+```
+
+Almost all are **concept-absent** — flanking, grappling, passive perception,
+android shutdown — which is the same population Alex's `C=n` column identified
+by hand in `§ S25`. Two instruments, entirely independent routes: one reads
+similarity against the index, the other reads a human's judgement against the
+book. They select the same queries.
+
+That is the first cross-validation this milestone has had between a mechanical
+score and a hand label, and it is worth more than either alone. It also
+suggests the eventual judge (Task 8) has a tractable job: the thing being
+judged is separable by a signal that already exists.
+
+#### 29.3 A caveat on the bucket edges
+
+The buckets are pinned to `§ S20.1`'s constants, 0.342 and 0.416, which were
+measured **before** the table fixups. On the frozen index the unanswerable
+maximum is now **0.427**, so the true overlap zone is wider than the labels
+say and **24 of 356 queries** sit in the 0.416–0.427 sliver, labelled `above`
+while arguably still ambiguous.
+
+The constants are left pinned rather than chased. They are a documented
+reference point, not a threshold, and re-fitting them on every index change
+would make two reports incomparable for exactly the reason `§ S20.2` refused
+to ship a floor at all. **Read `above 0.416` as "above the old band," not as a
+pass.**
+
+#### 29.4 A stale warning in the report header, and the general fix
+
+The probe's header asserted *"the index is **not frozen** — a possible armor
+fixup and a possible round 4 are still open."* True when written, false a day
+later, so a correct report shipped carrying a wrong warning — **and a green
+test defended it**, because the test pinned that sentence.
+
+Both are fixed the same way. The banner now states the pairing *rule* and
+names the index build it used, leaving the reader to check the match; the test
+asserts the rule and the presence of the build line, and explicitly asserts
+that the stale phrasing is **absent**.
+
+The generalisation is worth keeping: **a report that describes the state of
+the world at authoring time goes stale, and a test that pins that description
+locks the staleness in.** State the rule, name the inputs, let the reader
+check. This is the third asserted-but-unverified claim this milestone has
+turned up, after the `.gitignore` that did not exist and the `templates/`
+posture nothing enforced.

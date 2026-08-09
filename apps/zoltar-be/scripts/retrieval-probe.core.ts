@@ -398,13 +398,22 @@ export function renderRetrievalProbeReport(
   // The header carries the caveat, not a footnote, because a bucket table is
   // exactly the kind of output that gets pasted into a findings session
   // without its surroundings.
-  lines.push('> **This is not the M7.5 before-number, and must not be cited');
-  lines.push('> as one.** Trap 3 in `docs/plans/013-m7.5-open-work.md`: any');
-  lines.push('> query-side metric scored against the index has to be run');
-  lines.push('> against the *same* index for both readings, or it measures');
-  lines.push('> two things at once. The index is **not frozen** — a possible');
-  lines.push('> armor fixup and a possible round 4 are still open under Task');
-  lines.push('> 4. The real reading is Task 5, after the freeze.');
+  //
+  // It states the *rule* and names the index build, rather than asserting
+  // what state the index happens to be in. An earlier version said "the index
+  // is not frozen — a possible armor fixup and a possible round 4 are still
+  // open", which was true when written and false a day later, leaving a
+  // correct report carrying a wrong warning. A banner that describes the
+  // world at authoring time goes stale; one that tells the reader what to
+  // check does not.
+  lines.push('> **Pairing rule.** Trap 3 in');
+  lines.push('> `docs/plans/013-m7.5-open-work.md`: any query-side metric');
+  lines.push('> scored against the index must be run against the *same* index');
+  lines.push('> for both readings, or it measures two things at once. The');
+  lines.push('> index build this run used is named below — check it matches');
+  lines.push(
+    '> the reading you intend to pair this with before citing either.',
+  );
   lines.push('');
 
   if (partial) {

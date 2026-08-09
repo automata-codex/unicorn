@@ -269,14 +269,21 @@ describe('renderRetrievalProbeReport', () => {
     });
   }
 
-  it('refuses the before-number reading in the header', () => {
+  it('carries the pairing rule in the header, not a claim about the index state', () => {
     // Trap 3. A bucket table is exactly the kind of output that gets pasted
     // into a findings session without its surroundings, so the caveat is in
     // the first block rather than a footnote.
+    //
+    // This asserts the *rule* and the presence of the index build, not any
+    // particular sentence about the world. The first version of this test
+    // pinned "the index is not frozen", which was true the day it was written
+    // and false the next — leaving a correct report carrying a wrong warning
+    // and a green test defending it.
     const report = render();
 
-    expect(report).toContain('not the M7.5 before-number');
-    expect(report).toMatch(/not frozen/);
+    expect(report).toMatch(/same\* index[\s\S]*for both readings/);
+    expect(report).toContain('Index build:');
+    expect(report).not.toMatch(/not frozen/);
   });
 
   it('states the limits of the bucketing next to the bucketing', () => {
