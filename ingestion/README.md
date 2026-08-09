@@ -254,15 +254,42 @@ of the same kind, spell it out — `armor_table_printed_p2.md`.
 #### What goes inside a template
 
 Whatever the block's text should have been. `apply_fixups` replaces the
-block's `text` verbatim and keeps its `id`, type, page, and bbox — so a
-template for a `Table` block should be the table as text, pipe-delimited in
-the same shape the extractor produces for tables that came out intact:
+block's `text` verbatim and keeps its `id`, type, page, and bbox.
+
+For a `Table` block, write a real Markdown table — leading and trailing pipes,
+separator row, title on its own line above it:
 
 ```
-WEAPONS & DAMAGE
-WEAPON | COST | RANGE | DAMAGE | SHOTS | WOUND | SPECIAL
-Ammo | 50cr | N/A | | | N/A | Per magazine/container.
+ARMOR
+| ARMOR | COST | AP | O2 | SPEED | SPECIAL |
+|---|---|---|---|---|---|
+| Standard Crew Attire — Basic clothing. | 100cr | 1 | None | Normal | |
+| Vaccsuit — Designed for outer space operations. | 10kcr | 3 | 12 hrs | [-] | Includes short-range comms… |
 ```
+
+The extractor's own output for intact tables is looser than this — no
+leading pipes, no separator. Matching it would buy consistency and nothing
+else, because **nothing parses a template**: `apply_fixups` calls
+`read_text().strip()` and stores the result. An aligned table with an explicit
+separator is easier for the Warden to read back, which is the only consumer
+that matters. The separator row costs ~30 characters of meaningless tokens in
+the embedding, which is not measurable on a chunk this size.
+
+**Do not use `#` heading markers.** A title goes on a bare line, as `ARMOR`
+does above. This is the one place the two Markdown-ish inputs in this pipeline
+genuinely diverge, and the failure is silent in opposite directions:
+
+| | `templates/*.md` (fixups) | `--markdown` (curated input) |
+|---|---|---|
+| `### ARMOR` | literal text — the Warden sees `### ARMOR` | parsed as a `SectionHeader` block, which is **excluded from the corpus**, so the title vanishes |
+
+So the same three characters are cosmetic noise in one file and delete your
+title in the other. Templates are not documents; they are one block's text.
+
+**Where a cell holds two lines in print**, join them with an em dash rather
+than a space. `Standard Crew Attire Basic clothing.` reads as a garbled
+phrase; `Standard Crew Attire — Basic clothing.` reads as a name and its
+description, which is what the page shows.
 
 Two things follow from `Table` blocks being atomic (`chunk.py` never splits
 one): the whole template lands in a single chunk regardless of length, and
