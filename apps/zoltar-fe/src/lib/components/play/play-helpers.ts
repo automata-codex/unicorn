@@ -165,7 +165,45 @@ export function seedMessagesWithOpeningNarration(
       role: 'assistant',
       content: openingNarration,
       createdAt: new Date(0).toISOString(),
+      // Not a turn. Turn 1 begins at the player's first action, and the
+      // review report's numbering starts there too — labelling this "Turn 1"
+      // would shift every later note by one.
+      turnNumber: null,
     },
     ...bootstrapMessages,
   ];
+}
+
+/**
+ * Stamp a completed turn's ordinal onto the player message that initiated it.
+ *
+ * `postNarrative` appends the player's message optimistically, before the
+ * server has run the turn — and the turn number only exists once the turn is
+ * written, so that message renders unlabelled until this runs.
+ *
+ * Only the *trailing* run of unnumbered player messages is stamped, and only
+ * back as far as the first numbered message. Two reasons, both real:
+ * - A dice auto-advance turn has no player message at all. Without the
+ *   trailing-only rule it would reach back and mislabel the previous turn's
+ *   message.
+ * - A turn that failed leaves its optimistic message in the log, unnumbered.
+ *   When the player retries, both that message and the retry belong to the
+ *   turn that finally succeeded — which is exactly how the backend numbers
+ *   the orphaned rows it finds on reload
+ *   (`SessionRepository.listMessagesWithTurnNumber`). Stamping the whole
+ *   trailing run keeps the optimistic view and the reloaded view identical.
+ */
+export function stampPendingPlayerTurn(
+  messages: MessageWire[],
+  turnNumber: number,
+): MessageWire[] {
+  let firstPending = messages.length;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.turnNumber !== null) break;
+    if (m.role !== 'user') break;
+    firstPending = i;
+  }
+  if (firstPending === messages.length) return messages;
+  return messages.map((m, i) => (i >= firstPending ? { ...m, turnNumber } : m));
 }

@@ -107,8 +107,24 @@ export interface ApplyTurnAtomicArgs {
 export interface ApplyTurnAtomicResult {
   persistedMessage: DbMessage;
   gmResponseSequence: number;
+  /**
+   * 1-based ordinal of this turn among the adventure's `gm_response` events
+   * — the number the play view labels the turn with. See
+   * `listMessagesWithTurnNumber` for the definition and why it is not the
+   * same thing as `gmResponseSequence`.
+   */
+  turnNumber: number;
   diceRollSequences: WrittenDiceRollRecord[];
   persistedDiceRequests: DiceRequestRow[];
+}
+
+/** A play-view message row, tagged with the turn it belongs to. */
+export interface MessageWithTurnNumber {
+  id: string;
+  role: DbMessage['role'];
+  content: string;
+  createdAt: Date;
+  turnNumber: number | null;
 }
 
 @Injectable()
@@ -150,6 +166,81 @@ export class SessionRepository {
       .from(schema.messages)
       .where(eq(schema.messages.adventureId, adventureId))
       .orderBy(asc(schema.messages.createdAt));
+  }
+
+  /**
+   * Messages for the play view, each tagged with the 1-based ordinal of the
+   * turn it belongs to — the same number `playtest-review.render.ts` prints
+   * as `### Turn N`, so a note taken against the UI mid-playtest resolves
+   * against the review report (and the `turnNN-*` eval fixtures) without
+   * counting. Deliberately *not* `game_event.sequence_number`, which is a
+   * sparser per-event counter.
+   *
+   * Assignment rule: a message belongs to the earliest `gm_response` at or
+   * after its own `created_at`.
+   * - A `gm` message matches its own event exactly — both are written inside
+   *   `applyTurnAtomic`'s transaction and take the same `now()`.
+   * - A `player` message resolves forward to the turn it initiates, which is
+   *   always strictly later (it is persisted before the turn transaction
+   *   opens, so a retry survives a failed turn).
+   * - A player message orphaned by a failed turn resolves forward to the
+   *   retry that eventually succeeded. Both copies read the same turn, which
+   *   is the intended reading.
+   * - `null` means no turn followed: a turn in flight, or one that never
+   *   completed. The play view renders those unlabelled.
+   *
+   * Superseded `gm_response` rows are counted, not filtered — a corrected
+   * turn is still one turn, and `playtest-review.render.ts` numbers it the
+   * same way.
+   *
+   * Kept separate from `getMessagesAsc` on purpose: that one feeds
+   * `buildMessageWindow` on the prompt path, which must not start carrying
+   * turn numbers into Claude's context.
+   *
+   * See `docs/plans/015-play-view-turn-number.md` for the playtest data this
+   * was verified against.
+   */
+  async listMessagesWithTurnNumber(
+    adventureId: string,
+  ): Promise<MessageWithTurnNumber[]> {
+    const result = await this.db.execute<{
+      id: string;
+      role: DbMessage['role'];
+      content: string;
+      // node-postgres does not apply Drizzle's column-type mapping to raw
+      // `db.execute` results — timestamptz comes back as Postgres's text
+      // representation, not a Date. Parse explicitly below.
+      created_at: string;
+      turn_number: string | number | null;
+    }>(sql`
+      WITH turns AS (
+        SELECT created_at,
+               sequence_number,
+               ROW_NUMBER() OVER (ORDER BY sequence_number) AS turn_number
+        FROM game_event
+        WHERE adventure_id = ${adventureId}
+          AND event_type   = 'gm_response'
+      )
+      SELECT m.id,
+             m.role,
+             m.content,
+             m.created_at,
+             (SELECT t.turn_number
+                FROM turns t
+               WHERE t.created_at >= m.created_at
+               ORDER BY t.sequence_number ASC
+               LIMIT 1) AS turn_number
+      FROM message m
+      WHERE m.adventure_id = ${adventureId}
+      ORDER BY m.created_at ASC
+    `);
+    return result.rows.map((r) => ({
+      id: r.id,
+      role: r.role,
+      content: r.content,
+      createdAt: new Date(r.created_at),
+      turnNumber: r.turn_number === null ? null : Number(r.turn_number),
+    }));
   }
 
   async insertMessage(args: {
@@ -601,9 +692,23 @@ export class SessionRepository {
           ),
         );
 
+      // Turn ordinal for the play-view label. Counted inside the transaction,
+      // where the gm_response just written by `writeTurnEvents` is by
+      // definition the latest — so the total count *is* this turn's ordinal,
+      // and it cannot race a concurrent turn. Matches the definition in
+      // `listMessagesWithTurnNumber`: superseded rows count, corrections do
+      // not add one (they are `correction` events, not `gm_response`).
+      const turnCount = await tx.execute<{ count: string | number }>(sql`
+        SELECT count(*) AS count
+        FROM game_event
+        WHERE adventure_id = ${args.adventureId}
+          AND event_type   = 'gm_response'
+      `);
+
       return {
         persistedMessage,
         gmResponseSequence: events.gmResponseSeq,
+        turnNumber: Number(turnCount.rows[0]?.count ?? 0),
         diceRollSequences: events.diceRollSequences,
         persistedDiceRequests,
       };

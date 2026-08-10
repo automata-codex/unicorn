@@ -143,6 +143,11 @@ export interface SendMessageArgs {
 
 export interface SendMessageResult {
   message: DbMessage;
+  /**
+   * 1-based ordinal of this turn — what the play view labels the message
+   * with, and the same number `task playtest:review` prints as `### Turn N`.
+   */
+  turnNumber: number;
   applied: ValidationResult['applied'];
   thresholds: ThresholdCrossing[];
   /** Backend-assigned player dice prompts issued by this turn. */
@@ -432,6 +437,7 @@ export class SessionService {
 
     return {
       message: result.persistedMessage,
+      turnNumber: result.turnNumber,
       applied: validation.applied,
       thresholds: validation.thresholds,
       diceRequests: result.persistedDiceRequests,
@@ -596,6 +602,11 @@ export class SessionService {
    * frontend play view to render on mount. Roles are mapped to the same
    * wire-format the POST response uses: `player → user`, `gm → assistant`,
    * `system → system`.
+   *
+   * `turnNumber` is the turn each message belongs to — see
+   * `SessionRepository.listMessagesWithTurnNumber` for the assignment rule.
+   * `null` means no turn has closed over this message yet, and the play view
+   * renders it unlabelled.
    */
   async listMessages(adventureId: string): Promise<
     Array<{
@@ -603,15 +614,17 @@ export class SessionService {
       role: 'user' | 'assistant' | 'system';
       content: string;
       createdAt: string;
+      turnNumber: number | null;
     }>
   > {
-    const rows = await this.repo.getMessagesAsc(adventureId);
+    const rows = await this.repo.listMessagesWithTurnNumber(adventureId);
     return rows.map((m) => ({
       id: m.id,
       role:
         m.role === 'player' ? 'user' : m.role === 'gm' ? 'assistant' : 'system',
       content: m.content,
       createdAt: m.createdAt.toISOString(),
+      turnNumber: m.turnNumber,
     }));
   }
 

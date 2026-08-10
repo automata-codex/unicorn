@@ -17,6 +17,7 @@
     classifySendError,
     deriveCharacterStatus,
     seedMessagesWithOpeningNarration,
+    stampPendingPlayerTurn,
     type ThresholdCrossing,
   } from '../lib/components/play/play-helpers';
   import ThresholdBanner from '../lib/components/play/ThresholdBanner.svelte';
@@ -44,6 +45,7 @@
       role: 'assistant';
       content: string;
       createdAt: string;
+      turnNumber: number;
     };
     applied: TurnAppliedState;
     thresholds: ThresholdCrossing[];
@@ -148,13 +150,17 @@
    * POST /dice-results (whose body nests the turn under `turn`).
    */
   function applyTurn(turn: TurnPayload): void {
+    // Stamp before appending: the player message that initiated this turn was
+    // added optimistically with no turn number, and only now is the number
+    // known. A no-op on the auto-advance path, which has no player message.
     messages = [
-      ...messages,
+      ...stampPendingPlayerTurn(messages, turn.message.turnNumber),
       {
         id: turn.message.id,
         role: turn.message.role,
         content: turn.message.content,
         createdAt: turn.message.createdAt,
+        turnNumber: turn.message.turnNumber,
       },
     ];
     if (status) {
@@ -178,7 +184,15 @@
     const now = new Date().toISOString();
     messages = [
       ...messages,
-      { id: optimisticId, role: 'user', content, createdAt: now },
+      // No turn number yet — the backend assigns it when the turn is written,
+      // and `applyTurn` stamps it back on. Renders unlabelled until then.
+      {
+        id: optimisticId,
+        role: 'user',
+        content,
+        createdAt: now,
+        turnNumber: null,
+      },
     ];
 
     const res = await api(

@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   backend:
-    name: Backend (lint, tsc, vitest)
+    name: Backend (lint, tsc, vitest, integration)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -42,6 +42,43 @@ jobs:
 
       - name: Unit tests
         run: npm test --workspace zoltar-be
+
+      # Postgres comes from the repo's own compose file rather than a
+      # `services:` container, because `test/db-test-helper.ts` migrates by
+      # shelling out to `docker compose run --rm flyway migrate` and addresses
+      # the database as the `db` service on the compose network. A GitHub
+      # service container would be reachable from the runner but not from
+      # Flyway, so CI has to bring up the same stack a developer does.
+      #
+      # `.env` supplies compose's `${POSTGRES_USER}` / `${FLYWAY_*}`
+      # interpolation, which happens at config parse time — without it the
+      # database starts with empty credentials and the healthcheck never
+      # passes. `.env.example` holds local-dev defaults and placeholder API
+      # keys, no secrets. Note this file is *not* read by the test process:
+      # `apps/zoltar-be/.env` is an untracked symlink, so `process.loadEnvFile()`
+      # no-ops on a clean checkout and the vitest env below is what counts.
+      - name: Start Postgres
+        run: |
+          cp .env.example .env
+          docker compose up -d --wait db
+
+      # `vitest.config.ts` excludes `*.spec-int.ts`, so the unit step above
+      # never touches these. They need a real database and were previously
+      # local-only, which let two stale test doubles rot unnoticed for a full
+      # milestone — see `docs/plans/015-play-view-turn-number.md`.
+      - name: Integration tests
+        run: npm run test:integration --workspace zoltar-be
+        env:
+          # The setup file rewrites this to the `zoltar_test` database on the
+          # same host; it is the base URL, not the one tests connect to.
+          DATABASE_URL: postgresql://zoltar:zoltar_dev@localhost:5432/zoltar
+          NODE_ENV: test
+          # `harness-runner.spec-int.ts` bootstraps the full AppModule, whose
+          # env validation requires both keys to be non-empty. Nothing spends
+          # them: every test that makes a real Anthropic call sits behind
+          # `describe.skipIf(!RUN_LIVE)` and stays skipped here.
+          ANTHROPIC_API_KEY: ci-placeholder-no-live-calls
+          VOYAGE_API_KEY: ci-placeholder-no-live-calls
 
   frontend:
     name: Frontend (svelte-check, vitest)

@@ -8,7 +8,9 @@ import {
   deriveCharacterStatus,
   formatThresholdLine,
   seedMessagesWithOpeningNarration,
+  stampPendingPlayerTurn,
 } from './play-helpers';
+
 import type { MessageWire } from './timeline';
 
 function stateWith(overrides: Partial<CampaignStateData>): CampaignStateData {
@@ -174,6 +176,7 @@ describe('seedMessagesWithOpeningNarration', () => {
     role: 'user',
     content: 'I open the door.',
     createdAt: '2026-01-01T00:00:00.000Z',
+    turnNumber: 1,
   };
 
   it('prepends the opening narration ahead of existing messages', () => {
@@ -187,9 +190,17 @@ describe('seedMessagesWithOpeningNarration', () => {
         role: 'assistant',
         content: 'Amber lights pulse overhead.',
         createdAt: new Date(0).toISOString(),
+        turnNumber: null,
       },
       real,
     ]);
+  });
+
+  it('leaves the opening narration unnumbered — it precedes turn 1', () => {
+    // Turn 1 is the player's first action, in the review report as well as
+    // here. Numbering the opening narration would offset every later note.
+    const [opening] = seedMessagesWithOpeningNarration([real], 'Amber lights.');
+    expect(opening.turnNumber).toBeNull();
   });
 
   it('prepends even when bootstrapMessages is empty (first-ever load)', () => {
@@ -206,9 +217,7 @@ describe('seedMessagesWithOpeningNarration', () => {
   });
 
   it('returns bootstrapMessages unchanged when openingNarration is undefined', () => {
-    expect(seedMessagesWithOpeningNarration([real], undefined)).toEqual([
-      real,
-    ]);
+    expect(seedMessagesWithOpeningNarration([real], undefined)).toEqual([real]);
   });
 
   it('returns bootstrapMessages unchanged when openingNarration is an empty string', () => {
@@ -219,5 +228,84 @@ describe('seedMessagesWithOpeningNarration', () => {
     const input = [real];
     seedMessagesWithOpeningNarration(input, 'x');
     expect(input).toEqual([real]);
+  });
+});
+
+describe('stampPendingPlayerTurn', () => {
+  const msg = (
+    id: string,
+    role: MessageWire['role'],
+    turnNumber: number | null,
+  ): MessageWire => ({
+    id,
+    role,
+    content: id,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    turnNumber,
+  });
+
+  it('numbers the optimistic player message once the turn returns', () => {
+    const result = stampPendingPlayerTurn(
+      [
+        msg('p1', 'user', 1),
+        msg('gm1', 'assistant', 1),
+        msg('local-2', 'user', null),
+      ],
+      2,
+    );
+    expect(result.map((m) => m.turnNumber)).toEqual([1, 1, 2]);
+  });
+
+  it('leaves already-numbered messages alone', () => {
+    const input = [msg('p1', 'user', 1), msg('gm1', 'assistant', 1)];
+    expect(stampPendingPlayerTurn(input, 2)).toBe(input);
+  });
+
+  it('is a no-op when the turn had no player message (dice auto-advance)', () => {
+    // The trailing message is the previous turn's GM reply. Without the
+    // trailing-only rule this would reach back and relabel an earlier turn.
+    const input = [msg('p1', 'user', 1), msg('gm1', 'assistant', 1)];
+    const result = stampPendingPlayerTurn(input, 2);
+    expect(result.map((m) => m.turnNumber)).toEqual([1, 1]);
+  });
+
+  it('numbers a failed attempt and its retry with the same turn', () => {
+    // A turn that errors leaves its optimistic message in the log. Both it
+    // and the retry belong to the turn that finally succeeded — which is how
+    // the backend numbers the orphaned rows it finds on reload.
+    const result = stampPendingPlayerTurn(
+      [
+        msg('gm1', 'assistant', 1),
+        msg('local-1', 'user', null),
+        msg('local-2', 'user', null),
+      ],
+      2,
+    );
+    expect(result.map((m) => m.turnNumber)).toEqual([1, 2, 2]);
+  });
+
+  it('stops at the first numbered message rather than scanning the whole log', () => {
+    const result = stampPendingPlayerTurn(
+      [
+        msg('p1', 'user', null),
+        msg('gm1', 'assistant', 1),
+        msg('local-2', 'user', null),
+      ],
+      2,
+    );
+    // The leading unnumbered player message belongs to an earlier turn that
+    // never completed; it is not this turn's and must stay unlabelled.
+    expect(result.map((m) => m.turnNumber)).toEqual([null, 1, 2]);
+  });
+
+  it('returns the same array when there is nothing to stamp', () => {
+    const input: MessageWire[] = [];
+    expect(stampPendingPlayerTurn(input, 1)).toBe(input);
+  });
+
+  it('does not mutate the input array', () => {
+    const input = [msg('local-1', 'user', null)];
+    stampPendingPlayerTurn(input, 3);
+    expect(input[0].turnNumber).toBeNull();
   });
 });

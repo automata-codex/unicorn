@@ -153,7 +153,8 @@ Submit a narrative player action. Triggers the full GM pipeline — state snapsh
     "id": "uuid",
     "role": "assistant",
     "content": "The terminal flickers to life...",
-    "createdAt": "2026-03-01T12:00:00Z"
+    "createdAt": "2026-03-01T12:00:00Z",
+    "turnNumber": 14
   },
   "applied": { "resourcePools": { "dr_chen_hp": { "current": 7, "max": 10 } } },
   "thresholds": [],
@@ -169,6 +170,8 @@ Submit a narrative player action. Triggers the full GM pipeline — state snapsh
 ```
 
 `diceRequests` is empty when Claude resolves the action without requiring a player roll. When present, the frontend shows the dice UI before the player can submit their next narrative action.
+
+`turnNumber` is this turn's 1-based ordinal — see `GET /messages` below. The frontend also stamps it onto the optimistic player message that initiated the turn, which carries no number until the turn is written.
 
 **Response `409 dice_pending`** — narrative submission is blocked while any `dice_request` for this adventure is still `pending`. Resolve outstanding prompts via `POST /dice-results` first.
 ```json
@@ -420,7 +423,8 @@ Get message history and pending dice prompts for an adventure. Cursor-based, mos
       "id": "uuid",
       "role": "gm",
       "content": "The terminal flickers to life...",
-      "createdAt": "2026-03-01T12:00:00Z"
+      "createdAt": "2026-03-01T12:00:00Z",
+      "turnNumber": 14
     }
   ],
   "diceRolls": [
@@ -452,6 +456,8 @@ Get message history and pending dice prompts for an adventure. Cursor-based, mos
 `diceRolls` is the full `game_event` dice stream for this adventure. The FE merges it with `messages` by `createdAt` to produce the unified play-view timeline (narrative bubbles + mechanical-event bubbles interleaved in sequence order). `source` is `"system_generated"` for rolls Claude executed via `roll_dice` and `"player_entered"` for player-submitted results.
 
 `pendingDiceRequests` is empty in the normal case (no outstanding rolls). When a user left the play view mid-roll, the prompt persists server-side and is surfaced here on reload so the FE can re-render the `DicePrompt` without losing state.
+
+`turnNumber` is the 1-based ordinal of the turn a message belongs to — the same number `task playtest:review` prints as `### Turn N`, so a note taken against the UI during a playtest resolves against the review report (and the `turnNN-*` eval fixtures) without counting. It is deliberately *not* `game_event.sequence_number`, which is a sparser per-event counter. Both messages of a turn carry the same number: the player message is labelled with the turn it initiates. `null` means no turn has closed over the message yet — a turn in flight, or one that never completed — and the play view renders those unlabelled. A corrected turn is still one turn. Note that a turn need not have a player message at all (dice auto-advance produces none), so this cannot be reconstructed client-side by counting messages.
 
 `rollingSummary` is included so the frontend can display it at the top of the message log as context for history that has aged out of the window. Still null through Phase 1 (see `docs/decisions.md`).
 
