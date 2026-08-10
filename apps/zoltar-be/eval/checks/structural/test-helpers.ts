@@ -1,5 +1,6 @@
-import type * as schema from '../../../src/db/schema';
 import { FIXTURE_SCHEMA_VERSION } from '../../fixture.schema';
+
+import type * as schema from '../../../src/db/schema';
 import type { EvalFixture } from '../../fixture.schema';
 import type { TurnExecutionResult } from '../../turn-result';
 
@@ -34,6 +35,17 @@ export function fakeGameEvent(
   };
 }
 
+/**
+ * `rollId` / `rollType` / `actingEntityId` / `gatedByRollId` are omitted
+ * unless a test asks for them, which makes the **pre-M7.5 payload the
+ * default** in every existing test.
+ *
+ * That is deliberate rather than incidental. The checkers branch on field
+ * presence so `eval:rescore` keeps producing identical verdicts against the
+ * frozen `88fa84bd8329` artifacts, and the only way to keep testing that
+ * promise is for most of this file's fixtures to look like those artifacts
+ * do — fieldless.
+ */
 export function fakeDiceRoll(overrides: {
   sequenceNumber: number;
   purpose: string;
@@ -42,6 +54,10 @@ export function fakeDiceRoll(overrides: {
   notation?: string;
   results?: number[];
   total?: number;
+  rollId?: string;
+  rollType?: string;
+  actingEntityId?: string;
+  gatedByRollId?: string;
 }): GameEventRow {
   return fakeGameEvent({
     sequenceNumber: overrides.sequenceNumber,
@@ -55,6 +71,14 @@ export function fakeDiceRoll(overrides: {
       modifier: 0,
       total: overrides.total ?? 5,
       ...(overrides.requestId ? { requestId: overrides.requestId } : {}),
+      ...(overrides.rollId ? { rollId: overrides.rollId } : {}),
+      ...(overrides.rollType ? { rollType: overrides.rollType } : {}),
+      ...(overrides.actingEntityId
+        ? { actingEntityId: overrides.actingEntityId }
+        : {}),
+      ...(overrides.gatedByRollId
+        ? { gatedByRollId: overrides.gatedByRollId }
+        : {}),
     },
   });
 }
@@ -121,6 +145,26 @@ export function fakeTurnExecutionResult(
   };
 }
 
+/**
+ * Entity ids the default `fakeFixture` declares.
+ *
+ * **Not cosmetic.** `rollActsFor` resolves `actingEntityId` against these
+ * sets, and an id in neither is `'unknown'` — undecided, never a pass. The
+ * defaults therefore have to cover the ids the specs actually emit, or every
+ * test asserting a PASSED on a field-carrying payload silently converts into
+ * a test asserting NOT_APPLICABLE and stops checking what it was written to
+ * check.
+ *
+ * `alvarez` and `lt_alvarez` both appear because the captured adventure
+ * carries both prefixes for one character — see
+ * `docs/rules-extraction-findings.md § S30`. The specs inherit that so they
+ * exercise the same ambiguity the real fixtures have.
+ */
+const DEFAULT_PLAYER_ENTITY_IDS = ['lt_alvarez', 'alvarez'];
+const DEFAULT_SEEDED_ENTITIES = {
+  corporate_spy_1: { status: 'alive', visible: true },
+};
+
 export function fakeFixture(overrides: Partial<EvalFixture> = {}): EvalFixture {
   return {
     id: 'test-fixture',
@@ -129,8 +173,8 @@ export function fakeFixture(overrides: Partial<EvalFixture> = {}): EvalFixture {
     sourceSequenceNumber: 1,
     fixtureSchemaVersion: FIXTURE_SCHEMA_VERSION,
     seededState: {
-      campaignState: {},
-      gmContextBlob: {},
+      campaignState: { entities: { ...DEFAULT_SEEDED_ENTITIES } },
+      gmContextBlob: { playerEntityIds: [...DEFAULT_PLAYER_ENTITY_IDS] },
       pendingCanon: [],
       messages: [],
       pendingDiceRequests: [],

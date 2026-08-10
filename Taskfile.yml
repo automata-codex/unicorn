@@ -109,6 +109,34 @@ tasks:
       # Plain tsx, as with eval:report — no Nest DI container.
       - npx tsx --env-file=.env scripts/retrieval-eval.ts {{.CLI_ARGS}}
 
+  eval:query-vocab:
+    desc: 'Score the rules_lookup queries a Warden emitted against the vocabulary the rules corpus actually contains (M7.5). Reads queries out of a completed eval:run''s own warden-output.json artifacts (telemetry.payload.rulesLookups) — no Anthropic calls, no Voyage calls, local Postgres only, so the before-number for a prompt change is available from runs that finished months ago. Complements eval:retrieval, which scores frozen fixture queries and so measures the index rather than the Warden. Requires a populated rules_chunk index and ZOLTAR_EVAL_ROOT. Usage — task eval:query-vocab -- <run-dir> [--system mothership] [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx, as with eval:report — no Nest DI container.
+      - npx tsx --env-file=.env scripts/query-vocab.ts {{.CLI_ARGS}}
+
+  eval:retrieval-probe:
+    desc: 'Push the rules_lookup queries a Warden emitted back through the real retrieval path and report what came back, bucketed against the § S20.1 similarity distributions (M7.5 tier 2). Sits between eval:query-vocab (does the query use words the book prints — free) and hand-scoring (was the retrieved text sufficient — an evening): this asks whether the query retrieved anything at all. Makes real Voyage calls, ONE PER DISTINCT QUERY (~360 across both M7.5 before-runs), but NO Anthropic calls — use --limit-queries to smoke-test the wiring cheaply. Goes through RulesLookupService at the shipped defaults, so preprocessing is on and there is deliberately no flag to turn it off. Pass several run dirs to get a per-model split in one report and pay once for a shared query. Requires a populated rules_chunk index and ZOLTAR_EVAL_ROOT. NOT the M7.5 before-number — read Trap 3 in docs/plans/013-m7.5-open-work.md first. Usage — task eval:retrieval-probe -- <run-dir> [<run-dir>...] [--system mothership] [--limit 3] [--limit-queries 10] [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx, as with eval:report — no Nest DI container.
+      - npx tsx --env-file=.env scripts/retrieval-probe.ts {{.CLI_ARGS}}
+
+  eval:query-worksheet:
+    desc: 'Generate a hand-scoring worksheet for the rules_lookup queries a Warden emitted, grouped by the turn that produced them (M7.5 Task 2). Complements eval:query-vocab (which measures query vocabulary mechanically and carries no turn context) and the tier-2 probe (which measures what a query retrieved): this produces the input for the judgment neither can reach — was the lookup warranted, and does it express what the Warden needed. No Anthropic calls, no Voyage calls; needs DATABASE_URL and a populated index to resolve the absent-term hints. Run it once per model per prompt revision — a before/after pair is only valid if both came out of this script. Usage — task eval:query-worksheet -- <run-dir> [--system mothership] [--fixtures-dir <dir>] [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx, as with eval:report — no Nest DI container.
+      - npx tsx --env-file=.env scripts/query-worksheet.ts {{.CLI_ARGS}}
+
+  eval:primer-audit:
+    desc: 'Check the Warden primer''s declarations against the book (M7.5). Verifies invariants -- a vocabulary mapping must not redirect a term the book already uses, its target must exist, and a mechanic declared absent must not have a section heading -- and lists book sections the primer never mentions. Exits non-zero on a violation so it can gate a commit. No Anthropic calls, no Voyage calls. PASS --headings OR THE ABSENCE CHECKS ARE WEAK: SectionHeader blocks are excluded from the index, so no corpus query can see them; produce the file once with "task ingest -- --system mothership --pdf <path> --dump-headings <path>". Usage -- task eval:primer-audit -- [--primer <path>] [--headings <path>] [--output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Plain tsx, as with eval:report — no Nest DI container.
+      - npx tsx --env-file=.env scripts/primer-audit.ts {{.CLI_ARGS}}
+
   eval:judge-variance:
     desc: 'Re-run judged checks N times against frozen warden-output.json artifacts already on disk — no Warden calls, no DB (M7.4.1). Makes real, token-costing Anthropic calls: every vouched (rep, fixture) pair is one frozen input and --trials is how many times each is re-graded, so cost is frozen-inputs x --trials. --trials does NOT subsample source reps — the run fixes those. Requires ANTHROPIC_API_KEY and ZOLTAR_EVAL_ROOT. Usage — task eval:judge-variance -- <run-dir> [--trials 3] [--fixtures <id1,id2>] [--fixtures-dir <dir>] [--output <path>]'
     dir: apps/zoltar-be

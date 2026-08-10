@@ -17,6 +17,9 @@ import {
   it,
 } from 'vitest';
 
+import { readManifest } from '../eval/runs/manifest';
+import { listRepDirsOnDisk, repDirName } from '../eval/runs/paths';
+import { readVouchedRows } from '../eval/runs/scores';
 import * as schema from '../src/db/schema';
 import {
   getTestDb,
@@ -25,12 +28,8 @@ import {
   truncateAll,
 } from '../test/db-test-helper';
 
-import { defaultRunEvalDeps } from './eval-run.default-deps';
 import { runEval } from './eval-run.core';
-
-import { readManifest } from '../eval/runs/manifest';
-import { listRepDirsOnDisk, repDirName } from '../eval/runs/paths';
-import { readVouchedRows } from '../eval/runs/scores';
+import { defaultRunEvalDeps } from './eval-run.default-deps';
 
 // Full turns through SessionService.sendMessage make a real, token-costing
 // Anthropic call. Gated so `npm run test:integration` stays free and fast
@@ -124,74 +123,70 @@ describe.skipIf(!RUN_LIVE)(
       }
     });
 
-    it(
-      'produces a well-formed artifact tree, valid rows, two vouched reps, and leaves no __eval__ campaigns behind',
-      async () => {
-        await seedPrereqs();
+    it('produces a well-formed artifact tree, valid rows, two vouched reps, and leaves no __eval__ campaigns behind', async () => {
+      await seedPrereqs();
 
-        const summary = await runEval(
-          {
-            promptPath: PROMPT_PATH,
-            model: 'claude-sonnet-4-6',
-            reps: 2,
-            fixturesDir,
-            temperature: 1.0,
-            keepScratch: false,
-          },
-          defaultRunEvalDeps(),
+      const summary = await runEval(
+        {
+          promptPath: PROMPT_PATH,
+          model: 'claude-sonnet-4-6',
+          reps: 2,
+          fixturesDir,
+          temperature: 1.0,
+          keepScratch: false,
+        },
+        defaultRunEvalDeps(),
+      );
+
+      expect(listRepDirsOnDisk(summary.runDir)).toEqual([1, 2]);
+      const manifest = readManifest(summary.runDir);
+      expect(manifest.completedReps.map((r) => r.index)).toEqual([1, 2]);
+      expect(
+        manifest.completedReps.every((r) => r.fixtureIds.includes(FIXTURE_ID)),
+      ).toBe(true);
+
+      const { rows, exclusions } = readVouchedRows(summary.runDir);
+      expect(exclusions).toEqual([]);
+      // 2 reps × 1 fixture × 1 check (one check per fixture today).
+      expect(rows).toHaveLength(2);
+
+      for (const row of rows) {
+        expect(['pass', 'fail', 'not_applicable', 'error']).toContain(
+          row.verdict,
         );
+        expect(existsSync(join(summary.runDir, row.artifactPath))).toBe(true);
+      }
 
-        expect(listRepDirsOnDisk(summary.runDir)).toEqual([1, 2]);
-        const manifest = readManifest(summary.runDir);
-        expect(manifest.completedReps.map((r) => r.index)).toEqual([1, 2]);
-        expect(manifest.completedReps.every((r) => r.fixtureIds.includes(FIXTURE_ID))).toBe(
-          true,
+      for (const repIndex of [1, 2]) {
+        const requestPath = join(
+          summary.runDir,
+          'reps',
+          repDirName(repIndex),
+          FIXTURE_ID,
+          'warden-request.json',
         );
-
-        const { rows, exclusions } = readVouchedRows(summary.runDir);
-        expect(exclusions).toEqual([]);
-        // 2 reps × 1 fixture × 1 check (one check per fixture today).
-        expect(rows).toHaveLength(2);
-
-        for (const row of rows) {
-          expect(['pass', 'fail', 'not_applicable', 'error']).toContain(
-            row.verdict,
-          );
-          expect(existsSync(join(summary.runDir, row.artifactPath))).toBe(true);
-        }
-
-        for (const repIndex of [1, 2]) {
-          const requestPath = join(
-            summary.runDir,
-            'reps',
-            repDirName(repIndex),
-            FIXTURE_ID,
-            'warden-request.json',
-          );
-          const outputPath = join(
-            summary.runDir,
-            'reps',
-            repDirName(repIndex),
-            FIXTURE_ID,
-            'warden-output.json',
-          );
-          expect(existsSync(requestPath)).toBe(true);
-          expect(existsSync(outputPath)).toBe(true);
-
-          const requests = JSON.parse(readFileSync(requestPath, 'utf-8'));
-          expect(Array.isArray(requests)).toBe(true);
-          expect(requests.length).toBeGreaterThan(0);
-          expect(requests[0].request.model).toBe('claude-sonnet-4-6');
-          expect(requests[0].request.temperature).toBe(1.0);
-        }
-
-        const campaigns = await getTestDb().select().from(schema.campaigns);
-        const scratchCampaigns = campaigns.filter((c) =>
-          c.name.startsWith(`__eval__${FIXTURE_ID}__`),
+        const outputPath = join(
+          summary.runDir,
+          'reps',
+          repDirName(repIndex),
+          FIXTURE_ID,
+          'warden-output.json',
         );
-        expect(scratchCampaigns).toHaveLength(0);
-      },
-      180_000,
-    );
+        expect(existsSync(requestPath)).toBe(true);
+        expect(existsSync(outputPath)).toBe(true);
+
+        const requests = JSON.parse(readFileSync(requestPath, 'utf-8'));
+        expect(Array.isArray(requests)).toBe(true);
+        expect(requests.length).toBeGreaterThan(0);
+        expect(requests[0].request.model).toBe('claude-sonnet-4-6');
+        expect(requests[0].request.temperature).toBe(1.0);
+      }
+
+      const campaigns = await getTestDb().select().from(schema.campaigns);
+      const scratchCampaigns = campaigns.filter((c) =>
+        c.name.startsWith(`__eval__${FIXTURE_ID}__`),
+      );
+      expect(scratchCampaigns).toHaveLength(0);
+    }, 180_000);
   },
 );

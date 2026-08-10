@@ -61,7 +61,13 @@ describe('CLI entrypoint loading — exercises the real production loader, not V
     try {
       execFileSync(
         'node',
-        ['-r', '@swc-node/register', '-r', 'reflect-metadata', 'scripts/eval-run.ts'],
+        [
+          '-r',
+          '@swc-node/register',
+          '-r',
+          'reflect-metadata',
+          'scripts/eval-run.ts',
+        ],
         {
           cwd: PACKAGE_ROOT,
           encoding: 'utf-8',

@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "description": "WEAPONS & DAMAGE table (printed p.2): the title is lost entirely at extraction, Frag Grenade and Rigging Gun lose their stats to split rows, four SPECIAL entries truncate mid-sentence, and Machine Gun is lifted out of alphabetical order. See docs/rules-extraction-findings.md S27.3.",
+    "match": { "block_id": "/page/1/Table/1" },
+    "replace_with_template": "weapons_and_damage_table.md"
+  },
+  {
+    "description": "ARMOR table (printed p.2): all five armor names are dropped, Hazard Suit and Advanced Battle Dress lose their descriptions too, and the SPECIAL column truncates mid-sentence -- losing the Vaccsuit's decompression rule and the Advanced Battle Dress's exoskeletal weave. See docs/rules-extraction-findings.md S27.1.",
+    "match": { "block_id": "/page/1/Table/3" },
+    "replace_with_template": "armor_table.md"
+  },
+  {
+    "description": "EQUIPMENT table, first half (printed p.10, Assorted Tools through Mylar Blanket): 15 of 33 descriptions truncate mid-sentence, 6 spill onto orphan continuation rows, and three item names lose their leading words -- 'Cybernetic Diagnostic Scanner' reads as 'Scanner', 'Heads-Up Display (HUD)' as '(HUD)', 'Explosives & Detonator' as 'Detonator'. All three are recoverable from the loadout tables on printed p.7. See docs/rules-extraction-findings.md S27.4.",
+    "match": { "block_id": "/page/9/Table/3" },
+    "replace_with_template": "equipment_table_printed_p10.md"
+  },
+  {
+    "description": "EQUIPMENT table, second half (printed p.11, Oxygen Tank through Water Filtration Device): Salvage Drone and Stimpak lose their descriptions entirely to orphan rows, several others truncate, and 'Portable Computer Terminal' reads as 'Terminal'. See docs/rules-extraction-findings.md S27.4.",
+    "match": { "block_id": "/page/10/Table/1" },
+    "replace_with_template": "equipment_table_printed_p11.md"
+  }
+]

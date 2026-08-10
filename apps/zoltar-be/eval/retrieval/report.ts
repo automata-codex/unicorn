@@ -16,6 +16,7 @@ export interface IndexProvenance {
   targetTokens?: number;
   overlapTokens?: number[];
   droppedPages?: number[];
+  includeSectionHeaders?: boolean;
   pdfSha256?: string;
 }
 
@@ -95,6 +96,18 @@ export function renderRetrievalReport(args: {
         provenance.droppedPages?.length
           ? provenance.droppedPages.join(', ')
           : 'none'
+      }`,
+    );
+    // Absent means "written by a pre-M7.5 ingest", which is not the same as
+    // false even though the behaviour was the same — rendering it as `off`
+    // would claim the run recorded a choice it never made.
+    lines.push(
+      `- Section headers: ${
+        provenance.includeSectionHeaders === undefined
+          ? '— (not recorded by this ingest)'
+          : provenance.includeSectionHeaders
+            ? 'indexed as content'
+            : 'excluded'
       }`,
     );
   }

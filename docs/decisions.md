@@ -128,7 +128,13 @@ Physical pages 4, 41, and 42 cover Mothership character creation. Confirmed via 
 
 **Decided:** exclude physical pages 4, 41, 42 from the rules index. This also resolves the duplicate-spread question for that trio without needing dedup logic: 41 and 42 are byte-identical duplicates of page 4's character-creation spread, and both drop with it. Page 4 also carries the worst provenance in the corpus — its footer doesn't resolve to a chapter — so exclusion removes a hard case rather than requiring a fallback-chapter decision for it.
 
-**Not yet extended to page 3** (the character-profile sheet), which looks like the same category but wasn't covered by the S2 analysis that confirmed the other three. It's a live false-positive risk if left in — ranked top-3 for two of three test queries in `§ S3.7` on stat-name density alone, with no real relevance to what was asked. Tracked in `roadmap.md` M7.5 as a check, not yet a confirmed exclusion.
+**Extended to page 3 on 2026-08-07, but on different grounds — and the difference is the point.** The character-profile sheet is now excluded too (`ingestion/mothership/system.json` carries `drop_pages: [3, 4, 41, 42]`), measured as M7.5 iteration round 2 in `docs/rules-extraction-findings.md § S18`.
+
+This entry previously guessed page 3 was "the same category" as 4/41/42. **It is not.** Pages 4/41/42 are excluded because the Warden *structurally cannot reach them* — an argument from the tool array that holds regardless of what the index contains or how well retrieval works. Page 3 is perfectly reachable and is excluded because it is *actively harmful*: it held **10 of 147 top-3 slots** across the fixture set and sat at **rank 1 ahead of the correct page** for two answerable combat queries (`rq-003`, `rq-017`), on stat-name density alone. Removing it promoted both and cost no recall. (It also lifted MRR by roughly 0.02, but see `docs/rules-extraction-findings.md § S22`: that metric alternates between 0.842 and 0.856 across repeated runs at one configuration, so it is colour here rather than evidence.)
+
+Same action, two different justifications, and conflating them would have been expensive for the next page anyone asks about: **reachability is confirmed by reading the tool array; harm has to be measured.** A page that is reachable and merely useless costs nothing and needs no decision. A page that is reachable and *attractive to the wrong queries* costs a top-3 slot every time, and only a scored fixture set can tell the two apart.
+
+**Method note worth carrying forward.** Round 2's decision criterion was fixed before the run as "exclude if recall holds *and unanswerable top-1 similarity falls*." Recall held; unanswerable similarity did not move at all. The second clause was a proxy for false-positive pressure that pointed at the wrong fixtures — page 3's false positives were landing on *answerable* queries, displacing pages that genuinely answered, which an unanswerable-set aggregate cannot see. The exclusion stands on the direct per-fixture evidence instead. Recorded rather than quietly reinterpreted, per `§ S18.4`.
 
 ### Fixup match schema keyed on block `id`, not `{section, contains}`
 
@@ -277,6 +283,57 @@ queries, at a rate the original three-query sample gave no way to see. Both
 fixes are now confirmed necessary and non-overlapping, not alternatives to
 weigh against each other.
 
+### No similarity floor for `rules_lookup` — the distributions overlap, and the free-looking threshold is fitted to noise
+
+M7.5 Part 4, decided 2026-08-07 against the final index (61 chunks, `drop_pages: [3, 4, 41, 42]`), per `docs/rules-extraction-findings.md § S20`. `RulesLookupService.lookup()` is unchanged: it returns whatever `findByCosineSimilarity` gives back, with no threshold.
+
+**The distributions overlap and interleave.** Answerable-with-a-correct-hit spans 0.342–0.600 (n=35); unanswerable spans 0.270–0.416 (n=12). The overlap zone 0.342–0.416 contains 5 correct answers and 6 unanswerable queries, mixed rather than merely abutting. That is the spec's stated criterion for "no honest floor exists yet," and it is not met.
+
+**The part worth recording is the threshold that looks free.** A floor at 0.34 — just under the answerable minimum — discards **0 of 35** correct answers and suppresses **5 of 12** unanswerable queries. It is the obvious thing to ship.
+
+It is rejected because its measured cost is zero *by construction*. 0.342 is not the lowest similarity a correct answer has; it is the lowest one had in a 35-point sample, and a threshold placed just beneath a sample minimum is fitted to an order statistic. The quantity that would justify it — the distribution's true left tail — is exactly what 35 points cannot estimate.
+
+The asymmetry settles it. A suppressed unanswerable query costs nothing: the Warden already handles empty results correctly, with a prompt block for it and a `gmUpdates.notes` convention for recording the gap. A suppressed *correct* chunk costs a wrong ruling with no trace that anything was withheld. **Recorded rather than merely decided, because the table is persuasive and will be persuasive to the next person who builds it.**
+
+**What would actually make a floor derivable, and it is not chunking.** Three iteration rounds moved these distributions by 0.001 (`§ S15.4` measured 0.342–0.416 on the M7.2 index; `§ S20.1` measures the same on the final one). They could not have moved it: the excluded pages were displacing correct answers on *answerable* queries, while an unanswerable query's top hit was already a legitimate topically-adjacent chunk. Unanswerable queries score 0.27–0.42 because they ask about absent mechanics in *present* vocabulary — `flanking` and `opposed rolls` are not in the book, but `combat`, `armor`, and `cover` are — so the embedding is measuring real proximity and is not wrong.
+
+A floor becomes available when the unanswerable distribution shifts down, and the only lever that moves it is upstream of retrieval: stop generating concept-absent queries, which `§ S9.3` measured at 130 of 344 out-of-corpus queries (37.8%). That is the mechanical-model primer in M7.5 Part 4.6. **Re-derive the floor after the primer has been measured, not after the next chunking change.**
+
+### The retrieval stopping rule is measured on the metrics with headroom, not on the saturated one
+
+`docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md § The stopping rule`
+originally closed M7.5 "after three full iteration rounds that do not
+improve `recall@3` on the `authored` set by more than 5 percentage points in
+aggregate."
+
+**`authored` recall@3 is 100.0%** (`docs/rules-extraction-findings.md
+§ S15.2`, confirmed in `§ S16.1`). It cannot improve by any amount, so that
+condition fires after round three unconditionally — including after a round
+that took `warden-observed` from 91.3% to 100%. The rule was measuring
+progress on the one axis with no headroom left, which makes it a round
+counter dressed as a quality test.
+
+**Decided:** the no-progress test is evaluated on `recall@3` over the
+**answerable set as a whole** and on **`warden-observed`** specifically, with
+`authored` held as a **regression floor** rather than a growth target. The
+5 pp threshold and the three-round budget are unchanged; only the axis moves.
+A round that drops `authored` below 100% has made things worse regardless of
+what it did elsewhere, and is logged as such.
+
+**Corrected before round 1 ran, not after.** That ordering is the whole point
+— a stopping rule amended once results are in is indistinguishable from
+moving the goalposts, which is the same hazard as choosing a bar after seeing
+the numbers. The spec was amended in place and this entry written before any
+lever was pulled.
+
+**The general lesson, which is not about this rule.** A metric that is
+saturated at authoring time is a bad progress test and a fine regression
+test, and the two roles are easy to conflate because the same number serves
+both. `authored` at 100% still earns its place in the report — a chunking
+change that broke it would be caught immediately — but "did this round help"
+has to be asked of a number that can answer. Worth checking whenever a
+threshold is written against a metric that is already at its ceiling.
+
 ---
 
 ## Claude Integration — Tool Schemas & State
@@ -307,6 +364,23 @@ Secondary but not minor: **errors dropped from 18 of 150 rows to 4**, almost all
 Two failure modes survive the swap with real denominators behind them: `unauditable-mapping` (2 passes across 45 judged inputs spanning both models) and `turn16-narrating-past-a-block` (0/10 under both). Both are now confirmed genuine rather than checker artifacts, which is the useful outcome — they are prompt work, and they are the two places prompt work should go first.
 
 **What this decision does not claim.** All figures are single-grader. Both baselines executed against an empty `rules_chunk` index, so nothing here accounts for how rules availability changes reach-for-dice behaviour; the M7.5 re-baseline is the real test of these numbers (moved from M7.2 — see § Rules ingestion pipeline and retrieval quality are separate milestones). At N=10 the 95% CI half-width at p=0.5 is ~±31pp, so individual rates near the middle are unsettled even where the direction is not. And a first run against a new model audits the harness as much as the model — the two defects that audit surfaced are recorded in `eval-methodology.md`, and the rates above are the post-correction ones.
+
+**The M7.5 re-baseline answered that, 2026-08-09, and the decision stands — but one number in the table above has to be retired.** Sonnet 5 against the populated index at prompt `0bdd1306`, both sides re-scored under the corrected checker:
+
+| Tag | Sonnet 5, July (`97feadbd`, empty index) | Sonnet 5, now (`0bdd1306`, populated) |
+|---|---|---|
+| `SYSTEM-ROLLED-PLAYER-ACTION` | 0.90 (18/20) | **0.45 (9/20)** |
+| `OUT-OF-ORDER-RESOLUTION` | 1.00 (20/20) | 0.94 (17/18) |
+| `UNSURFACED-CHECK` | 0.70 (7/10) | **1.00 (10/10)** |
+| `HIDDEN-INFO-LEAK` | 0.90 (18/20) | **1.00 (20/20)** |
+| `SCENE-JUMP` | 0.90 (9/10) | 0.80 (8/10) |
+| `NARRATING-PAST-A-BLOCK` | 0.50 (10/20) | 0.50 (10/20) |
+
+The upgrade rationale is unaffected — every one of these is Sonnet 5 against Sonnet 5, and 4.6 was not re-run (its arm carried 10 tool-loop-cap errors on the M7.5 attempt, and the upgrade question was settled in July; see `docs/rules-extraction-findings.md § S31`).
+
+What must be retired is the reading that `SYSTEM-ROLLED-PLAYER-ACTION` at 0.90 was "the model's ceiling." It halved once the index was populated and the primer taught when a check is warranted, and the two moves are one behaviour: `UNSURFACED-CHECK` reached 1.00 in the same run. The Warden learned to recognise that a roll is called for and then rolls it itself. That is a prompt target, and it is now the largest one in the corpus.
+
+Also retired: 0.90 was measured with a checker that could not see the failure. The M7.5 `actingEntityId` integration shipped a false pass that graded ten violations clean (§ `actingEntityId` must resolve against a declared identifier set, below). The July figure is unaffected — those artifacts predate the field and take the prose path, verified bit-identical on re-score — but every figure produced between 2026-08-07 and 2026-08-09 on this tag was wrong.
 
 **The judged half of that table is now self-graded, and was already half-way there.** `JUDGE_MODEL` has been `claude-sonnet-5` since the judged checks were built — deliberately above the Warden's 4.6, so a more capable grader sat over the model under test. This decision closes that gap: the Warden and its judge are now the same model. The consequence is retroactive as well as forward-looking, and it is a real confound in the comparison above: on the 4.6 side a Sonnet 5 judge graded a 4.6 generator, while on the Sonnet 5 side it graded itself. Every judged row in the table therefore has an asymmetry the structural rows don't.
 
@@ -424,9 +498,27 @@ Three reasons this doesn't close the question:
 
 Revised criterion for revisiting: re-baseline after M7.5 (the re-baseline moved there from M7.2), and try the cheaper structural option first — the deferred `rollType` / `gatedByRollId` / `actingEntityId` fields on `roll_dice`, which enforce sequencing at the tool schema without decomposing the loop. A graph becomes the right answer only if a measured residual survives both.
 
+**Both conditions of that criterion have now been met, and the answer is: still no graph, but the case has stopped weakening.** (2026-08-09, `docs/rules-extraction-findings.md § S31`.)
+
+The criterion was explicit that 0.90 should not be treated as a ceiling until re-measured against a populated index. Re-measured, `SYSTEM-ROLLED-PLAYER-ACTION` reads **0.45 (9/20)** — half what the deferral rested on. The second condition also fired: the structural fields landed in M7.5, and they did *not* fix this. `gatedByRollId` closed the in-turn sequencing case as designed, and `OUT-OF-ORDER-RESOLUTION` holds at 0.94; but no tool-schema field can express "this roll belongs to the player," because the tool being called is `roll_dice` and the correct behaviour is *not calling it*. A schema constrains the shape of an action taken, not the choice to take it.
+
+So the residual survived both cheaper options, which is exactly the trigger this entry set. It still does not justify a graph, for a reason the criterion did not anticipate:
+
+**The failure is not a control-flow failure.** The evidence for that is `UNSURFACED-CHECK` moving 0.70 → 1.00 in the same run. The Warden is not losing track of sequencing or forgetting to route a request; it correctly identifies that a check is warranted and then resolves it in the wrong place. Decomposing the turn loop into graph nodes would give that misjudgement a more elaborate structure to happen inside.
+
+**The ownership rule is not missing from the prompt, and an earlier draft of this entry was wrong to say so.** `mothership-m7.txt:41` reads "WHEN TO CALL diceRequests — Any roll the player's character makes to resolve their own action," and `:22` gives the mirror rule for `roll_dice`. Both predate M7.5. The Warden is violating an explicit instruction on 9 of 10 reps, and every failing rep resolves the *whole* combat exchange server-side — the player's Combat check, the player's damage, then the NPC's return fire — emitting no `diceRequests` at all.
+
+So the live hypothesis is prompt *structure*, not prompt *content*: M7.5 appended ~50 lines of mechanical primer after the tool-routing rules, written throughout in resolution voice ("call for a FEAR Save", "roll under it"), which never restates who rolls. "Call for a Save" is precisely ambiguous between issuing a request and rolling one. That would make this a recency-and-specificity failure, in which case the fix is placement and voice rather than a new rule.
+
+**Revised criterion, third iteration.** Test the placement hypothesis before anything structural, and re-measure `SYSTEM-ROLLED-PLAYER-ACTION` against `UNSURFACED-CHECK` **as a pair** — the two moved in opposite directions on one prompt change and must be read together, or a fix that trades one for the other will read as progress. A graph becomes the right answer only if the rule, stated unambiguously *and* positioned where it governs the primer, still fails to move the rate. That would be the first real evidence the model understands the rule and cannot act on it — a distinction nothing measured so far supports, and which the presence of the rule at `:41` makes the more urgent question rather than a settled one.
+
 An earlier version of this criterion also called for extending the `turn19`/`turn21` fixtures through the follow-up turn, on the theory that a model which splits a to-hit request from its resolution puts the ordering evidence on a turn the fixture doesn't contain. **That is withdrawn.** The violation window is the captured turn: once a gate is deferred, the turn ends, so any dependent roll landing on the follow-up turn is necessarily *after* the gate resolved. Extending the fixtures would have produced a structurally guaranteed PASS and read as evidence of correct sequencing.
 
 ### `rollType` / `gatedByRollId` / `actingEntityId` on `roll_dice` stay deferred, but they are measurement infrastructure
+
+> **Status: closed 2026-08-07.** The fields landed in M7.5, on the schedule this entry set.
+> The heading is kept in its original wording because several documents link to it by title;
+> read it as the question, and the "Landed" section below as the answer.
 
 These three fields were introduced in the M7.4 spec as a fixture-schema compatibility example and carried forward as a candidate structural fix for the Warden's own sequencing — tighten the tool schema so a dependent roll must name its gate, and out-of-order resolution becomes unrepresentable rather than merely detectable. That framing is incomplete. The checker audit established that the same two fields are what two structural checks need in order to *measure* anything at all:
 
@@ -437,7 +529,33 @@ So the fields are not only a possible fix; they are the precondition for knowing
 
 **Still deferred**, and the reason is unchanged: adding fields to `roll_dice` changes the tool schema, which changes what reaches the Warden, which invalidates every frozen artifact and forces a fresh baseline on both models. That is affordable once, not repeatedly, and the rules-ingestion work is already going to force one — both existing baselines ran against an empty `rules_chunk` index. Re-check after M7.5, and land the fields with that re-baseline rather than paying for a second one. (The re-baseline moved from M7.2 to M7.5; M7.2 populated the index but deliberately bought no Warden-level measurement.)
 
+**Landed 2026-08-07, in M7.5, exactly as this entry planned.** Schema and prompt together, ahead of the re-baseline, so the fields ride the one baseline the populated index was already forcing rather than buying a second. `docs/tools.md § roll_dice` documents all three.
+
+What they bought, on the two checks that were waiting:
+
+- `gatedByRollId` — `out-of-order-resolution` now decides the in-turn case by comparing a named gate's sequence number against the roll naming it. See `§ out-of-order-resolution reads the deferred gate` above for the three sub-cases and for the deferred-gate residual this does *not* close.
+- `actingEntityId` — `system-rolled-player-action` attributes without reading `purpose`. This was the last prose dependency in the structural checks; on post-M7.5 output there is none left. **The first integration of this field was defective and shipped a false pass — see the entry immediately below, which is a correction to this bullet, not a footnote on it.**
+- `rollType` — **no measurement role, and none was invented for it.** The entry above claims all three were "the precondition for knowing whether a fix is needed"; that was true of the other two and never of this one. Checked during M7.5 planning: it appears in `docs/specs/zoltar/011-eval-harness-multi-run.md § Part 6` only as a *hypothetical example* of a field some future check might need, is absent from the M7.4 spec entirely, and the two bullets above give it no job. It ships as a descriptive enum (`check` / `save` / `damage` / `panic_check` / `table` / `other`) read by no checker — telemetry and a reporting axis. The justification is this entry's own economics rather than a requirement: the re-baseline was being bought anyway, and discovering a use for it later would have meant buying another.
+
+The prose paths are kept rather than deleted, and every consumer branches on field **presence** rather than on `fixtureSchemaVersion` — `eval:rescore` re-grades frozen `88fa84bd8329` artifacts that predate the fields, and version-gating would have been the obvious mechanism and the wrong one, since the fixture version records what `capture-fixture` captured and it captures no game events at all. **No `FIXTURE_SCHEMA_VERSION` bump was needed**, and no migration: `dice_roll` payloads are `jsonb`.
+
 **Provenance note.** During M7.2 implementation planning this conclusion was briefly reversed — a plan document recorded "resolved with Alex: the fields do not ride along, a third baseline gets paid for separately" — and instructed that this entry be rewritten to match. That rewrite never happened here. The reversal was itself reversed during M7.5 spec review: the fields land with M7.5's re-baseline, per the original reasoning above, which was correct throughout. Noted so the now-stale reasoning in that plan document isn't mistaken for a second, independent decision.
+
+### `actingEntityId` must resolve against a declared identifier set, and an unresolvable id is undecided
+
+M7.5's first integration of `actingEntityId` compared it against `applicability.playerEntity` for equality. The field carries an entity **id** (`lt_alvarez`); `playerEntity` carries a display **name** (`Alvarez`). Nothing ever matched, and because "no roll belongs to the player" is `system-rolled-player-action`'s PASS condition, the check did not report *less* — it inverted. It graded ten violations clean, including a rep whose payload reads `system_generated` / `lt_alvarez` / `"Alvarez Combat Check to shoot contractor alpha"`. Full account in `docs/rules-extraction-findings.md § S30`.
+
+Three rules come out of it, and they generalise past this field.
+
+**An identifier comparison must name both namespaces.** The bug was not a typo; it was comparing two things that had never been the same kind of thing, in a codebase whose own convention (`docs/decisions.md § Entity and resource pool identifiers use underscores only`) makes ids and display names visibly distinct. `rollActsFor` now takes an explicit `AttributionContext` carrying `playerEntityIds`, `knownEntityIds`, and the display name for the legacy prose path, so the comparison cannot be written without stating which set is being consulted.
+
+**A resolution failure is a third state, not a negative answer.** `rollActsFor` returns `'player' | 'other' | 'unknown'`. An id matching neither the declared player set nor the fixture's seeded entities is `'unknown'` — `NOT_APPLICABLE`, excluded from the denominator, never a pass. This is the same discipline as "Structural checks report undecided rather than guessing" above, applied to structured data rather than prose: the shipped bug's mechanism was a resolution failure silently collapsing into `'other'`. It is load-bearing, not defensive — Sonnet 4.6 emitted resource *pool* names in this field 13 times across one run.
+
+**The runtime enforces one canonical id; the checker tolerates aliases.** `roll_dice` rejects an `actingEntityId` naming no known entity, modelled on the existing dangling-`gatedByRollId` rejection, with the valid ids named so the model corrects in-loop — and **skipped entirely when the known set is empty**, because `getPlayerEntityIds` reads `character_sheet` and a campaign without one would otherwise have every player roll rejected. The checker deliberately resolves against *every* declared id, because it also grades frozen artifacts from runs predating the validation that legitimately used an alias. The asymmetry is intentional and mirrors the prose fallback for pre-M7.5 payloads.
+
+**Root cause, and what is still open.** The Warden is never told the player's entity id: `campaign_state.entities` holds NPCs, threats and features only, `gmContextBlob.playerEntityIds` exists for exactly this but is fed from a `character_sheet` table with zero rows, and `renderEntities` only *un-hides* ids already in the entities map — it is a filter override, not a source. So the model infers an id from resource pool names, which in the captured adventure carry two prefixes for one character. Seeding fixtures closes this for the eval; **the product path is not closed**, and rendering player entities into `<entities>` from `playerEntityIds` remains the real fix.
+
+**Why the tests did not catch it.** All 60 structural specs passed throughout, because they pair `actingEntityId: 'alvarez'` with `playerEntity: 'Alvarez'` — the one id form that collides with the display name under `toLowerCase()`. The specs were written from the same misunderstanding as the implementation and were therefore not independent evidence. Regression tests now use the real captured id forms, taken from run artifacts rather than authored alongside the code.
 
 ---
 
@@ -669,6 +787,30 @@ interim verdict is `not_applicable` naming the missing field, not a regex approx
 That reframes those fields: they are measurement infrastructure as much as a candidate fix
 for the Warden's own sequencing.
 
+**Closed in M7.5 — the third case had a shelf life, and this is what the end of it looks
+like.** `gatedByRollId` and `actingEntityId` landed on `roll_dice` with the prompt
+instructions to populate them, and both questions moved from the third case into the first:
+`out-of-order-resolution` decides in-turn ordering by comparing a named gate's sequence
+number against the roll that names it, and `system-rolled-player-action` attributes through
+`actingEntityId` without reading `purpose` at all. **On output produced after M7.5 there is
+no prose left in the structural checks.**
+
+Two things about *how* it closed are worth more than the fact that it did. First, the
+interim verdict was the right instrument and not merely an honest one — `not_applicable`
+naming the missing field is what made the gap countable, and a regex approximation would
+have made the same turns read as graded and left nothing pointing at the fix. Second, the
+prose path is **kept, not deleted**, and every consumer branches on field *presence* rather
+than on `fixtureSchemaVersion`. Frozen artifacts from the `88fa84bd8329` runs predate the
+fields entirely, and `eval:rescore` has to keep grading them the way it always did or the
+comparison history `eval:compare` pairs on is silently severed. Version-gating would have
+been the obvious mechanism and the wrong one: the fixture version records what
+`capture-fixture` captured, and it captures no game events at all.
+
+The residual, stated so it is not assumed closed: `out-of-order-resolution`'s deferred-gate
+branch still has its known false FAIL. `gatedByRollId` records which *roll* gated a roll;
+that branch asks whether a roll was gated by a pending *request*, which is a different link
+and still unrecorded.
+
 The line has a second constraint, running the other way. A judged verdict is binary, so a
 judge cannot say "nothing to grade" — asked about a detail the narration never introduced, it
 answers "it didn't" and returns a pass, converting an honest zero denominator into a spurious
@@ -730,13 +872,41 @@ The same audit found that binding a `dice_request` by prose was simply wrong. A 
 
 ### `out-of-order-resolution` reads the deferred gate, and declines the in-turn case
 
+> **Status: the in-turn half closed 2026-08-07**, when `gatedByRollId` landed in M7.5. Title
+> kept for the links that point at it; the resolution is inline below. The deferred-gate
+> branch's known false FAIL is *not* closed.
+
 A *pending* `dice_request` is an unresolved gate as a matter of structure: the backend surfaces it and the turn ends waiting on it, so anything resolved on the player's behalf while it sat pending was resolved ahead of its gate. That replaces `CONDITIONAL_DAMAGE_PATTERN`, the second regex this checker had tried, which failed the way prose matchers here always do — it flagged *NPC* damage rolls that were never gated by the player's request, on 4 of `turn19`'s 10 reps, which is most of why that fixture read 0/9.
 
-When the turn resolves its gating roll in-turn instead, the check reports `not_applicable` naming the missing `gatedByRollId`. Sequence numbers show what happened first, not what depended on what; a to-hit followed by damage is correct and the reverse is not, the same two events either way, separable only by a link the payload does not record. Adjudicating that by regex is what the check was doing and what it stopped doing.
+When the turn resolves its gating roll in-turn instead, the check reported `not_applicable` naming the missing `gatedByRollId`. Sequence numbers show what happened first, not what depended on what; a to-hit followed by damage is correct and the reverse is not, the same two events either way, separable only by a link the payload does not record. Adjudicating that by regex is what the check was doing and what it stopped doing.
+
+**Resolved 2026-08-07 (M7.5).** `gatedByRollId` landed, and the in-turn branch now decides: a roll whose named gate carries a *higher* sequence number than the roll itself had its consequence resolved before the thing it was contingent on. Two sequence numbers and a reference, nothing inferred from wording. The wait was the right call — the field cost one milestone of `not_applicable`, where each of the two regexes that preceded it cost a wrong verdict nobody could see.
+
+Three sub-cases, kept distinct because collapsing any two of them re-creates a false pass:
+
+- **No roll declares a gate** — `not_applicable`, and a *different* `actualCode` from the pre-M7.5 "the field doesn't exist" case, so an exclusions table never aggregates "nothing depended on anything" together with "we couldn't tell".
+- **A `gatedByRollId` resolves to no roll in the turn** — `not_applicable`, never a pass. The tool loop rejects dangling references before they can persist, so this should be unreachable; it is pinned by a test anyway, because "found no violation" is exactly how an unresolvable link would otherwise read.
+- **Otherwise** — a real PASS or FAIL.
 
 **Extending `turn19`/`turn21` through the follow-up turn does not recover the missing half, and the idea is withdrawn wherever this log proposed it.** The reasoning that produced it was that a model deferring a to-hit across a turn boundary puts the ordering evidence outside the captured turn. But the violation window *is* the captured turn: a deferred gate ends the turn, so any dependent roll on the follow-up turn is after the gate resolved by construction. A two-turn fixture would therefore pass structurally no matter what the Warden did, and the pass would look like evidence of correct sequencing. The in-turn case waits on the schema field; it does not wait on a longer fixture.
 
-A known false FAIL is accepted and pinned by a `[known limitation]` test rather than patched: a player stress check triggered by NPC fire that already resolved is properly ordered but structurally identical to a pre-rolled damage roll — both GM-initiated, both without `requestId`, both after the gate in sequence. It costs 1 of 18 decided reps. The available discriminators are notation (1d10 vs 1d100) and purpose wording, and reaching for either would re-import the "works on the data in front of me" failure that produced the regex being removed. A false FAIL also names the offending roll in the report, so it is diagnosable; the alternative readings risk a false PASS, which is not.
+A known false FAIL is accepted and pinned by a `[known limitation]` test rather than patched: a player stress check triggered by NPC fire that already resolved is properly ordered but structurally identical to a pre-rolled damage roll — both GM-initiated, both without `requestId`, both after the gate in sequence. It costs 1 of 18 decided reps. **M7.5 did not close this one**, and it is worth being precise about why: `gatedByRollId` records which *roll* gated a roll, while this branch asks whether a roll was gated by a pending *request*. Different link, still unrecorded. The available discriminators are notation (1d10 vs 1d100) and purpose wording, and reaching for either would re-import the "works on the data in front of me" failure that produced the regex being removed. A false FAIL also names the offending roll in the report, so it is diagnosable; the alternative readings risk a false PASS, which is not.
+
+### OPEN — the undecided discipline has never been extended to judged checks, and `turn24-over-resolution` is the case that shows it should be
+
+*Opened 2026-08-10 from `docs/rules-extraction-findings.md § S33`. Not yet decided.*
+
+The entry above governs *structural* checks. Judged checks were never brought under it, and one rep of the `c45a142a` re-baseline shows the gap. `turn24-over-resolution` is declared `applicabilitySource: 'ungated'` — it has no `not_applicable` path at all — and the judge's own rationale reports that the tool calls do not contain the Delta-vs-UNIT-7 off-screen encounter the rubric asks about, calling the comparison *"a mismatched comparison"*. It then returned `fail`.
+
+**This is `§ actingEntityId must resolve against a declared identifier set` inverted.** There, a structural check that could not resolve its subject collapsed into its PASS condition and graded ten violations clean. Here, a judged check that cannot find its subject collapses into FAIL. The shared root is the one that entry already names — *a check that cannot decide must report undecided* — and the fact that it inverts in the other direction on the judged side is not reassuring. A false FAIL is more diagnosable than a false PASS, but it still poisons a rate, and nothing currently stops it.
+
+Three things to settle, and deliberately not settled here:
+
+- **Whether `ungated` is ever right for a judged check whose rubric names a specific scene.** `over-resolution`, `scene-jump`, `hidden-info-leak` and `narrating-past-a-block` are all `ungated`. A rubric pinned to content the turn may not reach is gated in substance whether or not it says so.
+- **Whether the judge should be able to return a third verdict.** `missing-canon-capture` stays structural precisely because "a judge cannot say nothing to grade" — see the entry below. That was a reason to avoid judging, not a finding that judges are incapable of it, and the two readings have never been separated.
+- **Whether the prompt caused it.** `c45a142a` tells the Warden to narrate up to the point the dice are needed and stop. If turns now end earlier, an ungated rubric can be starved of its subject as a *side effect of correct behaviour*. If that is the mechanism, the fix is the gate and not the prompt — but one rep and one rationale do not establish it, and the check is cheap to run again before anyone acts on it.
+
+Until it is settled, read `OVER-RESOLUTION` at 0.90 as possibly 1.00 with one undecided rep, and do not treat the -0.10 as a measured cost of the roll-ownership change.
 
 ### `missing-canon-capture` stays structural, because a judge cannot say "nothing to grade"
 

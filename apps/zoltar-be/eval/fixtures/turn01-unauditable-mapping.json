@@ -205,6 +205,10 @@
       "schemaVersion": 1
     },
     "gmContextBlob": {
+      "playerEntityIds": [
+        "lt_alvarez",
+        "alvarez"
+      ],
       "entities": [
         {
           "id": "decommissioned_android",

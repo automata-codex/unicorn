@@ -197,6 +197,99 @@ number rather than assuming it still holds.
 
 ---
 
+## The retrieval quality bar (M7.5, set 2026-08-07)
+
+A different measurement from everything else in this file — `task eval:retrieval`
+scores the rules index deterministically against page-labeled fixtures, with no judge
+and no Anthropic call anywhere in it. It lives here anyway rather than in its own
+document, because the two are the same discipline about what a number means, and
+because the failure modes this file catalogues (a rate over a shrinking denominator,
+a target chosen after the fact, a comparison across incomparable provenance) all
+reappear on the retrieval side wearing different clothes.
+
+**Set against M7.2's first measurement, not guessed in advance.** The baseline is
+`docs/rules-extraction-findings.md § S15.2`, confirmed to reproduce in `§ S16.1`
+before the bar was written down.
+
+| Metric | Baseline (n) | Bar | Why this number |
+|---|---|---|---|
+| `recall@3`, `authored` | 100.0% (14) | **hold at 100.0%** | Saturated. There is no improvement to ask for, so the only honest target is a regression floor |
+| `recall@3`, `warden-observed` | 91.3% (23) | **≥ 95.6%** | 2 misses down to at most 1. One fixture is 4.3 pp on n=23, so a smaller bar would be asking for less than one event |
+| `MRR`, answerable | 0.802 (37) | **≥ 0.85** | 0.048 above the confirmation run, outside the ±0.03 run-to-run spread `§ S15.7` measured. Clearing it is an effect, not a lucky re-run |
+
+**Separate targets per query style, never averaged.** The Warden's own
+`rules_lookup` queries are keyword-stuffed and fuzzy; hand-authored questions are
+tidy. `§ S15.2` measured an 8.7 pp recall gap and 0.30 of MRR between them. A single
+blended number hides exactly the finding the `queryStyle` split exists to surface —
+an index that scores well on tidy questions and badly on the ones the Warden actually
+emits.
+
+**No `recall@5` target.** It is reported; tuning against it optimizes for a `limit`
+the Warden rarely uses (the tool's default is 3).
+
+**What clearing the bar concretely means, stated because a percentage on n=23
+obscures it:** the `warden-observed` set has two misses. One (`rq-015`) needs page
+12's tables to extract at all — a fixup-patch problem, not a chunking one. So the bar
+turns on a single reachable fixture. Read the per-fixture table, not just the rate.
+
+**The stopping rule is measured on the metrics with headroom.** Three iteration
+rounds that fail to move aggregate and `warden-observed` `recall@3` by more than 5 pp
+close the milestone with the bar restated as "not reached." It is deliberately *not*
+measured on `authored`, which is at 100% and cannot move — see
+`docs/decisions.md § The retrieval stopping rule is measured on the metrics with
+headroom`.
+
+**Provenance is part of the measurement.** `ingest.py` writes marker version,
+chunking parameters, embed model, and chunk count to `ingestion/.ingest-manifest.json`,
+and the harness copies it into every report. A score compared across different
+provenance is not a comparison — the same rule `corpusVersion` and `harnessVersion`
+enforce on the Warden side. An absent manifest renders as "Unknown" rather than
+being quietly skipped.
+
+**This bar is a milestone criterion, not a build gate.** `task eval:retrieval` needs
+a populated index and makes real Voyage calls, so it cannot run in CI and does not
+fail a build. Its *scorer* is unit-tested in CI; the score is not.
+
+### Outcome, recorded 2026-08-07: not reached by the milestone; cleared afterwards by a label fix
+
+> **Update, same day.** A post-milestone label audit (`§ S23`) corrected one
+> fixture and all three metrics now clear: `authored` 100.0%,
+> `warden-observed` **95.7%**, MRR **0.869–0.883**. This does **not** convert
+> the milestone into a bar-met close. Three chunking rounds moved aggregate
+> `recall@3` by 0.0 pp; the entire +2.7 pp came from the relabel. The
+> stopping rule fired on the former and is unaffected by the latter. The
+> table below is the state the milestone actually closed in, and the MRR row
+> remains the methodology lesson regardless of which side of the bar the
+> number later landed on.
+
+Three iteration rounds ran (`docs/rules-extraction-findings.md § S17`–`§ S19`) and the
+milestone closed on the stopping rule, not on the bar.
+
+| Metric | Bar | Shipped index (61 chunks) | |
+|---|---|---|---|
+| `recall@3`, `authored` | hold 100.0% | 100.0% | met |
+| `recall@3`, `warden-observed` | ≥ 95.6% | 91.3% | **missed by one fixture** |
+| `MRR`, answerable | ≥ 0.85 | 0.842 – 0.856 | **indeterminate** |
+
+**The MRR row is the methodology lesson, and it is about the bar rather than the
+index.** Eight scorings at one unchanged configuration alternate between 0.842 and
+0.856 — a spread of 0.0135, which is 0.5/37 exactly: one fixture swapping ranks 1 and
+2, because `hnsw` is an approximate index and two chunks whose similarity differs in
+the third decimal have no guaranteed order between traversals (`§ S22`).
+
+So the bar sits *inside* the noise band, and a run that clears it and a run that does
+not are the same index observed twice. It was set at 0.85 precisely to sit outside the
+±0.03 band measured on the M7.2 index; the shipped index's band is narrower (±0.007)
+but the improvement is smaller too, and the final margin is 0.001. **A threshold
+chosen to exceed yesterday's noise is not automatically outside tomorrow's.**
+
+`recall@3` had no such problem — identical on all eight runs, and on every run of every
+round. **Set retrieval bars on recall; report MRR as colour.** The next bar should
+either be set on recall alone or state a required number of repeat runs as part of the
+criterion.
+
+---
+
 ## Structural check migrations (2026-07-31)
 
 **Corpus version `4c9f2e73efd7...` → `88fa84bd8329...`. Scoring-only** — no `playerInput`

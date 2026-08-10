@@ -161,11 +161,12 @@ describe('checkOutOfOrderResolution', () => {
     );
   });
 
-  it('is undecided when the turn left no pending gate, naming the missing gatedByRollId', () => {
-    // turn21 rep 005: everything resolved in-turn. Sequence order shows what
-    // happened first, not what depended on what, so there is no ordering
-    // verdict to reach without a link between a roll and the roll that
-    // gated it.
+  it('is undecided when in-turn rolls declare no gate at all', () => {
+    // turn21 rep 005 as it looked before M7.5, and how a pre-M7.5 frozen
+    // artifact still looks under `eval:rescore`: no `gatedByRollId` anywhere,
+    // so no roll claims to depend on another and there is no ordering to
+    // adjudicate. Sequence order shows what happened first, not what
+    // depended on what.
     const result = fakeTurnExecutionResult({
       gameEvents: [
         fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
@@ -187,6 +188,96 @@ describe('checkOutOfOrderResolution', () => {
     expect(verdict.outcome).toBe('NOT_APPLICABLE');
     expect(verdict.actual).toMatch(/gatedByRollId/);
     expect(verdict.actualCode).toBeDefined();
+  });
+
+  it('passes when an in-turn consequence follows the roll it names as its gate', () => {
+    // The shape M7.5's `gatedByRollId` made decidable: to-hit at sequence 2,
+    // damage at 3 declaring roll_1 as its gate. Correct ordering, read off
+    // two sequence numbers and a reference with nothing inferred from
+    // wording.
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
+        fakeDiceRoll({
+          sequenceNumber: 2,
+          rollId: 'roll_1',
+          purpose: 'Contractor rifle attack',
+          notation: '1d100',
+          actingEntityId: 'corporate_spy_1',
+        }),
+        fakeDiceRoll({
+          sequenceNumber: 3,
+          rollId: 'roll_2',
+          purpose: 'Contractor rifle damage',
+          notation: '1d10',
+          actingEntityId: 'corporate_spy_1',
+          gatedByRollId: 'roll_1',
+        }),
+      ],
+      diceRequests: [],
+    });
+
+    expect(checkOutOfOrderResolution(result, APPLICABLE_FIXTURE).outcome).toBe(
+      'PASSED',
+    );
+  });
+
+  it('fails when an in-turn consequence precedes the roll it names as its gate', () => {
+    // The same two events in the other order — damage at sequence 2 gated by
+    // a to-hit that does not resolve until 3. Indistinguishable from the
+    // passing case above by anything except the dependency, which is exactly
+    // why sequence numbers alone could never decide this.
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
+        fakeDiceRoll({
+          sequenceNumber: 2,
+          rollId: 'roll_2',
+          purpose: 'Contractor rifle damage',
+          notation: '1d10',
+          actingEntityId: 'corporate_spy_1',
+          gatedByRollId: 'roll_1',
+        }),
+        fakeDiceRoll({
+          sequenceNumber: 3,
+          rollId: 'roll_1',
+          purpose: 'Contractor rifle attack',
+          notation: '1d100',
+          actingEntityId: 'corporate_spy_1',
+        }),
+      ],
+      diceRequests: [],
+    });
+
+    const verdict = checkOutOfOrderResolution(result, APPLICABLE_FIXTURE);
+    expect(verdict.outcome).toBe('FAILED');
+    expect(verdict.actual).toMatch(/rolled before the roll it depended on/);
+  });
+
+  it('is undecided, never a pass, when a gatedByRollId resolves to nothing', () => {
+    // The tool loop rejects a dangling reference before it can be persisted,
+    // so this should be unreachable in practice. Pinned anyway: a hand-
+    // authored fixture or a future schema change could produce one, and
+    // treating an unresolvable link as "no violation found" is the false-pass
+    // shape this checker has been rebuilt twice to avoid.
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeGameEvent({ sequenceNumber: 1, eventType: 'player_action' }),
+        fakeDiceRoll({
+          sequenceNumber: 2,
+          rollId: 'roll_1',
+          purpose: 'Contractor rifle damage',
+          notation: '1d10',
+          actingEntityId: 'corporate_spy_1',
+          gatedByRollId: 'roll_9',
+        }),
+      ],
+      diceRequests: [],
+    });
+
+    const verdict = checkOutOfOrderResolution(result, APPLICABLE_FIXTURE);
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
+    expect(verdict.actual).toMatch(/names no roll in this turn/);
   });
 
   it('guards the negative assertion: a turn that rolls nothing and defers nothing is undecided, not a pass', () => {

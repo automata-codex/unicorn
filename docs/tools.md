@@ -165,9 +165,18 @@ Use this tool for system-generated rolls — saves the GM makes on the player's 
 const rollDiceInputSchema = z.object({
   notation: z.string(),  // '1d100', '2d6+3', '3d10', etc.
   purpose:  z.string(),  // logged to game_events; not shown to player
+
+  // Who the roll is for, by state identifier. Required.
+  actingEntityId: z.string().min(1),
+  rollType: z.enum(['check', 'save', 'damage', 'panic_check', 'table', 'other']),
+
+  // The rollId of an earlier roll THIS TURN whose outcome determined whether
+  // this roll happens. Optional — absent means ungated.
+  gatedByRollId: z.string().min(1).optional(),
 });
 
 const rollDiceOutputSchema = z.object({
+  rollId:   z.string(),                 // per-turn: 'roll_1', 'roll_2', …
   notation: z.string(),
   results:  z.array(z.number().int()),  // individual die results before modifier
   modifier: z.number().int().default(0),
@@ -178,11 +187,56 @@ const rollDiceOutputSchema = z.object({
 **Example:**
 ```json
 // Input
-{ "notation": "1d20", "purpose": "Panic check for Dr. Chen" }
+{ "notation": "1d20", "purpose": "Panic check for Dr. Chen",
+  "actingEntityId": "dr_chen", "rollType": "panic_check" }
 
 // Output
-{ "notation": "1d20", "results": [15], "modifier": 0, "total": 15 }
+{ "rollId": "roll_1", "notation": "1d20", "results": [15], "modifier": 0, "total": 15 }
 ```
+
+A dependent roll names the roll it waited on:
+
+```json
+// Input — the to-hit
+{ "notation": "1d100", "purpose": "Contractor rifle attack",
+  "actingEntityId": "corporate_spy_1", "rollType": "check" }
+// Output
+{ "rollId": "roll_1", "notation": "1d100", "results": [23], "modifier": 0, "total": 23 }
+
+// Input — the damage, which only happened because roll_1 hit
+{ "notation": "1d10", "purpose": "Rifle damage",
+  "actingEntityId": "corporate_spy_1", "rollType": "damage",
+  "gatedByRollId": "roll_1" }
+```
+
+#### The three fields added in M7.5, and what each is for
+
+These are **measurement infrastructure**, not narration hints
+(`docs/decisions.md § rollType / gatedByRollId / actingEntityId on roll_dice
+stay deferred, but they are measurement infrastructure`). Two of the eval
+harness's structural checks could not reach a verdict without them:
+
+- **`actingEntityId`** lets `system-rolled-player-action` tell a Warden-side
+  roll standing in for an NPC from one standing in for the player. `actorType`
+  is `'gm'` for both, which is exactly the distinction the check draws, so
+  until this field existed the check bound by matching the player's name in
+  `purpose` prose — the last prose dependency in the structural checks.
+- **`gatedByRollId`** lets `out-of-order-resolution` adjudicate the *in-turn*
+  case. Sequence numbers record what happened first, not what depended on
+  what: a to-hit followed by damage is correct, damage followed by a to-hit
+  is not, and those are the same two events in either order.
+- **`rollType`** is descriptive. No checker reads it; it is telemetry and a
+  reporting axis. It ships now because adding a field to this tool forces a
+  full eval re-baseline on both models, this milestone is already buying one,
+  and finding a use for it afterwards would mean buying another.
+
+**`rollId` is per-turn and synthetic, not the `game_events` row id.** That id
+is a UUID generated when the turn is written, after the tool loop has ended —
+Claude cannot reference an identifier that does not exist yet. A
+`gatedByRollId` naming no roll from the current turn is rejected with an
+`is_error` `tool_result` listing the ids that do exist, rather than being
+silently dropped: a dangling reference would make the in-turn ordering case
+look decidable while pointing at nothing.
 
 ---
 

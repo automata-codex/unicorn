@@ -388,7 +388,12 @@ information** — each cost real time.
   cards rather than unreachable content. If both the reference card and the
   body page it duplicates stay in the index, near-duplicate chunks compete
   with each other in cosine ranking — whether to dedupe before embedding is
-  still undecided for this pair.
+  still undecided for this pair. **No longer low-priority, as of
+  [S19.5](#195-two-follow-ups-this-round-earned-neither-of-them-a-fourth-round).**
+  Printed p.44 (physical 43) holds 14 of 147 top-3 slots at the shipped
+  configuration, and round 3 measured it taking rank 1 outright from body
+  pages as soon as section headings were indexed. The cost is now a number
+  rather than a suspicion.
 - **Does the footer heuristic generalize?** Verified only against the PSG 1e.
   The `printed = physical + 1` offset is certainly edition-specific and
   probably printing-specific. Any second Mothership book (Warden's Operations
@@ -2713,3 +2718,2064 @@ Fixtures committed (queries and page numbers, no rules text). Run artifacts —
 which include returned chunk pages — go to
 `$ZOLTAR_EVAL_ROOT/retrieval-runs/`, outside this repository. Index unchanged:
 66 chunks, marker 2.0.0, `voyage-4-lite`, 400-token target.
+
+### S16 — 2026-08-07 · Baseline confirmed and the M7.5 quality bar set
+
+The first session of M7.5. No index change, no code change: this run exists
+to confirm [S15](#s15--2026-08-06--first-measured-retrieval-baseline-df-trimming-has-no-useful-setting)
+reproduces before iteration starts, and to fix the bar in place *before*
+any result is seen. A bar chosen after seeing the results you want is not a
+bar.
+
+#### 16.1 The confirmation run
+
+Identical configuration to S15's shipped default — 66 chunks, marker 2.0.0,
+`voyage-4-lite`, 400-token target, no dropped pages, preprocessing on at the
+inert default threshold. Run
+`$ZOLTAR_EVAL_ROOT/retrieval-runs/mothership__2026-08-07T12-56-17Z`.
+
+| Group | recall@3 | MRR | n | S15 | 
+|---|---|---|---|---|
+| **all** | **94.6%** | 0.802 | 37 | 94.6% / 0.811 |
+| authored | 100.0% | 1.000 | 14 | 100.0% / 1.000 |
+| warden-observed | 91.3% | 0.681 | 23 | 91.3% / 0.696 |
+
+**Recall is identical on every row; MRR reads 0.802 against S15's 0.811.**
+That is inside the noise band [S15.7](#157-run-to-run-variance--recall-is-stable-mrr-is-not)
+established at 0.797–0.824 across three identical runs — two fixtures
+swapping ranks 1 and 2, not a change in what was retrieved. S15 reproduces.
+
+The two misses are unchanged and both are already understood:
+
+- **`rq-015`** (`ammo tracking weapon fire rate`, expected pp.12/17) returned
+  pp.2/7/44. p.12 is absent from the index entirely — all its `Table` blocks
+  extract empty ([S3.2](#32-the-corpus)) — so this fixture measures the known
+  extraction gap, not chunking. S15.1 flagged it as such when it was labelled.
+- **`rq-024`** (expected pp.26/30/31) returned p.27 three times over. The
+  only genuinely open miss in the set.
+
+`UNSURFACED-CHECK` (50.0%, n=2) and `OVER-RESOLUTION` (66.7%, n=3) remain the
+weakest tags and remain too small to read as rates.
+
+#### 16.2 The bar
+
+Recorded in full, with its justification, in `docs/eval-methodology.md`.
+Restated here because this file is where the rounds that chase it are logged.
+
+| Metric | Baseline | Bar |
+|---|---|---|
+| recall@3, `authored` | 100.0% (n=14) | **hold at 100.0%** — a regression floor, not a growth target |
+| recall@3, `warden-observed` | 91.3% (n=23) | **≥ 95.6%** — 2 misses down to at most 1 |
+| MRR, answerable | 0.802 (n=37) | **≥ 0.85** |
+
+The `warden-observed` bar is deliberately the *smallest* target that is not
+noise: one fixture is 4.3 pp on n=23, so asking for less than one fixture's
+movement would be asking for nothing. The MRR bar sits 0.048 above this run
+and 0.039 above S15's, outside the ±0.03 spread S15.7 measured — so clearing
+it is an effect rather than a lucky re-run.
+
+Of the two misses, only `rq-024` is reachable by chunking work. `rq-015`
+needs p.12's tables to extract at all, which is a fixup-patch problem rather
+than a chunking one. **So the `warden-observed` bar is, concretely, "fix
+`rq-024` or find something that helps it."** Worth saying plainly, because a
+bar expressed as a percentage on n=23 obscures how few events it actually
+turns on.
+
+No `recall@5` target, per the spec: it is worth reporting and tuning against
+it optimizes for a `limit` the Warden rarely uses. Note this run has
+recall@5 == recall@3 on every row — at 66 chunks, ranks 4 and 5 add nothing
+that ranks 1–3 missed.
+
+#### 16.3 The stopping rule's axis was wrong, and is corrected before round 1
+
+As written, the spec's stopping rule closed the milestone "after three full
+iteration rounds that do not improve `recall@3` on the `authored` set by
+more than 5 percentage points."
+
+**`authored` recall@3 is 100.0%.** It cannot improve by any amount, so that
+condition fires after round three unconditionally — including after a round
+that took `warden-observed` from 91.3% to 100%. The rule was measuring
+progress on the one axis with no headroom.
+
+Corrected in the spec before any round ran: the no-progress test is
+evaluated on `recall@3` over the answerable set as a whole and on
+`warden-observed` specifically, with `authored` held as a regression floor.
+Threshold (5 pp) and budget (three rounds) unchanged — only the axis moves.
+Recorded in `docs/decisions.md § The retrieval stopping rule is measured on
+the metrics with headroom, not on the saturated one`.
+
+#### 16.4 The fixture set is frozen from here
+
+49 fixtures, unchanged for the duration of Part 2's iteration. No additions,
+no label corrections. If a label is found wrong mid-round it is recorded as
+an observation and fixed after the milestone closes.
+
+The reason is [S15.6](#156-labels-corrected-during-review--and-why-recall-went-up):
+that pass raised recall from 91.9% to 94.6% **without the index changing at
+all** — the ruler moved, not the thing being measured. Mid-iteration, a label
+fix is indistinguishable in the report from a chunking improvement, and would
+be read as one.
+
+#### 16.5 Teardown
+
+Nothing spent but 49 query embeddings. Index unchanged: 66 chunks, marker
+2.0.0, `voyage-4-lite`, 400-token target, no dropped pages.
+
+### S17 — 2026-08-07 · Round 1: the character-creation exclusion, implemented at last
+
+**Round 1 of 3** in M7.5's chunking iteration. Not a lever so much as a
+settled decision finally applied: `docs/decisions.md § Character-creation
+content is excluded from the rules index` decided this in M7.2, and
+`chunk_blocks`' own docstring records that it was left unimplemented on
+purpose, so as not to move the index before the baseline M7.5 iterates
+against existed. It exists now ([S16](#s16--2026-08-07--baseline-confirmed-and-the-m75-quality-bar-set)).
+
+#### 17.1 The change
+
+`drop_pages: [4, 41, 42]` in `ingestion/mothership/system.json` — physical,
+0-based indices, so printed pages 5, 42, and 43. Physical 41 and 42 are
+byte-identical duplicates of physical 4's character-creation spread, which
+is why one exclusion resolves three pages and needs no dedup logic
+([S2](#s2--2026-08-05--character-creation-is-unreachable-to-the-warden)).
+
+66 chunks → **63**. Provenance otherwise identical: marker 2.0.0,
+`voyage-4-lite`, 400-token target, 50–100 overlap, section headers excluded.
+Run `$ZOLTAR_EVAL_ROOT/retrieval-runs/mothership__2026-08-07T13-14-07Z`.
+
+#### 17.2 Scores
+
+| Group | recall@3 | MRR | n | vs. S16 |
+|---|---|---|---|---|
+| **all** | **94.6%** | 0.829 | 37 | recall — , MRR +0.027 |
+| authored | 100.0% | 1.000 | 14 | — |
+| warden-observed | 91.3% | 0.725 | 23 | recall — , MRR +0.044 |
+
+**Recall is unchanged on every row, exactly as predicted before the run.**
+These pages answer no fixture, so there was no recall to gain; what was
+being tested is whether removing them changes the *ranking* of everything
+else.
+
+#### 17.3 What actually moved, and how much of it is real
+
+Two fixtures improved, none regressed. Read at the per-fixture level,
+because the aggregate cannot distinguish these two cases and they are not
+the same:
+
+| Fixture | Before | After | Returned |
+|---|---|---|---|
+| `rq-021` | rank 2 | **rank 1** | `43, 23, 22/23` → `23, 22/23, 7` |
+| `rq-023` | rank 2 | **rank 1** | `22, 18, 27` → `18, 22, 27` |
+
+- **`rq-021` is attributable.** Printed p.43 is physical 42 — one of the
+  three pages this round dropped. It held rank 1 for a skills query; with it
+  gone, the correct page took the slot. That is the mechanism this round was
+  testing, caught in the act.
+- **`rq-023` is noise.** Printed pp.18 and 22 simply swapped ranks 1 and 2.
+  Neither is a dropped page, and dropping 4/41/42 cannot alter their chunks:
+  all three sit in their own `_chapter_key` runs, so no other run's merge
+  boundaries move. This is precisely the borderline-similarity reordering
+  [S15.7](#157-run-to-run-variance--recall-is-stable-mrr-is-not) measured
+  across three runs at *identical* configuration, made slightly likelier
+  here because `hnsw` is an approximate index and this round rebuilt it.
+
+**So the honest reading of +0.027 MRR is "about half of it is real."** One
+fixture's worth (0.5/37 = 0.014) is explained; the other is inside the noise
+band S15.7 established at ±0.03. This is why the bar is expressed in
+`recall@3` first and MRR second, and why S15.7's warning to repeat runs
+before believing a small MRR delta is load-bearing rather than decorative.
+
+#### 17.4 The finding worth more than the score: page-4 occupancy
+
+Counting every page cited across all 147 top-3 slots, before and after:
+
+| Page | Before | After |
+|---|---|---|
+| printed 5 / 42 / 43 (physical 4 / 41 / 42 — dropped this round) | 1 / 2 / 4 = **7 slots** | **0** |
+| **printed 4** (physical 3 — the character-profile sheet) | **10 slots** | **10 slots** |
+
+The dropped pages were consuming 7 of 147 slots (4.8%) and now consume
+none. But **printed page 4 alone consumes 10** — more than all three
+character-creation pages combined, unchanged by this round, and tied for
+the second-most-cited page in the entire corpus behind p.27.
+
+Physical page 3 is the character-profile sheet.
+[S3.7](#37-what-the-top-ranked-pages-actually-are) flagged it ranking top-3
+on stat-name density alone with no relevance to what was asked, and
+`docs/decisions.md` records it as "not yet extended to page 3 … tracked in
+`roadmap.md` M7.5 as a check, not yet a confirmed exclusion." It appears in
+the top 3 for `rq-003`, `rq-004`, `rq-007`, `rq-009`, `rq-011`, `rq-012`,
+`rq-017`, and `rq-043` — eight distinct fixtures, seven of them answerable
+queries about combat and stat checks.
+
+That is Round 2's target, and this round has now measured its cost
+precisely rather than leaving it as a suspicion.
+
+**Incidental, filed not chased:** printed p.44 (physical 43, the back-cover
+reference card) also holds 10 slots. That is lever 6's dedup question — the
+page duplicates live body rules — and it is not one of this milestone's
+three rounds.
+
+#### 17.5 Conclusion
+
+Kept. The exclusion was already decided on structural grounds (the Warden
+cannot reach these pages at all), so the measurement was never going to
+overturn it — the question was only whether it *costs* anything, and it
+costs nothing: no recall lost, seven false-positive slots recovered, one
+fixture demonstrably improved.
+
+**Round 1 does not move the bar.** `warden-observed` recall@3 is still
+91.3% against a bar of 95.6%, and MRR 0.829 against 0.85. Two rounds
+remain.
+
+### S18 — 2026-08-07 · Round 2: page 3 excluded; the MRR bar clears
+
+**Round 2 of 3.** The spec's cheapest lever and the open question
+`docs/decisions.md` left when it excluded pages 4/41/42: physical page 3,
+the character-profile sheet, "not yet extended … tracked in `roadmap.md`
+M7.5 as a check, not yet a confirmed exclusion."
+
+#### 18.1 The change
+
+`drop_pages` 4,41,42 → **3,4,41,42**. 63 chunks → **61**. Everything else
+identical: marker 2.0.0, `voyage-4-lite`, 400-token target, 50–100 overlap,
+section headers excluded. Run
+`$ZOLTAR_EVAL_ROOT/retrieval-runs/mothership__2026-08-07T13-17-31Z`.
+
+#### 18.2 Scores
+
+| Group | recall@3 | MRR | n | vs. S17 | vs. S16 baseline |
+|---|---|---|---|---|---|
+| **all** | **94.6%** | **0.856** | 37 | MRR +0.027 | MRR **+0.054** |
+| authored | 100.0% | 1.000 | 14 | — | — |
+| warden-observed | 91.3% | **0.768** | 23 | MRR +0.043 | MRR **+0.087** |
+
+**MRR reads 0.856 against the 0.85 bar.** Three consecutive scorings at this
+configuration read 0.856, 0.856, 0.856 — identical, where
+[S15.7](#157-run-to-run-variance--recall-is-stable-mrr-is-not) measured
+0.797 / 0.824 / 0.797 on the M7.2 index.
+
+> **Correction, [S22](#s22--2026-08-07--the-mrr-variance-did-not-go-away-and-the-bar-straddles-it).**
+> Three identical readings were luck, not stability. Eight scorings at this
+> exact configuration alternate between **0.842 and 0.856**, and the bar sits
+> between them. The paragraph originally here went on to conclude that the
+> variance S15.7 found "appears to have *been* the false-positive pages" —
+> that inference was drawn from three samples and does not survive eight.
+> **The MRR bar is not met**; see S22 for the corrected verdict.
+
+`recall@3` is unchanged at 94.6% / 100.0% / 91.3% for the third round
+running.
+
+#### 18.3 What moved, and this time all of it is attributable
+
+| Fixture | Before | After | Returned |
+|---|---|---|---|
+| `rq-003` | rank 2 | **rank 1** | `4, 28, 4` → `28, 29, 44` |
+| `rq-017` | rank 2 | **rank 1** | `4, 28, 29` → `28, 29, 44`* |
+
+\* `28, 29, 29`.
+
+Both had printed p.4 — physical 3, this round's exclusion — sitting at
+**rank 1 ahead of the correct page**, and both promoted the correct page
+when it was removed. No fixture regressed. Unlike S17, there is no
+unexplained second movement: the mechanism is visible in both rows.
+
+Printed p.4's share of the 147 top-3 slots: **10 → 0.** The most-cited
+pages are now p.27 (23), p.44 (14), p.29 (11), p.22 (10).
+
+#### 18.4 The pre-stated decision criterion was half-wrong, and saying so matters
+
+S17's plan for this round fixed the criterion **before** the run: *exclude
+if recall holds and unanswerable top-1 similarity falls; keep it and record
+why if recall drops on any fixture.*
+
+Recall held. **Unanswerable top-1 similarity did not fall** — it is flat to
+three decimals on 11 of 12 fixtures, and the distribution max is 0.417
+either way. By the letter of the criterion, the second clause never fired.
+
+The criterion was aimed at the wrong fixtures. It used unanswerable
+similarity as a *proxy* for false-positive pressure, on the theory that a
+page attracting spurious matches would be attracting them from queries the
+book cannot answer. It isn't: only `rq-043` retrieved p.4 among the twelve
+unanswerable fixtures. **Page 3's false positives were landing on
+*answerable* queries** — combat and stat-check questions where it displaced
+a page that genuinely answered — which the proxy cannot see at all.
+
+The decision is still to exclude, on evidence that is *stronger* than the
+criterion asked for: two answerable fixtures directly displaced, ten slots
+consumed, zero recall cost. But the criterion is recorded as written and as
+missed, because a criterion quietly reinterpreted after the fact is worth
+nothing, and the failure mode it exhibits — an aggregate proxy that cannot
+see the effect it stands in for — is the same one
+[S15.6](#156-labels-corrected-during-review--and-why-recall-went-up) and
+[S17.3](#173-what-actually-moved-and-how-much-of-it-is-real) keep finding
+in different clothes. **Read the per-fixture table.**
+
+#### 18.5 Conclusion, and what page 3 turned out to be
+
+Excluded. `ingestion/mothership/system.json` carries `drop_pages: [3, 4,
+41, 42]`; `docs/decisions.md § Character-creation content is excluded from
+the rules index` is updated to close its page-3 caveat.
+
+**But not for the reason the caveat guessed.** It read page 3 as "probably
+the same unreachable category" as 4/41/42. That is not what the evidence
+says. Pages 4/41/42 are excluded because the Warden *cannot reach them* —
+a structural argument that holds no matter what the index does. Page 3 is
+reachable and is excluded because it is *actively harmful*: it is a
+false-positive magnet whose stat-name density outranks real mechanics for
+real queries. Same action, different justification, and the difference
+matters for any future page — reachability is checked by reading the tool
+array, harm has to be measured.
+
+#### 18.6 Bar status after two rounds
+
+| Metric | Bar | Now | Met? |
+|---|---|---|---|
+| recall@3, `authored` | hold 100.0% | 100.0% | ✅ |
+| MRR, answerable | ≥ 0.85 | 0.842 – 0.856 | ❓ straddles — see [S22](#s22--2026-08-07--the-mrr-variance-did-not-go-away-and-the-bar-straddles-it) |
+| recall@3, `warden-observed` | ≥ 95.6% | 91.3% | ❌ |
+
+The outstanding recall bar needs a *miss* to become a hit, and both
+rounds so far have only reordered hits — which is exactly what excluding
+false positives can do and all it can do. The two misses are unchanged:
+`rq-015`, which needs p.12's tables to extract at all, and `rq-024`.
+One round remains.
+
+### S19 — 2026-08-07 · Round 3: `SectionHeader` inclusion makes things worse, informatively
+
+**Round 3 of 3**, and the round this file exists for. It made retrieval
+worse and is kept in the record at full length, because *why* it failed
+identifies two follow-ups that no round which merely worked would have
+surfaced.
+
+#### 19.1 The change
+
+`--include-section-headers`: the 169 `SectionHeader` blocks
+(2,632 characters of topic labels) admitted to the corpus as indexable
+content rather than excluded outright. 61 chunks → **63**. `drop_pages`
+held at 3,4,41,42; everything else identical. Run
+`$ZOLTAR_EVAL_ROOT/retrieval-runs/mothership__2026-08-07T13-22-18Z`.
+
+The motivating cost was measured in
+[S9.1](#91-two-corrections-to-s8s-method): `surprise` scores as absent from
+the entire book across every query using it, because the PSG prints a
+`26.2 SURPRISE` section whose words survive extraction only in the heading.
+
+#### 19.2 Scores — a regression on every axis but one
+
+| Group | recall@3 | MRR | n | vs. S18 |
+|---|---|---|---|---|
+| **all** | **91.9%** | 0.833 | 37 | **−2.7 pp**, MRR −0.023 |
+| authored | 100.0% | 0.964 | 14 | recall — , **MRR −0.036** |
+| warden-observed | **87.0%** | 0.754 | 23 | **−4.3 pp**, MRR −0.014 |
+
+The `authored` MRR drop is the one to notice: that set had been at a
+perfect 1.000 since M7.2, so this is the first change in the project's
+history to knock a hand-authored question off rank 1.
+
+#### 19.3 Seven fixtures moved — and the two mechanisms are opposite
+
+| Fixture | Style | Before | After | Returned |
+|---|---|---|---|---|
+| `rq-015` | warden-obs | **miss** | **2** | `2, 7, 44` → `2, 12, 7` |
+| `rq-019` | warden-obs | 2 | **1** | `3, 21, 16` → `21, 3, 17` |
+| `rq-005` | warden-obs | 2 | 3 | `10, 22, 10` → `10, 10, 22` |
+| `rq-010` | warden-obs | 1 | 2 | `19, 28, 19` → `28, 19, 44` |
+| `rq-026` | **authored** | 1 | 2 | `21, 21, 44` → **`44`**`, 21, 21` |
+| `rq-020` | warden-obs | 3 | **miss** | `28, 31, 19` → `28, 31, `**`44`** |
+| `rq-025` | warden-obs | 3 | **miss** | `27, 19, 18` → **`44`**`, 27, 19` |
+
+Net recall: +1, −2.
+
+**Mechanism A — a page returns from the dead.** `rq-015` had been an
+unfixable miss since the fixture set was authored: it expects pp.12/17, and
+**printed page 12 was absent from the index entirely** because all of its
+`Table` blocks extract as `<p></p>`
+([S3.2](#32-the-corpus), flagged in [S15.1](#151-the-fixture-set) when the
+label was written). Heading inclusion put it back. Confirmed directly in
+the index — the p.12 chunk's entire content is heading text:
+
+> `FIREARMS | F20 "ARBITER" 2.4KCR PULSE RIFLE | ARMA 29 1KCR SUBMACHINE GUN | FN SLUG 750CR REVOLVER | …`
+
+No prose, no table rows: on that page the headings were the *only* text
+that survived extraction. This is S9.1's `surprise` problem, caught fixing
+itself on a different page.
+
+**Mechanism B — the reference card learns the vocabulary.** Three of the
+four regressions are printed p.44 (physical 43, the back-cover reference
+card) displacing a body page, twice taking rank 1 outright. Its chunks now
+open with the exact words queries are made of:
+
+> `Stat Checks | Saves | Roll 1d100 less than your Strength, Speed, Intellect, or Combat…`
+> `Panic Checks | Roll 1d100 less than your Sanity, Fear, or Body…`
+
+`Stat Checks`, `Saves`, and `Panic Checks` are section headings this round
+admitted. p.44 is a *compressed restatement* of pp.18–21, so it was always
+a near-duplicate competing in cosine ranking — heading inclusion handed it
+the topic labels and let it win.
+
+**So the lever does exactly what it says, in both directions.** Headings
+are the highest-signal topic labels in a rulebook. That helps a page whose
+body text didn't extract and hurts a page that is *nothing but* labels.
+The PSG has one of each, and the second is more numerous.
+
+#### 19.4 Conclusion: reverted
+
+Not adopted. `CONTENT_BLOCK_TYPES` keeps `SectionHeader` excluded by
+default and `--include-section-headers` stays an opt-in flag. The index is
+back at round 2's configuration — 61 chunks, `drop_pages: [3, 4, 41, 42]`,
+headings excluded — which remains the best measured state.
+
+#### 19.5 Two follow-ups this round earned, neither of them a fourth round
+
+**1. `rq-015` is now a demonstrated extraction defect, not a chunking
+problem — which is the exact condition the milestone's fixup-patch clause
+waits on.** `docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md` scopes
+in "fixup patches for Mothership, **if and only if** iteration shows
+extraction defects that patches fix better than chunking changes do." That
+condition has now fired with evidence on both halves: a chunking change
+*can* recover p.12 (mechanism A) but costs two fixtures to do it
+(mechanism B), while a fixup patch supplying p.12's table text would
+recover it at no cost to anything else. `ingestion/mothership/fixups.json`
+is still `[]` and the block-`id` matcher it needs has been in place since
+M7.2.
+
+The patch is not written here, because its replacement text is transcribed
+table content from the book, and authoring it is a human transcription task
+rather than an automated one.
+
+**Correction, 2026-08-07:** this paragraph originally added that `templates/`
+"is gitignored for exactly that reason." It is not — nothing under
+`ingestion/mothership/` is ignored, and the claim came from misreading a
+directory listing. That makes the licensing question sharper rather than
+softer: a fixup template holds transcribed book text, and
+`docs/rules-ingestion.md § What ships in the repository` says extracted text
+does not ship. **Where that text lives has to be settled before a fixup is
+authored, not after.**
+
+**2. Lever 6's dedup question is no longer low-priority.** The open
+question below has described pages 1 and 43 as "still open, lower priority"
+since S1. Round 3 measured what they cost: p.44 alone holds **14 of 147
+top-3 slots** at round 2's configuration and takes rank 1 from body pages
+the moment it is given topic labels. Whether the right treatment is
+dropping physical 43, deduping it against pp.18–21, or leaving it, it is
+now a question with numbers attached rather than a suspicion.
+
+**Neither is run as a fourth round here.** Three rounds was the budget, and
+the stopping rule is evaluated on what three rounds produced — see 19.6.
+A combined "headings on, physical 43 dropped" configuration is the obvious
+next experiment and is *predicted* to clear the outstanding bar metric
+(recovering `rq-015` while returning `rq-020`/`rq-025`/`rq-026`), but that
+prediction is precisely why it needs to be someone's deliberate decision
+rather than one more round appended because the last one was interesting.
+
+#### 19.6 Stopping-rule status after three rounds
+
+| | recall@3 all | recall@3 warden-obs | MRR |
+|---|---|---|---|
+| S16 baseline | 94.6% | 91.3% | 0.802 |
+| Round 1 | 94.6% | 91.3% | 0.829 |
+| Round 2 | 94.6% | 91.3% | **0.856** |
+| Round 3 | 91.9% | 87.0% | 0.833 |
+| **Shipped (round 2)** | **94.6%** | **91.3%** | **0.856** |
+
+Aggregate `recall@3` across three rounds: **94.6% → 94.6%, a movement of
+0.0 pp** — far short of the 5 pp the rule asks for.
+
+**The stopping rule fires.** Against the bar:
+
+| Metric | Bar | Shipped | |
+|---|---|---|---|
+| recall@3, `authored` | hold 100.0% | 100.0% | ✅ |
+| MRR, answerable | ≥ 0.85 | 0.842 – 0.856 | ❓ straddles ([S22](#s22--2026-08-07--the-mrr-variance-did-not-go-away-and-the-bar-straddles-it)) |
+| recall@3, `warden-observed` | ≥ 95.6% | 91.3% | ❌ |
+
+**One of three met, one indeterminate, one missed; the milestone closes on
+the shortfall condition.** An earlier version of this table read "two of
+three" on a 0.856 MRR reading; S22 shows that number is one of two values the
+same configuration alternates between, so it cannot be claimed.
+
+The shortfall is honest and it is small: `warden-observed` recall@3 is 21 of
+23, and the bar asks for 22. Both misses are now diagnosed rather than
+mysterious — `rq-015` is an extraction defect with a known fix that is not
+a chunking change, and `rq-024` is the only genuinely open retrieval miss
+in the whole set.
+
+**What three rounds actually bought**, since "the bar was not met" reads
+worse than the record deserves: MRR from 0.802 to roughly 0.849 (the midpoint
+of the 0.842/0.856 band S22 measures), so about +0.047 — real, and about
+three times the run-to-run noise, though not the clean +0.054 an unlucky
+single reading suggested. Seventeen
+of 147 top-3 slots were being consumed by pages that answer nothing; they
+now hold zero. What did *not* move is recall, and the reason is now
+understood rather than assumed: every round so far could only reorder hits,
+because removing a false positive cannot turn a miss into a hit. The two
+misses need different instruments, and the record names both.
+
+### S20 — 2026-08-07 · The similarity floor, re-derived against the final index: still no
+
+M7.5 Part 4. [S15.4](#154-no-similarity-floor-separates-answerable-from-unanswerable--in-either-configuration)
+answered this against the M7.2 index; the spec requires re-deriving it
+against the index that actually ships, since a floor changes what reaches
+the Warden and the whole point of three rounds of iteration was to change
+the index. Run
+`$ZOLTAR_EVAL_ROOT/retrieval-runs/mothership__2026-08-07T14-22-15Z`,
+61 chunks, `drop_pages: [3, 4, 41, 42]`.
+
+#### 20.1 The distributions
+
+| Set | n | min | median | max |
+|---|---|---|---|---|
+| answerable, correct hit | 35 | **0.342** | 0.501 | 0.600 |
+| unanswerable | 12 | 0.270 | 0.348 | **0.416** |
+
+**Overlap zone 0.342 – 0.416**, and the two sets are interleaved inside it
+rather than merely touching at the edges: it contains 5 of the 35 correct
+answers and 6 of the 12 unanswerable queries.
+
+```
+answerable-correct, lowest:  0.342  0.367  0.397  0.398  0.407  0.420 …
+unanswerable, highest:    … 0.350  0.375  0.377  0.396  0.416  0.416
+```
+
+**Three rounds of chunking moved this by 0.001.** S15.4 measured
+0.342–0.601 against 0.270–0.416 on the M7.2 index; the numbers above are
+the same to three decimals. That is not a coincidence and it is the more
+useful half of this session — see 20.3.
+
+#### 20.2 The tempting threshold, and why it is not taken
+
+The overlap is not uniform, and a threshold placed *below* the answerable
+minimum looks free:
+
+| Floor | Correct answers discarded | Unanswerable suppressed |
+|---|---|---|
+| 0.30 | **0 of 35** | 4 of 12 |
+| 0.34 | **0 of 35** | **5 of 12** |
+| 0.35 | 1 of 35 | 6 of 12 |
+| 0.38 | 2 of 35 | 9 of 12 |
+| 0.42 | 5 of 35 | 12 of 12 |
+
+A floor at 0.34 suppresses 42% of unanswerable queries at zero measured
+cost. It is the obvious thing to ship and it is rejected.
+
+**It is fitted to an order statistic on n=35.** 0.342 is not "the lowest
+similarity a correct answer has"; it is the lowest similarity a correct
+answer had *in this sample*, and the sample is 35 points. A floor set just
+under the sample minimum has a measured cost of exactly zero **by
+construction** — it was placed there to have one — and an unmeasured cost
+on every query the fixture set does not contain. The one number that would
+justify it, the distribution's true left tail, is precisely what 35 points
+cannot estimate.
+
+The asymmetry decides it. A suppressed unanswerable query costs the Warden
+nothing: it already handles the empty-result path correctly, with an
+explicit prompt block and a `gmUpdates.notes` convention for recording the
+gap. A suppressed *correct* chunk costs a wrong ruling with no trace that
+anything was withheld. Trading a real risk of the second for a cosmetic
+improvement in the first is a bad trade at any exchange rate, which is what
+the spec means by "a floor that discards good chunks is worse than none."
+
+**Recorded because the table above is genuinely persuasive and will be
+persuasive again.** Anyone re-running this analysis will find the same free
+lunch and should find this paragraph next to it.
+
+#### 20.3 Why chunking was never going to fix this
+
+The distributions did not move because **the excluded pages were almost
+never the top-1 hit for an unanswerable query.** Rounds 1 and 2 removed
+pages that were displacing correct answers on *answerable* queries — real
+value, measured in `§ S17.4` and `§ S18.3` — but an unanswerable query's
+top hit was already a legitimate, topically-adjacent chunk, and removing
+false positives elsewhere does not make it less similar.
+
+The unanswerable queries score 0.27–0.42 because they ask about mechanics
+the book does not have **in vocabulary the book does use**: `suppressive
+fire`, `flanking`, `opposed rolls` are all absent as concepts, but
+`combat`, `armor`, `roll`, and `cover` are not. The embedding is measuring
+real topical proximity. It is not wrong; the question is unanswerable, and
+nothing about how the text is cut into chunks changes that.
+
+**Consequence for whoever picks this up.** A floor becomes derivable when
+the *unanswerable distribution shifts down*, and the only lever that moves
+it is upstream of retrieval entirely: stop the Warden generating
+concept-absent queries. That is the mechanical-model primer in M7.5
+Part 4.6 — `§ S9.3` measured concept-absent at 130 of 344 out-of-corpus
+queries (37.8%), and the floor question is downstream of that number, not
+of the chunker. Re-derive the floor after the primer has been measured, not
+after the next chunking change.
+
+#### 20.4 Decision
+
+**No floor.** `RulesLookupService.lookup()` is unchanged and still returns
+whatever `findByCosineSimilarity` gives back; `docs/tools.md` needs no
+update because `rules_lookup`'s observable behaviour is unchanged.
+Recorded in `docs/decisions.md § No similarity floor for rules_lookup`.
+
+This also removes one intended variable from the M7.5 re-baseline: it
+carries four deliberate changes, not five.
+
+### S21 — 2026-08-07 · The query-side instrument, and the before-number for M7.5's prompt levers
+
+M7.5 Part 4.6. Two prompt-only levers landed this milestone — vocabulary
+bridging and the mechanical-model primer — and neither can be measured by
+`task eval:retrieval`, which scores *frozen fixture queries* and is therefore
+structurally blind to a change in what the Warden asks. This session builds
+the instrument that can, and takes the before-reading.
+
+#### 21.1 The instrument was already on disk
+
+`task eval:query-vocab <run-dir>` reports the share of emitted `rules_lookup`
+queries carrying at least one term absent from the corpus.
+
+The queries did not need a new run to collect. `warden-output.json` is the
+full serialized `TurnExecutionResult` (`docs/decisions.md § warden-output.json
+is the full serialized TurnExecutionResult`), its `telemetry` field is the
+`adventure_telemetry` row, and `payload.rulesLookups` records the query text
+of every `rules_lookup` call in that turn. **Every eval run ever completed
+already contains its own query corpus.**
+
+That the M7 baselines ran against an *empty* index is no obstacle:
+`RulesLookupService.lookup()` embeds and queries regardless of whether the
+index has rows — deliberately, "because every lookup attempt is telemetry
+input for ingestion prioritization." A design choice made for ingestion
+prioritisation turns out to have been recording the before-picture for a
+prompt experiment nobody had planned yet.
+
+**The corpus is held constant across before and after.** Both readings below
+score against the final 61-chunk index, not against the empty index those
+runs actually queried. The question is "would this query find anything in the
+corpus we ship" — so the corpus must not be a variable, or the comparison
+measures two things at once.
+
+#### 21.2 Before — both frozen `88fa84bd8329` runs
+
+| | `claude-sonnet-4-6` | `claude-sonnet-5` |
+|---|---|---|
+| Distinct queries | 257 | 102 |
+| Total lookups | 352 | 134 |
+| **Out-of-corpus rate** | **61.9%** | **66.7%** |
+| Weighted by lookups | 50.3% | 73.1% |
+
+Comparable in kind to [S9](#s9--2026-08-06--wrong-word-vs-concept-absent-across-all-596-queries)'s
+57.6% over 596 queries from `unicorn-artifacts`, and better evidence: same
+fixtures, same corpus, paired against the after-reading rather than sampled
+from a different population.
+
+**The two rates differ in a way worth not over-reading.** Sonnet 5 makes far
+fewer lookups (134 vs 352) and a higher share of them are out of corpus. That
+is consistent with it querying more selectively and only reaching for
+`rules_lookup` on the harder mechanical questions — which are exactly the ones
+whose vocabulary the book does not have — but the distinct/weighted split
+points the other way for 4.6 (50.3% weighted vs 61.9% distinct means its
+*repeated* queries are mostly in-corpus). Two models, one run each: not a
+finding, just a shape to check again after.
+
+#### 21.3 The absent-term table is the design review the prompt levers wanted
+
+Top corpus-absent lexemes across the 4.6 run, with the Part 4.6 block that
+targets each:
+
+| lexeme | queries | as written | addressed by |
+|---|---|---|---|
+| `difficulti` | 24 | difficulty | primer — roll-under, no DC |
+| `initi` | 19 | initiative | bridging — `initiative` → turn order |
+| `suppress` | 19 | suppressing, suppression, suppressive | primer — no suppressive fire |
+| `stealth` | 18 (24 on Sonnet 5) | stealth | bridging — `stealth` → sneak |
+| `threshold` | 18 | threshold, thresholds | primer — no target number |
+| `percept` | 17 | perception | bridging — `perception` → Intellect Check |
+| `oppos` | 7 | opposed | primer — no opposed rolls |
+| `target` | 6 | target | primer — no target number |
+| `flank` | 4 | flanking | primer — no flanking |
+
+Nine of the eleven most common absent terms are named explicitly in one block
+or the other. That is corroboration rather than luck — both blocks were
+written from `§ S8.3`/`§ S9.3`'s buckets — but it is the first time the two
+have been checked against each other term by term, and it is the reason to
+expect this rate to move at all.
+
+`npc`, `rpg`, `threat`, `background`, and `cautious` are the residue neither
+lever targets: generic framing words the Warden pads a query with. Nothing in
+the book prints `RPG`.
+
+**`surpris` (7 queries) is a false absent in the honest sense**, and a useful
+check that the instrument is measuring what it claims. The PSG *does* have a
+surprise rule; its words live only in a `26.2 SURPRISE` heading, and headings
+are excluded from the corpus ([S9.1](#91-two-corrections-to-s8s-method),
+[S19](#s19--2026-08-07--sectionheader-inclusion-makes-things-worse-informatively)).
+The term is absent from the *index*, which is what this scores, and it is
+absent for a reason that is now understood and deliberate.
+
+#### 21.4 The `§ S9.1` hazard, guarded by a test rather than by memory
+
+S8 checked term presence with `to_tsquery('english', lexeme)` on lexemes
+`websearch_to_tsquery` had already stemmed. Postgres stems them a second
+time — `surpris` → `surpri`, `oppos` → `oppo` — so a term can fail to match
+its own tsvector entry and report as absent from a book that prints it. Three
+of 100 terms were false absents before it was found, and the failure is
+silent: every number stays plausible.
+
+This scorer reuses `RulesRepository.queryTermFrequencies`, which matches with
+`plainto_tsquery('simple', …)` and does not re-stem, and presence is decided
+by `documentFrequency === 0` with no second pass anywhere. A regression test
+pins it, because "we remembered not to do the thing" is not a guard.
+
+#### 21.5 What happens next, and what would count as a result
+
+Re-run against the M7.5 re-baseline's own directories once they exist. The
+prompt hash moves `97feadbd` → **`0bdd1306`**; the corpus, the fixtures, and
+this scorer are unchanged, so the query distribution is the only variable on
+this particular measurement even though the re-baseline as a whole carries
+four.
+
+*(The primer was revised once more on 2026-08-08 — `ce9984a7` → `fc830097` —
+after Task 2's hand-scoring found it teaching a house convention as though it
+were RAW. See `§ S24`.)*
+
+A fall in the rate is the effect both levers exist to produce. **A flat rate
+is also a result**: it says prompt-side guidance is insufficient and the
+per-system synonym table — real ongoing authoring cost, deferred in M7.5 — is
+the remaining option, which is precisely the decision `docs/roadmap.md`'s
+vocabulary-bridging bullet defers to this number.
+
+One caution against a plausible misreading. This rate is computed over query
+*text* against the corpus lexeme set, so it is insensitive to chunking: three
+rounds of page exclusion cannot move it, and a better index shrinks the
+*consequence* of an out-of-corpus query without shrinking the rate. It
+measures the Warden, and only the Warden.
+
+### S22 — 2026-08-07 · The MRR variance did not go away, and the bar straddles it
+
+A correction to [S18.2](#182-scores), caught while refreshing the ingest
+manifest at the end of the milestone. Cheap to find, and it changes the
+milestone's recorded verdict, so it gets its own session rather than a
+footnote.
+
+#### 22.1 What S18 claimed, and why it was wrong
+
+S18 reported MRR 0.856 at the round-2 configuration and supported it with
+three consecutive identical scorings — against
+[S15.7](#157-run-to-run-variance--recall-is-stable-mrr-is-not)'s 0.797 /
+0.824 / 0.797 on the M7.2 index. From that it inferred that the run-to-run
+variance S15.7 measured "appears to have *been* the false-positive pages":
+ties between a real answer and a stat-density match are the borderline pairs
+that reorder between runs, and rounds 1 and 2 had removed them.
+
+Eight scorings at that exact configuration, `drop_pages: [3, 4, 41, 42]`,
+61 chunks, nothing else changed:
+
+```
+0.856  0.856  0.856  0.842  0.856  0.842  0.856  0.842
+```
+
+**The three identical readings were luck.** The inference drawn from them was
+a three-sample generalisation that does not survive eight, and it happened to
+run in the direction that made the milestone look better — which is the
+reason to write this up rather than quietly edit the number.
+
+#### 22.2 What the variance actually is
+
+The spread is 0.0135, which is 0.5/37 to three decimals: **exactly one
+fixture alternating between rank 1 and rank 2.** The same signature S15.7
+identified, at the same magnitude, on a smaller index.
+
+Recall@3 was 94.6% on every one of the eight runs, and per-style recall never
+moved. Only the ranking of a single borderline pair does.
+
+The mechanism is `hnsw`. It is an *approximate* nearest-neighbour index
+(`V18__rules_chunk_hnsw_index.sql`, [S14](#s14--2026-08-06--the-vector-index-swapped-to-hnsw-under-return-fixed)),
+so two chunks whose cosine similarity differs in the third decimal are not
+guaranteed a stable order between traversals. Removing false-positive pages
+reduced how many such pairs exist; it did not and could not make the index
+exact.
+
+#### 22.3 The corrected bar verdict
+
+| Metric | Bar | Shipped | Met? |
+|---|---|---|---|
+| recall@3, `authored` | hold 100.0% | 100.0%, all 8 runs | ✅ |
+| recall@3, `warden-observed` | ≥ 95.6% | 91.3%, all 8 runs | ❌ |
+| MRR, answerable | ≥ 0.85 | 0.842 – 0.856 (mean ≈ 0.851) | **❓ cannot be claimed** |
+
+**One met, one missed, one indeterminate.** The MRR bar sits inside the noise
+band, so a run that clears it and a run that does not are the same
+configuration observed twice. Reporting "0.856 ≥ 0.85, met" would be
+selecting the favourable half of a coin flip.
+
+That the mean (≈0.851) is a hair above the bar does not rescue it. The bar
+was set at 0.85 *specifically* to sit outside the ±0.03 band S15.7 measured
+([S16.2](#162-the-bar)), on the assumption that clearing it would therefore
+be an effect rather than a lucky run. On the shipped index the band is
+narrower (±0.007) but the improvement is smaller too, and the margin is
+0.001. The bar's own design criterion is not satisfied.
+
+**This does not change what the milestone closes on.** The stopping rule had
+already fired on `recall@3` moving 0.0 pp across three rounds
+([S19.6](#196-stopping-rule-status-after-three-rounds)), and
+`warden-observed` recall was short by one fixture either way. It changes the
+honesty of the summary: one bar metric met, not two.
+
+#### 22.4 Method note
+
+**Repeat a run before believing an MRR delta** — S15.7 said this in as many
+words, and S18 did repeat it, three times, and still drew a conclusion the
+data did not support. Three samples is not enough to establish stability when
+the quantity you are testing for is *occasional* reordering; it is enough to
+get three of the same value by chance better than half the time if one value
+dominates.
+
+The cheap fix, for anyone running the next round: **read `recall@3` as the
+verdict and MRR as colour.** Recall was identical across all eight runs here,
+across the three in S15.7, and across every round in S17–S19. It is the
+metric this harness measures reliably.
+
+### S23 — 2026-08-07 · The label audit: the bar clears, and the ruler is what moved
+
+M7.5 open-work Task 1. An audit of every fixture whose expected pages are
+absent from the index or whose verdict looked suspect. **The bar now clears
+on all three metrics. Almost none of that is retrieval getting better.**
+
+#### 23.1 Scope: two fixtures, not a sweep
+
+Of 37 answerable fixtures, only two warranted a verdict — both of them the
+misses. A first pass caught only misses, which is half the job: a *too-broad*
+label shows up as a pass and is invisible in the report, so a second pass
+swept for broad labels, rank-3 hits, and hits arriving via a reference card.
+That surfaced three more (`rq-004`, `rq-020`, `rq-025`), none of which needed
+a change.
+
+Printed pages absent from the index: **12, 13** (the empty-table defect), **1**
+(cover), and **4, 5, 42, 43** (deliberately dropped in rounds 1–2).
+
+#### 23.2 `rq-015` — relabelled
+
+*"ammo tracking weapon fire rate Mothership"*, was `expectedPages: [12, 17]`,
+returning `2, 7, 44`, scored a **miss**.
+
+Adjudicated against `§ S15.6`'s criterion — a page belongs in `expectedPages`
+if a chunk from it would let the Warden *adjudicate*, not merely mention:
+
+- **p.2 added.** The front reference card's `WEAPON` table carries the `SHOTS`
+  column and an `Ammo` row — the same data p.12 would supply. It was returning
+  at **rank 1 the whole time** and being scored a miss.
+- **p.12 kept**, though absent from the index. Labels come from the book, never
+  from the index (`§ S15.1`), and recall counts a hit if *any* listed page
+  returns, so keeping it costs nothing and documents what the page should do.
+- **p.17 removed.** Its ammo-token suggestion is a bottom-of-page sidebar about
+  supplies and accessories carrying no rules text. Confirmed against the
+  physical book by Alex; the indexed p.17 contains no "ammo", "token", or
+  "track" at all.
+- **p.7 rejected.** Loadouts only.
+
+Now `[2, 12]`, hitting at rank 1.
+
+#### 23.3 `rq-024` — left alone, deliberately
+
+*"combat initiative and movement through corridors"*, `[26, 30, 31]`,
+returning `27, 27, 27`, still a **miss**. Not a label artifact, and worth
+keeping broken:
+
+- p.26 carries `26.1 TURN ORDER` — the initiative half's real answer — and it
+  **is in the index**. Retrieval simply never surfaced it.
+- p.27 (`WHAT CAN I DO?`) answers the movement half and the what-happens-on-a-
+  turn part, but not turn order. Partial, and adding it would convert a real
+  failure into a pass.
+- It is the canonical wrong-word case: the query says `initiative`, the book
+  prints `turn order` (`§ S9.3`).
+
+**That last point makes this fixture an asset.** It is exactly what the
+vocabulary-bridging prompt block (Part 4.6) targets, so it should flip on its
+own if that lever works. Relabelling it would destroy the only instrument
+that can show it.
+
+Also noted, not a label problem: all three returned chunks come from p.27, so
+the Warden received one page across three slots. `rq-037` and `rq-038` do the
+same and are currently scored as hits.
+
+#### 23.4 The new numbers, and the accounting that matters
+
+| Metric | Bar | Before audit | After audit |
+|---|---|---|---|
+| `recall@3` all | — | 94.6% (35/37) | **97.3%** (36/37) |
+| `recall@3` `authored` | hold 100.0% | 100.0% | 100.0% ✅ |
+| `recall@3` `warden-observed` | ≥ 95.6% | 91.3% (21/23) | **95.7%** (22/23) ✅ |
+| `MRR` answerable | ≥ 0.85 | 0.842 – 0.856 | **0.869 – 0.883** ✅ |
+
+Three runs at the new labels read 0.883 / 0.869 / 0.869 — the whole band is
+above the bar, so unlike `§ S22`'s straddle this one can be claimed.
+
+**All three metrics clear. The milestone still did not improve retrieval.**
+The accounting:
+
+| Source | `recall@3` movement |
+|---|---|
+| Three chunking rounds (`§ S17`–`§ S19`) | 94.6% → 94.6% — **0.0 pp** |
+| One label correction (this session) | 94.6% → 97.3% — **+2.7 pp** |
+
+This is `§ S15.6` repeating exactly: *the index did not change; the ruler did.*
+It was predicted before the audit ran, which is the only reason it is being
+reported this way rather than as a success.
+
+**What the audit genuinely found** is worth separating from what it did not.
+It did not make retrieval better. It found that retrieval was **better than
+measured** — the index had been answering `rq-015` correctly at rank 1 since
+M7.2, and a wrong label had been recording that as a failure. That is a real
+finding about the measurement apparatus, and it retroactively means M7.2's
+94.6% understated the index.
+
+**Consequence for the stopping rule:** unchanged. It fired on three rounds
+moving aggregate `recall@3` by 0.0 pp (`§ S19.6`), and that is still true. The
+milestone closed on the shortfall condition; the bar clearing afterwards, by a
+ruler fix, does not retroactively convert it into a bar-met close. Recording
+it as one would be the most flattering available reading of a number nobody
+earned.
+
+#### 23.5 What this does to the fixup trigger
+
+`§ S19.5` recorded the fixup-patch condition as fired, on the strength of
+`rq-015` being an extraction-defect miss. **That is withdrawn.** `rq-015` was
+never a real miss, and pp.12-13's stat content is duplicated on p.2, so the
+empty-table defect costs the fixture set nothing measurable.
+
+A real fixup target survives, and it is a different one: pp.14-15 and p.2's
+`ARMOR` tables extract with the **armor names stripped** (`Basic clothing. |
+100cr | 1 | None | Normal` — no name). Present-but-broken, which retrieves
+confidently and looks like an answer. No fixture covers it, which is why the
+scored set never caught it.
+
+### S24 — 2026-08-08 · The primer was teaching a house rule as though it were RAW
+
+Found during Task 2's hand-scoring, before a single number was measured — which
+is the argument for doing that scoring by hand and doing it early.
+
+#### 24.1 What the primer said
+
+The mechanical-model primer added in Part 4.6 ended:
+
+> When the fiction calls for something the system has no rule for, adjudicate
+> it with a Stat Check or a Save and Advantage/Disadvantage.
+
+That instructs the Warden to convert **everything** into a roll. It omits both
+halves of the book's actual model.
+
+#### 24.2 What the book says
+
+`HOW TO PLAY` (printed p.17) states it positively:
+
+> You can attempt to do anything you want… **Most things you want to do just
+> happen.**
+>
+> You should ask a lot of questions. **The more information you have, the less
+> likely you'll have to make risky rolls** like Stat Checks and Saves.
+>
+> Stat Checks are made when you want to do something and **the price for
+> failure is high**.
+
+So a Stat Check is *gated* on consequence, and information-gathering is the
+thing players do **instead of** rolling — it reduces rolls rather than being
+one.
+
+**There is no perception, awareness, spot, or search mechanic in the PSG.**
+Checked exhaustively against the index: every hit for `notice`, `search`,
+`spot`, `examine`, and `investigate` is non-mechanical — equipment blurbs
+(scanner, sample kit), the safety-tools paragraph, a Skill *description*
+("Exobiology: the study of and search for intelligent alien life"), p.27's
+list of things you can do on a turn, and NPC-table motivations. `awareness` and
+`observe` return zero. The one play example that looks perception-shaped
+resolves as a **Strength** Check to force a jammed door.
+
+#### 24.3 How it surfaced, and why the instrument found it
+
+`turn01-unauditable-mapping`'s player input is *"open the emergency bulkhead
+and scan the surroundings."* The Warden emitted `perception check scan
+surroundings skill`. Scoring that row forced the question the project had
+never actually asked: **is there a perception check in Mothership?**
+
+There is not. The project had been treating "what do I see" as an Intellect
+check — a perfectly good house rule, which the book explicitly blesses — but
+it had drifted into being treated as rules-as-written, and the primer then
+taught the drift back to the Warden.
+
+**The fixture's own tag is the tell.** `UNAUDITABLE-MAPPING` catches a
+spontaneous GM-side roll whose `purpose` never states what the results mean.
+A Warden told to convert every ruleless situation into a Stat Check will
+manufacture exactly those rolls — so the primer was pushing the Warden toward
+the failure mode the fixture exists to detect.
+
+#### 24.4 The revision
+
+A new `MOST THINGS ARE NOT A ROLL` block, and a fallback that gates rather
+than converts: *first ask whether it needs a roll at all; if the price of
+failure is high, adjudicate with a Stat Check or Save; otherwise narrate.*
+The perception line names four synonyms and then says "not under any other,"
+because naming three invites a fourth. And it supplies the alternative —
+gate detail behind the fiction, equipment, time, and light — since the old
+text said don't-look-it-up without saying what to do instead, which is how a
+stretched Intellect check gets invented.
+
+Prompt hash `ce9984a7` → **`fc830097`**. Free now; after Part H it would have
+cost another baseline.
+
+#### 24.5 The generalisable lesson
+
+This is the third primer error in two days, after `Sensors` (a term appearing
+in zero chunks) and the roll-under/Panic-Check and Critical-Failure mistakes
+(`§ S21` commit trail). The first two were caught by checking claims against
+the index. **This one could not have been**: every word of "adjudicate it with
+a Stat Check" is in the corpus, and the sentence is wrong about the *model*
+rather than about any term.
+
+That is precisely the gap `task eval:query-vocab` cannot see and the reason
+Task 2 is a human pass. It also means **a prompt that teaches a game's
+mechanics needs the same verification discipline as a retrieval claim, and
+has one fewer automated check available to it.**
+
+### S25 — 2026-08-08 · Task 2's hand-scoring: the primer's predicted ceiling, and where it misses
+
+All 106 distinct Sonnet 5 queries from
+`claude-sonnet-5__97feadbd__2026-07-29T15-40-17Z`, hand-scored by Alex against
+the rubric at `$ZOLTAR_EVAL_ROOT/eval-runs/query-worksheet-rubric.md`. 4.6's
+287-row set was deliberately not scored — Sonnet 5 is the shipped Warden, 4.6
+is the retained comparison baseline, and `eval:query-vocab` plus the tier-2
+probe still cover both models automatically.
+
+Columns: **C** — is the mechanic in the book (the extracted corpus, which is
+what `rules_lookup` searches). **P** — does the primer answer it. **N** — did
+the situation call for a lookup. **E** — does the query express the need,
+defined only where `N=y`.
+
+#### 25.1 The prediction
+
+| | rows | share |
+|---|---|---|
+| `C=n` — the book lacks the mechanic | 58 | 54.7% |
+| `P=y` — the primer answers it | 58 | 54.7% |
+| `P=y`, weighted by actual lookups | 83 of 134 | **61.9%** |
+
+So the primer as written should eliminate or redirect **about three fifths of
+this run's lookups**. That is the ceiling Part H measures against, obtained
+before spending anything.
+
+#### 25.2 `C` and `P` are the same *count* and not the same *set*
+
+| | `P=y` | `P=n` |
+|---|---|---|
+| **`C=n`** | 31 | **27** |
+| **`C=y`** | 27 | 21 |
+
+Both diagonals are findings.
+
+**27 concept-absent queries the primer does not cover.** They cluster hard:
+`turn14` and `turn16` are almost entirely stealth — *"opposed rolls for
+avoiding detection"*, *"stealth check contested by NPC awareness"*, *"evasion
+checks"*. The primer said there are no opposed rolls; it never said what
+stealth *is*. Fixed the same day (25.4).
+
+**27 queries where the book has the mechanic but the primer already answered
+it.** The primer's reach is not limited to futile lookups — it also removes
+lookups that would have succeeded, which is a saving `C` alone cannot show.
+
+#### 25.3 The automated proxy, measured against human judgement
+
+`eval:query-vocab`'s out-of-corpus term signal against hand-scored `C`:
+
+| | `C=n` | `C=y` |
+|---|---|---|
+| query has an absent term | 55 | **17** |
+| every word in corpus | **3** | 31 |
+
+**The proxy's larger error is over-flagging, not under-flagging.** 17 of the 72
+queries it flags ask for a mechanic the book *does* have, in off-book
+vocabulary — the wrong-word bucket, which is what vocabulary bridging fixes,
+not the primer.
+
+**And the blind spot is small: 3 rows.** This corrects a claim made repeatedly
+while building the instrument — that "every word of *cover bonus to attack
+rolls in combat* is in the corpus, so it scores clean" was a systemic hole.
+It is real (`turn28`'s two *melee combat close quarters* queries are exactly
+it) but rare here, and the claim was asserted from one vivid example rather
+than measured. The whole `turn19` cover cluster, cited as the canonical case,
+was scored **`C=y`** — cover exists and grants Advantage `[+]`; it is "cover
+*bonus*" that does not.
+
+Not directly comparable to [S9.3](#93-three-buckets-not-two)'s 45.6%
+wrong-word / 37.8% concept-absent, which classified *terms* across 344 queries
+from a different population. Same shape, different instrument.
+
+#### 25.4 What the scoring changed
+
+- **Stealth added to the primer** (hash `fc830097` → `40249ae9`), on 27 rows
+  of evidence. There is no stealth skill, check, or opposed detection roll:
+  `stealth` appears in **zero** chunks and `sneak` in exactly one — a play
+  example on p.19 where a player asks to sneak out through an airlock and the
+  Warden calls for a **Strength** Check, because the door is jammed and
+  forcing it quietly is the hard part. That example is the whole method, so
+  the primer now states it.
+- **Armor Points, Damage Reduction, and Cover added** (`40249ae9` →
+  `2f108d6f`), from the rubric's observation that the primer did not
+  distinguish AP from DR. Reading p.28 to write it found a **fourth primer
+  error**, and a worse one than the gap being fixed — see 25.6.
+
+#### 25.5 Method note
+
+**The hand pass found two prompt defects before producing a single measured
+number** — the primer teaching a house convention as RAW (`§ S24`) and the
+stealth gap above. Neither was reachable by `eval:query-vocab`: both sentences
+are made of in-corpus words and are wrong about the *model* rather than any
+term. That is the argument for Task 2 being a human pass, and it paid before
+Part H rather than after.
+
+#### 25.6 Cover: the primer was wrong about it, not merely silent
+
+Written while adding AP/DR at Alex's request, and the more important half of
+that change.
+
+The primer said:
+
+> Combat has no flanking, no attacks of opportunity, **no numeric cover
+> bonus**, and no suppressive fire. Positional advantage is Advantage [+], if
+> it is anything.
+
+The first clause is true and the second is false. **Cover is a substantial
+mechanic in the PSG and has nothing to do with Advantage.** p.28:
+
+> The environment can provide protection called Cover. It can be destroyed,
+> just like armor, whenever it is dealt Damage greater than or equal to its
+> AP. Cover typically only protects against ranged attacks… If you shoot while
+> in Cover, you are considered out of Cover until your next turn.
+
+Cover carries its own **AP**, tabled by type. It absorbs damage and is
+destroyed exactly as armor is. Telling the Warden that positional advantage is
+"Advantage [+], if it is anything" points it at the wrong mechanic entirely.
+
+**Alex's scoring had already recorded this and it was not read as a
+correction.** The `turn19` cover cluster — thirteen queries, repeatedly cited
+here as the canonical concept-absent example — was scored **`C=y`** across the
+board. That was the data saying *cover is in the book*, five days after `§ S9`
+listed `cover` among the terms whose queries fail. The label was right and the
+narrative around it was not.
+
+**Also corrected in the same pass, and worth stating because a Warden would
+otherwise guess it wrong:** AP is a *threshold*, not a pool. A character
+ignores all Damage **less than** their AP; a single hit at or above AP
+destroys the armor and the remainder lands. Armor is never worn down across
+several hits. DR is the opposite in kind — always applied, first, surviving
+both armor destruction and Anti-Armor. A Warden defaulting to "subtract armor
+from each hit" gets both wrong.
+
+**Four primer errors now, in four edits.** `Sensors`; roll-under stated
+without the Panic exception; Critical Failure conflated with the 90-99
+auto-fail; and now Cover. The first three were caught by checking terms
+against the index. This one was not reachable that way — `cover` is in the
+corpus, the sentence names a real mechanic, and it is wrong about what that
+mechanic *does*. Only reading the page catches it.
+
+The rule this settles: **when the primer makes a claim about how a mechanic
+behaves, read the page. Term presence is not verification.**
+
+### S26 — 2026-08-09 · A claim-by-claim primer audit, and the heading list that finally grounds the absence claims
+
+`§ S25.6` set the rule that a primer claim about *how a mechanic behaves* has
+to be checked against the page, because term presence is not verification.
+This applies it to all 35 claims in `mothership-m7.txt` lines 60–158, at hash
+`2f108d6f`. Side-by-side evidence in
+`$ZOLTAR_EVAL_ROOT/primer-verification.md` — that file quotes book text, so it
+lives outside this repository.
+
+**26 supported, 4 confirmed absent, 5 problems, all 5 fixed.**
+
+#### 26.1 The problems
+
+1. **`damage reduction → Armor Points (AP)` was wrong.** The book prints
+   `Damage Reduction (DR)` verbatim as a mechanic distinct from AP (p.28). The
+   mapping redirected a term the book uses literally, pointed at a different
+   mechanic, and contradicted the AP/DR bullets added the same day in
+   `§ S25.6`. Row deleted; the primer now says outright that DR needs no
+   translation and is not AP.
+2. **`initiative → turn order` hid a real rule.** p.26 carries an optional
+   strict-ordering mechanic: *"we recommend everyone make a Speed Check at the
+   start of the encounter. Those who succeed go before the enemy hostiles, and
+   those who fail go after."* A vocabulary mapping tells the Warden what word
+   to search; it does not tell it that a Speed Check **is** initiative when a
+   table wants one. Bullet added.
+3. **`perception, awareness → Intellect Check` contradicted the primer's own
+   line 140**, which says there is no perception check "not under those names
+   and not under any other." Both could not be followed.
+4. **`stealth → sneak` contradicted line 145** the same way, and pointed at a
+   word appearing once in the corpus, inside a play example.
+5. **The stealth bullet missed the ambush rule** — see 26.3.
+
+3 and 4 are now handled by a single list of *absent mechanics* that the
+Warden is told not to translate and not to look up, separate from the
+genuine vocabulary swaps.
+
+#### 26.2 The heading list, and what it settles
+
+Every absence claim in the primer previously rested on a term not appearing in
+`rules_chunk`. That is the weakest evidence in this milestone, and it had
+already failed once: `surprise` reads as absent because the PSG's
+`26.2 SURPRISE` **heading** is excluded from the corpus along with all 152
+other `SectionHeader` blocks (`§ S9.1`, `§ S19`).
+
+So the headings were extracted directly and read. **No heading names
+`flanking`, `opposed`, `suppressive`, `perception`, `stealth`, `search`,
+`awareness`, `initiative`, or `difficulty`.** The absence claims now rest on
+the book's own table of contents rather than on a corpus with a known hole in
+it.
+
+The list also confirms the two pages missing from the corpus entirely,
+printed 12 and 13, are weapon and equipment stat blocks (`F20 "ARBITER"`,
+`RAMHORN 1`, `13 INDUSTRIAL EQUIPMENT`) — equipment, not resolution mechanics,
+so their absence bears on no primer claim.
+
+**Worth keeping as a technique.** `extract.extract_blocks` on the PDF prints
+all 152 headings in about thirty seconds without touching the index. It is the
+cheapest available check on "does this book have a rule for X," and strictly
+better than querying the corpus, which cannot see them.
+
+#### 26.3 `26.2 SURPRISE` resolved
+
+The heading is absent from the corpus; **the rule is not.** p.26:
+
+> If there is a chance that characters are ambushed or stunned by a horrific
+> encounter, the Warden calls for a **Fear Save**. Those who succeed are able
+> to react, those who fail are too shocked to react until the next round.
+
+So the ten `surprise` queries `§ S9.1` recorded as unanswerable were
+answerable all along — they simply could not match on the word. The primer now
+teaches the ambush rule as part of the stealth bullet, which is where a Warden
+needs it.
+
+This also revises `§ S19.3`'s reading. That session cited `surprise` as the
+motivating cost of excluding headings — a term "absent from the book" across
+every query using it. It is absent from the *index* and present in the
+*book*, and the distinction is the whole point of this session.
+
+#### 26.4 Standing
+
+Prompt hash `2f108d6f` → **`0bdd1306`**. Five primer revisions in three days,
+six errors found. The errors have not been getting easier to find: `Sensors`
+fell to a term count, the Panic and Critical mistakes to reading one page,
+Cover to reading the page a claim was about, and these five only to a
+systematic pass over every claim. **The audit should be repeated whenever the
+primer is edited, not only when something looks wrong** — three of the five
+here were in text that read fine.
+
+#### 26.5 The audit is scripted — `task eval:primer-audit`
+
+`§ 26.4` concluded the audit should run on every primer edit rather than when
+something looks wrong. Doing that by hand would not survive contact with a
+busy week, so it is a script.
+
+**It checks invariants, not prose.** No script decides whether "AP is a
+threshold, not a pool" is a fair reading of p.28. It decides whether the
+primer maps a term the book uses verbatim, whether a mapping's target exists,
+whether a term is both mapped and declared absent, and whether a mechanic
+declared absent has a section heading. Those four are exactly the shapes that
+got past human review.
+
+`ingest.py --dump-headings <path>` supplies the input the corpus cannot:
+`SectionHeader` blocks are excluded from the index, so a heading naming a
+mechanic is invisible to every query. Without it the absence checks still run
+against the corpus and the report says they are **weak**.
+
+**Validated against the real pre-fix primer.** Run against `2f108d6f`, it
+finds `damage reduction → Armor Points (AP)` and exits non-zero — problem ① of
+this session, caught mechanically.
+
+**What it would not have caught, stated because the temptation is to
+overclaim.** Problems ③ and ④ — `perception` and `stealth` mapped *and*
+declared absent — are invisible in the old text, because the absent-mechanics
+list those invariants compare against is something the fix introduced. The
+audit checks the structure the primer has now. And problems ② and ⑤ were
+*incompleteness*, which no invariant can detect; they surface only in the
+"book sections the primer never mentions" list, which is a review prompt and
+explicitly not a defect list.
+
+**Two false positives on its first live run, both the same bug.** `DC` matched
+inside `Handcuffs` and `search` inside `research`, because the corpus check
+used substring matching while the heading scan had already been fixed to use
+word boundaries. One rule, two implementations, and the older one kept the
+bug. Now a single exported `usesTerm`, tested, used by both.
+
+Its boundary rule is worth stating: a **leading** word boundary only.
+Boundaries at both ends stop `handcuffs` matching `DC` but also stop `checks`
+matching `check`, which would report the panic-check section as uncovered by a
+primer that discusses panic checks at length. Leading-only handles both.
+
+### S27 — 2026-08-09 · The armor table, and enforcing a posture that was only stated
+
+#### 27.1 What the ARMOR table actually loses
+
+Alex compared the printed table on p.2 against the index. The defect is worse
+than "armor names are missing":
+
+| Printed | In the index |
+|---|---|
+| **Standard Crew Attire** / Basic clothing. | name gone |
+| **Vaccsuit** / Designed for outer space operations. | name gone |
+| **Hazard Suit** / Environmental protection… | **name and description gone** — the row begins at `4kcr` |
+| **Standard Battle Dress** / Lightly-plated… | name gone |
+| **Advanced Battle Dress** / Heavy armor… | **name and description gone** |
+
+**The `SPECIAL` column is truncated mid-sentence rather than dropped**, which
+is the more dangerous failure. The Vaccsuit row reads:
+
+> `Includes short-range comms, headlamp, and radiation`
+
+That looks like a finished list. It is missing `shielding.` and the whole of
+`Decompression within 1d5 rounds if punctured.` A Warden retrieving it would
+tell a player a punctured Vaccsuit carries no risk — a wrong answer with no
+signal that anything is missing.
+
+**Two mechanics are absent from the index, not just labels:** the Vaccsuit's
+decompression clause, and the Advanced Battle Dress's `exoskeletal weave
+(Strength Checks [+])`. `Damage Reduction: 3` survives but is orphaned onto a
+row with no armor attached, so it can be read as belonging to the wrong suit.
+
+Fixup target: **`/page/1/Table/3`** (printed p.2, 517 chars). The body ARMOR
+chapter on pp.14-15 is broken differently — the table decomposed into orphaned
+feature labels (`BODY CAM`, `ARMOR POINTS 10`) with no rows at all — and needs
+its own entry.
+
+#### 27.2 The posture was stated but never enforced
+
+`ingestion/README.md` claimed of the fixup templates: *"No rules text is
+authored or distributed here."* Nothing enforced it. `templates/` was tracked,
+so authoring the armor fixup would have committed transcribed PSG table text
+on the next `git add`.
+
+`ingestion/*/templates/*` is now gitignored, `.gitkeep` excepted so the
+directory survives a clone. `fixups.json` stays tracked — block ids and
+template filenames carry no book text, the same posture that keeps the
+retrieval fixtures in version control while their run artifacts stay out.
+
+The README's claim is now true rather than aspirational, and it says so along
+with the consequence: **templates are not backed up by anything in this
+repository.** They live on the operator's disk, exactly as a curated Markdown
+file does.
+
+**Worth generalising.** This is the second licensing claim in two days found
+asserted-but-unenforced, after the `.gitignore` that did not exist
+(`§ 013-m7.5-open-work.md § Trap 7`). Both were discovered by acting on the
+claim rather than reading it. A posture stated in prose and enforced by
+nothing is indistinguishable from an enforced one right up until someone
+relies on it.
+
+#### 27.3 The WEAPONS & DAMAGE table on p.2
+
+Same page as the ARMOR table, same fixup session, five defects.
+
+**① Two weapons lose their stats to a split row.** `Frag Grenade` and
+`Rigging Gun` each have their data orphaned onto an unnamed continuation:
+
+```
+Frag Grenade | 400cr |       |          |   |                 |
+         ea. | Close | 3d10 DMG | 1 | Fire/Explosives | On a hit, damages all Adjacent…
+```
+
+The printed cost is evidently `400cr / ea.`, and the `/ ea.` broke the row. So
+Frag Grenade has **no range, damage, shots, or wound type** in the index, and
+a nameless row carries them. `Rigging Gun`'s `+ 2d10 DMG when removed` is
+stranded the same way.
+
+**② Four `SPECIAL` entries truncated mid-sentence** — the ARMOR failure again,
+and dangerous for the same reason: they read as complete.
+
+| Weapon | Ends at |
+|---|---|
+| Crowbar | `Grants [+] on Strength Checks to open` |
+| Machine Gun | `Two-handed. Heavy. Barrel can be` |
+| Smart Rifle | `[-] on Combat Check when fired at Close` |
+| Tranq Pistol | `If DMG dealt: enemy must Body Save or` |
+
+The Tranq Pistol is the worst of them: it states a trigger and stops before
+the effect, so a Warden must invent the consequence.
+
+**③ Reading order is scrambled.** `Frag Grenade → Machine Gun → Hand Welder`
+breaks the table's alphabetical order — `Machine Gun` has been lifted out of
+its place between `Laser Cutter` and `Nail Gun`. Not text loss, but row
+adjacency in the index does not match the page.
+
+**④ `Vibechete` ends `Bleeding +`** where every other row uses `[+]`.
+
+**⑤ The table's title does not exist anywhere.** It is printed
+**`WEAPONS & DAMAGE`**; the extracted block begins at the column header
+`WEAPON | COST | …`. The string appears in **zero chunks and in none of the
+152 headings** — so unlike the other excluded titles, this one was lost at
+extraction rather than filtered afterwards. The `ARMOR` banner on the same
+page did survive as a heading, which is what makes this a defect rather than
+the known heading exclusion.
+
+That has a retrieval cost beyond naming: `damage` is among the most frequent
+words in the Warden's real queries (`§ S25`), and the one place on this page
+pairing it with `weapons` is absent. The table is reachable only through its
+row contents, never its title.
+
+**Correction to `§ S23`.** That session concluded p.2 made `rq-015` a
+non-miss because it carries the `SHOTS` column — which still holds; `SHOTS` is
+intact on every row. But the broader reading that "p.2 covers the equipment
+content" was too generous: two weapons have no stats at all and four carry
+truncated rules text.
+
+Fixup targets, both on printed p.2:
+
+```
+/page/1/Table/1   WEAPONS & DAMAGE   1760 chars
+/page/1/Table/3   ARMOR               517 chars
+```
+
+Transcribe the weapon rows in **printed** order, so the fixup corrects ③ as a
+side effect.
+
+**pp.14-15 need no fixup.** Alex's call: the p.2 reference card is a better
+restatement of the same content, and the body chapter is a graphical treatment
+that extracts badly by construction.
+
+#### 27.4 EQUIPMENT, and the third table nobody had looked at
+
+Alex asked to fix "the equipment table" while the fixup session was open. It
+is **two** tables, and looking for them surfaced a third defect that is not
+equipment at all.
+
+**EQUIPMENT is split across two blocks**, one per printed page, because the
+list runs alphabetically from `Assorted Tools` to `Water Filtration Device`
+across pp.10-11:
+
+| Block | Printed | Rows | Defects |
+|---|---|---|---|
+| `/page/9/Table/3` | p.10 | 34 | 15 truncated descriptions, 6 orphan continuation rows, 3 mangled names |
+| `/page/10/Table/1` | p.11 | 24 | Salvage Drone and Stimpak lose their descriptions **entirely**, several truncations, 1 mangled name |
+
+**Four item names lost their leading words**, which is the most damaging part
+because a name is what a query matches on:
+
+| In the index | Should be |
+|---|---|
+| `Scanner` | Cybernetic Diagnostic Scanner |
+| `(HUD)` | Heads-Up Display (HUD) |
+| `Detonator` | Explosives & Detonator |
+| `Terminal` | Portable Computer Terminal |
+
+**All four are recoverable from inside the corpus**, which is a useful
+transcription check: the loadout tables on printed p.7 name three of them
+(`SCIENTIST 05` has both the scanner and the terminal, `TEAMSTER 04` has the
+explosives), and the armor feature labels on pp.14-15 carry `HEADS-UP
+DISPLAY`. Each was confirmed present before being asserted here.
+
+Alphabetical order is also the tell for each: `Scanner` sits between `Crowbar`
+and `Electronic Tool Set`, `(HUD)` between `Geiger Counter` and `Infrared
+Goggles`, `Detonator` between `Exoloader` and `First Aid Kit`, `Terminal`
+between `Pet (Synthetic)` and `Radiation Pills`. A name that breaks the sort
+is a name that lost its front.
+
+**The third finding: printed pp.12-13 are worse than "absent".** Every `Table`
+block on physical page 11 extracts at **0 characters** — eight of them — while
+their `SectionHeader` blocks survive intact and name each weapon (`F20
+"ARBITER" 2.4KCR PULSE RIFLE`, `KANO X9 1.4KCR COMBAT SHOTGUN`, and six more).
+This is the `§ S3.2` empty-table defect seen at block level for the first time.
+It means the firearms pages are not merely missing from the corpus: the book
+*does* tell us exactly which eight weapons belong there, in the headings, which
+would make a fixup straightforward to scope.
+
+Not scheduled. `§ S23` established that the weapon stat data is duplicated on
+the p.2 reference card, which is now fixed, so pp.12-13 carry flavour and
+per-weapon detail rather than unique mechanics. Recorded so the decision is
+deliberate rather than forgotten.
+
+**A defect class, not three coincidences.** Four tables now show the same
+signature — truncation at the same visual width, with the remainder either
+dropped or orphaned onto a leading-`|` row: `WEAPONS & DAMAGE`, `ARMOR`,
+`EQUIPMENT` ×2, and `PETS` on p.11 looks the same. It is a property of wide
+tables in this book's layout, not of any one page, and any future book should
+be checked for it before its index is trusted.
+
+#### 27.5 The fixups ingested: four tables repaired, retrieval unmoved
+
+All four templates authored by Alex; `apply_fixups` applied 4 of 4; the index
+re-ingested at 61 chunks, unchanged in count because a fixup replaces a
+block's text rather than adding blocks.
+
+**Verified present after the fix**, each having been absent or truncated
+before:
+
+| Recovered | Was |
+|---|---|
+| `Cybernetic Diagnostic Scanner` | `Scanner` |
+| `Heads-Up Display (HUD)` | `(HUD)` |
+| `Explosives & Detonator` | `Detonator` |
+| `Portable Computer Terminal` | `Terminal` |
+| `Decompression within 1d5 rounds if punctured` | absent |
+| `exoskeletal weave (Strength Checks [+])` | absent |
+| `WEAPONS & DAMAGE` | absent from corpus **and** headings |
+| `Salvage Drone` / `Stimpak` descriptions | orphaned onto unnamed rows |
+
+The ten leading-pipe orphan rows still in the corpus are all on the TRINKETS
+and PATCHES tables (pp.8-9), which no fixup targeted.
+
+**Retrieval did not move**, and that is the expected result rather than a
+disappointment:
+
+| | Before fixups | After |
+|---|---|---|
+| `recall@3` all | 97.3% | 97.3% |
+| `recall@3` `warden-observed` | 95.7% | 95.7% |
+| MRR | 0.869 – 0.883 | **0.883, 0.883, 0.883** |
+
+One fixture changed rank — `rq-023` from 2 to 1 — and it is the same
+borderline p.18/p.22 pair `§ S17.3` identified as reordering between runs at
+identical configuration. Not attributable to the fixups.
+
+**Why no movement was the right expectation.** The fixture set has 37
+answerable queries and **not one of them targets equipment**. `rq-015`, the
+only equipment-adjacent fixture, already hit at rank 1 on the p.2 card before
+any of this (`§ S23`). So the fixtures cannot see these repairs: the harness
+measures the questions it was given, and nobody gave it a question about what a
+Vaccsuit does when punctured.
+
+That is worth stating carefully, because the shape is by now familiar from
+`§ S19.6` and `§ S23.4`: **a measurement that cannot move is not evidence that
+nothing improved.** Four tables that were silently wrong are now right, two
+mechanics that did not exist in the index now do, and four item names that
+could never have been matched now can. What is missing is a fixture that would
+notice.
+
+**Consequence, and it is a gap in the ruler rather than the index.** The
+retrieval fixture set has no equipment coverage, so equipment quality is
+currently unmeasured in both directions — it could regress tomorrow and no
+number would move. Adding two or three equipment fixtures is cheap and would
+close that, but it must happen **after** M7.5 closes: `§ S16.4` froze the set
+for the milestone, and `§ S15.6` is explicit that changing the ruler
+mid-measurement is indistinguishable from an improvement.
+
+MRR now reads 0.883 on three consecutive runs where `§ S22` measured a
+0.842/0.856 alternation. The band has narrowed, consistent with `§ S18.2`'s
+reading that borderline ties are what produced the variance — but three runs
+is exactly the sample size `§ S22` warned against trusting, so this is an
+observation and not a finding.
+
+### S28 — 2026-08-09 · Round 4: headings plus reference-card dedup. Aggregate-neutral, reverted on the stated criterion
+
+The experiment `§ S19.5` predicted and deliberately declined to run at the
+time. Run now because the index was about to freeze ahead of Part H, which is
+the last moment an index change is free.
+
+**Criterion fixed before the run**, per the discipline `§ S18.4` established
+after getting this wrong once: *keep only if `recall@3` holds at 97.3% or
+better and no fixture regresses.*
+
+#### 28.1 The configuration
+
+`--include-section-headers` with `drop_pages` extended to `3,4,41,42,43` —
+physical 43 being printed p.44, the back-cover cheat sheet. The pairing is the
+whole point: `§ S19` measured headings alone as a net loss, because the good
+half (recovering pages whose body text did not extract) came with a bad half
+(handing the cheat sheet the topic vocabulary to outrank the body pages it
+restates). Round 4 keeps the first and removes the second.
+
+61 chunks either way — headings add text to existing chunks while dropping
+p.44 removes some, and the two happened to cancel.
+
+#### 28.2 Result: a clean one-for-one trade
+
+| | Before | Round 4 |
+|---|---|---|
+| `recall@3` all | 97.3% | **97.3%** |
+| `recall@3` `warden-observed` | 95.7% | **95.7%** |
+| MRR | 0.883 | **0.883** |
+
+Every aggregate identical. Underneath, exactly two fixtures moved and they
+cancelled:
+
+| Fixture | Before | Round 4 |
+|---|---|---|
+| `rq-010` *advantage disadvantage cover modifier combat* | **1** | 2 |
+| `rq-019` | 2 | **1** |
+
+**Not noise, and this is the part worth recording.** The obvious reading was
+the rank-1↔2 reordering `§ S22` measured as run-to-run variance. It is not:
+across five pre-round-4 runs `rq-010` read 1 and `rq-019` read 2 every time,
+and across three round-4 runs they read 2 and 1 every time. The split is clean
+along the configuration boundary, so both movements are deterministic effects
+of the change.
+
+Checking that took one command and inverted the conclusion — the same
+three-samples-is-not-stability error `§ S22` was written about, caught this
+time before it was acted on rather than after.
+
+Printed p.44's share of the 147 top-3 slots went 14 → 0, as intended.
+
+#### 28.3 Reverted, and the tension is real
+
+The criterion fires: `recall@3` held, `rq-010` regressed. Index restored to
+headings-excluded, `drop_pages: [3, 4, 41, 42]`.
+
+**The call is closer than the criterion makes it sound**, and pretending
+otherwise would be dishonest. The change is neutral on every aggregate, it
+recovers 14 top-3 slots from a cheat sheet that restates body pages, and it
+adds 152 topic labels the corpus has never contained — value the fixture set
+is structurally unable to see, exactly as with the table fixups in `§ S27.5`.
+A one-for-one trade with unmeasurable upside is not obviously worse than the
+status quo.
+
+It is reverted anyway, because the criterion was fixed in advance precisely so
+that a close call would not be decided by whoever most wants the result.
+`§ S18.4` records the alternative: a criterion quietly reinterpreted after the
+numbers are in is worth nothing. **The correct way to overturn this is to
+argue the criterion was wrong and say so, not to notice afterwards that the
+outcome is inconvenient.**
+
+Standing decision, therefore: the shipped index is headings-excluded, four
+tables fixed, `drop_pages: [3, 4, 41, 42]`, 61 chunks. **The index is frozen
+for Part H.**
+
+#### 28.4 What would settle it properly
+
+`rq-010` expects p.19 and asks about cover; the fixed `28.4 COVER` heading now
+competes. That is one fixture deciding a change whose real effects are mostly
+invisible to a 49-query set with no equipment coverage and one remaining miss.
+
+The honest conclusion is not "headings are bad" but **"this fixture set can no
+longer discriminate at this level."** At 97.3% with 36 of 37 passing, there is
+one fixture of headroom, and changes now trade fixtures rather than improving
+them. Re-run round 4 after the set is extended — equipment fixtures per
+`§ S27.5`, and whatever the Part 6 playtest surfaces — when there is enough
+signal to tell a real regression from a swap.
+
+### S29 — 2026-08-09 · Tier 2: what the Warden's real queries actually retrieve
+
+M7.5 open-work Task 5, run against the **frozen** index (61 chunks, four
+tables fixed, `drop_pages: [3, 4, 41, 42]`, headings excluded). Report:
+`$ZOLTAR_EVAL_ROOT/eval-runs/retrieval-probe-before.md`.
+
+356 distinct queries harvested from both frozen `88fa84bd8329` runs and pushed
+through `RulesLookupService` at the shipped defaults — real preprocessing, real
+query embedding, real pgvector — so what is measured is what the Warden would
+actually receive. 356 Voyage calls, no Anthropic.
+
+#### 29.1 The before-number
+
+| | distinct | lookups | above 0.416 | overlap | below 0.342 | **no results** |
+|---|---|---|---|---|---|---|
+| all | 356 | 486 | 284 | 53 | 19 | **0** |
+| `claude-sonnet-5` | 102 | 134 | 80 | 19 | 3 | **0** |
+| `claude-sonnet-4-6` | 257 | 352 | 205 | 36 | 16 | **0** |
+
+**Not one query in 486 lookups returned nothing.** That is `§ S20`'s "no
+honest floor exists yet" restated from the query side rather than the fixture
+side: the index answers everything, including the questions it cannot answer,
+and nothing in what the Warden receives distinguishes the two.
+
+#### 29.2 The 19 low-similarity queries agree with the hand labels
+
+They are not a random tail:
+
+```
+0.261  android memory wipe remote shutdown command mechanics
+0.301  combat initiative order surprise
+0.308  outnumbered flanking combat penalty
+0.311  scanning surveying environment perception check
+0.315  grapple rules wrestling grabbing an opponent
+0.316  stealth check hiding avoiding detection Mothership
+```
+
+Almost all are **concept-absent** — flanking, grappling, passive perception,
+android shutdown — which is the same population Alex's `C=n` column identified
+by hand in `§ S25`. Two instruments, entirely independent routes: one reads
+similarity against the index, the other reads a human's judgement against the
+book. They select the same queries.
+
+That is the first cross-validation this milestone has had between a mechanical
+score and a hand label, and it is worth more than either alone. It also
+suggests the eventual judge (Task 8) has a tractable job: the thing being
+judged is separable by a signal that already exists.
+
+#### 29.3 A caveat on the bucket edges
+
+The buckets are pinned to `§ S20.1`'s constants, 0.342 and 0.416, which were
+measured **before** the table fixups. On the frozen index the unanswerable
+maximum is now **0.427**, so the true overlap zone is wider than the labels
+say and **24 of 356 queries** sit in the 0.416–0.427 sliver, labelled `above`
+while arguably still ambiguous.
+
+The constants are left pinned rather than chased. They are a documented
+reference point, not a threshold, and re-fitting them on every index change
+would make two reports incomparable for exactly the reason `§ S20.2` refused
+to ship a floor at all. **Read `above 0.416` as "above the old band," not as a
+pass.**
+
+#### 29.4 A stale warning in the report header, and the general fix
+
+The probe's header asserted *"the index is **not frozen** — a possible armor
+fixup and a possible round 4 are still open."* True when written, false a day
+later, so a correct report shipped carrying a wrong warning — **and a green
+test defended it**, because the test pinned that sentence.
+
+Both are fixed the same way. The banner now states the pairing *rule* and
+names the index build it used, leaving the reader to check the match; the test
+asserts the rule and the presence of the build line, and explicitly asserts
+that the stale phrasing is **absent**.
+
+The generalisation is worth keeping: **a report that describes the state of
+the world at authoring time goes stale, and a test that pins that description
+locks the staleness in.** State the rule, name the inputs, let the reader
+check. This is the third asserted-but-unverified claim this milestone has
+turned up, after the `.gitignore` that did not exist and the `templates/`
+posture nothing enforced.
+
+---
+
+### S30 — 2026-08-09 · The attribution field shipped, and it made the check worse
+
+M7.5 added `actingEntityId` to the `roll_dice` payload so
+`system-rolled-player-action` could stop inferring who acted from prose. The
+integration compared the new field against `applicability.playerEntity`:
+
+```ts
+return payload.actingEntityId.toLowerCase() === playerEntity.toLowerCase();
+```
+
+Those are different namespaces. The field carries an entity **id**
+(`lt_alvarez`); `playerEntity` carries a display **name** (`Alvarez`). Nothing
+matched. The check did not report *less* — it reported **wrong**, because "no
+roll belongs to the player" is the check's PASS condition.
+
+Measured on the frozen `0bdd1306` Sonnet 5 run, re-graded by the corrected
+checker against the same artifacts:
+
+| Fixture | as shipped | corrected |
+|---|---|---|
+| turn19-system-rolled-player-action | 1.00 (10/10) | **0.00 (0/10)** |
+| turn21-system-rolled-player-action (4.6) | 1.00 (4/4) | 0.75 (3/4) |
+
+turn19 rep 001 contains, in the payload:
+
+```
+rollSource   system_generated
+actingEntityId  lt_alvarez
+purpose      "Alvarez Combat Check to shoot contractor alpha"
+```
+
+That is the violation the check exists to catch, stated in the data, graded
+clean ten times out of ten. The reported "+0.20 improvement" on turn21 and
+"+0.70" on 4.6's turn19 were instrument artifacts and are retracted.
+
+**The 60 structural tests passed throughout.** They pair
+`actingEntityId: 'alvarez'` with `playerEntity: 'Alvarez'` — the one id form
+that collides with the display name under `toLowerCase()`. The specs encoded
+the bug's precondition as their fixture, so they could not see it. A test
+suite written from the same misunderstanding as the code is not independent
+evidence.
+
+**`unbindableVerdict` was disarmed by the same mismatch.** It excluded any
+roll carrying `actingEntityId` on the reasoning that naming an entity is an
+answer rather than a failure to match — true only if the id is comparable to
+something. The one guard positioned to catch this was switched off by the
+defect it was guarding against.
+
+#### Root cause is upstream of both
+
+The Warden was never told the player's entity id.
+
+- `campaign_state.entities` holds NPCs, threats and features only. Alvarez is
+  absent from all 15 fixtures.
+- `gmContextBlob.playerEntityIds` exists for exactly this, populated from
+  `character_sheet.data.entityId` — and the table has **zero rows**. Every
+  eval run and every playtest on this database has passed `[]`.
+- `renderEntities` only *un-hides* ids already in the entities map, so
+  populating `playerEntityIds` alone would still not put the player in
+  `<entities>`. It is a filter override, not a source.
+
+So the model reverse-engineers an id from resource pool names — which carry
+**two prefixes for one character**, `alvarez_*` and `lt_alvarez_*`. Sonnet 5
+picked `lt_alvarez`, 4.6 picked `alvarez`, and 4.6 handed back the pool name
+`lt_alvarez_hp` verbatim 10 times and `alvarez_armor` 3 times. The model was
+doing the best it could with what it was shown.
+
+#### What changed
+
+- `rollActsFor` returns `'player' | 'other' | 'unknown'`. An id resolving to
+  neither the declared player set nor the seeded entity set is `'unknown'` —
+  undecided, costing a denominator, never a pass.
+- Fixtures declare `seededState.gmContextBlob.playerEntityIds`. Verified not
+  to alter snapshot text, so the re-run stays input-comparable.
+- `seedScratchAdventure` seeds `character_sheet` rows from that declaration,
+  reversing its own earlier note — the note's premise ("no reliable way to
+  derive an entity id") stopped being true when the fixtures started
+  declaring one.
+- `roll_dice` rejects an `actingEntityId` naming no known entity, modelled on
+  the existing dangling-`gatedByRollId` rejection, and **skipped when the
+  known set is empty** so a campaign without a character sheet is not made
+  unplayable.
+- `out-of-order-resolution` is re-declared `applicabilitySource: 'artifact'`.
+  It was always artifact-gated in part; the first run where reps disagreed
+  tripped the report's own defect line.
+
+`out-of-order-resolution`'s pending-gate branch **deliberately still uses
+prose**. Switching it to `rollActsFor` was the obvious-looking completion of
+the M7.5 work and would have propagated the identical false pass into a
+second check.
+
+#### Verified back-compat
+
+Re-graded by the corrected checker, the frozen pre-M7.5 `97feadbd` artifacts
+return bit-identical verdicts — turn19 10/10, turn21 8/10 — because they carry
+no `actingEntityId` and take the prose path unchanged. Branching on field
+presence rather than `fixtureSchemaVersion` is what preserves that.
+
+**The lesson.** A structural checker that silently stops matching does not
+degrade gracefully; it inverts. Every "not the player" answer must trace to a
+declared identifier set, never to a comparison that happened to fail — and the
+tests must be built from data the implementation did not choose.
+
+---
+
+### S31 — 2026-08-09 · The post-fix re-baseline: the regression is real, and it has a shape
+
+`claude-sonnet-5__0bdd1306__2026-08-09T21-23-39Z`, 10 reps, **zero errors**,
+graded by the corrected checker from § S30. The run existed to answer one
+question — was `turn19-system-rolled-player-action`'s 0/10 a property of the
+frozen run or of the model — and it answered it.
+
+| turn19-system-rolled-player-action | rate |
+|---|---|
+| July `97feadbd`, empty index | 1.00 (10/10) |
+| frozen `0bdd1306` | 0.00 (0/10) |
+| **new `0bdd1306`** | **0.10 (1/10)** |
+
+Two independent runs at the same prompt, 0/10 and 1/10. At Δ=0.90 that is not
+sampling noise. **Sonnet 5 now resolves the player's declared attack
+system-side instead of surfacing a `dice_request`**, where in July it deferred
+correctly on every rep.
+
+#### Sonnet 5, July → now, both sides on the corrected checker
+
+| Fixture | July | now | Δ |
+|---|---|---|---|
+| turn19-system-rolled-player-action | 1.00 | 0.10 | **-0.90** |
+| turn19-out-of-order-resolution | 1.00 | 0.89 | -0.11 |
+| turn24-scene-jump | 0.90 | 0.80 | -0.10 |
+| turn03-unsurfaced-check | 0.70 | **1.00** | +0.30 |
+| turn24-over-resolution | 0.70 | **1.00** | +0.30 |
+| turn24-hidden-info-leak | 0.89 | 1.00 | +0.11 |
+
+Flat: `turn21-system-rolled` 0.80, `turn28-hidden-info-leak` 1.00,
+`turn21-out-of-order` 1.00, `turn21-narrating-past-a-block` 1.00, and
+`turn16-narrating-past-a-block` still 0.00 — untouched by this milestone and
+still the worst cell in the corpus.
+
+At tag level: `SYSTEM-ROLLED-PLAYER-ACTION` **0.90 (18/20) → 0.45 (9/20)**,
+`OUT-OF-ORDER-RESOLUTION` 1.00 (20/20) → 0.94 (17/18), `UNSURFACED-CHECK` 0.70
+→ 1.00, `HIDDEN-INFO-LEAK` 0.90 → 1.00.
+
+#### The regression and the improvement are one behaviour
+
+`UNSURFACED-CHECK` reached a clean 1.00 — the Warden reliably *notices* that a
+situation calls for a check — in the same run where
+`SYSTEM-ROLLED-PLAYER-ACTION` halved. Those are not independent findings. The
+model has learned to recognise when a roll is warranted and then rolls it
+itself rather than handing it to the player.
+
+`UNAUDITABLE-MAPPING` sits at 0 of 30 applicable for the third run running,
+every exclusion reading *"no dice_roll events this turn."* Same instinct
+again, scoring well: the Warden stopped inventing spontaneous d6 rolls to
+decide things.
+
+So the primer taught two things at once — *most things are not a roll*, and
+*here is when a roll is warranted* — and the second landed without the
+corollary that a warranted roll about the **player's own declared action**
+belongs to the player. **Do not patch this by weakening the roll guidance.**
+The same prompt text is producing three of the four improvements; a naive fix
+trades them away. The missing piece is ownership, not frequency.
+
+#### Two instrument notes, both verified rather than asserted
+
+**`corpusVersion` moved and it is benign.** `88fa84bd8329` → `104b2d944252`,
+because `computeCorpusVersion` hashes fixture *bytes* and § S30 added
+`playerEntityIds` to all 15. Every `eval:compare` across that boundary warns.
+The warning is conservative, not wrong to exist — but the Warden's input is
+unchanged, checked by rebuilding the full `buildSessionRequest` payload with
+and without the field on three fixtures and diffing: **byte-identical**.
+`formatGmContextBlob` never reads the field, and `renderEntities` only
+un-hides ids already in `campaign_state.entities`, where the player is not.
+
+**The `actingEntityId` validation works.** Every id in the run resolves —
+`lt_alvarez` (50) and the four contractor ids — against 13 resource-pool names
+in the frozen 4.6 run. The field is now trustworthy for Sonnet 5, which is
+what makes the 0.45 above a measurement rather than an artifact.
+
+#### Vocabulary held
+
+| | before | frozen | now |
+|---|---|---|---|
+| out-of-corpus rate | 66.7% | 38.2% | **33.8%** |
+| distinct queries | 102 | 76 | 68 |
+| total lookups | 134 | 123 | 121 |
+
+Stable across two runs and still improving. **The milestone's stated goal was
+met and is not in question.** What is in question is a behaviour the milestone
+did not set out to change and was not measuring correctly until § S30.
+
+---
+
+### S32 — 2026-08-10 · The primer had no owner for the rolls it named
+
+Plan 014 handed over a hypothesis and a falsifier to run before touching
+anything: count the imperatives in the mechanical primer that could be read as
+*"you roll this,"* and treat a low count as evidence against placement being
+the cause. The count is **12**, so the hypothesis survives and the edit is
+placement and voice rather than a new rule.
+
+Two things the plan had wrong, both found by running the count rather than
+trusting the framing.
+
+**The primer is `:60`–`:174`, not `:141`–`:189`.** The M7.5 additions start at
+the vocabulary-bridging block. July's entire prompt was **62 lines**
+(`ec945e6`); today's is 191. So the ownership rule at `:41` did not merely
+acquire text after it — it went from 66% depth with nothing substantive
+following, to 21% depth with 78% of the prompt after it, nearly all of that in
+resolution voice.
+
+**The defect is a referent flip, not ambiguity.** Lines 1–58 address the
+Warden throughout — "You are the Warden", "You have three tools", "you will
+see those results". From `:91` the primer switches into the book's voice,
+where "you" is the player-character:
+
+```
+:137  You gain 1 Stress every time you fail a Stat Check or Save.
+```
+
+It never announces the switch and never switches back. The model reads ~90
+lines in which the second person means the person holding the dice. That is a
+sharper account than "call for a Save is ambiguous," and it explains why the
+rule at `:41` lost: not because it was outranked, but because the pronoun
+binding it depends on was quietly reassigned underneath it.
+
+#### The count, for the record
+
+Unambiguously *the Warden rolls the player's check* — `:157` "name the Stat the
+fiction actually strains and **roll under it**" (the player's own sneak);
+`:135` "At zero Health, **take a Wound, roll** on the Wounds Table". Referent
+collisions — `:137`, and `:145`'s book quote. Bare roll imperatives with no
+actor — `:91`, `:99`, `:102`. "Call for" / "adjudicate", precisely ambiguous
+between issuing and executing — `:113`, `:160`, `:167`, `:172`. And `:148`,
+which makes "roll" the alternative to "narrate" — two Warden acts, no third
+option.
+
+#### What changed, and what deliberately did not
+
+Three edits, none touching a mechanic, so `eval:primer-audit` has nothing new
+to check and reports no invariant violations:
+
+- **Actor-explicit voice.** "Roll 1d100" → "The acting character rolls 1d100";
+  "You gain 1 Stress" → "A character gains 1 Stress"; "roll under it" → "have
+  the character roll under it"; "do not roll" → "do not call for a roll at
+  all".
+- **The verb defined once**, at `:53`, so the ~130 lines below inherit it:
+  "call for a FEAR Save" names *which* roll happens and never *who* executes
+  it.
+- **A closing `WHOSE ROLL IS IT` block.** This is what
+  `docs/decisions.md § Agentic graph decomposition` actually asked for — the
+  rule stated unambiguously *and* positioned where it governs the primer. It
+  closes on § S31's split: *knowing a roll is warranted is not permission to
+  make it.*
+
+`:22` was re-voiced too, as plan 014's fallback hypothesis predicted it should
+be. "If a character is not pressing a button to resolve it, the Warden rolls"
+keyed the decision to **availability of a roller** rather than ownership of
+the action — a reading the eval harness satisfies trivially, since nobody
+there presses buttons. It now reads "the test is whose choice produced the
+roll, never whether someone is available to roll it."
+
+**One force was left in place on purpose.** `turn19`'s own seeded history
+demonstrates the Warden rolling for the player four times in the last six
+messages — *"70 against a Combat of 30. You needed to roll under. You
+didn't."* Four in-context demonstrations plainly outweigh one prompt line at
+21% depth. But that history was identical in July at 10/10, so it is the
+standing pressure the primer tipped over, not the cause. An anti-precedent
+instruction would have confounded the placement experiment the criterion asks
+for, and it was held as a second iteration that turned out not to be needed.
+
+Prompt hash `0bdd1306` → **`c45a142a`** (`e5dfd0f`). Result in § S33.
+
+---
+
+### S33 — 2026-08-10 · The re-baseline: ownership was the missing concept
+
+`claude-sonnet-5__c45a142a__2026-08-10T12-18-32Z`, full corpus, 10 reps, zero
+errors, `harnessVersion e5dfd0f`. Compared against
+`claude-sonnet-5__0bdd1306__2026-08-09T21-23-39Z`, both sides at
+`corpusVersion 104b2d944252`, so `eval:compare` emits no staleness warning.
+
+| Tag | July `97feadbd` | `0bdd1306` | **`c45a142a`** |
+|---|---|---|---|
+| SYSTEM-ROLLED-PLAYER-ACTION | 0.90 (18/20) | 0.45 (9/20) | **1.00 (20/20)** |
+| UNSURFACED-CHECK | 0.70 | 1.00 | **1.00** |
+
+Per fixture, `turn19` **0.10 → 1.00** and `turn21` **0.80 → 1.00**, both at
+unchanged applicability 1.00. The regression is not merely recovered; the tag
+is above July's 0.90 for the first time, and it clears while `UNSURFACED-CHECK`
+holds — the pair plan 014 required be read together, because a fix that traded
+one for the other would have read as progress.
+
+**§ S31's diagnosis was right and is now confirmed by its own remedy.** The
+milestone taught the Warden that a roll was warranted without the corollary
+that a warranted roll about the player's declared action belongs to the
+player. Supplying only the corollary — no change to roll frequency guidance —
+moved the tag 0.55 and left the improvements that guidance bought intact.
+
+#### The rest of the corpus
+
+| Tag | A | B | Δ |
+|---|---|---|---|
+| OUT-OF-ORDER-RESOLUTION | 0.94 (17/18) | **1.00 (18/18)** | +0.06 |
+| SCENE-JUMP | 0.80 | **1.00** | +0.20 |
+| HIDDEN-INFO-LEAK | 1.00 | 0.95 | -0.05 |
+| OVER-RESOLUTION | 1.00 | 0.90 | -0.10 |
+| NARRATING-PAST-A-BLOCK | 0.50 | 0.50 | 0.00 |
+
+`OUT-OF-ORDER-RESOLUTION` was the pre-registered risk — the closing block's
+"narrate up to the point the dice are needed and stop" reaches it directly,
+and the scoped probe had already shown two reps rolling an NPC's return fire
+against an unresolved player gate. It improved instead, at unchanged tag-level
+applicability 18/20. The per-fixture applicability did move in opposite
+directions (`turn19` 0.90 → 0.80, `turn21` 0.90 → 1.00) and cancels; worth
+watching, not currently costing coverage.
+
+#### The two regressions, inspected rather than assumed
+
+They land in **different reps**, so they are not one behaviour flipping twice.
+
+**`turn24-hidden-info-leak` rep 006 is a real leak.** The narration reads
+*"You can't see it, but here's what's happening in the research wing right
+now… They're maybe thirty seconds from Lab B's door"* — omniscient cross-cut
+past Alvarez's perception boundary. The judge is correct. This fixture's
+history is 0.89 → 1.00 → 0.90, so a one-rep flip at N=10 sits inside its
+established range.
+
+**`turn24-over-resolution` rep 002 looks like a false fail, and it is the more
+interesting one.** The judge's own rationale states that the tool calls do not
+contain the Delta-vs-UNIT-7 off-screen encounter the rubric asks about, and
+that judging them against off-screen expectations is *"a mismatched
+comparison"* — then returns `fail`. The check is `ungated`, so it has no
+`not_applicable` path.
+
+**That is § S30 inverted.** There, a structural check with nothing it could
+resolve collapsed into its PASS condition; here, a judged check with nothing
+to grade collapses into FAIL. Same root shape — a check that cannot decide
+must report undecided — applied to judged rather than structural checks, where
+`docs/decisions.md § Structural checks report undecided rather than guessing`
+has never been extended.
+
+There is a plausible mechanism worth naming before it is investigated: if the
+turn now stops earlier, it may never reach the off-screen encounter, starving
+an ungated rubric of its subject. **If that is what happened, the fix is a
+gate on `over-resolution`, not a retreat on the prompt.** One rep and one
+rationale do not establish it.
+
+#### Unchanged, and still not covered
+
+`turn16-narrating-past-a-block` remains **0.00, 10 of 10 failing** — the worst
+cell in the corpus across three runs, untouched by this milestone and by this
+change. `UNAUDITABLE-MAPPING` (0 of 30) and `MISSING-CANON-CAPTURE` (0 of 10)
+report zero denominator on both sides. Zero applicable is not a pass; those
+tags have no coverage and the playtest is what is supposed to supply it.

@@ -1,5 +1,4 @@
 import { sep } from 'node:path';
-
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { defaultOutputPath } from './playtest-review';

@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { AnthropicService } from '../../src/anthropic/anthropic.service';
+
+import { evalChecks } from './registry';
+import { runCheck } from './run-check';
+import { structuralCheckers } from './structural/registry';
 import {
   fakeDiceRoll,
   fakeFixture,
   fakeTurnExecutionResult,
 } from './structural/test-helpers';
-import { structuralCheckers } from './structural/registry';
-
-import { evalChecks } from './registry';
-import { runCheck } from './run-check';
 
 import type Anthropic from '@anthropic-ai/sdk';
 import type { EvalCheck } from './registry';
@@ -17,7 +17,12 @@ import type { EvalCheck } from './registry';
 function toolUseMessage(name: string, input: unknown): Anthropic.Message {
   return {
     content: [
-      { type: 'tool_use', id: 'toolu_fake', name, input } as unknown as Anthropic.ToolUseBlock,
+      {
+        type: 'tool_use',
+        id: 'toolu_fake',
+        name,
+        input,
+      } as unknown as Anthropic.ToolUseBlock,
     ],
   } as unknown as Anthropic.Message;
 }
@@ -69,7 +74,9 @@ describe('runCheck — structural verdict mapping', () => {
     );
 
     expect(observation.verdict).toBe('not_applicable');
-    expect(observation.notApplicableReason).toMatch(/no player action this turn/);
+    expect(observation.notApplicableReason).toMatch(
+      /no player action this turn/,
+    );
   });
 
   it('maps PASSED to pass', async () => {
@@ -132,7 +139,9 @@ describe('runCheck — fixture-schema gate', () => {
     );
 
     expect(observation.verdict).toBe('not_applicable');
-    expect(observation.notApplicableReason).toMatch(/requires fixtureSchemaVersion >= 2/);
+    expect(observation.notApplicableReason).toMatch(
+      /requires fixtureSchemaVersion >= 2/,
+    );
     expect(observation.notApplicableReason).toMatch(/has 1/);
     expect(spy).not.toHaveBeenCalled();
 
@@ -175,9 +184,11 @@ describe('runCheck — judged checks', () => {
 
   it('maps a passed:true verdict to pass and includes rubricHash', async () => {
     const anthropic = fakeAnthropic(
-      vi.fn().mockResolvedValue(
-        toolUseMessage('judge_verdict', { passed: true, rationale: 'fine' }),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          toolUseMessage('judge_verdict', { passed: true, rationale: 'fine' }),
+        ),
     );
 
     const observation = await runCheck(
@@ -194,9 +205,11 @@ describe('runCheck — judged checks', () => {
 
   it('maps a passed:false verdict to fail', async () => {
     const anthropic = fakeAnthropic(
-      vi.fn().mockResolvedValue(
-        toolUseMessage('judge_verdict', { passed: false, rationale: 'nope' }),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          toolUseMessage('judge_verdict', { passed: false, rationale: 'nope' }),
+        ),
     );
 
     const observation = await runCheck(

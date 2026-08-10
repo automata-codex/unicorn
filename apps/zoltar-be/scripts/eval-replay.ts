@@ -47,7 +47,6 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-
 import { asc, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
@@ -108,7 +107,8 @@ function parseCliArgs(argv: string[]): CliArgs {
   }
 
   const hasAdventureId =
-    typeof values['adventure-id'] === 'string' && values['adventure-id'].length > 0;
+    typeof values['adventure-id'] === 'string' &&
+    values['adventure-id'].length > 0;
   const hasRunDir =
     typeof values['run-dir'] === 'string' && values['run-dir'].length > 0;
   const hasRep = typeof values.rep === 'string' && values.rep.length > 0;
@@ -119,7 +119,9 @@ function parseCliArgs(argv: string[]): CliArgs {
     );
   }
   if (hasRunDir !== hasRep) {
-    throw new UsageError(`--run-dir and --rep must be given together. ${USAGE}`);
+    throw new UsageError(
+      `--run-dir and --rep must be given together. ${USAGE}`,
+    );
   }
   if (!hasAdventureId && !hasRunDir) {
     throw new UsageError(
@@ -131,13 +133,17 @@ function parseCliArgs(argv: string[]): CliArgs {
   if (hasRep) {
     rep = Number(values.rep);
     if (!Number.isInteger(rep) || rep <= 0) {
-      throw new UsageError(`--rep must be a positive integer, got "${values.rep}"`);
+      throw new UsageError(
+        `--rep must be a positive integer, got "${values.rep}"`,
+      );
     }
   }
 
   return {
     fixture: values.fixture,
-    adventureId: hasAdventureId ? (values['adventure-id'] as string) : undefined,
+    adventureId: hasAdventureId
+      ? (values['adventure-id'] as string)
+      : undefined,
     runDir: hasRunDir ? (values['run-dir'] as string) : undefined,
     rep,
   };
@@ -168,7 +174,12 @@ async function evaluateAndPrint(
     // A judged check makes a real Anthropic call that can take several
     // seconds — print before/after so this never looks stuck.
     process.stderr.write(`[${check.id}] running (${check.mode})...\n`);
-    const observation = await runCheck(check, fixture, turnResult, anthropicService);
+    const observation = await runCheck(
+      check,
+      fixture,
+      turnResult,
+      anthropicService,
+    );
     process.stderr.write(
       `[${check.id}] ${observation.verdict} (${(observation.durationMs / 1000).toFixed(1)}s)\n`,
     );
@@ -184,7 +195,9 @@ async function evaluateAndPrint(
     `${JSON.stringify({ fixtureId: fixture.id, ...context, results }, null, 2)}\n`,
   );
 
-  return results.some((r) => r.verdict === 'fail' || r.verdict === 'error') ? 1 : 0;
+  return results.some((r) => r.verdict === 'fail' || r.verdict === 'error')
+    ? 1
+    : 0;
 }
 
 async function runArtifactMode(
@@ -197,7 +210,10 @@ async function runArtifactMode(
   const turnResult = readTurnResultArtifact(runDir, rep, fixture.id);
   const anthropicService = new AnthropicService(envOnlyConfigService());
 
-  return evaluateAndPrint(fixture, turnResult, anthropicService, { runDir, rep });
+  return evaluateAndPrint(fixture, turnResult, anthropicService, {
+    runDir,
+    rep,
+  });
 }
 
 async function runDatabaseMode(

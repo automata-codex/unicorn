@@ -17,7 +17,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 
@@ -111,9 +110,7 @@ async function main(): Promise<number> {
   try {
     const header = await queryHeader(db, cli.adventureId);
     if (!header) {
-      process.stderr.write(
-        `No adventure found with id ${cli.adventureId}.\n`,
-      );
+      process.stderr.write(`No adventure found with id ${cli.adventureId}.\n`);
       return 1;
     }
     if (header.turnCount === 0) {
@@ -148,7 +145,9 @@ if (require.main === module) {
   main().then(
     (code) => process.exit(code),
     (err) => {
-      process.stderr.write(`${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+      process.stderr.write(
+        `${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`,
+      );
       process.exit(1);
     },
   );
