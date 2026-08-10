@@ -601,6 +601,18 @@ This entry conflated two different claims under one deferral: the qualitative `c
 
 Scheduled for M8.1. The qualitative block — armor mode, loadout, conditions — remains deferred exactly as described above; it is the part that actually needs new schema and a character-sheet shape extension to separate armor/loadout/conditions.
 
+**Amendment — the deferral is over; both slices move to M7.6, and the blocker was never independent**
+
+Superseding the two paragraphs above: the qualitative block is no longer deferred, and neither slice is scheduled for M8.1. Both now sit in **M7.6 — Character Sheet Fidelity**, ahead of the playtest.
+
+The reasoning that closed the deferral is that its blocker was never a standalone problem. This entry describes the obstacle as a character-sheet shape that "does not cleanly separate armor from loadout or carry conditions" — and correcting that shape is exactly the goal of the character-creation rework already carried on the kanban board, which reworks the application-level sheet data structures and plausibly the table shape with them. So the "schema addition and character-sheet shape extension" this block has been waiting on since M5 is not a future batch to be scheduled against; it is work already committed to for independent reasons. Grouping them makes the block's dependency explicit instead of leaving it as an open-ended wait.
+
+This also lets the entry's own closing instruction be followed literally. It asks that "the schema, the write path, and the snapshot rendering can be designed together against concrete usage, rather than guessed at now" — impossible under the M8.1 scheduling, whose charter is prompt-only and which would have forced the render and the schema into different milestones. M7.6 owns schema, so all three land together.
+
+Two corrections to the amendment above, for the record. Its trigger analysis was right about the narrow slice and stopped short: **the qualitative block's trigger had also already fired.** "Reactivate at the milestone that first needs the data — that's M6 (state-change application of condition toggles) or M7 (roll resolution that consults armor)" names two milestones that have both shipped. The block was not waiting on a trigger; the trigger fired and nothing was watching. And the claim that the static slice needs "no schema addition" holds only against today's sheet — once the rework moves the stats/saves fields, that render reads whatever shape it settles, which is why M7.6 orders the rework first and the two renders after.
+
+Roadmap: `docs/roadmap.md § M7.6 — Character Sheet Fidelity`.
+
 ### Message ordering relies on `createdAt` only; no shared sequence key with `game_events`
 
 The `messages` table has no `sequence_number` column, unlike `game_events`. Reconstruction and message-window ordering (`buildMessageWindow`) rely purely on `createdAt` timestamps. Player and GM messages for the same turn are not written in the same transaction — the player message commits first, in its own transaction, before the GM call runs (intentionally, so a retry can reproduce the player's action) — so there is no transactional guarantee of ordering either, only the practical guarantee that a player's message is always written before the GM's response to it.
