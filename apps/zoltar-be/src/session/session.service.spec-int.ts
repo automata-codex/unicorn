@@ -24,35 +24,50 @@ import { SessionCorrectionError, SessionService } from './session.service';
 
 import type Anthropic from '@anthropic-ai/sdk';
 import type { AnthropicService } from '../anthropic/anthropic.service';
-import type { DiceService } from '../dice/dice.service';
+import type { DiceService, GmRollRequest } from '../dice/dice.service';
 import type { RulesLookupService } from '../rules/rules-lookup.service';
 import type { WardenPromptsService } from '../wardens/warden-prompts.service';
+import type { RollDiceInput, RulesLookupInput } from './session.schema';
 
-// These integration tests mock Claude to return submit_gm_response directly,
-// so roll_dice / rules_lookup paths are never exercised here; no-op stubs
-// are enough. The tool-loop behaviour is covered in session.tool-loop.spec.ts.
+// Stubs are typed as `Pick<Service, …>` before the cast, so the methods they
+// fake are checked against the real signatures. Only the final widening `as`
+// remains, and it erases nothing but the services' private members (injected
+// constructor deps), which an object literal can never supply.
+//
+// This is deliberate, not stylistic. These stubs were previously built with
+// `as unknown as Service`, which switches off checking entirely — and both
+// `stubRules` and `rulesWithHit` silently rotted when
+// `RulesLookupService.lookup` started returning `{ output, preprocessedQuery }`
+// instead of `RulesLookupOutput`. The stubs kept resolving the old shape, so
+// `handleRulesLookup` destructured `undefined` and threw into its own catch;
+// two tests went on exercising the error path while asserting the success
+// path. Keep the narrow type here so the next signature change breaks the
+// build instead of the meaning of the test.
 function stubDice(): DiceService {
-  return {
+  const stub: Pick<DiceService, 'rollForGm'> = {
     rollForGm: vi.fn(() => {
       throw new Error('DiceService should not be called in this test');
     }),
-  } as unknown as DiceService;
+  };
+  return stub as DiceService;
 }
 
 function stubRules(): RulesLookupService {
-  return {
-    lookup: vi.fn(() => Promise.resolve({ results: [] })),
-  } as unknown as RulesLookupService;
+  const stub: Pick<RulesLookupService, 'lookup'> = {
+    lookup: vi.fn(() => Promise.resolve({ output: { results: [] } })),
+  };
+  return stub as RulesLookupService;
 }
 
 function stubWardens(): WardenPromptsService {
-  return {
+  const stub: Pick<WardenPromptsService, 'getSelected'> = {
     getSelected: vi.fn().mockReturnValue({
       filename: 'mothership-m7.txt',
       hash: 'testhash',
       text: 'Test Warden prompt for integration tests.',
     }),
-  } as unknown as WardenPromptsService;
+  };
+  return stub as WardenPromptsService;
 }
 
 let repo: SessionRepository;
@@ -88,10 +103,21 @@ function toolUseMessage(input: unknown): Anthropic.Message {
   } as unknown as Anthropic.Message;
 }
 
+/**
+ * `vi.fn()` with no type argument is `Mock<Procedure | Constructable>`, which
+ * satisfies no specific signature — assigning it straight onto the stub would
+ * force the checking back off. Forwarding through a contextually-typed arrow
+ * keeps `callSession`'s real signature checked while callers keep passing a
+ * plain mock and asserting on it directly.
+ */
 function mockAnthropic(
   callSession: ReturnType<typeof vi.fn>,
 ): AnthropicService {
-  return { callSession } as unknown as AnthropicService;
+  const stub: Pick<AnthropicService, 'callSession'> = {
+    callSession: (params) =>
+      (callSession as (p: unknown) => Promise<Anthropic.Message>)(params),
+  };
+  return stub as AnthropicService;
 }
 
 async function seedReadyAdventure(): Promise<{
@@ -566,8 +592,8 @@ describe('SessionService (integration) — correction fails', () => {
 describe('SessionService (integration) — telemetry with dice and lookups', () => {
   function rollingDice(): DiceService {
     let n = 0;
-    return {
-      rollForGm: vi.fn((input: { notation: string }) => {
+    const stub: Pick<DiceService, 'rollForGm'> = {
+      rollForGm: vi.fn((input: GmRollRequest) => {
         n += 1;
         return {
           notation: input.notation,
@@ -576,31 +602,43 @@ describe('SessionService (integration) — telemetry with dice and lookups', () 
           total: n * 10,
         };
       }),
-    } as unknown as DiceService;
+    };
+    return stub as DiceService;
   }
 
   function rulesWithHit(): RulesLookupService {
-    return {
+    const stub: Pick<RulesLookupService, 'lookup'> = {
       lookup: vi.fn().mockResolvedValue({
-        results: [
-          {
-            text: 'On a panic result of 71–80…',
-            source: 'PSG p.42',
-            similarity: 0.87,
-          },
-        ],
+        output: {
+          results: [
+            {
+              text: 'On a panic result of 71–80…',
+              source: 'PSG p.42',
+              similarity: 0.87,
+            },
+          ],
+        },
       }),
-    } as unknown as RulesLookupService;
+    };
+    return stub as RulesLookupService;
   }
 
-  function rollToolUse(id: string, notation: string): Anthropic.Message {
+  // `input` is typed as the tool's own Zod-inferred input rather than left
+  // `unknown`, because `Anthropic.ToolUseBlock.input` is `unknown` by design
+  // — the SDK can't know a tool's schema, so nothing downstream of this
+  // fixture would flag a payload the tool no longer accepts. Typing it here
+  // is what turns "the schema gained a required field" into a build failure
+  // rather than a turn that silently takes the in-band error path. That is
+  // how `actingEntityId` and `rollType` (added for the § S30 attribution
+  // work) went missing from these rolls unnoticed.
+  function rollToolUse(id: string, input: RollDiceInput): Anthropic.Message {
     return {
       content: [
         {
           type: 'tool_use',
           id,
           name: 'roll_dice',
-          input: { notation, purpose: `roll ${id}` },
+          input,
         } as unknown as Anthropic.ToolUseBlock,
       ],
       model: 'claude-sonnet-4-6',
@@ -608,14 +646,17 @@ describe('SessionService (integration) — telemetry with dice and lookups', () 
     } as unknown as Anthropic.Message;
   }
 
-  function lookupToolUse(id: string, query: string): Anthropic.Message {
+  function lookupToolUse(
+    id: string,
+    input: RulesLookupInput,
+  ): Anthropic.Message {
     return {
       content: [
         {
           type: 'tool_use',
           id,
           name: 'rules_lookup',
-          input: { query, limit: 3 },
+          input,
         } as unknown as Anthropic.ToolUseBlock,
       ],
       model: 'claude-sonnet-4-6',
@@ -630,8 +671,17 @@ describe('SessionService (integration) — telemetry with dice and lookups', () 
     // Three Claude calls: rules_lookup, roll_dice, then submit_gm_response.
     const callSession = vi
       .fn()
-      .mockResolvedValueOnce(lookupToolUse('toolu_l1', 'panic result 73'))
-      .mockResolvedValueOnce(rollToolUse('toolu_r1', '1d100'))
+      .mockResolvedValueOnce(
+        lookupToolUse('toolu_l1', { query: 'panic result 73', limit: 3 }),
+      )
+      .mockResolvedValueOnce(
+        rollToolUse('toolu_r1', {
+          notation: '1d100',
+          purpose: 'roll toolu_r1',
+          actingEntityId: 'dr_chen',
+          rollType: 'panic_check',
+        }),
+      )
       .mockResolvedValueOnce(
         toolUseMessage({
           playerText: 'The pressure holds.',
@@ -792,7 +842,9 @@ describe('SessionService (integration) — telemetry with dice and lookups', () 
 
     const callSession = vi
       .fn()
-      .mockResolvedValueOnce(lookupToolUse('toolu_l1', 'wound severity'))
+      .mockResolvedValueOnce(
+        lookupToolUse('toolu_l1', { query: 'wound severity', limit: 3 }),
+      )
       .mockResolvedValueOnce(
         toolUseMessage({ playerText: 'Best-effort ruling.' }),
       );
