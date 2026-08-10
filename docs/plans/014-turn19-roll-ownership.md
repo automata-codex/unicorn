@@ -1,5 +1,19 @@
 # turn19 — roll ownership
 
+> **RESOLVED 2026-08-10, in one iteration.** `SYSTEM-ROLLED-PLAYER-ACTION`
+> reads **1.00 (20/20)** at prompt `c45a142a` — above July's 0.90 — with
+> `UNSURFACED-CHECK` holding at 1.00. The falsifier below was run first and
+> the hypothesis survived; the fix was placement and voice, as predicted.
+> Account in `docs/rules-extraction-findings.md § S32` (the falsifier and the
+> edit) and `§ S33` (the re-baseline). Prompt change is `e5dfd0f`.
+>
+> **Two corrections to this document, kept in place rather than edited away**
+> because the reasoning below is what a future reader will be checking:
+> the primer is `:60`–`:174`, not `:141`–`:189` (July's whole prompt was 62
+> lines against today's 191), and the defect is a referent flip — the primer
+> silently reassigns "you" from the Warden to the player-character — rather
+> than the ambiguity of "call for a Save". Both are corrected inline below.
+
 Handoff for a fresh thread. Everything here is verified as of 2026-08-09,
 commit `4a04f2d` on `milestone-m75-rules-retrieval-quality`.
 
@@ -31,10 +45,10 @@ Sonnet 5, prompt `0bdd1306`, populated index, corrected checker. **Read these
 two as a pair** — they moved in opposite directions on one prompt change, and
 a fix that trades one for the other will look like progress.
 
-| Tag | July `97feadbd` | Now `0bdd1306` |
-|---|---|---|
-| `SYSTEM-ROLLED-PLAYER-ACTION` | 0.90 (18/20) | **0.45 (9/20)** |
-| `UNSURFACED-CHECK` | 0.70 (7/10) | **1.00 (10/10)** |
+| Tag | July `97feadbd` | Now `0bdd1306` | Result `c45a142a` |
+|---|---|---|---|
+| `SYSTEM-ROLLED-PLAYER-ACTION` | 0.90 (18/20) | **0.45 (9/20)** | **1.00 (20/20)** |
+| `UNSURFACED-CHECK` | 0.70 (7/10) | **1.00 (10/10)** | **1.00 (10/10)** |
 
 Per fixture, `SYSTEM-ROLLED-PLAYER-ACTION` is `turn19` 0.10 (1/10) and
 `turn21` 0.80 (8/10). turn19 is where the work is.
@@ -55,19 +69,32 @@ Both predate M7.5. So the model is violating an explicit instruction, and
 "tell it whose roll it is" has *already been tried* by whoever wrote line 41.
 
 What M7.5 changed is what sits after it. The mechanical primer occupies
-`:141`–`:189` — roughly a quarter of the prompt, appended at the end, written
-throughout in resolution voice ("call for a FEAR Save", "roll under it") and
-never restating who rolls. "Call for a Save" is exactly ambiguous between
-issuing a request and rolling one.
+`:60`–`:174` — *corrected from `:141`–`:189`; the M7.5 additions start at the
+vocabulary-bridging block, and July's entire prompt was 62 lines against
+today's 191, so `:41` went from 66% depth to 21%* — written throughout in
+resolution voice ("call for a FEAR Save", "roll under it") and never restating
+who rolls. "Call for a Save" is exactly ambiguous between issuing a request
+and rolling one.
 
 If that is right, the fix is placement and voice, not a new rule, and the
 cheapest test is to move or re-voice rather than to add.
 
-**Falsifier to run first, before editing anything:** re-read `:141`–`:189` and
+**Falsifier to run first, before editing anything:** re-read the primer and
 count how many imperatives could be read as "you roll this." If the answer is
 "few," the hypothesis is weak and the next candidate is the interaction
 between `:22`'s "if a character is not pressing a button to resolve it, the
 Warden rolls" and an eval harness where nobody is pressing a button.
+
+> **Run 2026-08-10. The count is 12, so the hypothesis survived** — and it
+> turned up something this section did not predict. The real defect is not
+> ambiguity but a **referent flip**: `:1`–`:58` address the Warden ("You are
+> the Warden"), then from `:91` the primer switches to the book's voice where
+> "you" is the player-character (`:137` "You gain 1 Stress every time you fail
+> a Stat Check"), and never announces the switch or switches back. The rule at
+> `:41` lost because the pronoun binding it depends on was reassigned
+> underneath it. The fallback hypothesis was live too and was fixed in the same
+> pass: "pressing a button" keys the decision to *availability of a roller*
+> rather than ownership of the action. Full count in § S32.
 
 ## Constraints that will bite
 
@@ -95,6 +122,15 @@ All under `$ZOLTAR_EVAL_ROOT/eval-runs`. The July run needs `--scoring rescore`
 (its own scores predate the corrected checker); the 08-09T21 run does not.
 
 ## Open, and deliberately not done
+
+*Status as of 2026-08-10. The roll-ownership item itself is closed; everything
+below was open before this work and mostly still is.*
+
+**New, opened by § S33:** `turn24-over-resolution` is an `ungated` judged check
+with no `not_applicable` path, and one rep failed on a rubric whose subject the
+turn never reached — the judge said so in its own rationale and returned `fail`
+anyway. That is § S30 inverted, on the judged side. Needs a gate, or a recorded
+decision that judged checks are exempt from the undecided discipline.
 
 - `docs/eval-methodology.md` `Current baseline N` was not updated —
   applicability shifted on the roll-shaped checks and that is a variance

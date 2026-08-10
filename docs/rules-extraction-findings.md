@@ -4614,3 +4614,168 @@ what makes the 0.45 above a measurement rather than an artifact.
 Stable across two runs and still improving. **The milestone's stated goal was
 met and is not in question.** What is in question is a behaviour the milestone
 did not set out to change and was not measuring correctly until § S30.
+
+---
+
+### S32 — 2026-08-10 · The primer had no owner for the rolls it named
+
+Plan 014 handed over a hypothesis and a falsifier to run before touching
+anything: count the imperatives in the mechanical primer that could be read as
+*"you roll this,"* and treat a low count as evidence against placement being
+the cause. The count is **12**, so the hypothesis survives and the edit is
+placement and voice rather than a new rule.
+
+Two things the plan had wrong, both found by running the count rather than
+trusting the framing.
+
+**The primer is `:60`–`:174`, not `:141`–`:189`.** The M7.5 additions start at
+the vocabulary-bridging block. July's entire prompt was **62 lines**
+(`ec945e6`); today's is 191. So the ownership rule at `:41` did not merely
+acquire text after it — it went from 66% depth with nothing substantive
+following, to 21% depth with 78% of the prompt after it, nearly all of that in
+resolution voice.
+
+**The defect is a referent flip, not ambiguity.** Lines 1–58 address the
+Warden throughout — "You are the Warden", "You have three tools", "you will
+see those results". From `:91` the primer switches into the book's voice,
+where "you" is the player-character:
+
+```
+:137  You gain 1 Stress every time you fail a Stat Check or Save.
+```
+
+It never announces the switch and never switches back. The model reads ~90
+lines in which the second person means the person holding the dice. That is a
+sharper account than "call for a Save is ambiguous," and it explains why the
+rule at `:41` lost: not because it was outranked, but because the pronoun
+binding it depends on was quietly reassigned underneath it.
+
+#### The count, for the record
+
+Unambiguously *the Warden rolls the player's check* — `:157` "name the Stat the
+fiction actually strains and **roll under it**" (the player's own sneak);
+`:135` "At zero Health, **take a Wound, roll** on the Wounds Table". Referent
+collisions — `:137`, and `:145`'s book quote. Bare roll imperatives with no
+actor — `:91`, `:99`, `:102`. "Call for" / "adjudicate", precisely ambiguous
+between issuing and executing — `:113`, `:160`, `:167`, `:172`. And `:148`,
+which makes "roll" the alternative to "narrate" — two Warden acts, no third
+option.
+
+#### What changed, and what deliberately did not
+
+Three edits, none touching a mechanic, so `eval:primer-audit` has nothing new
+to check and reports no invariant violations:
+
+- **Actor-explicit voice.** "Roll 1d100" → "The acting character rolls 1d100";
+  "You gain 1 Stress" → "A character gains 1 Stress"; "roll under it" → "have
+  the character roll under it"; "do not roll" → "do not call for a roll at
+  all".
+- **The verb defined once**, at `:53`, so the ~130 lines below inherit it:
+  "call for a FEAR Save" names *which* roll happens and never *who* executes
+  it.
+- **A closing `WHOSE ROLL IS IT` block.** This is what
+  `docs/decisions.md § Agentic graph decomposition` actually asked for — the
+  rule stated unambiguously *and* positioned where it governs the primer. It
+  closes on § S31's split: *knowing a roll is warranted is not permission to
+  make it.*
+
+`:22` was re-voiced too, as plan 014's fallback hypothesis predicted it should
+be. "If a character is not pressing a button to resolve it, the Warden rolls"
+keyed the decision to **availability of a roller** rather than ownership of
+the action — a reading the eval harness satisfies trivially, since nobody
+there presses buttons. It now reads "the test is whose choice produced the
+roll, never whether someone is available to roll it."
+
+**One force was left in place on purpose.** `turn19`'s own seeded history
+demonstrates the Warden rolling for the player four times in the last six
+messages — *"70 against a Combat of 30. You needed to roll under. You
+didn't."* Four in-context demonstrations plainly outweigh one prompt line at
+21% depth. But that history was identical in July at 10/10, so it is the
+standing pressure the primer tipped over, not the cause. An anti-precedent
+instruction would have confounded the placement experiment the criterion asks
+for, and it was held as a second iteration that turned out not to be needed.
+
+Prompt hash `0bdd1306` → **`c45a142a`** (`e5dfd0f`). Result in § S33.
+
+---
+
+### S33 — 2026-08-10 · The re-baseline: ownership was the missing concept
+
+`claude-sonnet-5__c45a142a__2026-08-10T12-18-32Z`, full corpus, 10 reps, zero
+errors, `harnessVersion e5dfd0f`. Compared against
+`claude-sonnet-5__0bdd1306__2026-08-09T21-23-39Z`, both sides at
+`corpusVersion 104b2d944252`, so `eval:compare` emits no staleness warning.
+
+| Tag | July `97feadbd` | `0bdd1306` | **`c45a142a`** |
+|---|---|---|---|
+| SYSTEM-ROLLED-PLAYER-ACTION | 0.90 (18/20) | 0.45 (9/20) | **1.00 (20/20)** |
+| UNSURFACED-CHECK | 0.70 | 1.00 | **1.00** |
+
+Per fixture, `turn19` **0.10 → 1.00** and `turn21` **0.80 → 1.00**, both at
+unchanged applicability 1.00. The regression is not merely recovered; the tag
+is above July's 0.90 for the first time, and it clears while `UNSURFACED-CHECK`
+holds — the pair plan 014 required be read together, because a fix that traded
+one for the other would have read as progress.
+
+**§ S31's diagnosis was right and is now confirmed by its own remedy.** The
+milestone taught the Warden that a roll was warranted without the corollary
+that a warranted roll about the player's declared action belongs to the
+player. Supplying only the corollary — no change to roll frequency guidance —
+moved the tag 0.55 and left the improvements that guidance bought intact.
+
+#### The rest of the corpus
+
+| Tag | A | B | Δ |
+|---|---|---|---|
+| OUT-OF-ORDER-RESOLUTION | 0.94 (17/18) | **1.00 (18/18)** | +0.06 |
+| SCENE-JUMP | 0.80 | **1.00** | +0.20 |
+| HIDDEN-INFO-LEAK | 1.00 | 0.95 | -0.05 |
+| OVER-RESOLUTION | 1.00 | 0.90 | -0.10 |
+| NARRATING-PAST-A-BLOCK | 0.50 | 0.50 | 0.00 |
+
+`OUT-OF-ORDER-RESOLUTION` was the pre-registered risk — the closing block's
+"narrate up to the point the dice are needed and stop" reaches it directly,
+and the scoped probe had already shown two reps rolling an NPC's return fire
+against an unresolved player gate. It improved instead, at unchanged tag-level
+applicability 18/20. The per-fixture applicability did move in opposite
+directions (`turn19` 0.90 → 0.80, `turn21` 0.90 → 1.00) and cancels; worth
+watching, not currently costing coverage.
+
+#### The two regressions, inspected rather than assumed
+
+They land in **different reps**, so they are not one behaviour flipping twice.
+
+**`turn24-hidden-info-leak` rep 006 is a real leak.** The narration reads
+*"You can't see it, but here's what's happening in the research wing right
+now… They're maybe thirty seconds from Lab B's door"* — omniscient cross-cut
+past Alvarez's perception boundary. The judge is correct. This fixture's
+history is 0.89 → 1.00 → 0.90, so a one-rep flip at N=10 sits inside its
+established range.
+
+**`turn24-over-resolution` rep 002 looks like a false fail, and it is the more
+interesting one.** The judge's own rationale states that the tool calls do not
+contain the Delta-vs-UNIT-7 off-screen encounter the rubric asks about, and
+that judging them against off-screen expectations is *"a mismatched
+comparison"* — then returns `fail`. The check is `ungated`, so it has no
+`not_applicable` path.
+
+**That is § S30 inverted.** There, a structural check with nothing it could
+resolve collapsed into its PASS condition; here, a judged check with nothing
+to grade collapses into FAIL. Same root shape — a check that cannot decide
+must report undecided — applied to judged rather than structural checks, where
+`docs/decisions.md § Structural checks report undecided rather than guessing`
+has never been extended.
+
+There is a plausible mechanism worth naming before it is investigated: if the
+turn now stops earlier, it may never reach the off-screen encounter, starving
+an ungated rubric of its subject. **If that is what happened, the fix is a
+gate on `over-resolution`, not a retreat on the prompt.** One rep and one
+rationale do not establish it.
+
+#### Unchanged, and still not covered
+
+`turn16-narrating-past-a-block` remains **0.00, 10 of 10 failing** — the worst
+cell in the corpus across three runs, untouched by this milestone and by this
+change. `UNAUDITABLE-MAPPING` (0 of 30) and `MISSING-CANON-CAPTURE` (0 of 10)
+report zero denominator on both sides. Zero applicable is not a pass; those
+tags have no coverage and the playtest is what is supposed to supply it.
