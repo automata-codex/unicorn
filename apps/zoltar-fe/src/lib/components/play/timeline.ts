@@ -16,6 +16,7 @@ export interface NarrativeTimelineEntry {
   role: 'user' | 'assistant' | 'system';
   content: string;
   createdAt: string;
+  turnNumber: number | null;
 }
 
 export interface DiceRollTimelineEntry {
@@ -38,6 +39,18 @@ export interface MessageWire {
   role: 'user' | 'assistant' | 'system';
   content: string;
   createdAt: string;
+  /**
+   * 1-based ordinal of the turn this message belongs to — the number
+   * `task playtest:review` prints as `### Turn N`, so a note taken against
+   * the UI mid-playtest resolves against the review report without counting.
+   * Both messages of a turn carry the same number; the player's is labelled
+   * with the turn it initiates.
+   *
+   * `null` when no turn has closed over the message: the optimistic append
+   * before a turn returns, a turn that never completed, and the synthetic
+   * opening narration, which precedes turn 1. Those render unlabelled.
+   */
+  turnNumber: number | null;
 }
 
 export interface DiceRollWire {
@@ -64,6 +77,7 @@ export function mergeTimeline(
         role: m.role,
         content: m.content,
         createdAt: m.createdAt,
+        turnNumber: m.turnNumber,
       }),
     ),
     ...diceRolls.map(

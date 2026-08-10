@@ -6,11 +6,13 @@ const msg = (
   id: string,
   t: string,
   role: MessageWire['role'] = 'user',
+  turnNumber: number | null = null,
 ): MessageWire => ({
   id,
   role,
   content: id,
   createdAt: t,
+  turnNumber,
 });
 
 const dice = (id: string, t: string, seq = 0): DiceRollWire => ({
@@ -66,6 +68,24 @@ describe('mergeTimeline', () => {
     const result = mergeTimeline([p], [d]);
     expect(result.filter((e) => e.type === 'message')).toHaveLength(1);
     expect(result.filter((e) => e.type === 'dice_roll')).toHaveLength(1);
+  });
+
+  it('carries turnNumber through onto the timeline entry', () => {
+    const p = msg('p', '2026-04-01T12:00:00.000Z', 'user', 14);
+    const gm = msg('gm', '2026-04-01T12:00:01.000Z', 'assistant', 14);
+    const result = mergeTimeline([p, gm], []);
+    expect(
+      result.map((e) => (e.type === 'message' ? e.turnNumber : undefined)),
+    ).toEqual([14, 14]);
+  });
+
+  it('preserves a null turnNumber rather than dropping the field', () => {
+    // `null` is what makes the play view render an unlabelled bubble; losing
+    // it to `undefined` would still be falsy but no longer type-honest.
+    const p = msg('p', '2026-04-01T12:00:00.000Z', 'user', null);
+    const [entry] = mergeTimeline([p], []);
+    expect(entry.type).toBe('message');
+    expect(entry.type === 'message' && entry.turnNumber).toBeNull();
   });
 
   it('preserves insertion order on ties (messages before same-ms dice rolls)', () => {

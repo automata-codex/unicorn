@@ -26,7 +26,11 @@
 <div bind:this={scrollEl} class="log">
   {#each timeline as entry (entry.id)}
     {#if entry.type === 'message'}
-      <MessageBubble role={entry.role} content={entry.content} />
+      <MessageBubble
+        role={entry.role}
+        content={entry.content}
+        turnNumber={entry.turnNumber}
+      />
     {:else}
       <DiceRollBubble
         purpose={entry.purpose}
