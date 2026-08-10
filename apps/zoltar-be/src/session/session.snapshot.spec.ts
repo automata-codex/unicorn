@@ -78,6 +78,53 @@ describe('buildStateSnapshot', () => {
     expect(snapshot).not.toContain('shadow_threat');
   });
 
+  it('emits a player entity absent from the entities map', () => {
+    // The real shape: campaign_state.entities holds NPCs/threats/features
+    // only, so before this the player id reached the prompt nowhere at all and
+    // the Warden inferred one from pool names.
+    const snapshot = buildStateSnapshot({
+      gmContextBlob: { ...emptyBlob, playerEntityIds: ['lt_alvarez'] },
+      campaignStateData: makeState({
+        entities: { burned_out_medic: { visible: true, status: 'alive' } },
+      }),
+    });
+    expect(snapshot).toContain(
+      'lt_alvarez: visible, status=unknown, player_character',
+    );
+    expect(snapshot).toContain('burned_out_medic: visible, status=alive');
+  });
+
+  it('tags a player entity that is in the map and lists players first', () => {
+    const snapshot = buildStateSnapshot({
+      gmContextBlob: { ...emptyBlob, playerEntityIds: ['dr_chen'] },
+      campaignStateData: makeState({
+        entities: {
+          apex_predator: { visible: true, status: 'unknown' },
+          dr_chen: { visible: true, status: 'alive' },
+        },
+      }),
+    });
+    expect(snapshot).toContain(
+      'dr_chen: visible, status=alive, player_character',
+    );
+    // `apex_predator` sorts before `dr_chen`; the player must still come first.
+    const block = snapshot.slice(snapshot.indexOf('<entities>'));
+    expect(block.indexOf('dr_chen')).toBeLessThan(
+      block.indexOf('apex_predator'),
+    );
+  });
+
+  it('emits the <entities> block for a player entity even with no other entities', () => {
+    const snapshot = buildStateSnapshot({
+      gmContextBlob: { ...emptyBlob, playerEntityIds: ['lt_alvarez'] },
+      campaignStateData: makeState({ entities: {} }),
+    });
+    expect(snapshot).toContain('<entities>');
+    expect(snapshot).toContain(
+      'lt_alvarez: visible, status=unknown, player_character',
+    );
+  });
+
   it('omits the <entities> block when every entity is hidden and no player entities exist', () => {
     const snapshot = buildStateSnapshot({
       gmContextBlob: emptyBlob,

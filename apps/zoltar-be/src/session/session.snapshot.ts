@@ -11,12 +11,11 @@ import type { MothershipCampaignState } from '@uv/game-systems';
  * Original flags' triggers sit inside the cached GM context blob, so
  * re-emitting them in the per-turn snapshot is waste.
  *
- * `playerEntityIds` lists the player-character entity identifiers. Player
- * entities are always included in `<entities>` regardless of the `visible`
- * flag; hidden NPC/threat/feature entities are elided. In M5 player entities
- * are not written to `campaign_state.data.entities` at all, so this override
- * is dormant — Phase 5 still threads it through for correctness once M6 starts
- * applying state changes that can touch player entities.
+ * `playerEntityIds` lists the player-character entity identifiers, sourced from
+ * `character_sheet.data.entityId`. Player entities are always emitted in
+ * `<entities>` — including ones absent from `campaign_state.data.entities`,
+ * which in practice is all of them, since that map holds NPCs, threats and
+ * features only. Hidden NPC/threat/feature entities remain elided.
  */
 export interface GmContextBlob {
   openingNarration?: string | null;
@@ -91,21 +90,41 @@ function renderResourcePools(
   return `<resource_pools>\n${lines.join('\n')}\n</resource_pools>`;
 }
 
+/**
+ * Renders `<entities>`, with player characters as a **source** rather than a
+ * filter override.
+ *
+ * The previous implementation only un-hid ids already present in `entities`,
+ * and `campaign_state.data.entities` holds NPCs, threats and features only — so
+ * the player's id appeared nowhere in the prompt and the Warden inferred one
+ * from resource pool names, which is how `actingEntityId` came back
+ * unresolvable in the M7.5 capture (`docs/decisions.md § actingEntityId must
+ * resolve against a declared identifier set`). Player ids are now emitted
+ * whether or not the map carries them, tagged `player_character`, and listed
+ * first so the canonical spelling is the first thing the block states.
+ *
+ * A player id absent from the map reports `status=unknown` — the same value
+ * `buildEntityMap` gives every synthesized entity, and the honest one here:
+ * nothing recorded a status. Live HP is in `<resource_pools>` regardless.
+ */
 function renderEntities(
   entities: CampaignStateData['entities'],
   playerEntityIds: ReadonlySet<string>,
 ): string | null {
-  const keys = Object.keys(entities).sort();
-  const emitted = keys.filter(
-    (id) => entities[id].visible || playerEntityIds.has(id),
-  );
-  if (emitted.length === 0) return null;
-
-  const lines = emitted.map((id) => {
+  const playerLines = [...playerEntityIds].sort().map((id) => {
     const entity = entities[id];
+    if (!entity) return `${id}: visible, status=unknown, player_character`;
     const visibility = entity.visible ? 'visible' : 'hidden';
-    return `${id}: ${visibility}, status=${entity.status}`;
+    return `${id}: ${visibility}, status=${entity.status}, player_character`;
   });
+
+  const otherLines = Object.keys(entities)
+    .sort()
+    .filter((id) => !playerEntityIds.has(id) && entities[id].visible)
+    .map((id) => `${id}: visible, status=${entities[id].status}`);
+
+  const lines = [...playerLines, ...otherLines];
+  if (lines.length === 0) return null;
 
   return `<entities>\n${lines.join('\n')}\n</entities>`;
 }

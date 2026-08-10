@@ -43,6 +43,19 @@ export function validateStateChanges(input: {
   proposed: SubmitGmResponse['stateChanges'];
   currentData: MothershipCampaignState;
   poolDef: (poolName: string) => PoolDefinition;
+  /**
+   * Identifier namespaces the pool-bootstrap branch resolves prefixes against:
+   * the player ids from `character_sheet`, and the entities the snapshot could
+   * have shown. Optional so callers that predate it (and the pure unit specs)
+   * keep working — an absent set disables the impersonation check rather than
+   * rejecting everything, the same asymmetry `roll_dice` uses for an empty
+   * known set (`docs/decisions.md § actingEntityId must resolve against a
+   * declared identifier set`).
+   */
+  identifiers?: {
+    playerEntityIds: readonly string[];
+    knownEntityIds: readonly string[];
+  };
 }): ValidationResult {
   const result: ValidationResult = {
     applied: {
@@ -67,6 +80,7 @@ export function validateStateChanges(input: {
       input.currentData,
       input.poolDef,
       result,
+      input.identifiers,
     );
   }
 
@@ -89,18 +103,74 @@ export function validateStateChanges(input: {
   return result;
 }
 
+/**
+ * True when `poolName` names a pool of a kind the player already owns, under a
+ * prefix that resolves to neither the player nor any entity the snapshot could
+ * have shown — `alvarez_hp` while the sheet says `lt_alvarez`. Scenario-level
+ * pools whose prefix resolves to nothing but which name no player pool
+ * (`station_power_reserve`) are unaffected.
+ */
+function impersonatesPlayerPool(
+  poolName: string,
+  currentData: MothershipCampaignState,
+  identifiers: {
+    playerEntityIds: readonly string[];
+    knownEntityIds: readonly string[];
+  },
+): boolean {
+  const known = new Set([
+    ...identifiers.playerEntityIds,
+    ...identifiers.knownEntityIds,
+  ]);
+  for (const playerId of identifiers.playerEntityIds) {
+    const prefix = `${playerId}_`;
+    for (const existingKey of Object.keys(currentData.resourcePools)) {
+      if (!existingKey.startsWith(prefix)) continue;
+      const suffix = existingKey.slice(prefix.length);
+      if (!poolName.endsWith(`_${suffix}`)) continue;
+      const candidate = poolName.slice(0, poolName.length - suffix.length - 1);
+      if (candidate.length > 0 && !known.has(candidate)) return true;
+    }
+  }
+  return false;
+}
+
 function applyResourcePool(
   poolName: string,
   change: { delta: number },
   currentData: MothershipCampaignState,
   poolDef: (poolName: string) => PoolDefinition,
   result: ValidationResult,
+  identifiers?: {
+    playerEntityIds: readonly string[];
+    knownEntityIds: readonly string[];
+  },
 ): void {
   const existing = currentData.resourcePools[poolName];
   const delta = change.delta;
   const def = poolDef(poolName);
 
   if (!existing) {
+    if (
+      identifiers &&
+      identifiers.playerEntityIds.length > 0 &&
+      impersonatesPlayerPool(poolName, currentData, identifiers)
+    ) {
+      // Bootstrapping this would give one character two pools of the same kind
+      // under two spellings of their id — the defect that made the M7.5
+      // capture's `actingEntityId` values unresolvable. Named ids in the
+      // reason so the model corrects in-loop rather than retrying blind.
+      result.rejections.push({
+        path: `resourcePools.${poolName}`,
+        reason:
+          `Pool name does not resolve to a known entity, and the player ` +
+          `character already has a pool of this kind. The player's entity id ` +
+          `is ${identifiers.playerEntityIds.join(' or ')} — use that exact ` +
+          `spelling as the prefix.`,
+        received: change,
+      });
+      return;
+    }
     if (delta > 0) {
       result.applied.resourcePools[poolName] = { current: delta, max: null };
     } else {

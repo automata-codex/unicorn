@@ -195,6 +195,7 @@ export class SynthesisService {
     adventureId: string;
     campaignId: string;
     input: SubmitGmContext;
+    playerEntityId: string;
   }): Promise<void> {
     try {
       validateSubmitGmContextForWrite(args.input);
@@ -202,10 +203,23 @@ export class SynthesisService {
       const existingData = await this.campaignRepo.getStateData(
         args.campaignId,
       );
-      const campaignStateData = buildCampaignStateData(
+      const built = buildCampaignStateData(
         existingData,
         args.input,
+        args.playerEntityId,
       );
+      const campaignStateData = built.data;
+      if (built.skippedPools.length > 0) {
+        // Not a write failure — the pools are redundant by construction, since
+        // the player already owns one of each kind. Logged because it means the
+        // model spelled the player's entity id differently from the sheet
+        // despite being handed it, which is worth seeing before a playtest.
+        this.logger.warn(
+          `Synthesis proposed player-impersonating resource pools for ` +
+            `adventure=${args.adventureId}, player=${args.playerEntityId}; ` +
+            `dropped: ${built.skippedPools.join(', ')}`,
+        );
+      }
       const gmContextBlob = buildGmContextBlob(args.input);
       const gridEntities = buildGridEntityRows(args.input);
 

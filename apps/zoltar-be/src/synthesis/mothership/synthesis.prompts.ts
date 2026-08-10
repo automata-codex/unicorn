@@ -30,6 +30,13 @@ export function formatMothershipCharacterProse(
 ): string {
   const lines = [
     `${sheet.name} (${sheet.class})`,
+    // The canonical entity id, not a display name. Without it the model has
+    // only `name` to work from and invents an id to build pool names out of —
+    // "Lt. Alvarez" derives equally well to `lt_alvarez` or `alvarez`, and the
+    // captured M7.5 adventure ended up carrying both for one character. See
+    // `docs/decisions.md § Player resource pools are derived at character
+    // creation, not at synthesis`.
+    `Entity ID: ${sheet.entityId}`,
     `Stats: STR ${sheet.stats.strength}, SPD ${sheet.stats.speed}, INT ${sheet.stats.intellect}, CMB ${sheet.stats.combat}, INST ${sheet.stats.instinct}, SAN ${sheet.stats.sanity}`,
     `Saves: Fear ${sheet.saves.fear}, Body ${sheet.saves.body}, Armor ${sheet.saves.armor}/${sheet.saves.armorMax}`,
     `HP: ${sheet.maxHp}   Stress Threshold: ${sheet.maxStress}`,
@@ -65,6 +72,7 @@ export function buildMothershipSynthesisPrompt(
     `CHARACTER:\n${formatMothershipCharacterProse(characterSheet)}`,
     `ORACLE RESULTS:\n${formatAllMothershipOracleEntries(selections)}`,
     `Each oracle entry includes an id, claude_text (the narrative seed), interfaces (hints for how entries connect across categories), and tags. Use the id values as the basis for entity IDs and flag keys in the structured output. Use the interfaces array to wire entries together coherently — condition values indicate which other entries this one connects to. Synthesize a coherent GM context from these elements and call submit_gm_context when complete.`,
+    `PLAYER CHARACTER:\nThe player character's canonical entity id is the "Entity ID" value given under CHARACTER above. Use that exact string wherever you refer to the player character — entity ids, resource pool names, flag keys. Do not derive an identifier from the display name; the name is for narration only.\n\nThe player's HP and stress pools already exist as {entity_id}_hp and {entity_id}_stress, written at character creation. Do not include them in initialState — they are already in state and re-creating them under a different spelling produces two competing pools for one character. Any additional player-character pool you do initialize must carry the same {entity_id}_ prefix.`,
     `FLAGS:\nEach flag in the structured output must include both a value (boolean) and a trigger (the specific in-fiction action or event that flips it). Example: { "distress_beacon_active": { "value": false, "trigger": "Flip to true when the player or an NPC activates the beacon at the bridge console. Approaching the console is not sufficient." } }`,
     `REQUIRED FLAG — adventure_complete:\nEvery scenario must include adventure_complete: { value: false, trigger: "..." } where the trigger names the specific end condition for this adventure.`,
     `COUNTDOWN TIMERS:\nAny mechanic that involves a number counting down over the course of the adventure must be initialized as a named resource pool in initialState. Use the naming convention {entity_id}_timer — e.g. crewman_wick_timer: { current: 4, max: 4 }. Do not track countdowns as freeform state or narrative-only values.`,

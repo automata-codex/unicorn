@@ -20,6 +20,7 @@ describe('formatMothershipCharacterProse', () => {
   it('renders name, class, stats, saves, HP, stress, skills, equipment', () => {
     const prose = formatMothershipCharacterProse(vasquezSheet);
     expect(prose).toContain('Vasquez (marine)');
+    expect(prose).toContain(`Entity ID: ${vasquezSheet.entityId}`);
     expect(prose).toContain('STR 55');
     expect(prose).toContain('SAN 50');
     expect(prose).toContain('Fear 30');
@@ -63,7 +64,19 @@ describe('buildMothershipSynthesisPrompt', () => {
     expect(prompt).toContain('FLAGS:');
     expect(prompt).toContain('REQUIRED FLAG — adventure_complete');
     expect(prompt).toContain('COUNTDOWN TIMERS:');
+    expect(prompt).toContain('PLAYER CHARACTER:');
     expect(prompt).toContain('OPENING NARRATION:');
+  });
+
+  it('names the canonical entity id and forbids re-deriving one from the display name', () => {
+    // The synthesis-side half of the duplicate-pool defect: the model was shown
+    // only `name`, so it invented a prefix to build player pools out of.
+    const prompt = buildMothershipSynthesisPrompt(vasquezSheet, baseSelections);
+    expect(prompt).toContain(`Entity ID: ${vasquezSheet.entityId}`);
+    expect(prompt).toContain(
+      'Do not derive an identifier from the display name',
+    );
+    expect(prompt).toContain('Do not include them in initialState');
   });
 
   it('omits the addendum section when not provided', () => {
