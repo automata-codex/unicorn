@@ -68,6 +68,34 @@ than an assumption.
   `manifest.json`)
 - Run directory: `claude-sonnet-4-6__97feadbd__2026-07-29T10-51-26Z`
 
+### The run the baseline actually points at, as of 2026-08-10
+
+**N is still 10 and has not been re-calibrated.** What changed is everything it was
+calibrated *against*, so the calibration basis above is now historical and the standing
+comparison point is:
+
+- Model: **`claude-sonnet-5`** — `claude-sonnet-4-6` was retired from baselining rather
+  than re-run, a recorded scope deviation (`docs/roadmap.md § M7.5`,
+  `docs/plans/014-turn19-roll-ownership.md`). Both-model baselines no longer exist
+- Prompt hash: **`c45a142a`**, `harnessVersion e5dfd0f`
+- Corpus version: `104b2d944252`
+- Run directory: `claude-sonnet-5__c45a142a__2026-08-10T12-18-32Z`
+- Full corpus, 10 reps, zero errors. Tag figures in
+  `docs/rules-extraction-findings.md § S33`
+
+**The N=10 estimate is inherited, not re-derived.** Per "N is calibrated, not chosen"
+above, this warrants a re-check rather than an assumption: the number came from
+per-fixture variance measured under a different model, a different prompt, and an
+*empty* `rules_chunk` index. Nothing here re-measured variance. Treat N=10 as carried
+forward on the same precision-for-cost reasoning in "Basis" below, and re-derive it if a
+comparison ever turns on a difference near the ±31pp half-width.
+
+**Pending supersession.** The `<entities>` player-source change (`docs/decisions.md §
+actingEntityId must resolve against a declared identifier set` → "Root cause, and what is
+still open") alters the state snapshot and therefore the Warden prompt, which invalidates
+`c45a142a` as a comparison point. The re-baseline for it is the next entry in this
+section; until it lands, `c45a142a` remains current.
+
 **Corpus version updated 2026-07-29 to `4c9f2e73efd7...` — a grader fix, not a re-run.**
 `turn{19,21}-{system-rolled-player-action,out-of-order-resolution}.json` gained a
 fixture-authored `applicability` field so those two checks stop inferring applicability from
