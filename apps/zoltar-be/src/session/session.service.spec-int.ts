@@ -359,6 +359,44 @@ describe('SessionService (integration) — happy path', () => {
       .where(eq(schema.adventures.id, adventureId));
     expect(advRow.status).toBe('in_progress');
   });
+
+  it('returns an incrementing turnNumber that agrees with the message log', async () => {
+    // The POST response carries the turn ordinal so the client can stamp it
+    // onto the optimistic player message. It has to agree with what
+    // `listMessages` reports on a later reload — two independent
+    // derivations (a count inside the write transaction vs. a read-time
+    // window function), so this asserts they don't drift.
+    const { campaignId, adventureId } = await seedReadyAdventure();
+    const callSession = vi.fn().mockResolvedValue(
+      toolUseMessage({
+        playerText: 'ok',
+        stateChanges: {},
+        gmUpdates: {},
+      }),
+    );
+    const service = new SessionService(
+      repo,
+      mockAnthropic(callSession),
+      campaignRepo,
+      stubDice(),
+      stubRules(),
+      stubWardens(),
+    );
+
+    const first = await service.sendMessage(baseArgs(campaignId, adventureId));
+    const second = await service.sendMessage(baseArgs(campaignId, adventureId));
+
+    expect(first.turnNumber).toBe(1);
+    expect(second.turnNumber).toBe(2);
+
+    const log = await service.listMessages(adventureId);
+    expect(log.map((m) => [m.role, m.turnNumber])).toEqual([
+      ['user', 1],
+      ['assistant', 1],
+      ['user', 2],
+      ['assistant', 2],
+    ]);
+  });
 });
 
 describe('SessionService (integration) — correction succeeds', () => {
@@ -417,6 +455,11 @@ describe('SessionService (integration) — correction succeeds', () => {
     const correctionRow = events[2];
     expect(gmResponseRow.supersededBy).toBe(correctionRow.id);
     expect(correctionRow.supersededBy).toBeNull();
+
+    // A corrected turn is still one turn. `playtest-review.render.ts`
+    // numbers it the same way, and the play-view label has to agree with
+    // the review report or a playtest note can't be resolved against it.
+    expect(result.turnNumber).toBe(1);
 
     // Messages table carries only the corrected text.
     const messages = await db

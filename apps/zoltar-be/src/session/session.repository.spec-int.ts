@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -161,6 +162,256 @@ describe('SessionRepository (integration)', () => {
 
       expect(rolls).toHaveLength(1);
       expect(rolls[0].notation).toBe('1d100');
+    });
+  });
+
+  describe('listMessagesWithTurnNumber', () => {
+    // These tests seed `created_at` explicitly to reproduce the real write
+    // path's timestamp relationships, which the assignment rule depends on:
+    // the player message is persisted *before* the turn transaction opens
+    // (so it is strictly earlier), and the gm message is inserted *inside*
+    // it alongside the gm_response event (so both take the same
+    // transaction `now()` and are exactly equal). See
+    // `docs/plans/015-play-view-turn-number.md`.
+    async function seedTurn(args: {
+      campaignId: string;
+      adventureId: string;
+      seq: number;
+      at: string;
+      playerMessages?: Array<{ content: string; at: string }>;
+      gmText?: string;
+      corrected?: boolean;
+    }): Promise<void> {
+      const db = getTestDb();
+      for (const pm of args.playerMessages ?? []) {
+        await db.insert(schema.messages).values({
+          adventureId: args.adventureId,
+          role: 'player',
+          content: pm.content,
+          createdAt: new Date(pm.at),
+        });
+      }
+      await db.insert(schema.gameEvents).values({
+        adventureId: args.adventureId,
+        campaignId: args.campaignId,
+        sequenceNumber: args.seq - 1,
+        eventType: 'player_action',
+        actorType: 'player',
+        actorId: 'u1',
+        payload: { content: args.playerMessages?.at(-1)?.content ?? '' },
+        createdAt: new Date(args.at),
+      });
+      const [gmEvent] = await db
+        .insert(schema.gameEvents)
+        .values({
+          adventureId: args.adventureId,
+          campaignId: args.campaignId,
+          sequenceNumber: args.seq,
+          eventType: 'gm_response',
+          actorType: 'gm',
+          actorId: null,
+          payload: { gmUpdates: null },
+          createdAt: new Date(args.at),
+        })
+        .returning();
+      if (args.corrected) {
+        const [correction] = await db
+          .insert(schema.gameEvents)
+          .values({
+            adventureId: args.adventureId,
+            campaignId: args.campaignId,
+            sequenceNumber: args.seq + 1,
+            eventType: 'correction',
+            actorType: 'gm',
+            actorId: null,
+            payload: { gmUpdates: null },
+            createdAt: new Date(args.at),
+          })
+          .returning();
+        await getTestDb()
+          .update(schema.gameEvents)
+          .set({ supersededBy: correction.id })
+          .where(eq(schema.gameEvents.id, gmEvent.id));
+      }
+      await db.insert(schema.messages).values({
+        adventureId: args.adventureId,
+        role: 'gm',
+        content: args.gmText ?? `gm ${args.seq}`,
+        createdAt: new Date(args.at),
+      });
+    }
+
+    it('numbers both messages of a turn with the same ordinal', async () => {
+      const { campaignId, adventureId } = await seedFixture();
+      await seedTurn({
+        campaignId,
+        adventureId,
+        seq: 3,
+        at: '2026-08-01T10:00:10.000Z',
+        playerMessages: [{ content: 'p1', at: '2026-08-01T10:00:00.000Z' }],
+      });
+      await seedTurn({
+        campaignId,
+        adventureId,
+        seq: 8,
+        at: '2026-08-01T10:01:10.000Z',
+        playerMessages: [{ content: 'p2', at: '2026-08-01T10:01:00.000Z' }],
+      });
+
+      const rows = await repo.listMessagesWithTurnNumber(adventureId);
+
+      expect(rows.map((r) => [r.content, r.turnNumber])).toEqual([
+        ['p1', 1],
+        ['gm 3', 1],
+        ['p2', 2],
+        ['gm 8', 2],
+      ]);
+      // The ordinal is not the sequence number — that's the whole point.
+      expect(rows[3].turnNumber).not.toBe(8);
+    });
+
+    it('returns createdAt as a real Date, not a driver string', async () => {
+      // Same hazard as `listDiceRollEvents` above: this reads via raw
+      // `db.execute`, which bypasses Drizzle's column-type mapping, and
+      // `SessionService.listMessages` calls `.toISOString()` on the result.
+      const { campaignId, adventureId } = await seedFixture();
+      await seedTurn({
+        campaignId,
+        adventureId,
+        seq: 3,
+        at: '2026-08-01T10:00:10.000Z',
+        playerMessages: [{ content: 'p1', at: '2026-08-01T10:00:00.000Z' }],
+      });
+
+      const rows = await repo.listMessagesWithTurnNumber(adventureId);
+
+      expect(rows[0].createdAt).toBeInstanceOf(Date);
+      expect(() => rows[0].createdAt.toISOString()).not.toThrow();
+    });
+
+    it('keeps counting through a turn that has no player message', async () => {
+      // Regression guard for the undercounting bug. A dice auto-advance turn
+      // writes a player_action event but skips the message insert
+      // (`session.service.ts`, guarded on `playerMessage.length > 0`), so
+      // counting player messages client-side would number this adventure
+      // 1, 2 instead of 1, 3 — and stay wrong for every later turn.
+      const { campaignId, adventureId } = await seedFixture();
+      await seedTurn({
+        campaignId,
+        adventureId,
+        seq: 3,
+        at: '2026-08-01T10:00:10.000Z',
+        playerMessages: [{ content: 'p1', at: '2026-08-01T10:00:00.000Z' }],
+      });
+      await seedTurn({
+        campaignId,
+        adventureId,
+        seq: 8,
+        at: '2026-08-01T10:01:10.000Z',
+        playerMessages: [],
+      });
+      await seedTurn({
+        campaignId,
+        adventureId,
+        seq: 14,
+        at: '2026-08-01T10:02:10.000Z',
+        playerMessages: [{ content: 'p3', at: '2026-08-01T10:02:00.000Z' }],
+      });
+
+      const rows = await repo.listMessagesWithTurnNumber(adventureId);
+
+      expect(rows.map((r) => [r.content, r.turnNumber])).toEqual([
+        ['p1', 1],
+        ['gm 3', 1],
+        ['gm 8', 2],
+        ['p3', 3],
+        ['gm 14', 3],
+      ]);
+    });
+
+    it('gives an orphaned player message the turn its retry produced', async () => {
+      // The player message is persisted outside the turn transaction so a
+      // failed turn can be retried without re-typing. A failure therefore
+      // leaves an orphan, and the retry inserts a second copy. Both belong
+      // to the turn that eventually succeeded.
+      const { campaignId, adventureId } = await seedFixture();
+      await seedTurn({
+        campaignId,
+        adventureId,
+        seq: 3,
+        at: '2026-08-01T10:00:10.000Z',
+        playerMessages: [
+          { content: 'shoot the contractor', at: '2026-08-01T09:59:00.000Z' },
+          { content: 'shoot the contractor', at: '2026-08-01T10:00:00.000Z' },
+        ],
+      });
+
+      const rows = await repo.listMessagesWithTurnNumber(adventureId);
+
+      expect(rows.map((r) => r.turnNumber)).toEqual([1, 1, 1]);
+    });
+
+    it('leaves a message with no turn after it unnumbered', async () => {
+      const { campaignId, adventureId } = await seedFixture();
+      await seedTurn({
+        campaignId,
+        adventureId,
+        seq: 3,
+        at: '2026-08-01T10:00:10.000Z',
+        playerMessages: [{ content: 'p1', at: '2026-08-01T10:00:00.000Z' }],
+      });
+      // Turn in flight, or one that never completed: no gm_response follows.
+      await getTestDb()
+        .insert(schema.messages)
+        .values({
+          adventureId,
+          role: 'player',
+          content: 'p2',
+          createdAt: new Date('2026-08-01T10:01:00.000Z'),
+        });
+
+      const rows = await repo.listMessagesWithTurnNumber(adventureId);
+
+      expect(rows.map((r) => [r.content, r.turnNumber])).toEqual([
+        ['p1', 1],
+        ['gm 3', 1],
+        ['p2', null],
+      ]);
+    });
+
+    it('does not spend an ordinal on a correction', async () => {
+      // A corrected turn is still one turn: `writeTurnEvents` writes one
+      // gm_response plus a `correction` event that supersedes it.
+      // `playtest-review.render.ts` numbers it the same way, so filtering
+      // superseded rows here would drift the UI off the review report by
+      // one per correction.
+      const { campaignId, adventureId } = await seedFixture();
+      await seedTurn({
+        campaignId,
+        adventureId,
+        seq: 3,
+        at: '2026-08-01T10:00:10.000Z',
+        playerMessages: [{ content: 'p1', at: '2026-08-01T10:00:00.000Z' }],
+        corrected: true,
+      });
+      await seedTurn({
+        campaignId,
+        adventureId,
+        seq: 8,
+        at: '2026-08-01T10:01:10.000Z',
+        playerMessages: [{ content: 'p2', at: '2026-08-01T10:01:00.000Z' }],
+      });
+
+      const rows = await repo.listMessagesWithTurnNumber(adventureId);
+
+      expect(rows.map((r) => r.turnNumber)).toEqual([1, 1, 2, 2]);
+    });
+
+    it('returns an empty list for an adventure with no messages', async () => {
+      const { adventureId } = await seedFixture();
+      await expect(
+        repo.listMessagesWithTurnNumber(adventureId),
+      ).resolves.toEqual([]);
     });
   });
 });

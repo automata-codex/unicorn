@@ -125,6 +125,7 @@ const FAKE_SERVICE_RESULT: TurnExecutionResult['serviceResult'] = {
       content: '',
       createdAt: new Date('2026-07-15T00:00:00.000Z'),
     } as never,
+    turnNumber: 1,
     applied: {} as never,
     thresholds: [],
     diceRequests: [],

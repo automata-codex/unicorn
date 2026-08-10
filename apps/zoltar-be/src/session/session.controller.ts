@@ -48,6 +48,12 @@ interface TurnPayload {
     role: 'assistant';
     content: string;
     createdAt: string;
+    /**
+     * 1-based turn ordinal, matching `### Turn N` in `task playtest:review`.
+     * The client also stamps this onto the optimistic player message that
+     * initiated the turn, which has no number until the turn is written.
+     */
+    turnNumber: number;
   };
   applied: SendMessageResult['applied'];
   thresholds: SendMessageResult['thresholds'];
@@ -69,6 +75,7 @@ function serializeTurn(result: SendMessageResult): TurnPayload {
       role: 'assistant',
       content: result.message.content,
       createdAt: result.message.createdAt.toISOString(),
+      turnNumber: result.turnNumber,
     },
     applied: result.applied,
     thresholds: result.thresholds,

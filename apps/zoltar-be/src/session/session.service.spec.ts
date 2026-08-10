@@ -83,6 +83,7 @@ function makeApplyTurnAtomic(): ReturnType<typeof vi.fn> {
           createdAt: new Date('2026-04-17T12:00:01Z'),
         },
         gmResponseSequence: 2,
+        turnNumber: 1,
         diceRollSequences: [],
         persistedDiceRequests: [],
       }),
