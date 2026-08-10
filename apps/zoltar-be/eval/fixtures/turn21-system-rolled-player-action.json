@@ -15,10 +15,6 @@
           "max": 30,
           "current": 30
         },
-        "lt_alvarez_hp": {
-          "max": 20,
-          "current": 20
-        },
         "alvarez_stress": {
           "max": 3,
           "current": 0
@@ -26,10 +22,6 @@
         "hull_breach_timer": {
           "max": 5,
           "current": 5
-        },
-        "lt_alvarez_stress": {
-          "max": 3,
-          "current": 0
         },
         "station_power_reserve": {
           "max": 4,
@@ -207,8 +199,8 @@
     },
     "gmContextBlob": {
       "playerEntityIds": [
-        "lt_alvarez",
-        "alvarez"
+        "alvarez",
+        "lt_alvarez"
       ],
       "entities": [
         {
@@ -727,7 +719,7 @@
     "system-rolled-player-action": {
       "applies": true,
       "playerEntity": "Alvarez",
-      "situation": "Alvarez, already committed to the firefight, tries to shoot the contractor again — a resolvable attack requiring a Combat to-hit roll and, if it lands, a damage roll."
+      "situation": "Alvarez, already committed to the firefight, tries to shoot the contractor again \u2014 a resolvable attack requiring a Combat to-hit roll and, if it lands, a damage roll."
     }
   },
   "fixtureSchemaVersion": 2

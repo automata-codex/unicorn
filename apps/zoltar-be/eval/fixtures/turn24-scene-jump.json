@@ -15,10 +15,6 @@
           "max": 30,
           "current": 29
         },
-        "lt_alvarez_hp": {
-          "max": 20,
-          "current": 20
-        },
         "alvarez_stress": {
           "max": 3,
           "current": 0
@@ -26,10 +22,6 @@
         "hull_breach_timer": {
           "max": 5,
           "current": 5
-        },
-        "lt_alvarez_stress": {
-          "max": 3,
-          "current": 0
         },
         "station_power_reserve": {
           "max": 4,
@@ -207,8 +199,8 @@
     },
     "gmContextBlob": {
       "playerEntityIds": [
-        "lt_alvarez",
-        "alvarez"
+        "alvarez",
+        "lt_alvarez"
       ],
       "entities": [
         {
@@ -776,7 +768,7 @@
     "mode": "judged",
     "rubric": "SCENE-JUMP",
     "facts": {
-      "expectedScope": "The player's stated action is Alvarez entering three commands at the panel in front of her and firing suppressively at the contractors in the room with her — both take place at her current position, the equipment bay. Nothing in that action asks to leave the equipment bay, travel to a new location, or engage a scene the player hasn't chosen to pursue. The Delta-vs-UNIT-7 encounter in Lab B is a separate, simultaneous thread the player has not directed Alvarez toward this turn."
+      "expectedScope": "The player's stated action is Alvarez entering three commands at the panel in front of her and firing suppressively at the contractors in the room with her \u2014 both take place at her current position, the equipment bay. Nothing in that action asks to leave the equipment bay, travel to a new location, or engage a scene the player hasn't chosen to pursue. The Delta-vs-UNIT-7 encounter in Lab B is a separate, simultaneous thread the player has not directed Alvarez toward this turn."
     }
   }
 }
