@@ -103,19 +103,78 @@ describe('buildResourcePools', () => {
       dr_chen_hp: { current: 10, max: 10 }, // should be ignored
       crewman_wick_timer: { current: 4, max: 4 },
     };
-    const result = buildResourcePools(existing, initialState);
-    expect(result.vasquez_hp).toEqual({ current: 15, max: 15 });
-    expect(result.dr_chen_hp).toEqual({ current: 1, max: 10 });
-    expect(result.crewman_wick_timer).toEqual({ current: 4, max: 4 });
+    const result = buildResourcePools(existing, initialState, {
+      playerEntityId: 'vasquez',
+      knownEntityIds: ['dr_chen', 'crewman_wick'],
+    });
+    expect(result.pools.vasquez_hp).toEqual({ current: 15, max: 15 });
+    expect(result.pools.dr_chen_hp).toEqual({ current: 1, max: 10 });
+    expect(result.pools.crewman_wick_timer).toEqual({ current: 4, max: 4 });
+    expect(result.skipped).toEqual([]);
   });
 
   it('returns a fresh top-level object', () => {
     const existing = { vasquez_hp: { current: 15, max: 15 } };
-    const result = buildResourcePools(existing, {});
-    expect(result).not.toBe(existing);
-    // Adding a key to `result` must not mutate `existing`.
-    result.new_pool = { current: 1, max: 1 };
+    const result = buildResourcePools(
+      existing,
+      {},
+      {
+        playerEntityId: 'vasquez',
+        knownEntityIds: [],
+      },
+    );
+    expect(result.pools).not.toBe(existing);
+    // Adding a key to `result.pools` must not mutate `existing`.
+    result.pools.new_pool = { current: 1, max: 1 };
     expect(existing).not.toHaveProperty('new_pool');
+  });
+
+  it('drops a pool that re-spells the player id, and reports it as skipped', () => {
+    // The M7.5 capture in miniature: the sheet says `lt_alvarez`, the model
+    // emits `alvarez_*`. Nothing collides, so key preservation alone lets both
+    // spellings persist for one character.
+    const existing = {
+      lt_alvarez_hp: { current: 20, max: 20 },
+      lt_alvarez_stress: { current: 0, max: 3 },
+    };
+    const initialState = {
+      alvarez_hp: { current: 20, max: 20 },
+      alvarez_stress: { current: 0, max: 3 },
+    };
+    const result = buildResourcePools(existing, initialState, {
+      playerEntityId: 'lt_alvarez',
+      knownEntityIds: ['burned_out_medic'],
+    });
+    expect(result.pools).toEqual(existing);
+    expect(result.skipped.sort()).toEqual(['alvarez_hp', 'alvarez_stress']);
+  });
+
+  it('keeps NPC pools that share a suffix with a player pool', () => {
+    const existing = { lt_alvarez_hp: { current: 20, max: 20 } };
+    const result = buildResourcePools(
+      existing,
+      { burned_out_medic_hp: { current: 8, max: 8 } },
+      { playerEntityId: 'lt_alvarez', knownEntityIds: ['burned_out_medic'] },
+    );
+    expect(result.pools).toHaveProperty('burned_out_medic_hp');
+    expect(result.skipped).toEqual([]);
+  });
+
+  it('keeps scenario-level pools whose prefix resolves to no entity', () => {
+    // `station_power` is not an entity and never will be — these are the
+    // legitimate unattached pools the check must not touch.
+    const existing = { lt_alvarez_hp: { current: 20, max: 20 } };
+    const result = buildResourcePools(
+      existing,
+      {
+        station_power_reserve: { current: 4, max: 4 },
+        contamination_spread_timer: { current: 6, max: 6 },
+      },
+      { playerEntityId: 'lt_alvarez', knownEntityIds: [] },
+    );
+    expect(result.pools).toHaveProperty('station_power_reserve');
+    expect(result.pools).toHaveProperty('contamination_spread_timer');
+    expect(result.skipped).toEqual([]);
   });
 });
 
@@ -141,7 +200,8 @@ describe('buildCampaignStateData', () => {
       scenarioState: { oxygen: { current: 100, max: 100, note: '' } },
       worldFacts: { bridge_display: 'ERROR' },
     };
-    const result = buildCampaignStateData(existing, makeInput()) as {
+    const result = buildCampaignStateData(existing, makeInput(), 'vasquez')
+      .data as {
       resourcePools: Record<string, unknown>;
       entities: Record<string, unknown>;
       flags: Record<string, unknown>;
@@ -172,7 +232,7 @@ describe('buildCampaignStateData', () => {
     };
     const input = makeInput();
     input.structured.worldFacts = { current_deck: 'engineering_lower' };
-    const result = buildCampaignStateData(existing, input) as {
+    const result = buildCampaignStateData(existing, input, 'vasquez').data as {
       worldFacts: Record<string, string>;
     };
     expect(result.worldFacts).toEqual({
@@ -182,7 +242,8 @@ describe('buildCampaignStateData', () => {
   });
 
   it('initializes to emptyMothershipState when no existing row', () => {
-    const result = buildCampaignStateData(null, makeInput()) as {
+    const result = buildCampaignStateData(null, makeInput(), 'vasquez')
+      .data as {
       resourcePools: Record<string, unknown>;
       scenarioState: Record<string, unknown>;
       worldFacts: Record<string, unknown>;

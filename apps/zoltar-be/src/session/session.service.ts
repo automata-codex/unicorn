@@ -300,6 +300,10 @@ export class SessionService {
       proposed: originalParsed.stateChanges,
       currentData: campaignStateData,
       poolDef: getMothershipPoolDefinition,
+      identifiers: {
+        playerEntityIds,
+        knownEntityIds: Object.keys(campaignStateData.entities ?? {}),
+      },
     });
 
     const firstRoundRejections = validation.rejections;
@@ -327,6 +331,10 @@ export class SessionService {
         proposed: parsed.stateChanges,
         currentData: campaignStateData,
         poolDef: getMothershipPoolDefinition,
+        identifiers: {
+          playerEntityIds,
+          knownEntityIds: Object.keys(campaignStateData.entities ?? {}),
+        },
       });
 
       if (validation.rejections.length > 0) {

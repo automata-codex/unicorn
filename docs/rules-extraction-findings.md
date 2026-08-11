@@ -4779,3 +4779,109 @@ cell in the corpus across three runs, untouched by this milestone and by this
 change. `UNAUDITABLE-MAPPING` (0 of 30) and `MISSING-CANON-CAPTURE` (0 of 10)
 report zero denominator on both sides. Zero applicable is not a pass; those
 tags have no coverage and the playtest is what is supposed to supply it.
+
+### S34 — 2026-08-10 · The `<entities>` re-baseline: the fix works, and the tag that certified it was measuring two fixtures
+
+`claude-sonnet-5__c45a142a__2026-08-10T19-45-15Z`, full corpus, 10 reps, zero
+errors. Compared against `claude-sonnet-5__c45a142a__2026-08-10T12-18-32Z`
+(`§ S33`) as `compare__sonnet5__rollownership-vs-entities.md`.
+
+**Two runs, one prompt hash.** The change is in the snapshot builder, not
+`mothership-m7.txt`, so `promptHash` is `c45a142a` on both sides and the
+directory names claim the same `(model, promptHash)` identity. Provenance
+separation exists only in `corpusVersion` (`104b2d944252` → `83fe9ee82341`)
+and `harnessVersion`. `eval:compare` warns on the corpus difference, which is
+the only automatic signal that these two runs saw different input. Do not read
+the directory name as evidence the input was the same.
+
+#### The primary criterion, which no tag scores
+
+The decision rule was fixed before the run and led with a clause the tag
+rollup cannot answer, because the defect being closed is identifier
+resolution:
+
+| | A (`§ S33`) | B |
+|---|---|---|
+| `actingEntityId` on player rolls | `lt_alvarez` ×10 | **`alvarez` ×6** |
+| Ids failing to resolve | — | **0** |
+| Pool names in an entity-id field | 0 | **0** |
+
+`alvarez` is the id seeded into `character_sheet` and now rendered into
+`<entities>`; `lt_alvarez` was never anywhere the model could read it and was
+inferred from pool names. The clause existed because a clean tag sweep paired
+with an unchanged `lt_alvarez` would have meant the Warden was still inferring
+and merely agreeing with the alias it always picked — a failure dressed as a
+pass. That did not happen. **The Warden is reading the id.**
+
+#### The guards held, and they were not the interesting part
+
+`SYSTEM-ROLLED-PLAYER-ACTION` 1.00 (20/20) unchanged, `UNSURFACED-CHECK` 1.00
+unchanged, no tag down more than 0.15. `SCENE-JUMP` −0.10, `OVER-RESOLUTION`
++0.10, `NARRATING-PAST-A-BLOCK` +0.10 — one rep each, in both directions, at
+N=10 where one rep *is* 0.10. Nothing there is established until it is shown
+deterministic across runs, per `§ S22` and the near-miss in `§ S28.2`.
+
+`OUT-OF-ORDER-RESOLUTION` on `turn19` moved 0.80 → 1.00 **applicability** at
+an unchanged 1.00 rate — N 8 → 10. A larger denominator at the same rate is
+strengthened evidence, not a rate bought by shrinkage, and it is the largest
+single movement in the run.
+
+#### What the run actually exposed
+
+**The Warden rolled the player's declared action six times, and the tag that
+exists to catch it read a clean sweep.**
+
+```
+[003 turn24-scene-jump]      gm  check  "Alvarez's Combat check to lay down suppressive fire…"
+[004 turn24-over-resolution] gm  check  "Alvarez suppressive fire spray - Combat check to keep…"
+[010 turn24-scene-jump]      gm  check  "Alvarez suppressive fire spray… roll under 30"
+```
+
+Every occurrence lands on a `turn24-*` fixture. `system-rolled-player-action`
+runs on exactly two fixtures — `turn19-system-rolled-player-action` and
+`turn21-system-rolled-player-action` — so the violation happens in reps the
+checker never looks at. **20/20 is two fixtures, not the corpus.**
+
+This is not a regression introduced here. The baseline carries ten of them,
+including four on `turn19-out-of-order-resolution`. It is a pre-existing
+coverage hole that this change made *countable* for the first time: once ids
+resolve, rolls can be attributed by entity and the occurrences can simply be
+counted out of the artifacts.
+
+**It also narrows `§ S33`'s headline.** "The tag is above July's 0.90 for the
+first time" is true of those two fixtures and does not generalise — the
+behaviour persisted at ten occurrences under the very prompt that scored 1.00.
+The ownership fix moved it 10 → 6, which is real, in the right direction, and
+a materially smaller claim than the tag rollup implies. The same failure shape
+as `§ S30`, one level up: there, a check could not resolve what it was
+grading; here, a check is not pointed at the reps where the behaviour occurs.
+
+#### The confound, declared in advance
+
+Two input-affecting changes shipped in this run: the `<entities>` render, and
+corrected fixture seeded state (`lt_alvarez_hp` / `lt_alvarez_stress` removed,
+`playerEntityIds` reordered so the canonical id matches the pools the capture
+actually played against — the player now reads **7/20 HP** where the baseline
+read a pristine 20/20). A single run cannot attribute movement between them.
+This was accepted rather than paid down, because the fixture correction was
+not optional: the 20/20 pools were wrong.
+
+The 10 → 6 drop is the clearest candidate for the fixture half. A character at
+7/20 in a firefight is a materially different fiction from one at full health,
+and it is not attributed to the render change here. Disambiguation, if it is
+ever wanted, is one run: new code against the old fixtures.
+
+#### Still not covered
+
+`UNAUDITABLE-MAPPING` (0 of 30) and `MISSING-CANON-CAPTURE` (0 of 10) report
+zero denominator on both sides, unchanged from `§ S33`.
+`turn16-narrating-past-a-block` cracked off its floor for the first time in
+four runs — 0.00 → 0.10, one rep of ten, still nine failing.
+
+#### What follows
+
+The run is accepted and becomes the baseline. The coverage hole is the finding
+worth carrying forward, and the cheapest close is **not** the playtest: the
+`turn24-*` fixtures already provoke the violation and already exist. Adding a
+`system-rolled-player-action` check to them is a corpus change gradeable
+against frozen artifacts via `eval:rescore`, with no Warden run required.

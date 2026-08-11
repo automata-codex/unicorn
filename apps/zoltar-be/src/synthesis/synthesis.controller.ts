@@ -158,6 +158,7 @@ export class SynthesisController {
           adventureId,
           campaignId,
           input: gmContext,
+          playerEntityId: (characterSheet as { entityId: string }).entityId,
         }),
       )
       .catch((err) => {

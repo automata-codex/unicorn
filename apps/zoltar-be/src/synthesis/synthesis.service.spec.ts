@@ -384,6 +384,7 @@ describe('SynthesisService.commitGmContext', () => {
       adventureId,
       campaignId,
       input: validInput,
+      playerEntityId: 'vasquez',
     });
 
     expect(writeGmContextAtomic).toHaveBeenCalledOnce();
@@ -419,6 +420,7 @@ describe('SynthesisService.commitGmContext', () => {
       adventureId,
       campaignId,
       input: validInput,
+      playerEntityId: 'vasquez',
     });
 
     const [args] = writeGmContextAtomic.mock.calls[0];
@@ -437,7 +439,12 @@ describe('SynthesisService.commitGmContext', () => {
     bad.structured.flags = {} as typeof validInput.structured.flags;
 
     await expect(
-      service.commitGmContext({ adventureId, campaignId, input: bad }),
+      service.commitGmContext({
+        adventureId,
+        campaignId,
+        input: bad,
+        playerEntityId: 'vasquez',
+      }),
     ).rejects.toBeInstanceOf(SynthesisWriteValidationError);
 
     expect(writeGmContextAtomic).not.toHaveBeenCalled();
@@ -455,7 +462,12 @@ describe('SynthesisService.commitGmContext', () => {
     bad.structured.flags.adventure_complete.value = true;
 
     await expect(
-      service.commitGmContext({ adventureId, campaignId, input: bad }),
+      service.commitGmContext({
+        adventureId,
+        campaignId,
+        input: bad,
+        playerEntityId: 'vasquez',
+      }),
     ).rejects.toBeInstanceOf(SynthesisWriteValidationError);
   });
 
@@ -481,6 +493,7 @@ describe('SynthesisService.commitGmContext', () => {
         adventureId,
         campaignId,
         input: bad,
+        playerEntityId: 'vasquez',
       }),
     ).rejects.toBeInstanceOf(SynthesisWriteValidationError);
   });
@@ -496,7 +509,12 @@ describe('SynthesisService.commitGmContext', () => {
       current_deck: 'derelict_lower',
     };
 
-    await service.commitGmContext({ adventureId, campaignId, input });
+    await service.commitGmContext({
+      adventureId,
+      campaignId,
+      input,
+      playerEntityId: 'vasquez',
+    });
 
     const [args] = writeGmContextAtomic.mock.calls[0];
     expect(args.campaignStateData.resourcePools.dr_chen_hp).toEqual({
@@ -521,6 +539,7 @@ describe('SynthesisService.commitGmContext', () => {
         adventureId,
         campaignId,
         input: validInput,
+        playerEntityId: 'vasquez',
       }),
     ).rejects.toThrow('deadlock');
 

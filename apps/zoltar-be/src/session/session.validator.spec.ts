@@ -40,6 +40,73 @@ describe('validateStateChanges — resourcePools', () => {
     expect(result.rejections[0].reason).toMatch(/bootstrap/i);
   });
 
+  it('rejects bootstrapping a pool that re-spells the player entity id', () => {
+    const result = validateStateChanges({
+      proposed: { resourcePools: { alvarez_hp: { delta: 20 } } },
+      currentData: stateWith({
+        resourcePools: { lt_alvarez_hp: { current: 20, max: 20 } },
+      }),
+      poolDef,
+      identifiers: {
+        playerEntityIds: ['lt_alvarez'],
+        knownEntityIds: ['burned_out_medic'],
+      },
+    });
+    expect(result.applied.resourcePools).toEqual({});
+    expect(result.rejections).toHaveLength(1);
+    expect(result.rejections[0].path).toBe('resourcePools.alvarez_hp');
+    // The valid id is named so the model can correct inside the loop.
+    expect(result.rejections[0].reason).toContain('lt_alvarez');
+  });
+
+  it('still bootstraps a pool for a known entity that shares a player suffix', () => {
+    const result = validateStateChanges({
+      proposed: { resourcePools: { burned_out_medic_hp: { delta: 8 } } },
+      currentData: stateWith({
+        resourcePools: { lt_alvarez_hp: { current: 20, max: 20 } },
+      }),
+      poolDef,
+      identifiers: {
+        playerEntityIds: ['lt_alvarez'],
+        knownEntityIds: ['burned_out_medic'],
+      },
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.applied.resourcePools).toEqual({
+      burned_out_medic_hp: { current: 8, max: null },
+    });
+  });
+
+  it('still bootstraps a scenario-level pool whose prefix names no entity', () => {
+    const result = validateStateChanges({
+      proposed: { resourcePools: { station_power_reserve: { delta: 4 } } },
+      currentData: stateWith({
+        resourcePools: { lt_alvarez_hp: { current: 20, max: 20 } },
+      }),
+      poolDef,
+      identifiers: { playerEntityIds: ['lt_alvarez'], knownEntityIds: [] },
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.applied.resourcePools).toHaveProperty(
+      'station_power_reserve',
+    );
+  });
+
+  it('disables the impersonation check when no player ids are declared', () => {
+    // Mirrors roll_dice's empty-known-set behaviour: a campaign without a
+    // character sheet must not have every pool bootstrap rejected.
+    const result = validateStateChanges({
+      proposed: { resourcePools: { alvarez_hp: { delta: 20 } } },
+      currentData: stateWith({
+        resourcePools: { lt_alvarez_hp: { current: 20, max: 20 } },
+      }),
+      poolDef,
+      identifiers: { playerEntityIds: [], knownEntityIds: [] },
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.applied.resourcePools).toHaveProperty('alvarez_hp');
+  });
+
   it('rejects spending a min:0 pool below zero without applying a partial delta', () => {
     const result = validateStateChanges({
       proposed: { resourcePools: { dr_chen_stress: { delta: -5 } } },
