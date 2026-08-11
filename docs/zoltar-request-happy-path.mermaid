@@ -1,0 +1,39 @@
+sequenceDiagram
+    participant Browser
+    participant SeshCon as Session Controller
+    participant AdvSvc as Adventure Service
+    participant SeshSvc as Session Service
+    participant SeshRepo as Session Repository
+    participant CamRepo as Campaign Repository
+    participant Claude as Claude API
+
+    Browser->>SeshCon:POST /messages
+    SeshCon->>SeshCon:Validate payload
+    SeshCon->>AdvSvc:Retrieve adventure data
+    AdvSvc->>SeshCon:
+    SeshCon->>SeshSvc:Send message
+    SeshSvc->>SeshRepo:Save player message
+    SeshRepo->>SeshSvc:
+    SeshSvc->>CamRepo:Get rules system ID
+    CamRepo->>SeshSvc:
+
+    par Run inner tool loop
+        SeshSvc->>Claude:Send request
+        loop Inner tool loop
+            Claude->>SeshSvc:Tool use
+            SeshSvc->>Claude:Tool response
+        end
+        Claude->>SeshSvc:Submit GM response
+        SeshSvc->>SeshSvc:Validate GM Response
+    end
+
+    SeshSvc->>SeshSvc:Validate state changes
+    SeshSvc-->>Claude:Handle first round rejections (Optional)
+    Claude-->>SeshSvc:
+    SeshSvc->>SeshSvc:Apply validated turn
+    SeshSvc->>SeshSvc:Build state snapshot
+    SeshSvc->>SeshRepo:Apply turn atomic
+    SeshRepo->>SeshSvc:
+
+    SeshSvc->>SeshCon:Turn result
+    SeshCon->>Browser:Turn payload
