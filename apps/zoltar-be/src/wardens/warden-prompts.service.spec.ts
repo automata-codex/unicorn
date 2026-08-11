@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { WardenPromptsService } from './warden-prompts.service';
+import { isSystemSlug, WardenPromptsService } from './warden-prompts.service';
 
 import type { ConfigService } from '@nestjs/config';
 
@@ -122,5 +122,16 @@ describe('WardenPromptsService', () => {
       'm7',
     );
     expect(svc.getByFilename('mothership', 'mothership-ghost.txt')).toBeNull();
+  });
+});
+
+describe('isSystemSlug', () => {
+  it('accepts a known slug', () => {
+    expect(isSystemSlug('mothership')).toBe(true);
+  });
+
+  it('rejects an unknown slug and a game_systems uuid', () => {
+    expect(isSystemSlug('pathfinder')).toBe(false);
+    expect(isSystemSlug('7c9e6679-7425-40de-944b-e07fc1f90ae7')).toBe(false);
   });
 });

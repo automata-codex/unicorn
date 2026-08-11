@@ -59,12 +59,22 @@ function stubRules(): RulesLookupService {
   return stub as RulesLookupService;
 }
 
+/**
+ * Keyed by slug and throwing on a miss, like the real service. The
+ * `CampaignRepository` here is real, so this stub is what proves the service
+ * looks the prompt up by `game_systems.slug` and not by its UUID.
+ */
 function stubWardens(): WardenPromptsService {
   const stub: Pick<WardenPromptsService, 'getSelected'> = {
-    getSelected: vi.fn().mockReturnValue({
-      filename: 'mothership-m7.txt',
-      hash: 'testhash',
-      text: 'Test Warden prompt for integration tests.',
+    getSelected: vi.fn((system: string) => {
+      if (system !== 'mothership') {
+        throw new Error(`No Warden prompt available for system '${system}'.`);
+      }
+      return {
+        filename: 'mothership-m7.txt',
+        hash: 'testhash',
+        text: 'Test Warden prompt for integration tests.',
+      };
     }),
   };
   return stub as WardenPromptsService;

@@ -125,10 +125,14 @@ function makeCampaignRepo(
   getSystemId: ReturnType<typeof vi.fn> = vi
     .fn()
     .mockResolvedValue('system-uuid-mothership'),
+  getSystemSlug: ReturnType<typeof vi.fn> = vi
+    .fn()
+    .mockResolvedValue('mothership'),
 ) {
   return {
     getStateData,
     getSystemId,
+    getSystemSlug,
   } as unknown as import('../campaign/campaign.repository').CampaignRepository;
 }
 
@@ -149,12 +153,22 @@ function makeRules(): import('../rules/rules-lookup.service').RulesLookupService
   } as unknown as import('../rules/rules-lookup.service').RulesLookupService;
 }
 
+/**
+ * Keyed by slug the way the real service is, and throws on a miss the way
+ * `getSelected` does. An arg-ignoring stub would hand back a prompt for any
+ * key at all — including a `game_systems` UUID — and hide the mixup.
+ */
 function makeWardens(): WardenPromptsService {
   return {
-    getSelected: vi.fn().mockReturnValue({
-      filename: 'mothership-m7.txt',
-      hash: 'deadbeef',
-      text: 'Fixture Warden prompt.',
+    getSelected: vi.fn((system: string) => {
+      if (system !== 'mothership') {
+        throw new Error(`No Warden prompt available for system '${system}'.`);
+      }
+      return {
+        filename: 'mothership-m7.txt',
+        hash: 'deadbeef',
+        text: 'Fixture Warden prompt.',
+      };
     }),
   } as unknown as WardenPromptsService;
 }
@@ -308,6 +322,40 @@ describe('SessionService.sendMessage', () => {
       SessionPreconditionError,
     );
     expect(insertMessage).not.toHaveBeenCalled();
+  });
+
+  it('selects the Warden prompt by system slug, not by system id', async () => {
+    const wardens = makeWardens();
+    const campaignRepo = makeCampaignRepo(
+      undefined,
+      vi.fn().mockResolvedValue('7c9e6679-7425-40de-944b-e07fc1f90ae7'),
+      vi.fn().mockResolvedValue('mothership'),
+    );
+    const service = makeService(
+      callSession,
+      makeRepo(),
+      campaignRepo,
+      makeDice(),
+      makeRules(),
+      wardens,
+    );
+    await service.sendMessage(args);
+    expect(wardens.getSelected).toHaveBeenCalledWith('mothership');
+  });
+
+  it('throws SessionPreconditionError when the system slug has no Warden prompt', async () => {
+    const insertMessage = makeInsertMessage();
+    const repo = makeRepo({ insertMessage });
+    const campaignRepo = makeCampaignRepo(
+      undefined,
+      undefined,
+      vi.fn().mockResolvedValue('pathfinder'),
+    );
+    const service = makeService(callSession, repo, campaignRepo);
+    await expect(service.sendMessage(args)).rejects.toBeInstanceOf(
+      SessionPreconditionError,
+    );
+    expect(callSession).not.toHaveBeenCalled();
   });
 
   it('throws SessionCorrectionError when both validation rounds reject', async () => {
