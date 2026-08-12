@@ -8,32 +8,37 @@ sequenceDiagram
     participant Claude as Claude API
 
     Browser->>SeshCon:POST /messages
-    SeshCon->>SeshCon:Validate payload
-    SeshCon->>AdvSvc:Retrieve adventure data
-    AdvSvc->>SeshCon:
+    SeshCon->>AdvSvc:Find by ID
+    AdvSvc-->>SeshCon:Adventure data
     SeshCon->>SeshSvc:Send message
-    SeshSvc->>SeshRepo:Save player message
-    SeshRepo->>SeshSvc:
-    SeshSvc->>CamRepo:Get rules system ID
-    CamRepo->>SeshSvc:
 
-    par Run inner tool loop
-        SeshSvc->>Claude:Send request
-        loop Inner tool loop
-            Claude->>SeshSvc:Tool use
-            SeshSvc->>Claude:Tool response
-        end
-        Claude->>SeshSvc:Submit GM response
-        SeshSvc->>SeshSvc:Validate GM Response
+    SeshSvc->>SeshRepo:Get pending dice requests
+    SeshRepo-->>SeshSvc:Pending dice requests
+
+    SeshSvc->>CamRepo:Get state
+    CamRepo-->>SeshSvc:Campaign state
+
+    Note over SeshSvc,SeshRepo: Written OUTSIDE the turn transaction —<br/>a failed turn leaves the action<br/>retryable without re-typing
+    SeshSvc->>SeshRepo:Save player message
+    SeshRepo-->>SeshSvc:Success
+    SeshSvc->>CamRepo:Get rules system ID
+    CamRepo-->>SeshSvc:System ID & slug
+
+    SeshSvc->>Claude:Send request
+    loop Inner tool loop
+        Claude-->>SeshSvc:Tool use
+        SeshSvc->>Claude:Tool response
     end
+    Claude-->>SeshSvc:Submit GM response
+    SeshSvc->>SeshSvc:Validate GM Response
 
     SeshSvc->>SeshSvc:Validate state changes
-    SeshSvc-->>Claude:Handle first round rejections (Optional)
-    Claude-->>SeshSvc:
+    SeshSvc->>Claude:Handle first round rejections (Optional)
+    Claude-->>SeshSvc:Submit GM response
     SeshSvc->>SeshSvc:Apply validated turn
     SeshSvc->>SeshSvc:Build state snapshot
     SeshSvc->>SeshRepo:Apply turn atomic
-    SeshRepo->>SeshSvc:
+    SeshRepo-->>SeshSvc:Result
 
-    SeshSvc->>SeshCon:Turn result
-    SeshCon->>Browser:Turn payload
+    SeshSvc-->>SeshCon:Turn result
+    SeshCon-->>Browser:Turn payload
