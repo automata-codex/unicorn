@@ -236,7 +236,6 @@ export class SessionService {
       playerEntityIds,
     };
     const campaignStateData = rawState as CampaignStateData;
-    const windowMessages = buildMessageWindow(priorMessages);
 
     // 2. Persist the incoming player message OUTSIDE the atomic turn
     //    transaction. A retry after any downstream failure can still
@@ -283,6 +282,7 @@ export class SessionService {
     // Warden prompt is resolved once per turn; the same triple feeds both
     // the request builder and (in Part 2) the telemetry `wardenPrompt` field.
     const wardenPrompt = this.wardens.getSelected(systemSlug);
+    const windowMessages = buildMessageWindow(priorMessages);
     const request = buildSessionRequest({
       gmContextBlob,
       campaignStateData,

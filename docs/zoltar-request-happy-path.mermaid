@@ -5,6 +5,8 @@ sequenceDiagram
     participant SeshSvc as Session Service
     participant SeshRepo as Session Repository
     participant CamRepo as Campaign Repository
+    participant Wardens as Wardens Prompt Service
+    participant Tools
     participant Claude as Claude API
 
     Browser->>SeshCon:POST /messages
@@ -23,22 +25,34 @@ sequenceDiagram
     SeshRepo-->>SeshSvc:Success
     SeshSvc->>CamRepo:Get rules system ID
     CamRepo-->>SeshSvc:System ID & slug
+    SeshSvc->>Wardens:Retrieve warden prompt
+    Wardens-->>SeshSvc:Warden prompt
 
-    SeshSvc->>Claude:Send request
-    loop Inner tool loop
+    SeshSvc->>SeshSvc:Build message window
+    SeshSvc->>SeshSvc:Build prompt
+
+    loop Until submit_gm_response, max 20
+        SeshSvc->>Claude:Send request
         Claude-->>SeshSvc:Tool use
-        SeshSvc->>Claude:Tool response
+        alt roll_dice / rules_lookup
+            SeshSvc->>Tools:Execute roll / lookup
+            Tools-->>SeshSvc:Roll result / chunks
+        else submit_gm_response
+            SeshSvc->>SeshSvc:Validate GM response<br/>(parse failure re-enters loop)
+        end
     end
-    Claude-->>SeshSvc:Submit GM response
-    SeshSvc->>SeshSvc:Validate GM Response
 
     SeshSvc->>SeshSvc:Validate state changes
-    SeshSvc->>Claude:Handle first round rejections (Optional)
-    Claude-->>SeshSvc:Submit GM response
+
+    opt Retry prompt
+        SeshSvc->>Claude:Handle first round rejections
+        Claude-->>SeshSvc:Submit GM response
+    end
+
     SeshSvc->>SeshSvc:Apply validated turn
     SeshSvc->>SeshSvc:Build state snapshot
     SeshSvc->>SeshRepo:Apply turn atomic
-    SeshRepo-->>SeshSvc:Result
+    SeshRepo-->>SeshSvc:Turn result
 
     SeshSvc-->>SeshCon:Turn result
     SeshCon-->>Browser:Turn payload
