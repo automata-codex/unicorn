@@ -44,15 +44,22 @@ sequenceDiagram
 
     SeshSvc->>SeshSvc:Validate state changes
 
-    opt Retry prompt
-        SeshSvc->>Claude:Handle first round rejections
+    opt Correction pass
+        Note over SeshSvc,Claude: Same conversation — rejections handed back as an error tool_result.<br/>tool_choice forced, so no re-entry into the tool loop.
+        SeshSvc->>Claude:Rejections
         Claude-->>SeshSvc:Submit GM response
+        SeshSvc->>SeshSvc:Validate state changes
     end
 
-    SeshSvc->>SeshSvc:Apply validated turn
-    SeshSvc->>SeshSvc:Build state snapshot
-    SeshSvc->>SeshRepo:Apply turn atomic
-    SeshRepo-->>SeshSvc:Turn result
+    alt Validation successful
+        SeshSvc->>SeshSvc:Apply validated turn
+        SeshSvc->>SeshSvc:Build state snapshot
+        SeshSvc->>SeshRepo:Apply turn atomic
+        SeshRepo-->>SeshSvc:Turn result
 
-    SeshSvc-->>SeshCon:Turn result
-    SeshCon-->>Browser:Turn payload
+        SeshSvc-->>SeshCon:Turn result
+        SeshCon-->>Browser:Turn payload
+    else Validation failed
+        SeshSvc-->>SeshCon:502 gm_correction_failed
+        SeshCon-->>Browser:Error
+    end
