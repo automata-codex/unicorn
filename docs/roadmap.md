@@ -326,6 +326,10 @@ built by a migration against an empty table silently under-returned (`§ S14`).
 
 *Caller model and initiative mode.*
 
+- [ ] **Prerequisite — turn-path lock audit.** `applyTurnAtomic` serializes concurrent turns incidentally rather than deliberately: `writeCampaignState` runs first and takes a row lock on `campaign_state` (keyed by *campaign*), before `writeTurnEvents` → `nextSequenceNumber` takes its `SELECT ... FOR UPDATE` on `adventure` (keyed by *adventure*). Two questions to settle before caller/initiative work makes concurrent turns routine:
+  - Is `campaign_state.data` genuinely campaign-scoped? If yes the coarse lock is load-bearing — two adventures merging deltas into one JSONB blob would lose a merge — and write order must be pinned by convention, not left to chance. If no, it is over-serializing sibling adventures.
+  - Confirm where the read → validate → write cycle is locked. `decisions.md` states the advisory lock must span the full cycle; the transaction in `applyTurnAtomic` opens at write time only. Either a `SessionService`-level lock covers the earlier phases or the guarantee is narrower than recorded — resolve and correct whichever is wrong.
+  - Lock ordering is currently safe by accident (every path takes campaign_state → adventure; the `diceResult` transaction takes only the adventure lock). Record the ordering as a convention so a future writer touching `campaign_state` after sequence allocation doesn't introduce a deadlock.
 - [ ] Caller role enforcement, voluntary transfer, request + auto-approve timeout, offline claim
 - [ ] Narrative transfer via `caller_transfer` in `submit_gm_response`
 - [ ] Initiative mode (adventure mode flip, order stored in record, `advance_initiative` handling in `GmService`)
