@@ -537,15 +537,10 @@ campaign/adventure line was never stated at all: `adventures` carries `mode`,
 `initiative_order`, `caller_id` and `rolling_summary`, and everything else defaults into
 `campaign_state.data` because that is where the blob is.
 
-**The rule.** State lives at the scope of the thing it is *about*:
+**The rule**, two axes applied in order:
 
-- **The referent never changes after creation** → **character sheet**. Name, pronouns,
-  class, the creation rolls as rolled.
-- **The referent outlives the adventure** → **campaign state**. Anything attached to a
-  character, a recurring NPC, or the party's ship.
-- **The referent is created and destroyed with the adventure** → **adventure state**. A
-  derelict's reactor integrity, a synthesized threat's HP, a countdown timer, initiative
-  order, scenario flags.
+1. **Does the value change during play?** No → **character sheet**. Name, pronouns, class, the creation rolls as rolled.
+2. **For values that do change, how long does the thing they describe last?** Outlives the adventure → **campaign state** (anything attached to a character, a recurring NPC, or the party's ship). Created and destroyed with the adventure → **adventure state** (a derelict's reactor integrity, a synthesized threat's HP, a countdown timer, initiative order, scenario flags).
 
 **Reset is a rule, not a lifecycle.** This is the part that is easy to get wrong, and
 getting it wrong is what motivated writing the rule down. D&D 5e spell slots feel
