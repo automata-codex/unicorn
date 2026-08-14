@@ -655,6 +655,46 @@ addendum lists:**
   retrieval` for what the code does instead.
 - **`level` exists, is written by nothing and read by nothing**, in a game with no levels.
 
+**Addendum 3 — considered and rejected: writing state back to the sheet at adventure end**
+
+Once the placement rule leaves the sheet holding only immutable creation data, an obvious
+question follows: should end-of-adventure state be written back to the sheet, so the next
+adventure starts from a clean derivation rather than from accumulated campaign state?
+Superficially attractive — each adventure would begin from a single tidy source.
+
+**Rejected. The derivation it would avoid does not exist.** `campaign_state` is
+campaign-scoped and nothing clears it between adventures, so player pools already persist
+across the boundary. `deriveMothershipCharacterResourcePools` has exactly two call sites,
+both in `CharacterService`, and neither is on the adventure-creation path — a character at
+7/20 HP already begins adventure 2 at 7/20
+(`docs/plans/m7.6-code-inventory.md`, commit `e1cdaac`). A write-back would copy values
+that are already in the right place, and the moment a copy diverged there would be two
+authorities for one number, which is the drift this entry's rule exists to prevent.
+
+Worth stating plainly because the correct carry-forward behaviour was arrived at by
+accident rather than by design, and it is easy to mistake for a gap. The defect the code
+inventory found at the adventure boundary was never character carry-forward; it was that
+*scenario* state carries forward too, which
+`§ Adventure state gets its own row, not an adventure tag on campaign state` addresses.
+
+**It would also serve no system on the roadmap.** 5e resets at *rests*, Feng Shui 2's
+Fortune per *session*, Infinity 2d20's Momentum per *scene*. None of those is an adventure
+boundary. This is `§ State placement is decided by the lifetime of the referent, not the
+lifetime of the value`'s "reset is a rule, not a lifecycle" applied one level down: a sync
+mechanism keyed to adventure completion would encode a reset assumption no supported
+system actually has.
+
+**Two further problems with no obvious answers**, recorded so that a future revisit starts
+from them rather than rediscovering them: adventures terminate as `completed`, `aborted`
+*or* `failed`, so a write-back needs a policy per terminal status; and a dead character has
+nothing to carry forward.
+
+**A different thing worth having later, under a different name.** An *append-only* snapshot
+of character state at each adventure's end has real value — character history, and the
+"how did I lose 15 Strength" question that motivated the `reason` field on pool deltas. That
+adds a row rather than overwriting an authority, so it composes with delta provenance
+instead of competing with it. Not Phase 1, and not this mechanism.
+
 ### Pool validator applies full delta before threshold detection
 
 When a resource pool delta would cross a threshold (death, panic, etc.), the full delta is applied first and threshold crossings are detected on the resulting value. The delta is never pre-capped. If a goblin with 7 HP takes 9 damage, the result is -2 HP — the death threshold is crossed and Claude is notified of both the final value and which thresholds fired. Pre-capping would silently discard mechanically meaningful information.
