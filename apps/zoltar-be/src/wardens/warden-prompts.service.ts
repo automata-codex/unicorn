@@ -14,6 +14,17 @@ export type { SystemSlug, WardenPromptFile } from './prompt-paths';
 
 const KNOWN_SYSTEMS: readonly SystemSlug[] = ['mothership'] as const;
 
+/**
+ * Narrows a `game_systems.slug` read out of the database to the slugs this
+ * service actually has prompts for. Callers hold a plain `string` from the
+ * DB; this is the only sanctioned way to reach `SystemSlug` from one, so a
+ * system row we have no prompt for is rejected at the boundary rather than
+ * failing deep inside `getSelected`.
+ */
+export function isSystemSlug(value: string): value is SystemSlug {
+  return (KNOWN_SYSTEMS as readonly string[]).includes(value);
+}
+
 function overrideEnvVar(system: SystemSlug): string {
   return `WARDEN_PROMPT_OVERRIDE_${system.toUpperCase()}`;
 }

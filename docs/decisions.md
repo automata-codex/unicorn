@@ -392,6 +392,64 @@ Mechanically the change is `DEFAULT_SYNTHESIS_MODEL` in `apps/zoltar-be/src/anth
 
 **One runtime consequence to watch.** Sonnet 5 runs adaptive thinking when the `thinking` parameter is omitted; Sonnet 4.6 ran without thinking. `max_tokens` caps thinking *and* response text together, so `DEFAULT_SESSION_MAX_TOKENS` (4096) and `DEFAULT_SYNTHESIS_MAX_TOKENS` (8192) now cover strictly more. No code change was needed — the inner tool loop and `buildCorrectionRequest` both echo `response.content` verbatim, which is exactly what round-tripping thinking blocks requires — and the Sonnet 5 baseline already ran this path at 4096 with 4 errored rows in 150 against 4.6's 18. Watch for `stop_reason: 'max_tokens'` on long combat turns anyway; the headroom is smaller than it was.
 
+**Addendum — the 4.6 arm is retired as a decision input, and a Haiku 4.5 control arm inherits
+its other job.** Declared 2026-08-09 during M7.5 scheduling; recorded 2026-08-11, two days
+late, and only because drafting M7.8 surfaced that the arm existed nowhere but a chat log.
+That delay is the entry, not an aside: the whole point of writing this down was to stop the arm
+being *quietly* dropped from a checklist, and it was two days from being dropped quietly anyway.
+
+The retirement argument is the one already made two paragraphs above about the judge, applied a
+position earlier in the pipeline. A regression harness protects the thing you ship, and 4.6 is
+not it. Re-baselining 4.6 against the populated index answers "how much would rules availability
+help a model we don't use," which is on the critical path to nothing. The 4.6 side of the table
+above is also the weaker half of its own evidence — three of those rates rest on N=5–6 because
+4.6 errored out, and its M7.5 arm carried 10 tool-loop-cap errors before being abandoned. Keeping
+it would mean watching a second arm nobody would actually read, which is precisely why the
+4.6-pinned judge was rejected.
+
+**What the second arm was doing besides comparison.** `out-of-order-resolution` (1.00, 20/20 in
+July; 0.94 now) and `turn28-hidden-info-leak` (1.00, 10/10) pin at the top, and this project's own
+rule is that a rate sitting at either extreme across every rep is a harness suspect rather than a
+finding — with the ceiling case exactly as suspect as the floor and materially less likely to be
+investigated, because a pinned 1.00 presents with full applicability and a healthy denominator
+(§ A rate that never moves is a harness suspect, not a finding; that entry's instance list is
+amended to include `turn28-hidden-info-leak`). A weaker model failing those checks is the only
+evidence currently available that they can reach a `fail` verdict at all. Drop both arms and that
+guard goes with them, silently.
+
+**So the arm survives with a different job and a different model: Haiku 4.5, low N, `--fixtures`
+scoped to the fixtures carrying those two checks.** Cheaper and faster than 4.6, which matters
+because wall-clock was the original complaint. There is no `--tag` selector and deliberately never
+was (a second overlapping selector was declined at M7.4), so scoping is by fixture and the
+irrelevant rows are simply not read. Read the arm in one direction only: a weak model **passing** a
+pinned check is the finding. Failing it is the expected result and says nothing about the Warden —
+Haiku's rates are not a model comparison and must never be reported beside Sonnet 5's as though
+they were.
+
+**Scheduled as a rider on M7.6's re-baseline**, not as work of its own, since that is the next
+graded Warden run on the calendar and the arm needs no orchestration beyond a second invocation.
+Landing it before M7.7 buys something specific: if either check turns out to be undiscriminating,
+that is known before fixtures get authored from the playtest capture, and an authoring decision
+made against a blind checker is the one class of harness defect `eval:rescore` cannot retroactively
+repair.
+
+**Superseded in part by M7.8.** Known-answer fixtures assert the same property directly — engineered
+to fail a specific check, asserting the harness agrees — in both directions, at zero Warden spend,
+and repeatably. Where such a pair exists, the control arm is redundant inference. What it does not
+cover is checks nobody thought to author a pair for, and M8 introduces caller and initiative checkers
+that will arrive without one. So the arm narrows a second time: decision input (retired 2026-08-09)
+→ checker control (M7.6) → coverage-gap probe for un-paired checks (M7.8 onward). That is
+deliberately the same trajectory recorded for the "pinned at either extreme" heuristic, because they
+are the same kind of instrument — indirect probes standing in for not being able to read a checker
+with confidence — and they retire together, per check, as coverage arrives. The reciprocal record
+lives in that entry's own addendum.
+
+**What this does not claim.** A Haiku failure proves a check *can* move; it does not prove the check
+fails for the right reason, and a checker that fails weak output for the wrong reason would look
+identical from here. That gap is exactly what M7.8 closes and why the arm is transitional rather than
+permanent. The arm also says nothing about the judge, which is probabilistic by construction and
+characterised through `eval:judge-variance` against frozen input, not through a second generator.
+
 ### Tool use over prompt instructions for structured output
 
 Claude is required to call `submit_gm_response` and `submit_gm_context` rather than producing structured JSON in plain text. Tool use enforces the schema at the API level and eliminates a whole category of malformed response runtime errors. Prompt instructions alone are not sufficient for this guarantee.
@@ -965,6 +1023,46 @@ The real defect is in the fixture, which asks about a detail neither model repro
 The framing is what made it hard to see: the statistical confidence was entirely real and completely beside the point, because a large n does not make a checker correct. The practical rule is the same one already recorded for large rate jumps after a model swap, extended to its mirror image — a fixture sitting at exactly 0.0 or 1.0 across every rep more likely indicates a checker that cannot move than a model that never varies, and should be treated as a harness suspect before being recorded as a finding.
 
 **This entry was written from `turn16`, so it reads as being about zeros. It is not.** A rate pinned at 1.00 is exactly as suspect and *materially less likely to be investigated*, because nobody audits good news. The asymmetry is worse than indifference: a pinned zero at least announces itself as a problem worth opening, and it tends to present with a shrunken or lopsided denominator that draws a second look. A pinned 1.00 presents with full applicability, a healthy denominator, and an `App` column reading `1.00` — the healthiest-looking row in the report. Every diagnostic built so far watches for denominators collapsing; none of them can see a verdict that cannot be reached. `turn21-narrating-past-a-block` (1.00 on both models) and `turn{19,21}-out-of-order-resolution` under Sonnet 5 (1.00, 20/20) are the current instances, and the reason each is currently believed is hand-review, not tooling. `docs/plans/900-fixture-check-reachability-design.md` is the design for closing that gap and is deferred, so for now the ceiling half of this rule is enforced by remembering it.
+
+**Addendum — the ceiling half stops being enforced by memory, and the instance list should
+never have been a list** (2026-08-11).
+
+The paragraph above closes with "for now the ceiling half of this rule is enforced by
+remembering it." That is no longer the plan, in two steps of increasing directness. A **Haiku 4.5
+control arm** rides M7.6's re-baseline, scoped by `--fixtures` to the pinned checks: a weaker
+model failing them is evidence they can reach a `fail` verdict at all (§ Warden model upgraded to
+`claude-sonnet-5`, addendum). **M7.8 — Harness Meta-Eval** then asserts the same property
+directly, with hand-authored fixtures engineered to fail a specific check and the assertion being
+that the harness agrees — both directions, repeatable, and no Warden run. The arm is the interim
+instrument and the fixtures are the actual one; both are scheduled rather than remembered, which
+is the change this addendum records.
+
+**Both are indirect in the way this entry is, and they retire the same way.** The heuristic, the
+control arm, and hand-review are three probes standing in for not being able to read a checker
+with confidence. Where a known-answer pair exists, all three are redundant for that check. Where
+one doesn't — every check M8's caller and initiative work introduces, to start — all three still
+apply. So the retirement is per check as coverage arrives, not a single date, and the heuristic's
+surviving job is detecting checks nobody thought to pair, which is a narrower and more permanent
+role than the one it has now.
+
+**The instance list is already stale, and enumeration was the wrong shape for it.**
+`turn28-hidden-info-leak` reads 1.00 (10/10) in the July table and its tag holds 1.00 (20/20) on
+the M7.5 re-baseline; it belongs beside `turn21-narrating-past-a-block` and
+`turn{19,21}-out-of-order-resolution` and is missing. A hand-maintained list of pinned rows decays
+on every run by construction — the rows that qualify change whenever a rate moves, and this
+document is edited per milestone. The list should be computed: `eval:report` already has every
+per-fixture rate and denominator in hand, and flagging rows at exactly 0.0 or 1.0 with a full
+denominator is a few lines. That is **not** the reachability analysis this entry says the tooling
+can't do — it surfaces candidates, it does not prove a verdict unreachable — but it converts the
+ceiling half from a thing to remember into a thing the report says, which is most of the value at
+almost none of the cost.
+
+**One thing deliberately not settled: how M7.8 relates to
+`docs/plans/900-fixture-check-reachability-design.md`.** Both target this gap from opposite
+directions — 900 analytically, by asking whether a check *can* emit a fail against a given fixture;
+M7.8 empirically, by constructing an input that should make it. They may be complements, or M7.8
+may make 900 unnecessary for less effort. That question should be answered by re-reading 900
+against M7.8's scope before either is built, not assumed in either direction here.
 
 ### Applicability is reported alongside every rate, and errors are not in its denominator
 

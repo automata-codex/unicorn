@@ -86,12 +86,20 @@ function makeService(
   const campaignRepo = {
     getStateData: vi.fn().mockResolvedValue(emptyMothershipState()),
     getSystemId: vi.fn().mockResolvedValue('system-uuid-mothership'),
+    getSystemSlug: vi.fn().mockResolvedValue('mothership'),
   } as unknown as CampaignRepository;
+  // Keyed by slug and throwing on a miss, like the real service — an
+  // arg-ignoring stub would accept the `getSystemId` UUID just as happily.
   const wardens = {
-    getSelected: vi.fn().mockReturnValue({
-      filename: 'mothership-m7.txt',
-      hash: 'testhash',
-      text: 'Test Warden prompt.',
+    getSelected: vi.fn((system: string) => {
+      if (system !== 'mothership') {
+        throw new Error(`No Warden prompt available for system '${system}'.`);
+      }
+      return {
+        filename: 'mothership-m7.txt',
+        hash: 'testhash',
+        text: 'Test Warden prompt.',
+      };
     }),
   } as unknown as WardenPromptsService;
   return {

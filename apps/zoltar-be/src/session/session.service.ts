@@ -9,7 +9,10 @@ import { AnthropicService } from '../anthropic/anthropic.service';
 import { CampaignRepository } from '../campaign/campaign.repository';
 import { DiceService } from '../dice/dice.service';
 import { RulesLookupService } from '../rules/rules-lookup.service';
-import { WardenPromptsService } from '../wardens/warden-prompts.service';
+import {
+  isSystemSlug,
+  WardenPromptsService,
+} from '../wardens/warden-prompts.service';
 
 import { applyValidatedTurn } from './session.applier';
 import { buildCorrectionRequest } from './session.correction';
@@ -233,7 +236,6 @@ export class SessionService {
       playerEntityIds,
     };
     const campaignStateData = rawState as CampaignStateData;
-    const windowMessages = buildMessageWindow(priorMessages);
 
     // 2. Persist the incoming player message OUTSIDE the atomic turn
     //    transaction. A retry after any downstream failure can still
@@ -251,12 +253,24 @@ export class SessionService {
       });
     }
 
-    // 3. Resolve the active system for rules_lookup filtering. Pre-loop so a
-    //    missing game_system row fails before we spend on Claude.
-    const systemId = await this.campaignRepo.getSystemId(args.campaignId);
-    if (!systemId) {
+    // 3. Resolve the active system. Two distinct identifiers, not
+    //    interchangeable: `systemId` is the `game_systems` UUID the rules
+    //    index is keyed by (rules_lookup filtering), while `systemSlug` is
+    //    the human-readable key the Warden prompt files are named for
+    //    (`mothership-m10.txt`). Both are resolved pre-loop so a missing or
+    //    prompt-less game_system fails before we spend on Claude.
+    const [systemId, systemSlug] = await Promise.all([
+      this.campaignRepo.getSystemId(args.campaignId),
+      this.campaignRepo.getSystemSlug(args.campaignId),
+    ]);
+    if (!systemId || !systemSlug) {
       throw new SessionPreconditionError(
         `game_system missing for campaign=${args.campaignId}`,
+      );
+    }
+    if (!isSystemSlug(systemSlug)) {
+      throw new SessionPreconditionError(
+        `game_system '${systemSlug}' has no Warden prompt (campaign=${args.campaignId})`,
       );
     }
 
@@ -267,7 +281,8 @@ export class SessionService {
     //    the narrative input.
     // Warden prompt is resolved once per turn; the same triple feeds both
     // the request builder and (in Part 2) the telemetry `wardenPrompt` field.
-    const wardenPrompt = this.wardens.getSelected('mothership');
+    const wardenPrompt = this.wardens.getSelected(systemSlug);
+    const windowMessages = buildMessageWindow(priorMessages);
     const request = buildSessionRequest({
       gmContextBlob,
       campaignStateData,
