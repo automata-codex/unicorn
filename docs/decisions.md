@@ -299,6 +299,75 @@ The asymmetry settles it. A suppressed unanswerable query costs nothing: the War
 
 A floor becomes available when the unanswerable distribution shifts down, and the only lever that moves it is upstream of retrieval: stop generating concept-absent queries, which `§ S9.3` measured at 130 of 344 out-of-corpus queries (37.8%). That is the mechanical-model primer in M7.5 Part 4.6. **Re-derive the floor after the primer has been measured, not after the next chunking change.**
 
+### The D&D-5e-bias hypothesis has a confirmed instance, in the schema rather than in retrieval
+
+The hypothesis — that the Warden's out-of-corpus vocabulary is specifically D&D 5e lexicon
+bleeding into Mothership play, rather than generic TTRPG vocabulary — was recorded in
+`docs/rules-extraction-findings.md` as named-but-untested open question. The retrieval-side version
+remains untested; nothing below measures a query.
+
+**But the M7.6 code inventory found 5e mechanics in the Mothership character sheet and
+pool definitions, which nobody was looking at when the hypothesis was formed.** Two
+instances, both cited against `docs/plans/m7.6-code-inventory.md` at `e1cdaac`:
+
+- **`level: z.number().int().min(1).max(10).default(1)`**
+  (`packages/game-systems/src/mothership/character-sheet.schema.ts:15`). Mothership has no
+  levels. Advancement is Skill Training (§24.1, measured in years and credits) and Shore
+  Leave converting Stress into permanently improved Saves (§39.1). The field has no
+  producer and no consumer anywhere in the repo — absent from
+  `formatMothershipCharacterProse`, absent from the frontend's hand-written
+  `CharacterSheet` type, absent from both create and edit forms. A levels concept with a
+  1–10 range arrived from somewhere, and it was not the Player's Survival Guide.
+- **`HP_DEFINITION = { min: null, max: null, thresholds: [{ value: 0, effect:
+  'death_save_required' }] }`** (`packages/game-systems/src/mothership/pool-definitions.ts`).
+  That is the 5e rule — 0 HP sends you to death saving throws. Mothership's rule is
+  different in kind: Health reaching zero gives a **Wound** and a roll on the Wounds Table,
+  Health resets to Maximum minus carryover, and the Death Save comes only when Wounds
+  equal Maximum Wounds (§28.2, §29.1–29.2). There is no `maxWounds` field on the sheet and
+  no wounds pool definition, so the entire Wounds layer is absent and the code substitutes
+  the 5e shortcut for it.
+
+**Why this is worth an entry rather than a bug report.** The two defects are individually
+fixable in M7.6 and would not need recording. What needs recording is the *pattern*: 5e
+mechanics entered a Mothership artifact silently, at authoring time, and survived M2, M3,
+M5, M6 and M7 without anyone noticing. The hypothesis predicted this happening in the
+Warden's queries at runtime. Finding it instead in a schema written by hand, in a
+different artifact, at a different time, is independent evidence for the same underlying
+cause and is stronger than another instance of the predicted kind would have been.
+
+**The drift went the wrong way, which rules out inheritance.** The retired
+`apps/zoltar-playtest` prototype carried `sanity` under `saves` (correct — Sanity is a Save,
+§18.2), no `instinct`, and no `level`
+(`apps/zoltar-playtest/src/lib/types.ts`, via the inventory). The production schema has
+`sanity` and `instinct` under `stats` and a `level` field. So the current shape was
+authored rather than inherited from the prototype, and it is *less* faithful than what
+preceded it.
+
+**A third instance, weaker, recorded for completeness.** `stats.instinct`
+(`character-sheet.schema.ts:21`) is not a 5e import — Instinct is a real Mothership stat,
+but it belongs to **Contractors** (§40.1), the simplified NPC statblock where it is the
+catchall standing in for Fear, Sanity, Body, Speed and Intellect. It is not a
+player-character attribute. This is the same failure mode as the two above — a mechanic
+from an adjacent model applied to the PC sheet — with a different adjacent model.
+
+**What this does and does not license.**
+
+- It **does** justify treating "check for 5e assumptions" as a standing review question on
+  any Mothership artifact authored without the book open, and specifically on the M7.6
+  spec, which is being written to correct exactly these fields.
+- It **does not** validate the retrieval-side claim. The vocabulary gap measured in
+  `§ Query preprocessing for rules_lookup promoted from optional to critical path`
+  (amendment) splits 157 wrong-word / 130 concept-absent out of 344, and *which* lexicon
+  those out-of-corpus terms come from is still unmeasured. Confirming the hypothesis in
+  one artifact does not confirm it in another, and the mechanical-model primer's design
+  should not start assuming 5e as the source.
+- The cheap test remains available and is still not run: classify the 130 concept-absent
+  queries by whether the named mechanic exists in 5e. Flanking, suppressive fire, opposed
+  rolls and DCs all do. That is a labelling pass over data already in `unicorn-artifacts`,
+  with no Warden run and no API spend.
+
+Roadmap: `docs/roadmap.md § M7.6 — Character Sheet Fidelity`.
+
 ### The retrieval stopping rule is measured on the metrics with headroom, not on the saturated one
 
 `docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md § The stopping rule`
@@ -558,6 +627,39 @@ placement rule this addendum is an instance of is
 `§ State placement is decided by the lifetime of the referent, not the lifetime of the
 value`.
 
+**Addendum 2 — the code inventory resolves the open verification item, and the schema is
+further from the rules than the first addendum assumed**
+
+The first addendum flagged the "zero stress" seed as a verification item for M7.6.
+`docs/plans/m7.6-code-inventory.md` (commit `e1cdaac`) resolves it: **the code matches this
+entry, and both are wrong against the rules.** The stress pool is incorrect on three axes,
+not one:
+
+- **Seed.** `current: 0` (`packages/game-systems/src/mothership/character-pools.ts:22`).
+  The PSG starts current Stress at 2 (§20.1).
+- **Floor.** `STRESS_DEFINITION.min = 0`. The PSG floors Stress at *Minimum* Stress, which
+  starts at 2 and moves in at least seven ways — never at zero (§20.2).
+- **Cap.** `STRESS_DEFINITION.max = null`. The PSG caps Stress at 20, with the excess
+  reducing the most relevant Stat or Save (§20.1).
+
+**A behavioural divergence the spec has to resolve deliberately.** A delta that would take
+a pool below its `min` is **rejected**, not clamped. For HP this never fires — `min` is
+`null`, which is what makes `§ Pool validator applies full delta before threshold
+detection` work as written (the goblin at −2 HP). For stress it fires at zero. If M7.6
+routes Stats and Saves through pools, each one needs an explicit reject-or-clamp decision
+rather than inheriting whichever behaviour its `min` happens to produce.
+
+**Three further shape defects the inventory found, beyond the four this entry's first
+addendum lists:**
+
+- **`stats` has six fields and should have four.** `sanity` is a Save (§18.2), not a Stat;
+  `instinct` is a Contractor stat (§40.1) and not a player-character attribute at all.
+  `saves` correspondingly lacks Sanity.
+- **Wounds are entirely absent** — no `maxWounds`, no wounds pool. See
+  `§ The D&D-5e-bias hypothesis has a confirmed instance, in the schema rather than in
+  retrieval` for what the code does instead.
+- **`level` exists, is written by nothing and read by nothing**, in a game with no levels.
+
 ### Pool validator applies full delta before threshold detection
 
 When a resource pool delta would cross a threshold (death, panic, etc.), the full delta is applied first and threshold crossings are detected on the resulting value. The delta is never pre-capped. If a goblin with 7 HP takes 9 damage, the result is -2 HP — the death threshold is crossed and Claude is notified of both the final value and which thresholds fired. Pre-capping would silently discard mechanically meaningful information.
@@ -613,6 +715,34 @@ Three changes close it, and the split between them is deliberate:
 **The rule is suffix-collision, not prefix-must-resolve.** A stricter "every pool prefix must name a declared entity" would reject `station_power_reserve` and `contamination_spread_timer` — legitimate scenario-level pools that attach to no entity and never will. Only a pool that duplicates a kind the player already owns is refused, which is exactly the observed defect and nothing else. The check is disabled entirely when no player ids are declared, mirroring `roll_dice`'s empty-known-set behaviour under `§ actingEntityId must resolve against a declared identifier set` — a campaign with no character sheet must not have every pool bootstrap rejected.
 
 The entry's main claim is unaffected: derivation still happens at character creation, and synthesis still does not re-derive.
+
+**Addendum — the derivation is one-way, so sheet edits never reach the pools**
+
+`mergePlayerResourcePools` preserves existing keys on conflict, which the amendment above
+discusses as a collision property. It has a second consequence that entry doesn't draw
+out: **it cannot overwrite, so re-running the derivation against changed sheet data is a
+no-op whenever the pools already exist — which is always, after creation.** Editing a
+sheet to raise `maxHp` updates the sheet and leaves `{entityId}_hp.max` at its old value.
+The only case where the re-run does anything is a changed `entityId`, where it mints a
+second orphaned pair — the same defect shape the amendment above records, reached by a
+different route (`docs/plans/m7.6-code-inventory.md`, `e1cdaac`).
+
+**Consequence for M7.6:** any migration that changes ceilings on the sheet has to write
+the pools too. Sheet-only migrations silently do nothing to live state.
+
+**Two adjacent findings from the same inventory, recorded here because they share the
+cause — nothing reconciles sheet and pools after creation:**
+
+- `CharacterService.delete` removes the sheet row and leaves the derived pools in
+  `campaign_state.data.resourcePools`. They persist and keep rendering in the snapshot.
+- With no sheet, `getPlayerEntityIds` returns `[]`, and per `session.service.ts:908-912`
+  an empty set disables `actingEntityId` validation entirely. So deleting a character
+  silently switches off a structural guard that M7.5 landed
+  (`§ actingEntityId must resolve against a declared identifier set, and an unresolvable
+  id is undecided`).
+- The `assertNoActiveAdventure` guard on update and delete blocks only `synthesizing`,
+  `ready`, and `in_progress` — sheets are editable once an adventure is `completed`,
+  `aborted`, or `failed`.
 
 ### Synthesis prompts are system-specific; no driver registry yet
 
@@ -1121,6 +1251,23 @@ was prose classification and was the only clause firing under 4.6. `unauditable-
 stays structural; its zero denominator is a fixture defect, not a checker one. Migration is
 cheap by construction: `checkId` deliberately does not encode `checkMode` (see above), so a
 check changes mode without un-pairing its own comparison history.
+
+**Addendum — the harness writes a `character_sheet` row the sheet schema would reject, and
+that is load-bearing**
+
+`harness-runner.ts:326-328` inserts `data: { entityId: canonicalPlayerEntityId }` — one of
+nine required fields. It works because **no read path anywhere parses
+`character_sheet.data`**; the sheet is validated on write only
+(`docs/plans/m7.6-code-inventory.md`, `e1cdaac`). The partial row is deliberate: without
+it `getPlayerEntityIds` returns `[]` and the run measures a code path production doesn't
+take (reasoning at `harness-runner.ts:195-207`).
+
+**Recorded because it constrains a milestone whose whole subject is sheet fidelity.**
+Adding read-side validation of `character_sheet.data` — the natural instinct when
+correcting a schema — breaks every eval run. M7.6 must either leave the read path
+unvalidated or change the harness seed in the same milestone; discovering this during
+implementation would surface as the harness failing for reasons unrelated to the change
+under test.
 
 ### `eval:rescore` re-grades frozen artifacts; re-score rows are a distinct row kind
 
