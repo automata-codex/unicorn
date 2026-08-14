@@ -299,6 +299,75 @@ The asymmetry settles it. A suppressed unanswerable query costs nothing: the War
 
 A floor becomes available when the unanswerable distribution shifts down, and the only lever that moves it is upstream of retrieval: stop generating concept-absent queries, which `§ S9.3` measured at 130 of 344 out-of-corpus queries (37.8%). That is the mechanical-model primer in M7.5 Part 4.6. **Re-derive the floor after the primer has been measured, not after the next chunking change.**
 
+### The D&D-5e-bias hypothesis has a confirmed instance, in the schema rather than in retrieval
+
+The hypothesis — that the Warden's out-of-corpus vocabulary is specifically D&D 5e lexicon
+bleeding into Mothership play, rather than generic TTRPG vocabulary — was recorded in
+`docs/rules-extraction-findings.md` as named-but-untested open question. The retrieval-side version
+remains untested; nothing below measures a query.
+
+**But the M7.6 code inventory found 5e mechanics in the Mothership character sheet and
+pool definitions, which nobody was looking at when the hypothesis was formed.** Two
+instances, both cited against `milestones/m7.6-code-inventory.md` at `e1cdaac`:
+
+- **`level: z.number().int().min(1).max(10).default(1)`**
+  (`packages/game-systems/src/mothership/character-sheet.schema.ts:15`). Mothership has no
+  levels. Advancement is Skill Training (§24.1, measured in years and credits) and Shore
+  Leave converting Stress into permanently improved Saves (§39.1). The field has no
+  producer and no consumer anywhere in the repo — absent from
+  `formatMothershipCharacterProse`, absent from the frontend's hand-written
+  `CharacterSheet` type, absent from both create and edit forms. A levels concept with a
+  1–10 range arrived from somewhere, and it was not the Player's Survival Guide.
+- **`HP_DEFINITION = { min: null, max: null, thresholds: [{ value: 0, effect:
+  'death_save_required' }] }`** (`packages/game-systems/src/mothership/pool-definitions.ts`).
+  That is the 5e rule — 0 HP sends you to death saving throws. Mothership's rule is
+  different in kind: Health reaching zero gives a **Wound** and a roll on the Wounds Table,
+  Health resets to Maximum minus carryover, and the Death Save comes only when Wounds
+  equal Maximum Wounds (§28.2, §29.1–29.2). There is no `maxWounds` field on the sheet and
+  no wounds pool definition, so the entire Wounds layer is absent and the code substitutes
+  the 5e shortcut for it.
+
+**Why this is worth an entry rather than a bug report.** The two defects are individually
+fixable in M7.6 and would not need recording. What needs recording is the *pattern*: 5e
+mechanics entered a Mothership artifact silently, at authoring time, and survived M2, M3,
+M5, M6 and M7 without anyone noticing. The hypothesis predicted this happening in the
+Warden's queries at runtime. Finding it instead in a schema written by hand, in a
+different artifact, at a different time, is independent evidence for the same underlying
+cause and is stronger than another instance of the predicted kind would have been.
+
+**The drift went the wrong way, which rules out inheritance.** The retired
+`apps/zoltar-playtest` prototype carried `sanity` under `saves` (correct — Sanity is a Save,
+§18.2), no `instinct`, and no `level`
+(`apps/zoltar-playtest/src/lib/types.ts`, via the inventory). The production schema has
+`sanity` and `instinct` under `stats` and a `level` field. So the current shape was
+authored rather than inherited from the prototype, and it is *less* faithful than what
+preceded it.
+
+**A third instance, weaker, recorded for completeness.** `stats.instinct`
+(`character-sheet.schema.ts:21`) is not a 5e import — Instinct is a real Mothership stat,
+but it belongs to **Contractors** (§40.1), the simplified NPC statblock where it is the
+catchall standing in for Fear, Sanity, Body, Speed and Intellect. It is not a
+player-character attribute. This is the same failure mode as the two above — a mechanic
+from an adjacent model applied to the PC sheet — with a different adjacent model.
+
+**What this does and does not license.**
+
+- It **does** justify treating "check for 5e assumptions" as a standing review question on
+  any Mothership artifact authored without the book open, and specifically on the M7.6
+  spec, which is being written to correct exactly these fields.
+- It **does not** validate the retrieval-side claim. The vocabulary gap measured in
+  `§ Query preprocessing for rules_lookup promoted from optional to critical path`
+  (amendment) splits 157 wrong-word / 130 concept-absent out of 344, and *which* lexicon
+  those out-of-corpus terms come from is still unmeasured. Confirming the hypothesis in
+  one artifact does not confirm it in another, and the mechanical-model primer's design
+  should not start assuming 5e as the source.
+- The cheap test remains available and is still not run: classify the 130 concept-absent
+  queries by whether the named mechanic exists in 5e. Flanking, suppressive fire, opposed
+  rolls and DCs all do. That is a labelling pass over data already in `unicorn-artifacts`,
+  with no Warden run and no API spend.
+
+Roadmap: `docs/roadmap.md § M7.6 — Character Sheet Fidelity`.
+
 ### The retrieval stopping rule is measured on the metrics with headroom, not on the saturated one
 
 `docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md § The stopping rule`
@@ -458,9 +527,173 @@ Claude is required to call `submit_gm_response` and `submit_gm_context` rather t
 
 An earlier design gave entities a special `hp` field alongside `resourcePools`. Folded into `resourcePools` for consistency — HP is a resource pool mechanically, and the threshold behavior (death, unconscious) is handled by the validator reading pool definitions from the system Zod schema, not by special-casing field names. This keeps the schema extensible across systems that track hit points differently.
 
+### State placement is decided by the lifetime of the referent, not the lifetime of the value
+
+There are three places a piece of state can live — the character sheet, campaign state,
+and adventure state — and until now there was no rule for choosing between them. The
+sheet/campaign line was settled once, for HP and current Stress, in
+`§ Character sheet stores identity and build, not live mutable state`. The
+campaign/adventure line was never stated at all: `adventures` carries `mode`,
+`initiative_order`, `caller_id` and `rolling_summary`, and everything else defaults into
+`campaign_state.data` because that is where the blob is.
+
+**The rule**, two axes applied in order:
+
+1. **Does the value change during play?** No → **character sheet**. Name, pronouns, class, the creation rolls as rolled.
+2. **For values that do change, how long does the thing they describe last?** Outlives the adventure → **campaign state** (anything attached to a character, a recurring NPC, or the party's ship). Created and destroyed with the adventure → **adventure state** (a derelict's reactor integrity, a synthesized threat's HP, a countdown timer, initiative order, scenario flags).
+
+**Reset is a rule, not a lifecycle.** This is the part that is easy to get wrong, and
+getting it wrong is what motivated writing the rule down. D&D 5e spell slots feel
+adventure-scoped because 5e adventures conventionally begin after a long rest — but start
+a party mid-dungeon with two of four slots spent and the slots plainly carry forward. The
+long rest is a *mechanic that writes to campaign state*, not evidence that slots are
+adventure-scoped. Ability drain is the cleaner case: a shadow's Strength drain is undone
+by greater restoration, a purchase, exactly parallel to Mothership's Psychosurgery. In 5e
+essentially nothing character-attached is adventure state — not slots, hit dice,
+exhaustion, attunement, or prepared spells.
+
+Making campaign the default and adventure the exception has a useful property: a system
+with no reset mechanic needs no special handling, and a system with one implements the
+reset as a state change rather than as a storage boundary.
+
+**Mothership under the rule, which is not where the intuition points.** All *character*
+state is campaign state — Mothership has no factory reset of any kind. Damage to Stats
+and Saves is undone only by paid medical treatment; Maximum Health and Maximum Wounds
+decrease monotonically with no recovery path in the Player's Survival Guide at all
+(§29.2 Death table `00`; Panic `19`). But all *scenario* state — synthesized NPC and
+threat pools, flags, `worldFacts`, `scenarioState` — is adventure-scoped by the rule, and
+all of it lives in `campaign_state.data` today, in flat maps with no adventure
+discriminator.
+
+**A cross-check that agrees with the rule.** The writer already correlates with the
+scope. Character creation writes campaign-scoped player pools
+(`§ Player resource pools are derived at character creation, not at synthesis`);
+synthesis writes NPC, threat, and timer pools. If synthesis wrote it, it is adventure
+state.
+
+**Known limit, recorded rather than pre-solved.** Some systems scope finer than an
+adventure. Infinity 2d20's Momentum is a shared party pool that resets between *scenes*;
+Feng Shui 2's Fortune resets per session while Marks of Death are permanent. The referent
+rule still holds — Momentum's referent is the scene — but the three-destination model has
+no home for it. Revisit at Phase 3–4 when those systems land, not before.
+
+Roadmap: `docs/roadmap.md § M7.6 — Character Sheet Fidelity`.
+
 ### Character sheet stores identity and build, not live mutable state
 
 `character_sheet.data` carries the character's identity (name, class, entityId), build (stats, saves, skills, equipment), and ceilings (`maxHp`, `maxStress`). It does not carry current HP or current stress — those are mutable values that change during play and live exclusively in `campaign_state.data.resourcePools` as `{entityId}_hp` and `{entityId}_stress`. At character creation time, `deriveMothershipCharacterResourcePools` seeds the pools at full HP and zero stress from the ceilings. An earlier design kept `currentHp` and `stress: { current, max }` on the sheet, but these drifted from the authoritative pool values the moment play began and served no purpose after creation.
+
+**Addendum — the rule generalizes, and applying it consistently moves more than HP and
+Stress off the sheet**
+
+This entry settles two fields and states a split as a by-product: sheet holds identity,
+build, and ceilings; pools hold current values. It never generalized, and the fields it
+would have caught were classified before the Mothership rules were read closely.
+
+The rationale does generalize. "These drifted from the authoritative pool values the
+moment play began and served no purpose after creation," read as a rule — *if a value
+mutates in play, campaign state owns it; the sheet keeps only what creation determines
+and play never touches* — disposes of several fields this entry currently places on the
+sheet:
+
+- **`stats` and `saves` are not build data.** All seven move in play: Wounds reduce
+  Strength (`-1d10`) and Body Save (`-2d10`); Level 2 radiation reduces all Stats and
+  Saves by 1 per round; Stress above 20 reduces "the most relevant Stat or Save" by the
+  excess — a *discretionary* reduction, the Warden choosing which. Shore Leave
+  permanently raises Saves.
+- **The ceilings are not ceilings.** Maximum Health drops 1d5 on a Death-table `00`;
+  Maximum Wounds drops 1 on Panic `19`. Both are mid-adventure events, and neither is
+  restored by anything in the Player's Survival Guide.
+- **`maxStress` is pointed at the wrong quantity.** There is no per-character maximum
+  Stress; 20 is a system constant. The per-character value is *Minimum* Stress, which
+  starts at 2 and moves in at least seven ways.
+- **`equipment: string[]` and `saves.armor: number` cannot hold what they name.** Armor
+  Points belong to a worn item and are consumed — damage ≥ AP destroys the armor, and a
+  patched vaccsuit is AP 1 — so AP is `{ base, current, destroyed }` with DR tracked
+  separately. Loadout entries carry charges, rounds, and doses.
+
+**One correction of fact in the entry above:** it describes the derivation as seeding
+pools "at full HP and zero stress." Current Stress starts at **2**, not 0, and floors at
+Minimum Stress thereafter, never at zero. Whether the code matches the entry or the rules
+is a verification item for M7.6.
+
+Full field-by-field derivation, with rule citations, in the M7.6 PSG inventory. The
+placement rule this addendum is an instance of is
+`§ State placement is decided by the lifetime of the referent, not the lifetime of the
+value`.
+
+**Addendum 2 — the code inventory resolves the open verification item, and the schema is
+further from the rules than the first addendum assumed**
+
+The first addendum flagged the "zero stress" seed as a verification item for M7.6.
+`milestones/m7.6-code-inventory.md` (commit `e1cdaac`) resolves it: **the code matches this
+entry, and both are wrong against the rules.** The stress pool is incorrect on three axes,
+not one:
+
+- **Seed.** `current: 0` (`packages/game-systems/src/mothership/character-pools.ts:22`).
+  The PSG starts current Stress at 2 (§20.1).
+- **Floor.** `STRESS_DEFINITION.min = 0`. The PSG floors Stress at *Minimum* Stress, which
+  starts at 2 and moves in at least seven ways — never at zero (§20.2).
+- **Cap.** `STRESS_DEFINITION.max = null`. The PSG caps Stress at 20, with the excess
+  reducing the most relevant Stat or Save (§20.1).
+
+**A behavioural divergence the spec has to resolve deliberately.** A delta that would take
+a pool below its `min` is **rejected**, not clamped. For HP this never fires — `min` is
+`null`, which is what makes `§ Pool validator applies full delta before threshold
+detection` work as written (the goblin at −2 HP). For stress it fires at zero. If M7.6
+routes Stats and Saves through pools, each one needs an explicit reject-or-clamp decision
+rather than inheriting whichever behaviour its `min` happens to produce.
+
+**Three further shape defects the inventory found, beyond the four this entry's first
+addendum lists:**
+
+- **`stats` has six fields and should have four.** `sanity` is a Save (§18.2), not a Stat;
+  `instinct` is a Contractor stat (§40.1) and not a player-character attribute at all.
+  `saves` correspondingly lacks Sanity.
+- **Wounds are entirely absent** — no `maxWounds`, no wounds pool. See
+  `§ The D&D-5e-bias hypothesis has a confirmed instance, in the schema rather than in
+  retrieval` for what the code does instead.
+- **`level` exists, is written by nothing and read by nothing**, in a game with no levels.
+
+**Addendum 3 — considered and rejected: writing state back to the sheet at adventure end**
+
+Once the placement rule leaves the sheet holding only immutable creation data, an obvious
+question follows: should end-of-adventure state be written back to the sheet, so the next
+adventure starts from a clean derivation rather than from accumulated campaign state?
+Superficially attractive — each adventure would begin from a single tidy source.
+
+**Rejected. The derivation it would avoid does not exist.** `campaign_state` is
+campaign-scoped and nothing clears it between adventures, so player pools already persist
+across the boundary. `deriveMothershipCharacterResourcePools` has exactly two call sites,
+both in `CharacterService`, and neither is on the adventure-creation path — a character at
+7/20 HP already begins adventure 2 at 7/20
+(`docs/plans/m7.6-code-inventory.md`, commit `e1cdaac`). A write-back would copy values
+that are already in the right place, and the moment a copy diverged there would be two
+authorities for one number, which is the drift this entry's rule exists to prevent.
+
+Worth stating plainly because the correct carry-forward behaviour was arrived at by
+accident rather than by design, and it is easy to mistake for a gap. The defect the code
+inventory found at the adventure boundary was never character carry-forward; it was that
+*scenario* state carries forward too, which
+`§ Adventure state gets its own row, not an adventure tag on campaign state` addresses.
+
+**It would also serve no system on the roadmap.** 5e resets at *rests*, Feng Shui 2's
+Fortune per *session*, Infinity 2d20's Momentum per *scene*. None of those is an adventure
+boundary. This is `§ State placement is decided by the lifetime of the referent, not the
+lifetime of the value`'s "reset is a rule, not a lifecycle" applied one level down: a sync
+mechanism keyed to adventure completion would encode a reset assumption no supported
+system actually has.
+
+**Two further problems with no obvious answers**, recorded so that a future revisit starts
+from them rather than rediscovering them: adventures terminate as `completed`, `aborted`
+*or* `failed`, so a write-back needs a policy per terminal status; and a dead character has
+nothing to carry forward.
+
+**A different thing worth having later, under a different name.** An *append-only* snapshot
+of character state at each adventure's end has real value — character history, and the
+"how did I lose 15 Strength" question that motivated the `reason` field on pool deltas. That
+adds a row rather than overwriting an authority, so it composes with delta provenance
+instead of competing with it. Not Phase 1, and not this mechanism.
 
 ### Pool validator applies full delta before threshold detection
 
@@ -470,6 +703,48 @@ When a resource pool delta would cross a threshold (death, panic, etc.), the ful
 
 Each pool definition in the system Zod schema carries `min`, `max`, and `thresholds` metadata. The validator reads this rather than hardcoding HP-specific or system-specific logic. A pool with `min: null` can go negative; `min: 0` is floored at zero. This keeps the validator generic and system-agnostic.
 
+### Typed system-specific fields on tool schemas are acceptable while one system is supported
+
+`damageType` on the pool-delta object (M7.6) is the first **rules-semantic** field on a
+tool schema — a field whose permitted values come from one book. `rollType` is arguably
+system-flavoured, but it names a category of interaction; `damageType` names five specific
+columns of Mothership's Wounds Table (PSG §29.1): Blunt Force, Bleeding, Gunshot, Fire &
+Explosives, Gore & Massive.
+
+The generic alternative is `properties: Record<string, unknown>`, validated per system.
+**Deferred, for the same reason the synthesis driver registry is deferred**
+(`§ Synthesis prompts are system-specific; no driver registry yet`): until a second system
+exists, any interface is a guess shaped entirely by Mothership's needs, and the second
+system is likelier to reveal the right abstraction than to conform to a premature one.
+
+**What the typed field buys that a container does not.** The value is not only schema
+shape — it is a prompt instruction and a closed enum the Warden selects from. Typed,
+`gore_massive` is checkable and `slashing` is rejected at the tool boundary. Under
+`properties`, that validation moves into a per-system Zod refinement or it disappears.
+The first is fine; the second reintroduces `UNAUDITABLE-MAPPING` through a side door.
+Note also that the machinery which would dispatch per-system validation does not exist in
+this path today: pool behaviour is selected by pool key
+(`§ Pool behavior defined in system Zod schema, not hardcoded in validator`), not by
+campaign system.
+
+**The trigger to generalize is the second system needing a *different* field, not this
+system needing a second field.** If Mothership later wants `woundSeverity` alongside
+`damageType`, that is two typed fields and still fine. When OSE needs `saveCategory` and
+Infinity needs `momentumSpend`, the object carries three mutually exclusive fields each
+null for two systems out of three — and at that point the container is cheaper than the
+union. Phase 2 is when this is discovered, and deferring costs nothing because the change
+is additive either way.
+
+**One asymmetry that argues for watching this closely rather than filing it.** The
+pool-delta object is precisely where four fields landed simultaneously in M7.6 to avoid
+paying for two re-baselines. Every future change to it carries that same cost. So the
+question is not only whether `damageType` is the right shape, but how many more times this
+object will be opened — and if the answer turns out to be once per system, the container
+is cheaper than it looks today.
+
+Recorded now as a recognised boundary with a named trigger, so that the Phase 2
+implementer meets a decision rather than a surprise.
+
 ### Entity death does not auto-zero prefixed pools
 
 When an entity's `status` flips to `'dead'`, the validator does not automatically zero resource pools whose keys are prefixed with that entity's id. Claude must send explicit pool deltas alongside the status change. An earlier playtest-tool prototype auto-zeroed to work around Claude forgetting; M6 opts for explicit behavior to keep the correction mechanism as the single channel for state-change feedback. Revisit if playtest data shows the omission happens often enough to cause drift.
@@ -477,6 +752,44 @@ When an entity's `status` flips to `'dead'`, the validator does not automaticall
 ### Entity and resource pool identifiers use underscores only
 
 Dots in identifier strings cause subtle bugs when code uses dot-notation property access on JSON keys. Hyphens are legal but inconsistent with TypeScript naming conventions. Underscores are unambiguous. Resource pools follow the pattern `{entity_id}_{pool_name}`: `dr_chen_hp`, `vasquez_stress`.
+
+**Addendum — the composite pool key is retired; the underscore rule for identifiers is not**
+
+M7.6 nests resource pools by entity —
+`resourcePools: { [entityId]: { hp: { current, max }, … } }` — replacing the
+`{entity_id}_{pool_name}` composite key this entry specifies. `dr_chen_hp` becomes
+`resourcePools.dr_chen.hp`.
+
+**The rule this entry states is unaffected.** No identifier gains a dot: `dr_chen` and `hp`
+are separate keys, each still underscores-only, and the dot-notation hazard the entry
+describes does not arise because nothing parses a composite string. What lapses is only the
+naming *pattern* in the final sentence.
+
+**Why nest.** The composite key made pool identity a convention enforced by suffix matching
+— `getMothershipPoolDefinition` tests `*_hp` and `*_stress`, correct only while no entity id
+ends in a pool name. At ten pools per character that guarantee thins, and a `_max_hp`-shaped
+key would break it outright. Nesting removes the parse rather than hardening it: the
+selector receives the pool name directly.
+
+Two defects close as a side effect. `CharacterService.delete` left derived pools orphaned
+because removing them meant a prefix scan; nested it is `delete pools[entityId]`. And the
+`alvarez` / `lt_alvarez` duplicate this entry's neighbouring amendment describes becomes
+*visible* — two sibling keys with overlapping pool sets read as obviously wrong in a
+rendered snapshot, where eight scattered flat keys did not. It does not prevent that defect,
+which was two entity ids rather than a key-format failure.
+
+**The cost, recorded because it is easy to miss.** Merges must become **deep**.
+`mergePlayerResourcePools` (preserve-on-conflict) and `applyValidatedTurn` (plain shallow
+spread) both operate at the top level. Nested, a shallow spread at the entity level clobbers
+every pool that entity owns when one is written. The pre-existing disagreement between those
+merge points acquires a much larger blast radius per key.
+
+**The tool payload does not nest.** `state_changes.resource_pools` becomes an array of
+self-describing entries — `{ entityId, pool, delta, maxDelta?, reason, damageType? }` —
+rather than a keyed map. Nested state does not require a nested payload, and the array
+avoids string parsing on ingest without asking the Warden to generate nested JSON.
+
+Spec: `docs/specs/zoltar/016-m7.6-character-sheet-fidelity.md` §1.3, §2.1.
 
 ### `diceRequests` IDs assigned by the backend, not Claude
 
@@ -517,6 +830,34 @@ Three changes close it, and the split between them is deliberate:
 **The rule is suffix-collision, not prefix-must-resolve.** A stricter "every pool prefix must name a declared entity" would reject `station_power_reserve` and `contamination_spread_timer` — legitimate scenario-level pools that attach to no entity and never will. Only a pool that duplicates a kind the player already owns is refused, which is exactly the observed defect and nothing else. The check is disabled entirely when no player ids are declared, mirroring `roll_dice`'s empty-known-set behaviour under `§ actingEntityId must resolve against a declared identifier set` — a campaign with no character sheet must not have every pool bootstrap rejected.
 
 The entry's main claim is unaffected: derivation still happens at character creation, and synthesis still does not re-derive.
+
+**Addendum — the derivation is one-way, so sheet edits never reach the pools**
+
+`mergePlayerResourcePools` preserves existing keys on conflict, which the amendment above
+discusses as a collision property. It has a second consequence that entry doesn't draw
+out: **it cannot overwrite, so re-running the derivation against changed sheet data is a
+no-op whenever the pools already exist — which is always, after creation.** Editing a
+sheet to raise `maxHp` updates the sheet and leaves `{entityId}_hp.max` at its old value.
+The only case where the re-run does anything is a changed `entityId`, where it mints a
+second orphaned pair — the same defect shape the amendment above records, reached by a
+different route (`milestones/m7.6-code-inventory.md`, `e1cdaac`).
+
+**Consequence for M7.6:** any migration that changes ceilings on the sheet has to write
+the pools too. Sheet-only migrations silently do nothing to live state.
+
+**Two adjacent findings from the same inventory, recorded here because they share the
+cause — nothing reconciles sheet and pools after creation:**
+
+- `CharacterService.delete` removes the sheet row and leaves the derived pools in
+  `campaign_state.data.resourcePools`. They persist and keep rendering in the snapshot.
+- With no sheet, `getPlayerEntityIds` returns `[]`, and per `session.service.ts:908-912`
+  an empty set disables `actingEntityId` validation entirely. So deleting a character
+  silently switches off a structural guard that M7.5 landed
+  (`§ actingEntityId must resolve against a declared identifier set, and an unresolvable
+  id is undecided`).
+- The `assertNoActiveAdventure` guard on update and delete blocks only `synthesizing`,
+  `ready`, and `in_progress` — sheets are editable once an adventure is `completed`,
+  `aborted`, or `failed`.
 
 ### Synthesis prompts are system-specific; no driver registry yet
 
@@ -738,6 +1079,94 @@ The alternative (feeding prior adventure summaries and GM context blobs directly
 
 Campaigns are limited to one adventure in a non-completed, non-failed state at a time. A new adventure cannot be created while another is `synthesizing`, `ready`, or `in progress`. This matches solo play conventions and simplifies the state model. Completed and failed adventures remain visible (toggled by default) but do not block new adventure creation.
 
+**Addendum — one adventure per campaign, full stop, through `v0.1.0`**
+
+The entry above permits a second adventure once the first is completed or failed:
+"Completed and failed adventures remain visible (toggled by default) but do not block new
+adventure creation." **That permission is withdrawn for `v0.1.0`.** A campaign may have
+exactly one adventure, in any status.
+
+**Why the original allowance does not survive contact with the rest of the roadmap.**
+Creating a second adventure is permitted, and nothing behind it works:
+
+- `campaign_canon` does not exist and synthesis does not read it — the roadmap places
+  both in Phase 2 ("Campaign canon — second promotion step at adventure completion;
+  `campaign_canon` table; synthesis reads campaign canon alongside oracle results for
+  subsequent adventures"). Adventure 2 would be synthesized with no knowledge of
+  adventure 1.
+- `adventure.rolling_summary` stays null through Phase 1 by
+  `§ Phase 1 continuity is carried by cached GM context and working-memory fields, not a
+  rolling summary`, which defers it to Phase 2 for the same reason — "where the related
+  'what persists across adventures' questions already need answering."
+- Adventure-scoped state is not separated from campaign state, so adventure 2 inherits
+  adventure 1's synthesized entities, pools, and flags. Overlapping entity ids across
+  adventures collide silently in the flat pool map, and `buildResourcePools` preserves on
+  conflict — the same failure shape as the `lt_alvarez` / `alvarez` incident.
+
+So two recorded decisions point in opposite directions, and the combination actually
+shipping — door open, nothing behind it — was chosen by neither. This addendum closes the
+door rather than building the floor.
+
+**The constraint is a data guarantee, not just a product limitation, and that is the
+point.** With exactly one adventure per campaign in every self-hosted database at
+`v0.1.0`, provenance is unambiguous *by construction*: every entity, pool, and flag in a
+campaign belongs to its sole adventure. The Phase 2 migration into the separate adventure
+state row is then mechanical. Without the constraint it would have to *infer* which
+adventure each key came from, which for overlapping ids across two finished adventures is
+not recoverable at all.
+
+**Why not the cheaper intermediate.** Tagging entities and pools with an adventure id now
+was considered and rejected: it ships self-hosters a format that is neither the current
+shape nor the terminal one, and it obliges either a second migration or permanent support
+for an interim shape. The single-adventure constraint achieves the same guarantee — no
+ambiguity in shipped data — without shipping a transitional format at all. The
+door-closing code is throwaway, and small.
+
+**Scope of the closure.** It must block creation after `completed` and `failed`, not only
+during an active adventure. The original entry explicitly allows the former, which is
+what lets a campaign accumulate two adventures' worth of state today.
+
+**What this costs.** Mothership's attrition model does not need `campaign_canon` —
+character carry-forward alone ("Strength still 27, Maximum Wounds down to 2") is most of
+what M7.6 is building toward, and this defers it. Accepted as a beta-stage limitation.
+The counterweight is that character carry-forward across an adventure boundary is
+currently broken in the ways listed above, so what is deferred is a feature that does not
+work rather than one that does.
+
+**Reversal condition.** Lift the constraint when the adventure state row exists,
+`campaign_canon` feeds synthesis, and a dedicated boundary playtest has run — the last of
+which must not be combined with a mechanical-coverage playtest, per the standing rule in
+`docs/roadmap.md`.
+
+### Adventure state gets its own row, not an adventure tag on campaign state
+
+Given the placement rule above, adventure-scoped state has to be separable from
+campaign-scoped state. Two shapes were available: tag each entity and pool entry in
+`campaign_state.data` with the adventure it belongs to, or give adventures their own
+state row with its own per-system Zod schema, mirroring `campaign_state`.
+
+**Decided: a separate row.** Tagging makes the boundary a convention that every query and
+the snapshot builder must remember to honour, and the two state defects this project has
+actually hit were both exactly that failure. The `lt_alvarez` / `alvarez` incident was a
+flat map plus a preserve-on-conflict merge, where the safety mechanism is what let the
+duplicate through (`§ Player resource pools are derived at character creation, not at
+synthesis`, amendment). The `<character_attributes>` block sat deferred for two
+milestones past its own stated trigger because nothing structural was watching
+(`§ The <character_attributes> snapshot block is specified but deferred until a data
+source exists`, second amendment). A separate row makes scope structural rather than
+remembered, gives the adventure lifecycle a natural place for cleanup, and bounds a blob
+that is read on every turn and would otherwise grow without limit across a long campaign.
+
+**What it costs, stated rather than glossed:** two Zod schemas per system instead of one,
+two write paths, and a snapshot builder that merges two sources. That is real, and it is
+the price of not relying on every future caller to remember a tag.
+
+**Not implemented in Phase 1.** See the addendum to `§ One active adventure per campaign`
+above — the single-adventure constraint is what makes deferring the implementation safe
+rather than merely postponing it. This entry records the terminal shape now so that the
+Phase 2 migration is written against a decided target rather than choosing one under
+pressure.
+
 ### `adventure_telemetry` vs session export are distinct artifacts
 
 These are two different things that were originally both called `adventure_log`. They serve different purposes and must not be conflated. `adventure_telemetry` is infrastructure-level diagnostic telemetry — one row per turn in a DB table, containing the full `submit_gm_response` payload, all `roll_dice` calls with purpose annotations and results, the state snapshot sent to Claude, and prompt/completion token counts. It exists to diagnose pipeline bugs and is not player-facing. The session export is the player-facing portable format — a single JSON file containing the message log (with turn numbers and timestamps), canon log, turn-level state deltas, final state snapshot, and GM context. It supports session restore and post-session analysis. It is produced on demand, not written per-turn to a DB table. Mixing these concerns into a single artifact would make `game_events` harder to query for its application-level purpose and would conflate player-facing data portability with internal diagnostic tooling.
@@ -937,6 +1366,23 @@ was prose classification and was the only clause firing under 4.6. `unauditable-
 stays structural; its zero denominator is a fixture defect, not a checker one. Migration is
 cheap by construction: `checkId` deliberately does not encode `checkMode` (see above), so a
 check changes mode without un-pairing its own comparison history.
+
+**Addendum — the harness writes a `character_sheet` row the sheet schema would reject, and
+that is load-bearing**
+
+`harness-runner.ts:326-328` inserts `data: { entityId: canonicalPlayerEntityId }` — one of
+nine required fields. It works because **no read path anywhere parses
+`character_sheet.data`**; the sheet is validated on write only
+(`milestones/m7.6-code-inventory.md`, `e1cdaac`). The partial row is deliberate: without
+it `getPlayerEntityIds` returns `[]` and the run measures a code path production doesn't
+take (reasoning at `harness-runner.ts:195-207`).
+
+**Recorded because it constrains a milestone whose whole subject is sheet fidelity.**
+Adding read-side validation of `character_sheet.data` — the natural instinct when
+correcting a schema — breaks every eval run. M7.6 must either leave the read path
+unvalidated or change the harness seed in the same milestone; discovering this during
+implementation would surface as the harness failing for reasons unrelated to the change
+under test.
 
 ### `eval:rescore` re-grades frozen artifacts; re-score rows are a distinct row kind
 
