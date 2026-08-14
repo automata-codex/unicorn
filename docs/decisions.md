@@ -308,7 +308,7 @@ remains untested; nothing below measures a query.
 
 **But the M7.6 code inventory found 5e mechanics in the Mothership character sheet and
 pool definitions, which nobody was looking at when the hypothesis was formed.** Two
-instances, both cited against `docs/plans/m7.6-code-inventory.md` at `e1cdaac`:
+instances, both cited against `milestones/m7.6-code-inventory.md` at `e1cdaac`:
 
 - **`level: z.number().int().min(1).max(10).default(1)`**
   (`packages/game-systems/src/mothership/character-sheet.schema.ts:15`). Mothership has no
@@ -631,7 +631,7 @@ value`.
 further from the rules than the first addendum assumed**
 
 The first addendum flagged the "zero stress" seed as a verification item for M7.6.
-`docs/plans/m7.6-code-inventory.md` (commit `e1cdaac`) resolves it: **the code matches this
+`milestones/m7.6-code-inventory.md` (commit `e1cdaac`) resolves it: **the code matches this
 entry, and both are wrong against the rules.** The stress pool is incorrect on three axes,
 not one:
 
@@ -725,7 +725,7 @@ no-op whenever the pools already exist — which is always, after creation.** Ed
 sheet to raise `maxHp` updates the sheet and leaves `{entityId}_hp.max` at its old value.
 The only case where the re-run does anything is a changed `entityId`, where it mints a
 second orphaned pair — the same defect shape the amendment above records, reached by a
-different route (`docs/plans/m7.6-code-inventory.md`, `e1cdaac`).
+different route (`milestones/m7.6-code-inventory.md`, `e1cdaac`).
 
 **Consequence for M7.6:** any migration that changes ceilings on the sheet has to write
 the pools too. Sheet-only migrations silently do nothing to live state.
@@ -1258,7 +1258,7 @@ that is load-bearing**
 `harness-runner.ts:326-328` inserts `data: { entityId: canonicalPlayerEntityId }` — one of
 nine required fields. It works because **no read path anywhere parses
 `character_sheet.data`**; the sheet is validated on write only
-(`docs/plans/m7.6-code-inventory.md`, `e1cdaac`). The partial row is deliberate: without
+(`milestones/m7.6-code-inventory.md`, `e1cdaac`). The partial row is deliberate: without
 it `getPlayerEntityIds` returns `[]` and the run measures a code path production doesn't
 take (reasoning at `harness-runner.ts:195-207`).
 
