@@ -1,0 +1,21 @@
+flowchart TD
+    comp_corp[Compute corpus version] -->create_run[Create run directory]
+    create_run -->load_fix[Load fixtures]
+    load_fix -->create_sesh[Create session]
+    create_sesh -->select_checks
+    select_checks[Select checks] -->req_art
+    req_art[Write request artifacts] -->fix_art
+    fix_art[Write fixture artifacts] -->check_mode
+
+    subgraph run_check[Run Check]
+        check_mode{Is structural check}
+        check_mode -->|yes| struct[Run structural check]
+        check_mode -->|no| gated[Run gate if present]
+        gated -->judge[Run judged check]
+    end
+
+    struct -->Verdict[Record verdict to scores.jsonl]
+    judge -->Verdict
+    Verdict -->report[eval:report]
+    report -->compare[eval:compare]
+
