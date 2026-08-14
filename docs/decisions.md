@@ -703,6 +703,48 @@ When a resource pool delta would cross a threshold (death, panic, etc.), the ful
 
 Each pool definition in the system Zod schema carries `min`, `max`, and `thresholds` metadata. The validator reads this rather than hardcoding HP-specific or system-specific logic. A pool with `min: null` can go negative; `min: 0` is floored at zero. This keeps the validator generic and system-agnostic.
 
+### Typed system-specific fields on tool schemas are acceptable while one system is supported
+
+`damageType` on the pool-delta object (M7.6) is the first **rules-semantic** field on a
+tool schema — a field whose permitted values come from one book. `rollType` is arguably
+system-flavoured, but it names a category of interaction; `damageType` names five specific
+columns of Mothership's Wounds Table (PSG §29.1): Blunt Force, Bleeding, Gunshot, Fire &
+Explosives, Gore & Massive.
+
+The generic alternative is `properties: Record<string, unknown>`, validated per system.
+**Deferred, for the same reason the synthesis driver registry is deferred**
+(`§ Synthesis prompts are system-specific; no driver registry yet`): until a second system
+exists, any interface is a guess shaped entirely by Mothership's needs, and the second
+system is likelier to reveal the right abstraction than to conform to a premature one.
+
+**What the typed field buys that a container does not.** The value is not only schema
+shape — it is a prompt instruction and a closed enum the Warden selects from. Typed,
+`gore_massive` is checkable and `slashing` is rejected at the tool boundary. Under
+`properties`, that validation moves into a per-system Zod refinement or it disappears.
+The first is fine; the second reintroduces `UNAUDITABLE-MAPPING` through a side door.
+Note also that the machinery which would dispatch per-system validation does not exist in
+this path today: pool behaviour is selected by pool key
+(`§ Pool behavior defined in system Zod schema, not hardcoded in validator`), not by
+campaign system.
+
+**The trigger to generalize is the second system needing a *different* field, not this
+system needing a second field.** If Mothership later wants `woundSeverity` alongside
+`damageType`, that is two typed fields and still fine. When OSE needs `saveCategory` and
+Infinity needs `momentumSpend`, the object carries three mutually exclusive fields each
+null for two systems out of three — and at that point the container is cheaper than the
+union. Phase 2 is when this is discovered, and deferring costs nothing because the change
+is additive either way.
+
+**One asymmetry that argues for watching this closely rather than filing it.** The
+pool-delta object is precisely where four fields landed simultaneously in M7.6 to avoid
+paying for two re-baselines. Every future change to it carries that same cost. So the
+question is not only whether `damageType` is the right shape, but how many more times this
+object will be opened — and if the answer turns out to be once per system, the container
+is cheaper than it looks today.
+
+Recorded now as a recognised boundary with a named trigger, so that the Phase 2
+implementer meets a decision rather than a surprise.
+
 ### Entity death does not auto-zero prefixed pools
 
 When an entity's `status` flips to `'dead'`, the validator does not automatically zero resource pools whose keys are prefixed with that entity's id. Claude must send explicit pool deltas alongside the status change. An earlier playtest-tool prototype auto-zeroed to work around Claude forgetting; M6 opts for explicit behavior to keep the correction mechanism as the single channel for state-change feedback. Revisit if playtest data shows the omission happens often enough to cause drift.
@@ -710,6 +752,44 @@ When an entity's `status` flips to `'dead'`, the validator does not automaticall
 ### Entity and resource pool identifiers use underscores only
 
 Dots in identifier strings cause subtle bugs when code uses dot-notation property access on JSON keys. Hyphens are legal but inconsistent with TypeScript naming conventions. Underscores are unambiguous. Resource pools follow the pattern `{entity_id}_{pool_name}`: `dr_chen_hp`, `vasquez_stress`.
+
+**Addendum — the composite pool key is retired; the underscore rule for identifiers is not**
+
+M7.6 nests resource pools by entity —
+`resourcePools: { [entityId]: { hp: { current, max }, … } }` — replacing the
+`{entity_id}_{pool_name}` composite key this entry specifies. `dr_chen_hp` becomes
+`resourcePools.dr_chen.hp`.
+
+**The rule this entry states is unaffected.** No identifier gains a dot: `dr_chen` and `hp`
+are separate keys, each still underscores-only, and the dot-notation hazard the entry
+describes does not arise because nothing parses a composite string. What lapses is only the
+naming *pattern* in the final sentence.
+
+**Why nest.** The composite key made pool identity a convention enforced by suffix matching
+— `getMothershipPoolDefinition` tests `*_hp` and `*_stress`, correct only while no entity id
+ends in a pool name. At ten pools per character that guarantee thins, and a `_max_hp`-shaped
+key would break it outright. Nesting removes the parse rather than hardening it: the
+selector receives the pool name directly.
+
+Two defects close as a side effect. `CharacterService.delete` left derived pools orphaned
+because removing them meant a prefix scan; nested it is `delete pools[entityId]`. And the
+`alvarez` / `lt_alvarez` duplicate this entry's neighbouring amendment describes becomes
+*visible* — two sibling keys with overlapping pool sets read as obviously wrong in a
+rendered snapshot, where eight scattered flat keys did not. It does not prevent that defect,
+which was two entity ids rather than a key-format failure.
+
+**The cost, recorded because it is easy to miss.** Merges must become **deep**.
+`mergePlayerResourcePools` (preserve-on-conflict) and `applyValidatedTurn` (plain shallow
+spread) both operate at the top level. Nested, a shallow spread at the entity level clobbers
+every pool that entity owns when one is written. The pre-existing disagreement between those
+merge points acquires a much larger blast radius per key.
+
+**The tool payload does not nest.** `state_changes.resource_pools` becomes an array of
+self-describing entries — `{ entityId, pool, delta, maxDelta?, reason, damageType? }` —
+rather than a keyed map. Nested state does not require a nested payload, and the array
+avoids string parsing on ingest without asking the Warden to generate nested JSON.
+
+Spec: `docs/specs/zoltar/016-m7.6-character-sheet-fidelity.md` §1.3, §2.1.
 
 ### `diceRequests` IDs assigned by the backend, not Claude
 
