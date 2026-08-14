@@ -158,19 +158,23 @@ function makeRules(): import('../rules/rules-lookup.service').RulesLookupService
  * `getSelected` does. An arg-ignoring stub would hand back a prompt for any
  * key at all — including a `game_systems` UUID — and hide the mixup.
  */
-function makeWardens(): WardenPromptsService {
-  return {
-    getSelected: vi.fn((system: string) => {
-      if (system !== 'mothership') {
-        throw new Error(`No Warden prompt available for system '${system}'.`);
-      }
-      return {
-        filename: 'mothership-m7.txt',
-        hash: 'deadbeef',
-        text: 'Fixture Warden prompt.',
-      };
-    }),
-  } as unknown as WardenPromptsService;
+function makeGetSelected(): ReturnType<typeof vi.fn> {
+  return vi.fn((system: string) => {
+    if (system !== 'mothership') {
+      throw new Error(`No Warden prompt available for system '${system}'.`);
+    }
+    return {
+      filename: 'mothership-m7.txt',
+      hash: 'deadbeef',
+      text: 'Fixture Warden prompt.',
+    };
+  });
+}
+
+function makeWardens(
+  getSelected: ReturnType<typeof vi.fn> = makeGetSelected(),
+): WardenPromptsService {
+  return { getSelected } as unknown as WardenPromptsService;
 }
 
 function makeService(
@@ -325,7 +329,7 @@ describe('SessionService.sendMessage', () => {
   });
 
   it('selects the Warden prompt by system slug, not by system id', async () => {
-    const wardens = makeWardens();
+    const getSelected = makeGetSelected();
     const campaignRepo = makeCampaignRepo(
       undefined,
       vi.fn().mockResolvedValue('7c9e6679-7425-40de-944b-e07fc1f90ae7'),
@@ -337,10 +341,10 @@ describe('SessionService.sendMessage', () => {
       campaignRepo,
       makeDice(),
       makeRules(),
-      wardens,
+      makeWardens(getSelected),
     );
     await service.sendMessage(args);
-    expect(wardens.getSelected).toHaveBeenCalledWith('mothership');
+    expect(getSelected).toHaveBeenCalledWith('mothership');
   });
 
   it('throws SessionPreconditionError when the system slug has no Warden prompt', async () => {
