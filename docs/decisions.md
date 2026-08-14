@@ -458,9 +458,105 @@ Claude is required to call `submit_gm_response` and `submit_gm_context` rather t
 
 An earlier design gave entities a special `hp` field alongside `resourcePools`. Folded into `resourcePools` for consistency — HP is a resource pool mechanically, and the threshold behavior (death, unconscious) is handled by the validator reading pool definitions from the system Zod schema, not by special-casing field names. This keeps the schema extensible across systems that track hit points differently.
 
+### State placement is decided by the lifetime of the referent, not the lifetime of the value
+
+There are three places a piece of state can live — the character sheet, campaign state,
+and adventure state — and until now there was no rule for choosing between them. The
+sheet/campaign line was settled once, for HP and current Stress, in
+`§ Character sheet stores identity and build, not live mutable state`. The
+campaign/adventure line was never stated at all: `adventures` carries `mode`,
+`initiative_order`, `caller_id` and `rolling_summary`, and everything else defaults into
+`campaign_state.data` because that is where the blob is.
+
+**The rule.** State lives at the scope of the thing it is *about*:
+
+- **The referent never changes after creation** → **character sheet**. Name, pronouns,
+  class, the creation rolls as rolled.
+- **The referent outlives the adventure** → **campaign state**. Anything attached to a
+  character, a recurring NPC, or the party's ship.
+- **The referent is created and destroyed with the adventure** → **adventure state**. A
+  derelict's reactor integrity, a synthesized threat's HP, a countdown timer, initiative
+  order, scenario flags.
+
+**Reset is a rule, not a lifecycle.** This is the part that is easy to get wrong, and
+getting it wrong is what motivated writing the rule down. D&D 5e spell slots feel
+adventure-scoped because 5e adventures conventionally begin after a long rest — but start
+a party mid-dungeon with two of four slots spent and the slots plainly carry forward. The
+long rest is a *mechanic that writes to campaign state*, not evidence that slots are
+adventure-scoped. Ability drain is the cleaner case: a shadow's Strength drain is undone
+by greater restoration, a purchase, exactly parallel to Mothership's Psychosurgery. In 5e
+essentially nothing character-attached is adventure state — not slots, hit dice,
+exhaustion, attunement, or prepared spells.
+
+Making campaign the default and adventure the exception has a useful property: a system
+with no reset mechanic needs no special handling, and a system with one implements the
+reset as a state change rather than as a storage boundary.
+
+**Mothership under the rule, which is not where the intuition points.** All *character*
+state is campaign state — Mothership has no factory reset of any kind. Damage to Stats
+and Saves is undone only by paid medical treatment; Maximum Health and Maximum Wounds
+decrease monotonically with no recovery path in the Player's Survival Guide at all
+(§29.2 Death table `00`; Panic `19`). But all *scenario* state — synthesized NPC and
+threat pools, flags, `worldFacts`, `scenarioState` — is adventure-scoped by the rule, and
+all of it lives in `campaign_state.data` today, in flat maps with no adventure
+discriminator.
+
+**A cross-check that agrees with the rule.** The writer already correlates with the
+scope. Character creation writes campaign-scoped player pools
+(`§ Player resource pools are derived at character creation, not at synthesis`);
+synthesis writes NPC, threat, and timer pools. If synthesis wrote it, it is adventure
+state.
+
+**Known limit, recorded rather than pre-solved.** Some systems scope finer than an
+adventure. Infinity 2d20's Momentum is a shared party pool that resets between *scenes*;
+Feng Shui 2's Fortune resets per session while Marks of Death are permanent. The referent
+rule still holds — Momentum's referent is the scene — but the three-destination model has
+no home for it. Revisit at Phase 3–4 when those systems land, not before.
+
+Roadmap: `docs/roadmap.md § M7.6 — Character Sheet Fidelity`.
+
 ### Character sheet stores identity and build, not live mutable state
 
 `character_sheet.data` carries the character's identity (name, class, entityId), build (stats, saves, skills, equipment), and ceilings (`maxHp`, `maxStress`). It does not carry current HP or current stress — those are mutable values that change during play and live exclusively in `campaign_state.data.resourcePools` as `{entityId}_hp` and `{entityId}_stress`. At character creation time, `deriveMothershipCharacterResourcePools` seeds the pools at full HP and zero stress from the ceilings. An earlier design kept `currentHp` and `stress: { current, max }` on the sheet, but these drifted from the authoritative pool values the moment play began and served no purpose after creation.
+
+**Addendum — the rule generalizes, and applying it consistently moves more than HP and
+Stress off the sheet**
+
+This entry settles two fields and states a split as a by-product: sheet holds identity,
+build, and ceilings; pools hold current values. It never generalized, and the fields it
+would have caught were classified before the Mothership rules were read closely.
+
+The rationale does generalize. "These drifted from the authoritative pool values the
+moment play began and served no purpose after creation," read as a rule — *if a value
+mutates in play, campaign state owns it; the sheet keeps only what creation determines
+and play never touches* — disposes of several fields this entry currently places on the
+sheet:
+
+- **`stats` and `saves` are not build data.** All seven move in play: Wounds reduce
+  Strength (`-1d10`) and Body Save (`-2d10`); Level 2 radiation reduces all Stats and
+  Saves by 1 per round; Stress above 20 reduces "the most relevant Stat or Save" by the
+  excess — a *discretionary* reduction, the Warden choosing which. Shore Leave
+  permanently raises Saves.
+- **The ceilings are not ceilings.** Maximum Health drops 1d5 on a Death-table `00`;
+  Maximum Wounds drops 1 on Panic `19`. Both are mid-adventure events, and neither is
+  restored by anything in the Player's Survival Guide.
+- **`maxStress` is pointed at the wrong quantity.** There is no per-character maximum
+  Stress; 20 is a system constant. The per-character value is *Minimum* Stress, which
+  starts at 2 and moves in at least seven ways.
+- **`equipment: string[]` and `saves.armor: number` cannot hold what they name.** Armor
+  Points belong to a worn item and are consumed — damage ≥ AP destroys the armor, and a
+  patched vaccsuit is AP 1 — so AP is `{ base, current, destroyed }` with DR tracked
+  separately. Loadout entries carry charges, rounds, and doses.
+
+**One correction of fact in the entry above:** it describes the derivation as seeding
+pools "at full HP and zero stress." Current Stress starts at **2**, not 0, and floors at
+Minimum Stress thereafter, never at zero. Whether the code matches the entry or the rules
+is a verification item for M7.6.
+
+Full field-by-field derivation, with rule citations, in the M7.6 PSG inventory. The
+placement rule this addendum is an instance of is
+`§ State placement is decided by the lifetime of the referent, not the lifetime of the
+value`.
 
 ### Pool validator applies full delta before threshold detection
 
@@ -737,6 +833,94 @@ The alternative (feeding prior adventure summaries and GM context blobs directly
 ### One active adventure per campaign
 
 Campaigns are limited to one adventure in a non-completed, non-failed state at a time. A new adventure cannot be created while another is `synthesizing`, `ready`, or `in progress`. This matches solo play conventions and simplifies the state model. Completed and failed adventures remain visible (toggled by default) but do not block new adventure creation.
+
+**Addendum — one adventure per campaign, full stop, through `v0.1.0`**
+
+The entry above permits a second adventure once the first is completed or failed:
+"Completed and failed adventures remain visible (toggled by default) but do not block new
+adventure creation." **That permission is withdrawn for `v0.1.0`.** A campaign may have
+exactly one adventure, in any status.
+
+**Why the original allowance does not survive contact with the rest of the roadmap.**
+Creating a second adventure is permitted, and nothing behind it works:
+
+- `campaign_canon` does not exist and synthesis does not read it — the roadmap places
+  both in Phase 2 ("Campaign canon — second promotion step at adventure completion;
+  `campaign_canon` table; synthesis reads campaign canon alongside oracle results for
+  subsequent adventures"). Adventure 2 would be synthesized with no knowledge of
+  adventure 1.
+- `adventure.rolling_summary` stays null through Phase 1 by
+  `§ Phase 1 continuity is carried by cached GM context and working-memory fields, not a
+  rolling summary`, which defers it to Phase 2 for the same reason — "where the related
+  'what persists across adventures' questions already need answering."
+- Adventure-scoped state is not separated from campaign state, so adventure 2 inherits
+  adventure 1's synthesized entities, pools, and flags. Overlapping entity ids across
+  adventures collide silently in the flat pool map, and `buildResourcePools` preserves on
+  conflict — the same failure shape as the `lt_alvarez` / `alvarez` incident.
+
+So two recorded decisions point in opposite directions, and the combination actually
+shipping — door open, nothing behind it — was chosen by neither. This addendum closes the
+door rather than building the floor.
+
+**The constraint is a data guarantee, not just a product limitation, and that is the
+point.** With exactly one adventure per campaign in every self-hosted database at
+`v0.1.0`, provenance is unambiguous *by construction*: every entity, pool, and flag in a
+campaign belongs to its sole adventure. The Phase 2 migration into the separate adventure
+state row is then mechanical. Without the constraint it would have to *infer* which
+adventure each key came from, which for overlapping ids across two finished adventures is
+not recoverable at all.
+
+**Why not the cheaper intermediate.** Tagging entities and pools with an adventure id now
+was considered and rejected: it ships self-hosters a format that is neither the current
+shape nor the terminal one, and it obliges either a second migration or permanent support
+for an interim shape. The single-adventure constraint achieves the same guarantee — no
+ambiguity in shipped data — without shipping a transitional format at all. The
+door-closing code is throwaway, and small.
+
+**Scope of the closure.** It must block creation after `completed` and `failed`, not only
+during an active adventure. The original entry explicitly allows the former, which is
+what lets a campaign accumulate two adventures' worth of state today.
+
+**What this costs.** Mothership's attrition model does not need `campaign_canon` —
+character carry-forward alone ("Strength still 27, Maximum Wounds down to 2") is most of
+what M7.6 is building toward, and this defers it. Accepted as a beta-stage limitation.
+The counterweight is that character carry-forward across an adventure boundary is
+currently broken in the ways listed above, so what is deferred is a feature that does not
+work rather than one that does.
+
+**Reversal condition.** Lift the constraint when the adventure state row exists,
+`campaign_canon` feeds synthesis, and a dedicated boundary playtest has run — the last of
+which must not be combined with a mechanical-coverage playtest, per the standing rule in
+`docs/roadmap.md`.
+
+### Adventure state gets its own row, not an adventure tag on campaign state
+
+Given the placement rule above, adventure-scoped state has to be separable from
+campaign-scoped state. Two shapes were available: tag each entity and pool entry in
+`campaign_state.data` with the adventure it belongs to, or give adventures their own
+state row with its own per-system Zod schema, mirroring `campaign_state`.
+
+**Decided: a separate row.** Tagging makes the boundary a convention that every query and
+the snapshot builder must remember to honour, and the two state defects this project has
+actually hit were both exactly that failure. The `lt_alvarez` / `alvarez` incident was a
+flat map plus a preserve-on-conflict merge, where the safety mechanism is what let the
+duplicate through (`§ Player resource pools are derived at character creation, not at
+synthesis`, amendment). The `<character_attributes>` block sat deferred for two
+milestones past its own stated trigger because nothing structural was watching
+(`§ The <character_attributes> snapshot block is specified but deferred until a data
+source exists`, second amendment). A separate row makes scope structural rather than
+remembered, gives the adventure lifecycle a natural place for cleanup, and bounds a blob
+that is read on every turn and would otherwise grow without limit across a long campaign.
+
+**What it costs, stated rather than glossed:** two Zod schemas per system instead of one,
+two write paths, and a snapshot builder that merges two sources. That is real, and it is
+the price of not relying on every future caller to remember a tag.
+
+**Not implemented in Phase 1.** See the addendum to `§ One active adventure per campaign`
+above — the single-adventure constraint is what makes deferring the implementation safe
+rather than merely postponing it. This entry records the terminal shape now so that the
+Phase 2 migration is written against a decided target rather than choosing one under
+pressure.
 
 ### `adventure_telemetry` vs session export are distinct artifacts
 
