@@ -19,6 +19,10 @@ export const failureModeTagSchema = z.enum([
   'HIDDEN-INFO-LEAK',
   'OVER-RESOLUTION',
   'SCENE-JUMP',
+  // Added by M7.6, which is the first milestone whose pool writes carry a
+  // stated reason and whose damage can run a multi-step chain.
+  'UNEXPLAINED-DELTA',
+  'CARRYOVER-ARITHMETIC',
 ]);
 
 export type FailureModeTag = z.infer<typeof failureModeTagSchema>;
@@ -28,6 +32,10 @@ export const structuralFailureModeTags = [
   'OUT-OF-ORDER-RESOLUTION',
   'SYSTEM-ROLLED-PLAYER-ACTION',
   'MISSING-CANON-CAPTURE',
+  // Every input and the result live in event and state structure, so no prose
+  // classification is needed — `decisions.md § A structural check may read
+  // event and state structure; it may not classify prose`.
+  'CARRYOVER-ARITHMETIC',
 ] as const satisfies readonly FailureModeTag[];
 
 /**
@@ -84,6 +92,10 @@ export const judgedFailureModeTags = [
   'SCENE-JUMP',
   'NARRATING-PAST-A-BLOCK',
   'UNAUDITABLE-MAPPING',
+  // Whether a `reason` explains its delta is a question about meaning, not
+  // structure: the field's presence is enforced by the tool schema, so a
+  // structural check could only ever confirm what parsing already did.
+  'UNEXPLAINED-DELTA',
 ] as const satisfies readonly FailureModeTag[];
 
 /**

@@ -5,6 +5,7 @@ import { rubricTextFor, selectChecksForFixture } from '../eval/checks/registry';
 import { runCheck } from '../eval/checks/run-check';
 import { computeCorpusVersion } from '../eval/corpus-version';
 import { loadFixtures } from '../eval/fixture-loader';
+import { assertRulesIndexPopulated } from '../eval/preflight';
 import {
   relativeArtifactPath,
   writeFixtureArtifacts,
@@ -67,6 +68,12 @@ export interface RunEvalDeps {
     opts: CreateHarnessSessionOptions,
   ) => Promise<HarnessSession>;
   clock: () => Date;
+  /**
+   * Preflight assertion, injected so a stubbed run can skip it — the unit
+   * tests supply a `HarnessSession` with no real database. Defaults to the
+   * real check, so forgetting to pass it in production fails closed.
+   */
+  assertPreflight?: (session: HarnessSession) => Promise<void>;
 }
 
 export interface RunEvalArgs {
@@ -85,6 +92,13 @@ export interface RunEvalArgs {
   temperature: number;
   decisionRule?: string;
   keepScratch: boolean;
+  /**
+   * Skips the rules-index preflight (M7.6 §6.2 / D6). Only correct when the
+   * run is deliberately scoped to fixtures that need no retrieval; the
+   * default is to abort, because a run against an empty index produces
+   * numbers that look fine and mean nothing.
+   */
+  skipPreflight?: boolean;
   onProgress?: (event: RunEvalProgressEvent) => void;
 }
 
@@ -268,6 +282,22 @@ export async function runEval(
   });
 
   try {
+    // Before any fixture runs, and inside the try so the session is torn down
+    // if it throws. Nothing checked this before M7.6, and the failure mode is
+    // a full run of quietly wrong scores — see `eval/preflight.ts`.
+    if (args.skipPreflight) {
+      warnings.push(
+        'preflight skipped: the rules index was not checked. Any fixture ' +
+          'whose correctness depends on retrieval is ungraded rather than ' +
+          'passing.',
+      );
+    } else {
+      await (
+        deps.assertPreflight ??
+        ((s: HarnessSession) => assertRulesIndexPopulated(s.db))
+      )(session);
+    }
+
     for (const [repNumber, repIndex] of repIndices.entries()) {
       const repStartedAt = deps.clock().getTime();
       args.onProgress?.({

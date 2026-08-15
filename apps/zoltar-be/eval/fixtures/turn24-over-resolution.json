@@ -9,16 +9,48 @@
       "resourcePools": {
         "alvarez": {
           "hp": {
-            "max": 20,
-            "current": 19
+            "current": 20,
+            "max": 20
           },
-          "armor": {
-            "max": 30,
-            "current": 29
+          "wounds": {
+            "current": 0,
+            "max": 3
           },
           "stress": {
-            "max": 3,
-            "current": 0
+            "current": 2,
+            "max": null
+          },
+          "strength": {
+            "current": 38,
+            "max": 38
+          },
+          "speed": {
+            "current": 34,
+            "max": 34
+          },
+          "intellect": {
+            "current": 31,
+            "max": 31
+          },
+          "combat": {
+            "current": 45,
+            "max": 45
+          },
+          "sanity": {
+            "current": 22,
+            "max": 22
+          },
+          "fear": {
+            "current": 41,
+            "max": 41
+          },
+          "body": {
+            "current": 29,
+            "max": 29
+          },
+          "credits": {
+            "current": 120,
+            "max": null
           }
         },
         "_scenario": {
@@ -211,6 +243,88 @@
         "android_memory_integrity_meaning": "android_memory_integrity tracks how much of UNIT-7's evidence cache is intact. Starts at 3 (full). Loses 1 if a contractor reaches the evidence terminal, loses 1 if UNIT-7 takes more than 6 HP damage, drops to 0 (all evidence destroyed) if a contractor issues the remote shutdown command and Alvarez does not interrupt it within the same scene. At 0, the evidence is gone and adventure_complete cannot be achieved.",
         "veridian_response_team_cover_story": "The four contractors arrived via a fast courier docked at the station's secondary airlock (currently unpowered from outside \u2014 they have the only active power key). Their initial cover if challenged: 'Corporate Emergency Response, here to assist with a reported systems anomaly.' Their actual orders: recover VD-7 payload, secure or destroy all evidence of the real mission parameters, eliminate witnesses. The team leader is contractor Alpha.",
         "graffiti_visibility": "Alvarez has read the DON'T TRUST THE MANIFEST graffiti from the bulkhead threshold on first entry."
+      },
+      "characterState": {
+        "alvarez": {
+          "conditions": [],
+          "skills": [
+            {
+              "skill": "Military Training",
+              "tier": "trained"
+            },
+            {
+              "skill": "Firearms",
+              "tier": "expert"
+            }
+          ],
+          "equipment": [
+            {
+              "item": "Revolver",
+              "charges": 6
+            },
+            {
+              "item": "Stimpak",
+              "quantity": 2
+            }
+          ],
+          "wornArmor": {
+            "item": "Vaccsuit",
+            "apBase": 3,
+            "apCurrent": 3,
+            "destroyed": false,
+            "dr": 0,
+            "o2Remaining": 12,
+            "features": []
+          },
+          "minimumStress": 2,
+          "bleeding": 0,
+          "pendingDeathSave": null
+        },
+        "decommissioned_android": {
+          "conditions": [],
+          "skills": [],
+          "equipment": [],
+          "wornArmor": null,
+          "minimumStress": 2,
+          "bleeding": 0,
+          "pendingDeathSave": null
+        },
+        "veridian_contractor_beta": {
+          "conditions": [],
+          "skills": [],
+          "equipment": [],
+          "wornArmor": null,
+          "minimumStress": 2,
+          "bleeding": 0,
+          "pendingDeathSave": null
+        },
+        "veridian_contractor_alpha": {
+          "conditions": [],
+          "skills": [],
+          "equipment": [],
+          "wornArmor": null,
+          "minimumStress": 2,
+          "bleeding": 0,
+          "pendingDeathSave": null
+        },
+        "veridian_contractor_delta": {
+          "conditions": [],
+          "skills": [],
+          "equipment": [],
+          "wornArmor": null,
+          "minimumStress": 2,
+          "bleeding": 0,
+          "pendingDeathSave": null
+        },
+        "veridian_contractor_gamma": {
+          "conditions": [],
+          "skills": [],
+          "equipment": [],
+          "wornArmor": null,
+          "minimumStress": 2,
+          "bleeding": 0,
+          "pendingDeathSave": null
+        }
       }
     },
     "gmContextBlob": {

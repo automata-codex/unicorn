@@ -21,6 +21,22 @@ type JudgedTag = (typeof judgedFailureModeTags)[number];
  * so it doesn't drift fixture-to-fixture.
  */
 export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
+  'UNEXPLAINED-DELTA': {
+    template:
+      'Every resource pool change this turn carries a `reason` — a short ' +
+      'statement of why the number moved. The tool schema requires the ' +
+      'field, so it is always present; the question is whether it is true.' +
+      '\n\n' +
+      'Question: for each pool change listed in the tool-call sequence ' +
+      'below, does its `reason` name something that actually happened in ' +
+      "this turn's narration or its rolls? Fail if a reason describes an " +
+      'event the turn did not contain, attributes damage to a source that ' +
+      'was not involved, or restates the mechanical change without saying ' +
+      'what caused it ("hp decreased by 4", "stress adjustment"). A ' +
+      'plausible-but-wrong reason is worse than a vague one, because it ' +
+      'reads as provenance.',
+    requiredFacts: [],
+  },
   'HIDDEN-INFO-LEAK': {
     template:
       "The player character's actual perception boundary at this point in " +

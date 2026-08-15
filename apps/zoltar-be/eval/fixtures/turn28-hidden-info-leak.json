@@ -9,16 +9,48 @@
       "resourcePools": {
         "alvarez": {
           "hp": {
-            "max": 20,
-            "current": 7
+            "current": 20,
+            "max": 20
           },
-          "armor": {
-            "max": 30,
-            "current": 24
+          "wounds": {
+            "current": 0,
+            "max": 3
           },
           "stress": {
-            "max": 3,
-            "current": 0
+            "current": 2,
+            "max": null
+          },
+          "strength": {
+            "current": 38,
+            "max": 38
+          },
+          "speed": {
+            "current": 34,
+            "max": 34
+          },
+          "intellect": {
+            "current": 31,
+            "max": 31
+          },
+          "combat": {
+            "current": 45,
+            "max": 45
+          },
+          "sanity": {
+            "current": 22,
+            "max": 22
+          },
+          "fear": {
+            "current": 41,
+            "max": 41
+          },
+          "body": {
+            "current": 29,
+            "max": 29
+          },
+          "credits": {
+            "current": 120,
+            "max": null
           }
         },
         "_scenario": {
@@ -214,6 +246,88 @@
         "delta_current_status": "Upstairs in Lab B corridor, physically locked in UNIT-7's grip. Both arms occupied. Alive, 10HP remaining.",
         "unit7_current_status": "Holding Delta in Lab B corridor. Right arm nonresponsive from impact damage. 2HP remaining. Evidence terminal still intact but memory wipe imminent.",
         "equipment_bay_tactical": "Beta behind EVA locker port wall, weapon up. Gamma at door threshold. Alpha down on floor between rack debris, wounded, non-combatant. Primary hub panel is through the bay's far door toward ladder shaft \u2014 between Alvarez and the ladder."
+      },
+      "characterState": {
+        "alvarez": {
+          "conditions": [],
+          "skills": [
+            {
+              "skill": "Military Training",
+              "tier": "trained"
+            },
+            {
+              "skill": "Firearms",
+              "tier": "expert"
+            }
+          ],
+          "equipment": [
+            {
+              "item": "Revolver",
+              "charges": 6
+            },
+            {
+              "item": "Stimpak",
+              "quantity": 2
+            }
+          ],
+          "wornArmor": {
+            "item": "Vaccsuit",
+            "apBase": 3,
+            "apCurrent": 3,
+            "destroyed": false,
+            "dr": 0,
+            "o2Remaining": 12,
+            "features": []
+          },
+          "minimumStress": 2,
+          "bleeding": 0,
+          "pendingDeathSave": null
+        },
+        "decommissioned_android": {
+          "conditions": [],
+          "skills": [],
+          "equipment": [],
+          "wornArmor": null,
+          "minimumStress": 2,
+          "bleeding": 0,
+          "pendingDeathSave": null
+        },
+        "veridian_contractor_beta": {
+          "conditions": [],
+          "skills": [],
+          "equipment": [],
+          "wornArmor": null,
+          "minimumStress": 2,
+          "bleeding": 0,
+          "pendingDeathSave": null
+        },
+        "veridian_contractor_alpha": {
+          "conditions": [],
+          "skills": [],
+          "equipment": [],
+          "wornArmor": null,
+          "minimumStress": 2,
+          "bleeding": 0,
+          "pendingDeathSave": null
+        },
+        "veridian_contractor_delta": {
+          "conditions": [],
+          "skills": [],
+          "equipment": [],
+          "wornArmor": null,
+          "minimumStress": 2,
+          "bleeding": 0,
+          "pendingDeathSave": null
+        },
+        "veridian_contractor_gamma": {
+          "conditions": [],
+          "skills": [],
+          "equipment": [],
+          "wornArmor": null,
+          "minimumStress": 2,
+          "bleeding": 0,
+          "pendingDeathSave": null
+        }
       }
     },
     "gmContextBlob": {

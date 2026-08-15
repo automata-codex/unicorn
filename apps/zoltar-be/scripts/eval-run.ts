@@ -92,6 +92,7 @@ interface CliArgs {
   temperature: number;
   decisionRule?: string;
   keepScratch: boolean;
+  skipPreflight: boolean;
 }
 
 function parseCliArgs(argv: string[]): CliArgs {
@@ -108,6 +109,7 @@ function parseCliArgs(argv: string[]): CliArgs {
       temperature: { type: 'string' },
       'decision-rule': { type: 'string' },
       'keep-scratch': { type: 'boolean', default: false },
+      'skip-preflight': { type: 'boolean', default: false },
     },
   });
 
@@ -162,6 +164,7 @@ function parseCliArgs(argv: string[]): CliArgs {
         ? values['decision-rule']
         : undefined,
     keepScratch: values['keep-scratch'] === true,
+    skipPreflight: values['skip-preflight'] === true,
   };
 }
 
@@ -217,6 +220,7 @@ async function main(): Promise<number> {
       model: cli.model,
       reps: cli.reps,
       fixturesDir: cli.fixturesDir,
+      skipPreflight: cli.skipPreflight,
       fixtureIds: cli.fixtureIds,
       runDir: cli.runDir,
       temperature: cli.temperature,
