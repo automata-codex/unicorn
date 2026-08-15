@@ -1167,6 +1167,58 @@ rather than merely postponing it. This entry records the terminal shape now so t
 Phase 2 migration is written against a decided target rather than choosing one under
 pressure.
 
+**Addendum — the Phase 2 relocation spans both state buckets, because ownership and scope
+are orthogonal**
+
+The entry above decides the terminal shape without naming what moves into it. The obvious
+reading — that `scenarioState` is the adventure-scoped bucket and `resourcePools` the
+campaign-scoped one — is wrong, and worth writing down before it becomes a working
+assumption.
+
+**The two axes are independent.** `resourcePools` versus `scenarioState` is a distinction
+of *ownership*: per-entity numerics versus non-entity numerics
+(`campaign-state.schema.ts:26`). Campaign versus adventure is a distinction of *scope*, per
+`§ State placement is decided by the lifetime of the referent, not the lifetime of the
+value`. They cross:
+
+| | Entity-owned | Not entity-owned |
+|---|---|---|
+| **Campaign-scoped** | player character pools | — |
+| **Adventure-scoped** | synthesized threat and NPC pools | station power, countdown timers |
+
+**Both cells of the bottom row sit in campaign state today**, because the adventure row
+does not exist yet. A synthesized threat's HP is in `resourcePools` and a hull-breach timer
+would be in `scenarioState`, and both die with the adventure that produced them. Neither is
+campaign state by the rule; they are there because there is nowhere else.
+
+**So Phase 2 relocates all of `scenarioState` *and* a subset of `resourcePools`** — the
+owners synthesis created — while player-character owners stay. The adventure row will need
+both an owned and an unowned bucket, for the same reason campaign state has both.
+
+**M7.6 leaves a clean handle for that.** Under D1-A, `resourcePools` nests by owner and
+unowned pools take the reserved owner `_scenario`
+(`docs/plans/016-m7.6-character-sheet-fidelity-implementation-plan.md` D1). The Phase 2
+migration then moves whole owner keys rather than classifying individual pools: `_scenario`
+and every synthesis-created owner go to the adventure row, player owners stay. That is a
+bucket move per owner, not an inference per key — which matters, because the inference is
+exactly what the M7.6 verification pass could not do reliably. Of six non-resolving pool
+keys examined, two were ambiguous and one (`android_memory_integrity`) turned out to have
+an entity referent after being classified as not having one.
+
+**A related fact, recorded because it is the mechanism behind the defect this entry
+addresses:** nothing anywhere resets `entities`, `flags`, `scenarioState`, or `worldFacts`
+between adventures (`docs/plans/m7.6-code-inventory.md` @ `e1cdaac`). The single-adventure
+constraint in `§ One active adventure per campaign` (addendum) is what keeps that from
+mattering before Phase 2.
+
+**Not settled here.** `entities` mixes recurring NPCs with synthesized threats and needs
+per-entry classification. `flags` and `worldFacts` are unexamined. And whether
+`scenarioState` should continue to exist at all is open: under D1-A an unowned pool works
+fine in `resourcePools`, and `scenarioState` has no producer at synthesis
+(`submitGmContextSchema.structured` has four members and none is `scenarioState`), so it is
+`{}` in every fixture and every dump. It may be a bucket whose purpose was superseded
+before it was ever filled.
+
 ### `adventure_telemetry` vs session export are distinct artifacts
 
 These are two different things that were originally both called `adventure_log`. They serve different purposes and must not be conflated. `adventure_telemetry` is infrastructure-level diagnostic telemetry — one row per turn in a DB table, containing the full `submit_gm_response` payload, all `roll_dice` calls with purpose annotations and results, the state snapshot sent to Claude, and prompt/completion token counts. It exists to diagnose pipeline bugs and is not player-facing. The session export is the player-facing portable format — a single JSON file containing the message log (with turn numbers and timestamps), canon log, turn-level state deltas, final state snapshot, and GM context. It supports session restore and post-session analysis. It is produced on demand, not written per-turn to a DB table. Mixing these concerns into a single artifact would make `game_events` harder to query for its application-level purpose and would conflate player-facing data portability with internal diagnostic tooling.
