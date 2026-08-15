@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import {
   deriveMothershipCharacterResourcePools,
+  emptyMothershipCharacterState,
   type MothershipCharacterSheet,
 } from '@uv/game-systems';
 
@@ -44,6 +45,11 @@ export class CharacterService {
 
     const playerPools = deriveMothershipCharacterResourcePools(data);
     await this.campaignRepo.mergePlayerResourcePools(campaignId, playerPools);
+    await this.campaignRepo.seedCharacterState(
+      campaignId,
+      data.entityId,
+      emptyMothershipCharacterState(),
+    );
 
     return character;
   }
@@ -106,6 +112,7 @@ export class CharacterService {
       ?.entityId;
     if (entityId) {
       await this.campaignRepo.deleteResourcePoolsForOwner(campaignId, entityId);
+      await this.campaignRepo.deleteCharacterState(campaignId, entityId);
     }
   }
 }

@@ -20,6 +20,7 @@ export type { DiceRollResult, ParsedNotation } from './dice';
 export * from './mothership/campaign-state.schema';
 export * from './mothership/character-pools';
 export * from './mothership/character-sheet.schema';
+export * from './mothership/character-state.schema';
 export * from './mothership/oracle.schema';
 export * from './mothership/oracle-data';
 export * from './mothership/pool-definitions';

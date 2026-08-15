@@ -6,6 +6,7 @@ import {
   ResourcePoolSchema,
   ScenarioStateEntrySchema,
 } from '../shared';
+import { MothershipCharacterStateSchema } from './character-state.schema';
 
 /**
  * The reserved owner for pools that belong to no entity — countdown timers,
@@ -51,6 +52,14 @@ export const MothershipCampaignStateSchema = z.object({
     .record(z.string(), z.record(z.string(), ResourcePoolSchema))
     .default({}),
 
+  // Per-entity state that is neither a pool nor immutable creation data:
+  // conditions, skills, equipment, worn armor, minimum stress, bleeding, and a
+  // pending Death Save. Keyed by entity id, same as `resourcePools`' outer
+  // level — but entities only, never `_scenario`: a scenario has no conditions.
+  characterState: z
+    .record(z.string(), MothershipCharacterStateSchema)
+    .default({}),
+
   // Entity visibility, status, and narrative NPC state.
   // Positions are NOT stored here — they live in grid_entities.
   entities: z.record(z.string(), EntitySchema).default({}),
@@ -75,6 +84,7 @@ export type MothershipCampaignState = z.infer<
 export const emptyMothershipState = (): MothershipCampaignState => ({
   schemaVersion: 1,
   resourcePools: {},
+  characterState: {},
   entities: {},
   flags: {},
   scenarioState: {},

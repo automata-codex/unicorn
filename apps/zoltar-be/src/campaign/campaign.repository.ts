@@ -4,6 +4,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
 
+import type { MothershipCharacterState } from '@uv/game-systems';
 import type { Db } from '../db/db.provider';
 
 type ResourcePool = { current: number; max: number | null };
@@ -148,6 +149,84 @@ export class CampaignRepository {
         .update(schema.campaignStates)
         .set({
           data: { ...data, resourcePools: remaining },
+          updatedAt: sql`now()`,
+        })
+        .where(eq(schema.campaignStates.campaignId, campaignId));
+    });
+  }
+
+  /**
+   * Seeds an entity's per-character state at character creation.
+   *
+   * **Preserve-on-conflict, like `mergePlayerResourcePools`**: an entity that
+   * already has state keeps it. Re-running creation must not reset a
+   * character's conditions or bleeding any more than it may reset their HP.
+   */
+  async seedCharacterState(
+    campaignId: string,
+    entityId: string,
+    state: MothershipCharacterState,
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const rows = await tx
+        .select({ data: schema.campaignStates.data })
+        .from(schema.campaignStates)
+        .where(eq(schema.campaignStates.campaignId, campaignId))
+        .limit(1);
+      if (rows.length === 0) {
+        throw new Error(
+          `campaign_state row missing for campaign ${campaignId}`,
+        );
+      }
+      const data = (rows[0].data as Record<string, unknown> | null) ?? {};
+      const existing =
+        (data.characterState as
+          | Record<string, MothershipCharacterState>
+          | undefined) ?? {};
+      if (entityId in existing) return;
+
+      await tx
+        .update(schema.campaignStates)
+        .set({
+          data: {
+            ...data,
+            characterState: { ...existing, [entityId]: state },
+          },
+          updatedAt: sql`now()`,
+        })
+        .where(eq(schema.campaignStates.campaignId, campaignId));
+    });
+  }
+
+  /**
+   * Removes an entity's per-character state. Called alongside
+   * `deleteResourcePoolsForOwner` when a character sheet is deleted; a no-op
+   * when there is no state row or no entry, for the same reason.
+   */
+  async deleteCharacterState(
+    campaignId: string,
+    entityId: string,
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const rows = await tx
+        .select({ data: schema.campaignStates.data })
+        .from(schema.campaignStates)
+        .where(eq(schema.campaignStates.campaignId, campaignId))
+        .limit(1);
+      if (rows.length === 0) return;
+
+      const data = (rows[0].data as Record<string, unknown> | null) ?? {};
+      const existing =
+        (data.characterState as
+          | Record<string, MothershipCharacterState>
+          | undefined) ?? {};
+      if (!(entityId in existing)) return;
+
+      const { [entityId]: _removed, ...remaining } = existing;
+      await tx
+        .update(schema.campaignStates)
+        .set({
+          data: { ...data, characterState: remaining },
           updatedAt: sql`now()`,
         })
         .where(eq(schema.campaignStates.campaignId, campaignId));

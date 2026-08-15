@@ -30,6 +30,8 @@ function mockCampaignRepo() {
   return {
     mergePlayerResourcePools: vi.fn().mockResolvedValue(undefined),
     deleteResourcePoolsForOwner: vi.fn().mockResolvedValue(undefined),
+    seedCharacterState: vi.fn().mockResolvedValue(undefined),
+    deleteCharacterState: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -110,6 +112,19 @@ describe('CharacterService', () => {
           credits: { current: 70, max: null },
         },
       });
+      expect(campaignRepo.seedCharacterState).toHaveBeenCalledWith(
+        'c1',
+        'vasquez',
+        {
+          conditions: [],
+          skills: [],
+          equipment: [],
+          wornArmor: null,
+          minimumStress: 2,
+          bleeding: 0,
+          pendingDeathSave: null,
+        },
+      );
       expect(result).toEqual(fakeCharacter);
     });
 
@@ -195,6 +210,10 @@ describe('CharacterService', () => {
       await service.delete('c1', 'u1');
 
       expect(campaignRepo.deleteResourcePoolsForOwner).toHaveBeenCalledWith(
+        'c1',
+        'vasquez',
+      );
+      expect(campaignRepo.deleteCharacterState).toHaveBeenCalledWith(
         'c1',
         'vasquez',
       );

@@ -175,6 +175,41 @@ describe('applyValidatedTurn', () => {
       });
     });
 
+    it('carries characterState through a turn untouched', () => {
+      // Nothing writes it until Part 4. The requirement on this commit is that
+      // a turn does not silently *lose* it — which is exactly what a fold that
+      // rebuilds the state object from named fields does by omission.
+      const priorCampaignState: MothershipCampaignState = {
+        ...emptyMothershipState(),
+        resourcePools: { dr_chen: { hp: { current: 5, max: 10 } } },
+        characterState: {
+          dr_chen: {
+            conditions: [{ condition: 'frightened', parameter: 'the vent' }],
+            skills: [{ skill: 'Firearms', tier: 'trained' }],
+            equipment: [{ item: 'Revolver', charges: 12 }],
+            wornArmor: null,
+            minimumStress: 3,
+            bleeding: 2,
+            pendingDeathSave: 4,
+          },
+        },
+      };
+
+      const { newCampaignState } = applyValidatedTurn({
+        priorCampaignState,
+        priorGmContextBlob: {},
+        applied: {
+          ...emptyApplied(),
+          resourcePools: { dr_chen: { hp: { current: 2, max: 10 } } },
+        },
+        npcStates: {},
+      });
+
+      expect(newCampaignState.characterState).toEqual(
+        priorCampaignState.characterState,
+      );
+    });
+
     it('carries schemaVersion through unchanged', () => {
       const priorCampaignState: MothershipCampaignState = {
         ...emptyMothershipState(),
