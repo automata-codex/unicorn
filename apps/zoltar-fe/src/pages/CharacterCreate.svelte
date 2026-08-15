@@ -1,4 +1,8 @@
 <script lang="ts">
+  import {
+    deriveMothershipCharacterResourcePools,
+    executeDiceRoll,
+  } from '@uv/game-systems';
   import { push } from 'svelte-spa-router';
 
   import { api } from '../lib/api';
@@ -9,40 +13,149 @@
   import SectionLabel from '../lib/components/SectionLabel.svelte';
   import Select from '../lib/components/Select.svelte';
 
+  import type {
+    MothershipCharacterSheet,
+    MothershipClass,
+    MothershipCreationRolls,
+    MothershipStat,
+  } from '@uv/game-systems';
+
   let { params }: { params: { campaignId: string } } = $props();
   const campaignId = $derived(params.campaignId);
 
   // Identity
   let name = $state('');
-  let charClass = $state('teamster');
+  let charClass = $state<MothershipClass>('teamster');
   let pronouns = $state('');
   let entityId = $state('');
   let entityIdManuallyEdited = $state(false);
 
-  // Stats
-  let strength = $state(30);
-  let speed = $state(30);
-  let intellect = $state(30);
-  let combat = $state(30);
-  let instinct = $state(30);
-  let sanity = $state(30);
+  /**
+   * Creation rolls, held as the dice themselves rather than as sums (§1.1).
+   *
+   * They start rolled rather than blank: a form that opens on zeros invites
+   * the player to type a number they liked, and the pre-M7.6 defaults are what
+   * that produces — `maxHp = 20` was the *maximum possible* `1d10+10`, and
+   * `maxStress = 3` had no referent in the book at all.
+   *
+   * Manual entry is still permitted, and the field records what the player
+   * entered. The point is a record of the starting position, not proof that
+   * dice were used.
+   */
+  const ROLL_SPECS = [
+    { key: 'strength', label: 'STRENGTH', notation: '2d10' },
+    { key: 'speed', label: 'SPEED', notation: '2d10' },
+    { key: 'intellect', label: 'INTELLECT', notation: '2d10' },
+    { key: 'combat', label: 'COMBAT', notation: '2d10' },
+    { key: 'sanity', label: 'SANITY', notation: '2d10' },
+    { key: 'fear', label: 'FEAR', notation: '2d10' },
+    { key: 'body', label: 'BODY', notation: '2d10' },
+    { key: 'maxHp', label: 'MAX HEALTH', notation: '1d10' },
+    { key: 'credits', label: 'CREDITS', notation: '2d10' },
+    { key: 'trinket', label: 'TRINKET', notation: '1d100' },
+    { key: 'patch', label: 'PATCH', notation: '1d100' },
+  ] as const satisfies ReadonlyArray<{
+    key: keyof MothershipCreationRolls;
+    label: string;
+    notation: string;
+  }>;
 
-  // Saves
-  let fear = $state(30);
-  let body = $state(30);
-  let armor = $state(30);
-  let armorMax = $state(30);
+  function rollAll(): MothershipCreationRolls {
+    const rolled = {} as MothershipCreationRolls;
+    for (const spec of ROLL_SPECS) {
+      rolled[spec.key] = executeDiceRoll(spec.notation).results;
+    }
+    return rolled;
+  }
 
-  // HP & Stress
-  let maxHp = $state(20);
-  let maxStress = $state(3);
+  let creationRolls = $state<MothershipCreationRolls>(rollAll());
 
-  // Dynamic lists
-  let skills = $state<string[]>([]);
-  let equipment = $state<string[]>([]);
+  function rerollAll() {
+    creationRolls = rollAll();
+  }
 
-  // Notes
+  function rerollOne(key: keyof MothershipCreationRolls, notation: string) {
+    creationRolls = {
+      ...creationRolls,
+      [key]: executeDiceRoll(notation).results,
+    };
+  }
+
+  function setDie(
+    key: keyof MothershipCreationRolls,
+    index: number,
+    value: number,
+  ) {
+    creationRolls = {
+      ...creationRolls,
+      [key]: creationRolls[key].map((die, i) => (i === index ? value : die)),
+    };
+  }
+
+  /**
+   * The Android's −10 and the Scientist's +5 land on a Stat the player picks,
+   * and the schema rejects a sheet from either class that does not record
+   * which. Without it, the rolls-plus-class-arithmetic reconciliation the
+   * milestone is built around cannot be computed at all.
+   */
+  const CLASSES_CHOOSING_A_STAT: MothershipClass[] = ['android', 'scientist'];
+  const choosesStat = $derived(CLASSES_CHOOSING_A_STAT.includes(charClass));
+  let adjustedStat = $state<MothershipStat>('strength');
+
+  const statOptions = [
+    { value: 'strength', label: 'Strength' },
+    { value: 'speed', label: 'Speed' },
+    { value: 'intellect', label: 'Intellect' },
+    { value: 'combat', label: 'Combat' },
+  ];
+
+  const CLASS_ADJUSTMENT_SUMMARY: Record<MothershipClass, string> = {
+    marine: '+10 COMBAT, +10 BODY, +20 FEAR, +1 MAX WOUNDS',
+    android: '+20 INTELLECT, −10 TO ONE STAT, +60 FEAR, +1 MAX WOUNDS',
+    scientist: '+10 INTELLECT, +5 TO ONE STAT, +30 SANITY',
+    teamster: '+5 ALL STATS, +10 ALL SAVES',
+  };
+
+  /** Trade the starting loadout for cash: 2d10x100 instead of 2d10x10 (§6.1). */
+  let forgoLoadout = $state(false);
+
+  let trinket = $state('');
+  let patch = $state('');
+  let traumaResponse = $state('');
   let notes = $state('');
+
+  const sheet = $derived<MothershipCharacterSheet>({
+    entityId: entityId || 'unnamed',
+    name: name || 'Unnamed',
+    class: charClass,
+    creationRolls,
+    ...(choosesStat ? { creationChoices: { adjustedStat } } : {}),
+  });
+
+  /**
+   * Live preview of what creation will actually seed, from the same pure
+   * function the backend uses. Not a second copy of the class table — that is
+   * exactly the duplication this milestone removed everywhere else.
+   */
+  const preview = $derived(
+    deriveMothershipCharacterResourcePools(sheet, { forgoLoadout })[
+      sheet.entityId
+    ],
+  );
+
+  const PREVIEW_ORDER: Array<[string, string]> = [
+    ['hp', 'HEALTH'],
+    ['wounds', 'MAX WOUNDS'],
+    ['stress', 'STRESS'],
+    ['strength', 'STRENGTH'],
+    ['speed', 'SPEED'],
+    ['intellect', 'INTELLECT'],
+    ['combat', 'COMBAT'],
+    ['sanity', 'SANITY'],
+    ['fear', 'FEAR'],
+    ['body', 'BODY'],
+    ['credits', 'CREDITS'],
+  ];
 
   let submitting = $state(false);
   let error = $state('');
@@ -65,50 +178,19 @@
     { value: 'android', label: 'Android' },
   ];
 
-  function addSkill() {
-    skills = [...skills, ''];
-  }
-
-  function removeSkill(index: number) {
-    skills = skills.filter((_, i) => i !== index);
-  }
-
-  function updateSkill(index: number, value: string) {
-    skills = skills.map((s, i) => (i === index ? value : s));
-  }
-
-  function addEquipment() {
-    equipment = [...equipment, ''];
-  }
-
-  function removeEquipment(index: number) {
-    equipment = equipment.filter((_, i) => i !== index);
-  }
-
-  function updateEquipment(index: number, value: string) {
-    equipment = equipment.map((s, i) => (i === index ? value : s));
-  }
-
-  function parseNum(e: Event): number {
-    return Number((e.target as HTMLInputElement).value) || 0;
-  }
-
   async function handleSubmit(e: Event) {
     e.preventDefault();
     submitting = true;
     error = '';
 
-    const payload = {
+    const payload: MothershipCharacterSheet = {
+      ...sheet,
       entityId: entityId || name.toLowerCase().replace(/\s+/g, '_'),
       name,
       pronouns: pronouns || undefined,
-      class: charClass,
-      stats: { strength, speed, intellect, combat, instinct, sanity },
-      saves: { fear, body, armor, armorMax },
-      maxHp,
-      maxStress,
-      skills: skills.filter((s) => s.trim() !== ''),
-      equipment: equipment.filter((s) => s.trim() !== ''),
+      trinket: trinket || undefined,
+      patch: patch || undefined,
+      traumaResponse: traumaResponse || undefined,
       notes: notes || undefined,
     };
 
@@ -156,7 +238,9 @@
             label="CLASS"
             value={charClass}
             options={classOptions}
-            onchange={(e) => { charClass = (e.target as HTMLSelectElement).value; }}
+            onchange={(e) => {
+              charClass = (e.target as HTMLSelectElement).value as MothershipClass;
+            }}
           />
         </div>
         <div class="field">
@@ -181,90 +265,129 @@
       </div>
     </Card>
 
-    <!-- STATS -->
+    <!-- CLASS ADJUSTMENT -->
     <Card>
-      <SectionLabel>STATS</SectionLabel>
+      <SectionLabel>CLASS</SectionLabel>
       <div class="section-content">
-        <div class="stats-grid">
-          <Input label="STRENGTH" type="number" value={strength} oninput={(e) => { strength = parseNum(e); }} />
-          <Input label="SPEED" type="number" value={speed} oninput={(e) => { speed = parseNum(e); }} />
-          <Input label="INTELLECT" type="number" value={intellect} oninput={(e) => { intellect = parseNum(e); }} />
-          <Input label="COMBAT" type="number" value={combat} oninput={(e) => { combat = parseNum(e); }} />
-          <Input label="INSTINCT" type="number" value={instinct} oninput={(e) => { instinct = parseNum(e); }} />
-          <Input label="SANITY" type="number" value={sanity} oninput={(e) => { sanity = parseNum(e); }} />
-        </div>
+        <p class="type-meta hint-note">
+          {CLASS_ADJUSTMENT_SUMMARY[charClass]}
+        </p>
+        {#if choosesStat}
+          <div class="field">
+            <Select
+              label="ADJUSTED STAT"
+              value={adjustedStat}
+              options={statOptions}
+              onchange={(e) => {
+                adjustedStat = (e.target as HTMLSelectElement).value as MothershipStat;
+              }}
+            />
+          </div>
+        {/if}
       </div>
     </Card>
 
-    <!-- SAVES -->
+    <!-- CREATION ROLLS -->
     <Card>
-      <SectionLabel>SAVES</SectionLabel>
+      <SectionLabel>CREATION ROLLS</SectionLabel>
       <div class="section-content">
-        <div class="stats-grid">
-          <Input label="FEAR" type="number" value={fear} oninput={(e) => { fear = parseNum(e); }} />
-          <Input label="BODY" type="number" value={body} oninput={(e) => { body = parseNum(e); }} />
-          <Input label="ARMOR" type="number" value={armor} oninput={(e) => { armor = parseNum(e); }} />
-          <Input label="ARMOR MAX" type="number" value={armorMax} oninput={(e) => { armorMax = parseNum(e); }} />
-        </div>
-      </div>
-    </Card>
-
-    <!-- HP & STRESS -->
-    <Card>
-      <SectionLabel>HP &amp; STRESS</SectionLabel>
-      <div class="section-content">
-        <div class="stats-grid">
-          <Input label="MAX HP" type="number" value={maxHp} oninput={(e) => { maxHp = parseNum(e); }} />
-          <Input label="MAX STRESS" type="number" value={maxStress} oninput={(e) => { maxStress = parseNum(e); }} />
-        </div>
-      </div>
-    </Card>
-
-    <!-- SKILLS -->
-    <Card>
-      <SectionLabel>SKILLS</SectionLabel>
-      <div class="section-content">
-        <div class="dynamic-list">
-          {#each skills as skill, i (i)}
-            <div class="dynamic-row">
-              <Input
-                placeholder="Skill name"
-                value={skill}
-                oninput={(e) => { updateSkill(i, (e.target as HTMLInputElement).value); }}
-              />
+        <p class="type-meta hint-note">
+          THE DICE AS THEY FALL. EDIT A DIE TO ENTER A ROLL MADE AT THE TABLE —
+          THIS RECORDS THE STARTING POSITION, NOT PROOF THAT DICE WERE USED.
+        </p>
+        <div class="roll-list">
+          {#each ROLL_SPECS as spec (spec.key)}
+            <div class="roll-row">
+              <span class="type-label roll-label">{spec.label}</span>
+              <span class="type-meta roll-notation">{spec.notation}</span>
+              <div class="roll-dice">
+                {#each creationRolls[spec.key] as die, i (i)}
+                  <Input
+                    type="number"
+                    value={die}
+                    oninput={(e) => {
+                      setDie(spec.key, i, Number((e.target as HTMLInputElement).value) || 1);
+                    }}
+                  />
+                {/each}
+              </div>
               <button
                 type="button"
-                class="remove-btn"
-                onclick={() => removeSkill(i)}
-              >×</button>
+                class="reroll-btn"
+                onclick={() => rerollOne(spec.key, spec.notation)}
+              >REROLL</button>
             </div>
           {/each}
         </div>
-        <Button variant="ghost" type="button" onclick={addSkill}>+ ADD SKILL</Button>
+        <Button variant="ghost" type="button" onclick={rerollAll}>
+          REROLL EVERYTHING
+        </Button>
       </div>
     </Card>
 
-    <!-- LOADOUT -->
+    <!-- STARTING VALUES -->
     <Card>
-      <SectionLabel>LOADOUT</SectionLabel>
+      <SectionLabel>STARTING VALUES</SectionLabel>
       <div class="section-content">
-        <div class="dynamic-list">
-          {#each equipment as item, i (i)}
-            <div class="dynamic-row">
-              <Input
-                placeholder="Item name"
-                value={item}
-                oninput={(e) => { updateEquipment(i, (e.target as HTMLInputElement).value); }}
-              />
-              <button
-                type="button"
-                class="remove-btn"
-                onclick={() => removeEquipment(i)}
-              >×</button>
+        <p class="type-meta hint-note">
+          THE ROLLS ABOVE PLUS THE CLASS ADJUSTMENTS. THIS IS WHAT CREATION
+          WILL WRITE.
+        </p>
+        <div class="stat-grid">
+          {#each PREVIEW_ORDER as [key, label] (key)}
+            <div class="stat-item">
+              <span class="type-stat-value">
+                {key === 'wounds' ? preview[key].max : preview[key].current}
+              </span>
+              <span class="type-label">{label}</span>
             </div>
           {/each}
         </div>
-        <Button variant="ghost" type="button" onclick={addEquipment}>+ ADD ITEM</Button>
+        <label class="loadout-toggle">
+          <input
+            type="checkbox"
+            checked={forgoLoadout}
+            onchange={(e) => {
+              forgoLoadout = (e.target as HTMLInputElement).checked;
+            }}
+          />
+          <span class="type-body">
+            FORGO THE STARTING LOADOUT FOR CASH (2d10 x100 INSTEAD OF x10)
+          </span>
+        </label>
+      </div>
+    </Card>
+
+    <!-- TRINKET, PATCH, TRAUMA -->
+    <Card>
+      <SectionLabel>TRINKET &amp; PATCH</SectionLabel>
+      <div class="section-content">
+        <p class="type-meta hint-note">
+          LOOK THE TRINKET AND PATCH ROLLS UP ON THEIR TABLES AND RECORD WHAT
+          THEY SAY.
+        </p>
+        <div class="field">
+          <Input
+            label="TRINKET"
+            value={trinket}
+            oninput={(e) => { trinket = (e.target as HTMLInputElement).value; }}
+          />
+        </div>
+        <div class="field">
+          <Input
+            label="PATCH"
+            value={patch}
+            oninput={(e) => { patch = (e.target as HTMLInputElement).value; }}
+          />
+        </div>
+        <div class="field">
+          <Input
+            label="TRAUMA RESPONSE"
+            value={traumaResponse}
+            hint="MILITARY TRAINING GRANTS THE MARINE'S TO ANY CLASS"
+            oninput={(e) => { traumaResponse = (e.target as HTMLInputElement).value; }}
+          />
+        </div>
       </div>
     </Card>
 
@@ -308,6 +431,69 @@
     margin-bottom: var(--space-5);
   }
 
+  .hint-note {
+    color: var(--color-text-ghost);
+    margin-bottom: var(--space-4);
+  }
+
+  .roll-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .roll-row {
+    display: grid;
+    grid-template-columns: 1fr auto minmax(0, 12rem) auto;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .roll-notation {
+    color: var(--color-text-ghost);
+  }
+
+  .roll-dice {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .reroll-btn {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-xs);
+    letter-spacing: var(--tracking-wide);
+    background: transparent;
+    color: var(--btn-ghost-text);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .reroll-btn:hover {
+    color: var(--btn-ghost-text-active);
+  }
+
+  .stat-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-5);
+    margin-bottom: var(--space-4);
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .loadout-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    cursor: pointer;
+  }
+
   .section-content {
     margin-top: var(--space-5);
   }
@@ -325,42 +511,11 @@
     color: var(--color-text-ghost);
   }
 
-  .stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-4);
-  }
 
-  .dynamic-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    margin-bottom: var(--space-4);
-  }
 
-  .dynamic-row {
-    display: flex;
-    align-items: flex-end;
-    gap: var(--space-3);
-  }
 
-  .dynamic-row :global(.input-wrapper) {
-    flex: 1;
-  }
 
-  .remove-btn {
-    all: unset;
-    font-family: var(--font-primary);
-    font-size: var(--font-size-lg);
-    color: var(--color-text-ghost);
-    cursor: pointer;
-    padding: var(--space-2);
-    line-height: 1;
-  }
 
-  .remove-btn:hover {
-    color: var(--color-danger);
-  }
 
   .notes-textarea {
     width: 100%;
