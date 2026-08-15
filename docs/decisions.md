@@ -784,10 +784,22 @@ spread) both operate at the top level. Nested, a shallow spread at the entity le
 every pool that entity owns when one is written. The pre-existing disagreement between those
 merge points acquires a much larger blast radius per key.
 
-**The tool payload does not nest.** `state_changes.resource_pools` becomes an array of
+**The tool payload does not nest.** `stateChanges.resourcePools` becomes an array of
 self-describing entries — `{ entityId, pool, delta, maxDelta?, reason, damageType? }` —
 rather than a keyed map. Nested state does not require a nested payload, and the array
 avoids string parsing on ingest without asking the Warden to generate nested JSON.
+
+*(Member names corrected from `state_changes.resource_pools` — a transcription slip. The
+five existing `stateChanges` members are camelCase, `session.schema.ts:15-45`, and no
+decision here was choosing a naming convention. Spec §2.1 carries the same slip and is
+amended alongside.)*
+
+**Amendment.** This addendum describes the nesting as keyed "by entity," written before D1
+was settled. D1-A constrains nothing about ownership: `resourcePools` nests by **owner**,
+and pools with no entity owner take the reserved owner `_scenario`
+(`docs/plans/016-m7.6-character-sheet-fidelity-implementation-plan.md` D1-A.1). Entity ids
+may not begin with `_`; reserved owners must. See also
+`§ Adventure state gets its own row…`, addendum, on why owner and scope are orthogonal.
 
 Spec: `docs/specs/zoltar/016-m7.6-character-sheet-fidelity.md` §1.3, §2.1.
 
