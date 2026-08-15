@@ -17,28 +17,77 @@ import {
 } from './synthesis.prompts';
 
 describe('formatMothershipCharacterProse', () => {
-  it('renders name, class, stats, saves, HP, stress, skills, equipment', () => {
-    const prose = formatMothershipCharacterProse(vasquezSheet);
+  const pools = {
+    hp: { current: 12, max: 15 },
+    wounds: { current: 1, max: 3 },
+    stress: { current: 4, max: null },
+    strength: { current: 55, max: 55 },
+    speed: { current: 40, max: 40 },
+    intellect: { current: 35, max: 35 },
+    combat: { current: 50, max: 60 },
+    sanity: { current: 50, max: 50 },
+    fear: { current: 30, max: 30 },
+    body: { current: 40, max: 40 },
+    credits: { current: 110, max: null },
+  };
+
+  it('renders identity, current Stats, current Saves, and vitals', () => {
+    const prose = formatMothershipCharacterProse(vasquezSheet, pools);
     expect(prose).toContain('Vasquez (marine)');
     expect(prose).toContain(`Entity ID: ${vasquezSheet.entityId}`);
     expect(prose).toContain('STR 55');
-    expect(prose).toContain('SAN 50');
+    expect(prose).toContain('Sanity 50');
     expect(prose).toContain('Fear 30');
-    expect(prose).toContain('Armor 10/20');
-    expect(prose).toContain('HP: 15');
-    expect(prose).toContain('Stress Threshold: 20');
-    expect(prose).toContain('Military Training, Firearms');
-    expect(prose).toContain('Combat Armor, Pulse Rifle');
+    expect(prose).toContain('Health: 12/15');
+    expect(prose).toContain('Wounds: 1/3');
+    expect(prose).toContain('Stress: 4');
   });
 
-  it('renders "(none)" when skills or equipment are empty', () => {
-    const prose = formatMothershipCharacterProse({
-      ...vasquezSheet,
-      skills: [],
-      equipment: [],
-    });
-    expect(prose).toContain('Skills: (none)');
-    expect(prose).toContain('Equipment: (none)');
+  it('renders a damaged Stat as current/max, not as its creation roll', () => {
+    // Combat was rolled 8+6 = 14, so +25+10 = 49 at creation; the pool says it
+    // is 50 of a 60 ceiling. Nothing here may come from `creationRolls` — the
+    // rolls are what the dice showed, not what the character is now.
+    const prose = formatMothershipCharacterProse(vasquezSheet, pools);
+    expect(prose).toContain('CMB 50/60');
+    expect(prose).not.toContain('CMB 49');
+  });
+
+  it('never renders INST — Instinct is a Contractor stat, not a player one', () => {
+    expect(formatMothershipCharacterProse(vasquezSheet, pools)).not.toContain(
+      'INST',
+    );
+  });
+
+  it('never uses the name "Stress Threshold"', () => {
+    expect(formatMothershipCharacterProse(vasquezSheet, pools)).not.toContain(
+      'Stress Threshold',
+    );
+  });
+
+  it('renders an em dash for a pool the character does not carry', () => {
+    const prose = formatMothershipCharacterProse(vasquezSheet, {});
+    expect(prose).toContain('STR —');
+    expect(prose).toContain('Health: —');
+  });
+
+  it('includes trauma response, trinket and patch when present', () => {
+    const prose = formatMothershipCharacterProse(vasquezSheet, pools);
+    expect(prose).toContain('Trauma Response: When you Panic');
+    expect(prose).toContain('Trinket: Bone Knife');
+    expect(prose).toContain('Patch: "I Void Warranties"');
+  });
+
+  it('omits optional lines rather than rendering them empty', () => {
+    const {
+      trinket: _t,
+      patch: _p,
+      traumaResponse: _r,
+      ...bare
+    } = vasquezSheet;
+    const prose = formatMothershipCharacterProse(bare, pools);
+    expect(prose).not.toContain('Trinket:');
+    expect(prose).not.toContain('Patch:');
+    expect(prose).not.toContain('Trauma Response:');
   });
 });
 

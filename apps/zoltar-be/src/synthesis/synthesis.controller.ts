@@ -152,6 +152,7 @@ export class SynthesisController {
         >[0]['characterSheet'],
         selections,
         addendum,
+        campaignId,
       })
       .then((gmContext) =>
         this.synthesisService.commitGmContext({

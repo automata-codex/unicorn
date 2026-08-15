@@ -9,20 +9,23 @@ export const vasquezSheet: MothershipCharacterSheet = {
   name: 'Vasquez',
   pronouns: 'she/her',
   class: 'marine',
-  level: 1,
-  stats: {
-    strength: 55,
-    speed: 40,
-    intellect: 35,
-    combat: 60,
-    instinct: 45,
-    sanity: 50,
+  trinket: 'Bone Knife',
+  patch: '"I Void Warranties"',
+  traumaResponse:
+    'When you Panic, everyone within earshot must make a Fear Save.',
+  creationRolls: {
+    strength: [7, 4],
+    speed: [3, 9],
+    intellect: [5, 5],
+    combat: [8, 6],
+    sanity: [2, 7],
+    fear: [6, 6],
+    body: [4, 3],
+    maxHp: [5],
+    credits: [9, 2],
+    trinket: [42],
+    patch: [17],
   },
-  saves: { fear: 30, body: 40, armor: 10, armorMax: 20 },
-  maxHp: 15,
-  maxStress: 20,
-  skills: ['Military Training', 'Firearms'],
-  equipment: ['Combat Armor', 'Pulse Rifle'],
 };
 
 export function makeOracleEntry(

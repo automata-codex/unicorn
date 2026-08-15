@@ -112,6 +112,48 @@ export class CampaignRepository {
     });
   }
 
+  /**
+   * Removes every pool belonging to `owner` from a campaign's state.
+   *
+   * Called when a character sheet is deleted. Before M7.6 this meant a prefix
+   * scan over composite keys and was skipped, which is how campaigns ended up
+   * carrying pools for characters that no longer existed — and an orphaned
+   * pool set is how a campaign reaches an empty player-entity set without
+   * anyone noticing.
+   *
+   * A no-op when there is no `campaign_state` row: deleting a sheet from a
+   * campaign that never started an adventure is ordinary, unlike
+   * `mergePlayerResourcePools`, where a missing row means creation ran against
+   * a campaign that was never initialised.
+   */
+  async deleteResourcePoolsForOwner(
+    campaignId: string,
+    owner: string,
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const rows = await tx
+        .select({ data: schema.campaignStates.data })
+        .from(schema.campaignStates)
+        .where(eq(schema.campaignStates.campaignId, campaignId))
+        .limit(1);
+      if (rows.length === 0) return;
+
+      const data = (rows[0].data as Record<string, unknown> | null) ?? {};
+      const existingPools =
+        (data.resourcePools as OwnedResourcePools | undefined) ?? {};
+      if (!(owner in existingPools)) return;
+
+      const { [owner]: _removed, ...remaining } = existingPools;
+      await tx
+        .update(schema.campaignStates)
+        .set({
+          data: { ...data, resourcePools: remaining },
+          updatedAt: sql`now()`,
+        })
+        .where(eq(schema.campaignStates.campaignId, campaignId));
+    });
+  }
+
   async findAllForUser(userId: string) {
     return this.db
       .select({

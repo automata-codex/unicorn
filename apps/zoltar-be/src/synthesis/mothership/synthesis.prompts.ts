@@ -2,6 +2,7 @@ import type {
   MothershipCharacterSheet,
   MothershipOracleSelections,
   OracleEntry,
+  ResourcePool,
 } from '@uv/game-systems';
 
 export const MOTHERSHIP_SYNTHESIS_SYSTEM_PROMPT =
@@ -25,9 +26,48 @@ export const MOTHERSHIP_ORACLE_CATEGORIES = [
 export type MothershipOracleCategory =
   (typeof MOTHERSHIP_ORACLE_CATEGORIES)[number];
 
+/** The player's own pools, i.e. `campaign_state.data.resourcePools[entityId]`. */
+export type PlayerPools = Record<string, ResourcePool>;
+
+const STAT_LABELS: ReadonlyArray<[string, string]> = [
+  ['strength', 'STR'],
+  ['speed', 'SPD'],
+  ['intellect', 'INT'],
+  ['combat', 'CMB'],
+];
+
+const SAVE_LABELS: ReadonlyArray<[string, string]> = [
+  ['sanity', 'Sanity'],
+  ['fear', 'Fear'],
+  ['body', 'Body'],
+];
+
+/**
+ * Renders the character for the synthesis prompt.
+ *
+ * **Current values come from pools, never from `creationRolls`.** The rolls
+ * record what the dice showed at creation and nothing can change them; the
+ * pools carry what the character is now. Rendering the rolls would hand the
+ * synthesizer a target number that was already wrong the first time a Wound
+ * reduced a Stat — silently, because it would still look plausible.
+ *
+ * Two defects from the pre-M7.6 version are gone with the fields that carried
+ * them: it rendered `INST` for Instinct, which is a Contractor stat and does
+ * not exist on player characters (PSG §40.1), and it labelled `maxStress`
+ * "Stress Threshold", the only use of that name anywhere in the codebase.
+ */
 export function formatMothershipCharacterProse(
   sheet: MothershipCharacterSheet,
+  pools: PlayerPools = {},
 ): string {
+  const value = (name: string): string => {
+    const pool = pools[name];
+    if (!pool) return '—';
+    return pool.max !== null && pool.max !== pool.current
+      ? `${pool.current}/${pool.max}`
+      : `${pool.current}`;
+  };
+
   const lines = [
     `${sheet.name} (${sheet.class})`,
     // The canonical entity id, not a display name. Without it the model has
@@ -37,12 +77,18 @@ export function formatMothershipCharacterProse(
     // `docs/decisions.md § Player resource pools are derived at character
     // creation, not at synthesis`.
     `Entity ID: ${sheet.entityId}`,
-    `Stats: STR ${sheet.stats.strength}, SPD ${sheet.stats.speed}, INT ${sheet.stats.intellect}, CMB ${sheet.stats.combat}, INST ${sheet.stats.instinct}, SAN ${sheet.stats.sanity}`,
-    `Saves: Fear ${sheet.saves.fear}, Body ${sheet.saves.body}, Armor ${sheet.saves.armor}/${sheet.saves.armorMax}`,
-    `HP: ${sheet.maxHp}   Stress Threshold: ${sheet.maxStress}`,
-    `Skills: ${sheet.skills.join(', ') || '(none)'}`,
-    `Equipment: ${sheet.equipment.join(', ') || '(none)'}`,
+    `Stats: ${STAT_LABELS.map(([k, l]) => `${l} ${value(k)}`).join(', ')}`,
+    `Saves: ${SAVE_LABELS.map(([k, l]) => `${l} ${value(k)}`).join(', ')}`,
+    `Health: ${value('hp')}   Wounds: ${value('wounds')}   Stress: ${value('stress')}`,
   ];
+
+  if (sheet.traumaResponse) {
+    lines.push(`Trauma Response: ${sheet.traumaResponse}`);
+  }
+  if (sheet.trinket) lines.push(`Trinket: ${sheet.trinket}`);
+  if (sheet.patch) lines.push(`Patch: ${sheet.patch}`);
+  if (sheet.notes) lines.push(`Notes: ${sheet.notes}`);
+
   return lines.join('\n');
 }
 
@@ -66,10 +112,11 @@ export function buildMothershipSynthesisPrompt(
   characterSheet: MothershipCharacterSheet,
   selections: MothershipOracleSelections,
   addendum?: string,
+  playerPools: PlayerPools = {},
 ): string {
   const sections = [
     `You are synthesizing a GM context for a solo Mothership adventure.`,
-    `CHARACTER:\n${formatMothershipCharacterProse(characterSheet)}`,
+    `CHARACTER:\n${formatMothershipCharacterProse(characterSheet, playerPools)}`,
     `ORACLE RESULTS:\n${formatAllMothershipOracleEntries(selections)}`,
     `Each oracle entry includes an id, claude_text (the narrative seed), interfaces (hints for how entries connect across categories), and tags. Use the id values as the basis for entity IDs and flag keys in the structured output. Use the interfaces array to wire entries together coherently — condition values indicate which other entries this one connects to. Synthesize a coherent GM context from these elements and call submit_gm_context when complete.`,
     `PLAYER CHARACTER:\nThe player character's canonical entity id is the "Entity ID" value given under CHARACTER above. Use that exact string wherever you refer to the player character — entity ids, resource pool owners, flag keys. Do not derive an identifier from the display name; the name is for narration only.\n\nThe player's HP and stress pools already exist as {entity_id}.hp and {entity_id}.stress, written at character creation. Do not include them in initialState — they are already in state and re-creating them under a different spelling produces two competing pools for one character. Any additional player-character pool you do initialize must use the same {entity_id} owner.`,
