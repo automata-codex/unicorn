@@ -37,6 +37,20 @@ export function buildCorrectionRequest(args: {
     .map((r) => `- ${r.path}: ${r.reason}`)
     .join('\n');
 
+  // `resourcePools` and `characterState` abort as a unit (M7.6 D4): one bad
+  // entry means none of either array was applied. Saying so matters, because
+  // the paths above name single entries and the natural reading of "entry 1
+  // was rejected" is that entry 0 landed. It did not, and a correction that
+  // resends only the failing entry would silently drop the rest.
+  const arrayAbort = args.rejections.some((r) =>
+    /^(resourcePools|characterState)\[/.test(r.path),
+  )
+    ? '\n\nNote: resourcePools and characterState are applied all-or-nothing. ' +
+      'None of the changes in either array were applied, and the state you ' +
+      'reasoned from is unchanged. Resend every change the turn needs, not ' +
+      'just the one named above.'
+    : '';
+
   const toolResultBlock: Anthropic.ToolResultBlockParam = {
     type: 'tool_result',
     tool_use_id: toolUseBlock.id,
@@ -46,7 +60,7 @@ export function buildCorrectionRequest(args: {
         type: 'text',
         text:
           `The backend rejected ${args.rejections.length} proposed state change(s):\n\n` +
-          `${rejectionText}\n\n` +
+          `${rejectionText}${arrayAbort}\n\n` +
           `Re-narrate this turn. Call submit_gm_response again with corrected stateChanges that the backend will accept. Keep the narration faithful to the fiction — if an action is impossible, describe why in character rather than silently dropping it.`,
       },
     ],

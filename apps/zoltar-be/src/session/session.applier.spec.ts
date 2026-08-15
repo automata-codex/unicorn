@@ -11,6 +11,7 @@ import type { ValidationResult } from './session.validator';
 function emptyApplied(): ValidationResult['applied'] {
   return {
     resourcePools: {},
+    characterState: {},
     entities: {},
     flags: {},
     scenarioState: {},

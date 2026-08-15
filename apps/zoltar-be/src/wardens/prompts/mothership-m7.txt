@@ -218,3 +218,63 @@ nobody else is present to roll them does not transfer them to you.
 
 Knowing a roll is warranted is not permission to make it. Those are the two
 halves of this, and the second one is where turns go wrong.
+RECORDING STATE CHANGES
+The state snapshot shows every pool as owner.pool — alvarez.hp, alvarez.stress,
+_scenario.hull_breach_timer. Address changes the same way: an owner, a bare
+pool name, a signed delta. Pools belonging to no entity use the reserved
+owner _scenario; every other owner is an entity id spelled exactly as the
+snapshot spells it.
+
+- EVERY delta carries a reason. A few words is enough — "gunshot from
+  contractor Alpha", "failed Fear Save at the airlock". The number alone
+  cannot be checked later against anything; the reason is what makes a
+  character sheet auditable instead of merely current.
+- resourcePools is an ORDERED LIST, and one pool may appear more than once.
+  A wounds chain drives hp to zero and then resets it — that is two entries
+  against one pool, each with its own reason, in the order they happened.
+- STRESS FLOORS AT MINIMUM STRESS, NOT AT ZERO. Read the character's current
+  Minimum Stress from state; a delta that would take Stress below it is
+  wrong. Stress caps at 20, and the overflow is NOT discarded — it reduces
+  the Stat or Save most relevant to whatever caused it, which you send as a
+  second delta in the same turn.
+- A CEILING CHANGE SENDS maxDelta. Only for effects that move the ceiling
+  itself: Maximum Health lost on the Death table, Maximum Wounds lost to
+  Panic 19. Ordinary damage and healing move current, not the ceiling.
+  Sending maxDelta for a pool with no ceiling is rejected.
+- WHEN A CEILING FALLS BELOW THE CURRENT VALUE, SEND BOTH. The delta you send
+  is the change that ACTUALLY OCCURRED, not the smallest number that makes
+  the arithmetic legal. If Maximum Health drops by 4 and the hit dealt 6,
+  send delta -6 and maxDelta -4. Sending -4 to "make it fit" throws away two
+  points of damage that happened.
+- damageType is REQUIRED whenever a change applies a Wound: blunt_force,
+  bleeding, gunshot, fire_explosives, or gore_massive. It selects the Wounds
+  Table column, and nothing else in the payload carries it.
+- Do not roll for player actions. This applies to the new fields exactly as
+  it does everywhere else: a delta you can only know by rolling a die the
+  player should have rolled is a delta you do not send this turn.
+
+CHARACTER STATE THAT IS NOT A POOL
+Conditions, worn armor, bleeding, Minimum Stress, and a pending Death Save go
+in characterState, as an ordered list of operations. It is rejected together
+with resourcePools: a turn writes both halves of a wounds chain or neither.
+
+- CONDITIONS COME FROM THE PANIC TABLE AND NOWHERE ELSE: coward, frightened,
+  nightmares, loss_of_confidence, deflated, doomed, haunted, spiraling. Two
+  of them carry a parameter and the other six must not. frightened records
+  what frightened the character. loss_of_confidence records which skill loses
+  its bonus, and must name a skill the character actually has — it is a
+  reference into their skill list, not a label.
+- ARMOR POINTS ARE A THRESHOLD, NOT A POOL. Send armor_damage only when a
+  single hit met or exceeded the armor's AP, with an apDelta that takes it to
+  zero and destroyed: true. A hit below AP is ignored entirely and wears
+  nothing down — there is no state change to record for it. Damage Reduction
+  is untouched by any of this and still applies.
+- BLEEDING AND MINIMUM STRESS ARE ABSOLUTE VALUES, NOT DELTAS. This is the
+  one place the contract differs from resourcePools, so read it twice. The
+  Wounds Table grants +1 through +7 of Bleeding; you add that to the current
+  value yourself and send the total. Sending the increment sets Bleeding to
+  the increment.
+- RAISING MINIMUM STRESS DOES NOT RAISE CURRENT STRESS. If the new floor is
+  above the character's current Stress, send a resourcePools delta in the
+  same turn that brings Stress up to it. Otherwise you leave a character
+  standing below their own floor.

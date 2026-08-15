@@ -114,6 +114,7 @@ async function applyFakeTurn(args: FakeTurnArgs): Promise<{
   const db = getTestDb();
   const applied = {
     resourcePools: {},
+    characterState: {},
     entities: {},
     flags: {},
     scenarioState: {},
@@ -266,6 +267,7 @@ describe('reconstructStateAsOfTurn (integration)', () => {
     });
     const turnDApplied = {
       resourcePools: {},
+      characterState: {},
       entities: {},
       flags: {},
       scenarioState: {},

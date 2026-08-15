@@ -1,4 +1,172 @@
+import { MothershipConditionEnum } from '@uv/game-systems';
 import { z } from 'zod';
+
+/**
+ * The Wounds Table's five columns (PSG §29.1). Required whenever a change
+ * applies a Wound, because the column — not just the `1d10` — decides the
+ * result, and nothing else in the payload carries it.
+ */
+export const damageTypeSchema = z.enum([
+  'blunt_force',
+  'bleeding',
+  'gunshot',
+  'fire_explosives',
+  'gore_massive',
+]);
+
+export type DamageType = z.infer<typeof damageTypeSchema>;
+
+/**
+ * One change to one pool.
+ *
+ * **`owner`, not `entityId`.** Most owners are entity ids, but pools belonging
+ * to no entity take the reserved owner `_scenario` (D1-A.1), and a field named
+ * `entityId` that legally holds `_scenario` contradicts itself in the one
+ * document the model reads most carefully. The spec and `decisions.md` write
+ * `entityId` here; both predate the owner-keyed amendment and are corrected
+ * alongside this.
+ *
+ * Nesting the *state* does not force nesting the *payload*: self-describing
+ * entries avoid string parsing on ingest without asking the Warden to generate
+ * nested JSON.
+ */
+const resourcePoolChangeSchema = z.object({
+  owner: z
+    .string()
+    .min(1)
+    .describe(
+      'The owning entity id exactly as the state snapshot spells it, or the ' +
+        'reserved owner "_scenario" for a pool belonging to no entity — a ' +
+        'countdown, a station subsystem.',
+    ),
+  pool: z
+    .string()
+    .min(1)
+    .describe('The bare pool name: "hp", "stress", "combat". Never a prefix.'),
+  delta: z
+    .number()
+    .int()
+    .describe("Signed change to the pool's current value."),
+  maxDelta: z
+    .number()
+    .int()
+    .optional()
+    .describe(
+      "Signed change to the pool's ceiling. Only for effects that move the " +
+        'ceiling itself — Maximum Health lost on the Death table, Maximum ' +
+        'Wounds lost to Panic 19. Omit it for ordinary damage and healing.',
+    ),
+  reason: z
+    .string()
+    .min(1)
+    .describe(
+      'Why this change happened, in a few words: "gunshot from contractor ' +
+        'Alpha", "stress from witnessing UNIT-7 shut down". This is the ' +
+        'record of what a number means; a delta without one cannot be ' +
+        'audited later.',
+    ),
+  damageType: damageTypeSchema
+    .optional()
+    .describe(
+      'Required when this change applies a Wound — it selects the Wounds ' +
+        'Table column.',
+    ),
+});
+
+export type ResourcePoolChange = z.infer<typeof resourcePoolChangeSchema>;
+
+/**
+ * One change to a character's non-pool state, discriminated on `op`.
+ *
+ * Every entry carries `entityId` — here it really is an entity, since a
+ * scenario has no conditions.
+ *
+ * **No `reason` field**, unlike `resourcePools`. These are deliberately outside
+ * the delta stream (D3): nobody has asked to audit a bleeding counter, and half
+ * an audit mechanism is worse than none because it reads as provenance it
+ * cannot supply.
+ */
+const characterStateChangeSchema = z.discriminatedUnion('op', [
+  z.object({
+    op: z.literal('condition_add'),
+    entityId: z.string().min(1),
+    condition: MothershipConditionEnum,
+    parameter: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        'Required for exactly two Conditions and forbidden for the rest. ' +
+          '"frightened" stores what frightened the character, in a few ' +
+          'words. "loss_of_confidence" stores which skill loses its bonus, ' +
+          'and must name a skill the character actually has.',
+      ),
+  }),
+  z.object({
+    op: z.literal('condition_remove'),
+    entityId: z.string().min(1),
+    condition: MothershipConditionEnum,
+  }),
+  z.object({
+    op: z.literal('armor_damage'),
+    entityId: z.string().min(1),
+    apDelta: z
+      .number()
+      .int()
+      .describe(
+        'Negative, and large enough to take the armor to 0 AP. Armor Points ' +
+          'are a threshold, not a pool: a hit below AP is ignored entirely ' +
+          'and wears nothing down, so the only AP change damage produces is ' +
+          'to zero. Send this only when one hit met or exceeded AP.',
+      ),
+    destroyed: z
+      .literal(true)
+      .describe(
+        'Always true. A hit that reaches AP destroys the armor (PSG §28.3), ' +
+          'and a hit that does not reach it is not a change at all. Damage ' +
+          'Reduction is unaffected and still applies.',
+      ),
+  }),
+  z.object({
+    op: z.literal('bleeding_set'),
+    entityId: z.string().min(1),
+    value: z
+      .number()
+      .int()
+      .min(0)
+      .describe(
+        'The total, not a delta — sum the Wounds Table grants yourself. 0 ' +
+          'clears it.',
+      ),
+  }),
+  z.object({
+    op: z.literal('death_save_pending'),
+    entityId: z.string().min(1),
+    roundsRemaining: z
+      .number()
+      .int()
+      .min(0)
+      .nullable()
+      .describe(
+        'Rounds until the Death Save the Lethal Injury row sets in motion. ' +
+          'null clears it. Nothing counts down for you.',
+      ),
+  }),
+  z.object({
+    op: z.literal('minimum_stress_set'),
+    entityId: z.string().min(1),
+    value: z
+      .number()
+      .int()
+      .min(2)
+      .describe(
+        'The new floor, as an absolute value. Raising it above current ' +
+          'Stress also requires a resourcePools delta in the same turn.',
+      ),
+  }),
+]);
+
+export type CharacterStateChange = z.infer<typeof characterStateChangeSchema>;
 
 /**
  * Claude's per-turn response. Claude must call `submit_gm_response` exactly
@@ -12,18 +180,25 @@ export const submitGmResponseSchema = z.object({
 
   stateChanges: z
     .object({
-      // Keyed by the pool's two-level address, `{owner}.{poolName}` — the same
-      // string `<resource_pools>` renders in the state snapshot. M7.6 Part 4
-      // replaces this map with an array of self-describing entries carrying
-      // `reason`, `maxDelta` and `damageType`.
       resourcePools: z
-        .record(z.string(), z.object({ delta: z.number().int() }))
+        .array(resourcePoolChangeSchema)
         .describe(
-          'Resource pool changes, keyed by "{owner}.{poolName}" — the owning ' +
-            'entity id, a dot, then the bare pool name, exactly as shown in ' +
-            '<resource_pools>. "dr_chen.hp", not "dr_chen_hp". Pools that ' +
-            'belong to no entity (countdown timers, station subsystems) use ' +
-            'the reserved owner "_scenario".',
+          'Resource pool changes, in the order they occur. An array rather ' +
+            'than a map because one pool can change more than once in a turn ' +
+            '— the wounds chain drives hp to zero and then resets it — and ' +
+            'because the entries are applied in order against a running ' +
+            'state, so their order is information.',
+        )
+        .optional(),
+
+      characterState: z
+        .array(characterStateChangeSchema)
+        .describe(
+          'Changes to per-character state that is not a pool: conditions, ' +
+            'armor, bleeding, minimum stress, and a pending Death Save. ' +
+            'Applied in order, like resourcePools, and rejected together ' +
+            'with it — a turn writes both halves of a wounds chain or ' +
+            'neither.',
         )
         .optional(),
 

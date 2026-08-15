@@ -26,11 +26,16 @@ export function applyValidatedTurn(input: {
       priorCampaignState.resourcePools,
       applied.resourcePools,
     ),
-    // Carried forward verbatim. Nothing writes `characterState` until M7.6
-    // Part 4 adds `stateChanges.characterState`, so the only requirement on
-    // this commit is that a turn does not silently *lose* it — which a fold
-    // that rebuilds the state object from named fields would do by omission.
-    characterState: priorCampaignState.characterState,
+    // Per *entity*, one level rather than two. Unlike `resourcePools`, the
+    // validator's applied value here is the entity's whole new state rather
+    // than a diff — the ops edit nested arrays, and a diff of an array edit is
+    // not something this merge could apply without re-deriving the fold. So an
+    // entity the turn touched is replaced outright, and one it did not is
+    // carried through untouched.
+    characterState: {
+      ...priorCampaignState.characterState,
+      ...applied.characterState,
+    },
     entities: { ...priorCampaignState.entities, ...applied.entities },
     flags: { ...priorCampaignState.flags, ...applied.flags },
     scenarioState: {

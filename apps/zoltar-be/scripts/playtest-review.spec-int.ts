@@ -211,6 +211,7 @@ function makeTelemetryPayload(
     notes: { original: null, correction: null },
     applied: {
       resourcePools: {},
+      characterState: {},
       entities: {},
       flags: {},
       scenarioState: {},
@@ -301,6 +302,7 @@ describe('playtest-review CLI — snapshot', () => {
         },
         applied: {
           resourcePools: {},
+          characterState: {},
           entities: {},
           flags: {
             airlock_inspected: {
@@ -379,6 +381,7 @@ describe('playtest-review CLI — snapshot', () => {
         },
         applied: {
           resourcePools: { dr_chen: { hp: { current: 8, max: 10 } } },
+          characterState: {},
           entities: {},
           flags: {},
           scenarioState: {},
@@ -440,6 +443,7 @@ describe('playtest-review CLI — snapshot', () => {
         },
         applied: {
           resourcePools: { dr_chen: { stress: { current: 4, max: 20 } } },
+          characterState: {},
           entities: {},
           flags: {},
           scenarioState: {},

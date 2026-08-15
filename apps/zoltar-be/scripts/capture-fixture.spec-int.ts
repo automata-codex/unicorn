@@ -124,6 +124,7 @@ describe('captureFixture (integration)', () => {
       } as never,
       applied: {
         resourcePools: {},
+        characterState: {},
         entities: {},
         flags: {},
         scenarioState: {},
@@ -203,6 +204,7 @@ describe('captureFixture (integration)', () => {
       } as never,
       applied: {
         resourcePools: {},
+        characterState: {},
         entities: {},
         flags: {},
         scenarioState: {},

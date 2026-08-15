@@ -238,7 +238,14 @@ describe('SessionService (integration) — happy path', () => {
       toolUseMessage({
         playerText: 'The airlock hisses open.',
         stateChanges: {
-          resourcePools: { 'dr_chen.hp': { delta: -2 } },
+          resourcePools: [
+            {
+              owner: 'dr_chen',
+              pool: 'hp',
+              delta: -2,
+              reason: 'grazed by shrapnel',
+            },
+          ],
           worldFacts: { corridor_length: 'eight meters' },
         },
         gmUpdates: {
@@ -443,14 +450,19 @@ describe('SessionService (integration) — correction succeeds', () => {
     const rejectedResponse = toolUseMessage({
       playerText: 'You punch through the alien.',
       stateChanges: {
-        resourcePools: { 'xenomorph.hp': { delta: -4 } }, // unknown pool, negative delta
+        // Unknown pool, negative delta.
+        resourcePools: [
+          { owner: 'xenomorph', pool: 'hp', delta: -4, reason: 'shot at it' },
+        ],
       },
       gmUpdates: {},
     });
     const correctedResponse = toolUseMessage({
       playerText: 'You miss; the alien screeches.',
       stateChanges: {
-        resourcePools: { 'dr_chen.hp': { delta: -1 } },
+        resourcePools: [
+          { owner: 'dr_chen', pool: 'hp', delta: -1, reason: 'grazed' },
+        ],
       },
       gmUpdates: { npcStates: {} },
     });
@@ -517,7 +529,7 @@ describe('SessionService (integration) — correction succeeds', () => {
     };
     expect(telePayload.correction).toBeDefined();
     expect(telePayload.correction!.rejections[0].path).toBe(
-      'resourcePools.xenomorph.hp',
+      'resourcePools[0] (xenomorph.hp)',
     );
   });
 });
@@ -535,7 +547,9 @@ describe('SessionService (integration) — correction fails', () => {
     const alwaysRejecting = toolUseMessage({
       playerText: 'Impossible action.',
       stateChanges: {
-        resourcePools: { 'xenomorph.hp': { delta: -4 } },
+        resourcePools: [
+          { owner: 'xenomorph', pool: 'hp', delta: -4, reason: 'shot at it' },
+        ],
       },
       gmUpdates: {},
     });

@@ -20,7 +20,16 @@ describe('submitGmResponseSchema', () => {
     const result = submitGmResponseSchema.safeParse({
       playerText: 'The terminal flickers.',
       stateChanges: {
-        resourcePools: { dr_chen_hp: { delta: -3 } },
+        resourcePools: [
+          {
+            owner: 'dr_chen',
+            pool: 'hp',
+            delta: -3,
+            reason: 'gunshot from the contractor',
+            damageType: 'gunshot',
+          },
+        ],
+        characterState: [{ op: 'bleeding_set', entityId: 'dr_chen', value: 2 }],
         entities: {
           shadow_threat: { visible: true, status: 'revealed' },
         },
@@ -83,7 +92,77 @@ describe('submitGmResponseSchema', () => {
     const result = submitGmResponseSchema.safeParse({
       playerText: 'x',
       stateChanges: {
-        resourcePools: { dr_chen_hp: { delta: 1.5 } },
+        resourcePools: [
+          { owner: 'dr_chen', pool: 'hp', delta: 1.5, reason: 'x' },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a pool change with no reason', () => {
+    // `reason` is what makes a delta auditable; without it the payload cannot
+    // express the change at all, rather than expressing it unexplained.
+    const result = submitGmResponseSchema.safeParse({
+      playerText: 'x',
+      stateChanges: {
+        resourcePools: [{ owner: 'dr_chen', pool: 'hp', delta: -2 }],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an empty reason as firmly as a missing one', () => {
+    const result = submitGmResponseSchema.safeParse({
+      playerText: 'x',
+      stateChanges: {
+        resourcePools: [
+          { owner: 'dr_chen', pool: 'hp', delta: -2, reason: '' },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a damage type outside the five Wounds Table columns', () => {
+    const result = submitGmResponseSchema.safeParse({
+      playerText: 'x',
+      stateChanges: {
+        resourcePools: [
+          {
+            owner: 'dr_chen',
+            pool: 'hp',
+            delta: -2,
+            reason: 'x',
+            damageType: 'psychic',
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a characterState op the union does not have', () => {
+    const result = submitGmResponseSchema.safeParse({
+      playerText: 'x',
+      stateChanges: {
+        characterState: [{ op: 'armor_repair', entityId: 'dr_chen' }],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a condition outside the Panic table', () => {
+    const result = submitGmResponseSchema.safeParse({
+      playerText: 'x',
+      stateChanges: {
+        characterState: [
+          {
+            op: 'condition_add',
+            entityId: 'dr_chen',
+            condition: 'mildly_annoyed',
+          },
+        ],
       },
     });
     expect(result.success).toBe(false);
