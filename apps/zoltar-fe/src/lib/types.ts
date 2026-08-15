@@ -1,3 +1,5 @@
+import type { MothershipCharacterSheet } from '@uv/game-systems';
+
 export type Campaign = {
   id: string;
   name: string;
@@ -22,21 +24,18 @@ export type CoherenceConflict = {
   description: string;
 };
 
+/**
+ * `data` is the real type from `@uv/game-systems`, not a hand-written copy.
+ *
+ * The copy this replaces typed stats and saves as `Record<string, number>`,
+ * `class` as `string`, and omitted `level` — so it agreed with the backend on
+ * nothing that mattered and caught none of M7.6's changes at compile time.
+ * Importing the real one is what turns the rest of this milestone's frontend
+ * work into compiler errors instead of bug reports.
+ */
 export type CharacterSheet = {
   id: string;
   campaignId: string;
   system: string;
-  data: {
-    name: string;
-    class: string;
-    pronouns?: string;
-    entityId: string;
-    stats: Record<string, number>;
-    saves: Record<string, number>;
-    maxHp: number;
-    maxStress: number;
-    skills: string[];
-    equipment: string[];
-    notes?: string;
-  };
+  data: MothershipCharacterSheet;
 };

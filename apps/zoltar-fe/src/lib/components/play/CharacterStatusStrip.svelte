@@ -25,8 +25,9 @@
     </div>
   </div>
   <div class="bars">
-    <ResourceBar label="HP" current={status.hp.current} max={status.hp.max} color="hp" />
-    <ResourceBar label="STRESS" current={status.stress.current} max={status.stress.max} color="stress" />
+    <ResourceBar label="HEALTH" current={status.hp.current} max={status.hp.max} color="hp" />
+    <ResourceBar label="WOUNDS" current={status.wounds.current} max={status.wounds.max} color="hp" />
+    <ResourceBar label="STRESS" current={status.stress.current} max={null} color="stress" />
   </div>
 </div>
 
@@ -90,7 +91,7 @@
 
   .bars {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: var(--space-4);
   }
 </style>

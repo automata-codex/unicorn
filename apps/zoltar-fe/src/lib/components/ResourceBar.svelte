@@ -2,12 +2,14 @@
   <div class="header">
     <span class="label">{label}</span>
     <span class="value" class:hp={color === 'hp'} class:stress={color === 'stress'}>
-      {current}/{max}
+      {max === null ? current : `${current}/${max}`}
     </span>
   </div>
-  <div class="track">
-    <div class="fill" class:hp={color === 'hp'} class:stress={color === 'stress'} style="width: {fillPercent}%"></div>
-  </div>
+  {#if max !== null}
+    <div class="track">
+      <div class="fill" class:hp={color === 'hp'} class:stress={color === 'stress'} style="width: {fillPercent}%"></div>
+    </div>
+  {/if}
 </div>
 
 <script lang="ts">
@@ -19,11 +21,16 @@
   }: {
     label: string;
     current: number;
-    max: number;
+    /** `null` for a pool with no ceiling — Stress. Renders as a bare value. */
+    max: number | null;
     color?: 'hp' | 'stress';
   } = $props();
 
-  let fillPercent = $derived(Math.min(100, Math.max(0, (current / max) * 100)));
+  let fillPercent = $derived(
+    max === null || max <= 0
+      ? 0
+      : Math.min(100, Math.max(0, (current / max) * 100)),
+  );
 </script>
 
 <style>

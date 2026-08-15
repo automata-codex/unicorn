@@ -129,8 +129,6 @@
       status = deriveCharacterStatus({
         state: stateBody.data,
         playerEntityId: character.data.entityId,
-        fallbackMaxHp: character.data.maxHp,
-        fallbackMaxStress: character.data.maxStress,
       });
       diceMode = campaign.diceMode ?? 'soft_accountability';
 

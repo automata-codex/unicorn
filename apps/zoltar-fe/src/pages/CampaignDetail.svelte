@@ -208,12 +208,10 @@
             <span class="type-screen-title">{character.data.name}</span>
             <span class="type-label character-meta">{character.data.class}</span>
             <div class="stat-row">
-              {#each Object.entries(character.data.stats) as [label, value] (label)}
-                <div class="stat-item">
-                  <span class="type-stat-value">{value}</span>
-                  <span class="type-label">{label.toUpperCase()}</span>
-                </div>
-              {/each}
+              <div class="stat-item">
+                <span class="type-stat-value">{character.data.class.slice(0, 3).toUpperCase()}</span>
+                <span class="type-label">CLASS</span>
+              </div>
             </div>
           </div>
         </button>

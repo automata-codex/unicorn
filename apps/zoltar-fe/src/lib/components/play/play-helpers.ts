@@ -32,38 +32,43 @@ export interface ThresholdCrossing {
 }
 
 export interface CharacterStatus {
-  /** `current`/`max`, both integers. `max` comes from the pool record. */
-  hp: { current: number; max: number };
-  stress: { current: number; max: number };
+  hp: { current: number; max: number | null };
+  /**
+   * No ceiling. Mothership caps Stress at 20 as a *system* constant that
+   * converts overflow into a Stat reduction rather than rejecting it, so the
+   * pool carries `max: null` and there is no bar to fill.
+   */
+  stress: { current: number };
+  wounds: { current: number; max: number | null };
   /** Free-form NPC-state line; empty string when not set. */
   conditions: string;
 }
 
 /**
- * Derives the display-ready status strip fields for a player entity. Falls
- * back to fallback.max when the pool record has `max: null` — HP pools are
- * seeded with a per-character max at character creation, but defensively we
- * handle the null case with the character-sheet value.
+ * Derives the display-ready status strip fields for a player entity, entirely
+ * from the nested pools.
+ *
+ * **The character-sheet fallbacks are gone.** They existed to cover a pool
+ * with `max: null`, sourced from `maxHp` / `maxStress` on the sheet — fields
+ * M7.6 removed, because they were a second copy of the pool ceiling and free
+ * to disagree with it. After Part 2 the hp and wounds pools always carry a
+ * max, and a missing pool now renders as missing rather than as a plausible
+ * number from a stale source.
  */
 export function deriveCharacterStatus(input: {
   state: CampaignStateData;
   playerEntityId: string;
-  fallbackMaxHp: number;
-  fallbackMaxStress: number;
 }): CharacterStatus {
-  const { state, playerEntityId, fallbackMaxHp, fallbackMaxStress } = input;
-  const hpPool = state.resourcePools[playerEntityId]?.hp;
-  const stressPool = state.resourcePools[playerEntityId]?.stress;
+  const { state, playerEntityId } = input;
+  const pools = state.resourcePools[playerEntityId] ?? {};
   const entity = state.entities[playerEntityId];
 
   return {
-    hp: {
-      current: hpPool?.current ?? fallbackMaxHp,
-      max: hpPool?.max ?? fallbackMaxHp,
-    },
-    stress: {
-      current: stressPool?.current ?? 0,
-      max: stressPool?.max ?? fallbackMaxStress,
+    hp: { current: pools.hp?.current ?? 0, max: pools.hp?.max ?? null },
+    stress: { current: pools.stress?.current ?? 0 },
+    wounds: {
+      current: pools.wounds?.current ?? 0,
+      max: pools.wounds?.max ?? null,
     },
     conditions: entity?.npcState ?? '',
   };
@@ -88,8 +93,10 @@ export function applyStatusDelta(input: {
   };
 }): CharacterStatus {
   const { previous, playerEntityId, applied } = input;
-  const appliedHp = applied.resourcePools?.[playerEntityId]?.hp;
-  const appliedStress = applied.resourcePools?.[playerEntityId]?.stress;
+  const appliedPools = applied.resourcePools?.[playerEntityId];
+  const appliedHp = appliedPools?.hp;
+  const appliedStress = appliedPools?.stress;
+  const appliedWounds = appliedPools?.wounds;
   const appliedEntity = applied.entities?.[playerEntityId];
 
   return {
@@ -97,11 +104,14 @@ export function applyStatusDelta(input: {
       ? { current: appliedHp.current, max: appliedHp.max ?? previous.hp.max }
       : previous.hp,
     stress: appliedStress
-      ? {
-          current: appliedStress.current,
-          max: appliedStress.max ?? previous.stress.max,
-        }
+      ? { current: appliedStress.current }
       : previous.stress,
+    wounds: appliedWounds
+      ? {
+          current: appliedWounds.current,
+          max: appliedWounds.max ?? previous.wounds.max,
+        }
+      : previous.wounds,
     conditions: appliedEntity?.npcState ?? previous.conditions,
   };
 }
