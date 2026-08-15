@@ -11,9 +11,14 @@ describe('getMothershipPoolDefinition', () => {
     const def = getMothershipPoolDefinition('hp');
     expect(def.min).toBe(0);
     expect(def.max).toBeNull();
-    expect(def.thresholds).toEqual([
-      { value: 0, effect: 'death_save_required' },
-    ]);
+  });
+
+  it('fires no threshold on hp, and nothing replaces the 5e one', () => {
+    // `death_save_required` at 0 HP was the D&D 5e rule. Mothership takes a
+    // Wound and rolls the Wounds Table at zero; the Death Save arrives only at
+    // Maximum Wounds. The transition is Warden-driven, and a threshold here
+    // would announce a Death Save at every Wound rather than the last.
+    expect(getMothershipPoolDefinition('hp').thresholds).toEqual([]);
   });
 
   it('no longer matches a composite key by suffix', () => {
@@ -52,11 +57,9 @@ describe('getMothershipPoolDefinition', () => {
     }
   });
 
-  it('carries no thresholds on any character pool except hp', () => {
-    // hp's is the 5e-shaped `death_save_required`, removed in Part 5 alongside
-    // the wounds chain that replaces it.
+  it('carries no thresholds on any character pool', () => {
+    // None of the ten fires a mechanical event on crossing a number (§1.2).
     for (const name of MOTHERSHIP_CHARACTER_POOL_NAMES) {
-      if (name === 'hp') continue;
       expect(getMothershipPoolDefinition(name).thresholds, name).toEqual([]);
     }
   });

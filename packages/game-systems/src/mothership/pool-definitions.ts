@@ -35,12 +35,21 @@ const FLOOR_AT_ZERO: PoolDefinition = {
 const HP_DEFINITION: PoolDefinition = {
   min: 0,
   max: null,
-  // The `death_save_required` threshold is the D&D 5e rule, not Mothership's:
-  // hitting 0 HP takes a Wound and rolls on the Wounds Table, and only the
-  // *last* Wound calls for a Death Save. It is removed in M7.6 Part 5, together
-  // with the prompt instructions that replace it. Removing it here would leave
-  // a window with neither mechanism.
-  thresholds: [{ value: 0, effect: 'death_save_required' }],
+  // **No threshold, deliberately.** This carried
+  // `{ value: 0, effect: 'death_save_required' }` until M7.6, which is the
+  // D&D 5e rule and the confirmed instance of the 5e-bias hypothesis in this
+  // schema. Mothership's chain is: Health reaches zero, the character takes a
+  // Wound, rolls on the Wounds Table by damage type, and Health resets to
+  // Maximum minus carryover. A Death Save arrives only at Maximum Wounds.
+  //
+  // **Nothing replaces it.** The transition is Warden-driven, by prompt
+  // instruction, because none of the character pools fires a mechanical event
+  // on crossing a number (§1.2) — and a threshold that fired here would
+  // announce a Death Save at every Wound rather than at the last one.
+  //
+  // `min: 0` is what makes the chain reachable: HP used to slide negative and
+  // stay there, so the zero crossing never happened twice.
+  thresholds: [],
 };
 
 const STRESS_DEFINITION: PoolDefinition = {

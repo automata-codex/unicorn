@@ -184,7 +184,25 @@ async function seedReadyAdventure(): Promise<{
     system: 'mothership',
     data: {
       schemaVersion: 1,
-      resourcePools: { dr_chen: { hp: { current: 10, max: 10 } } },
+      resourcePools: {
+        dr_chen: {
+          hp: { current: 10, max: 10 },
+          wounds: { current: 0, max: 2 },
+          stress: { current: 2, max: null },
+          body: { current: 30, max: 30 },
+        },
+      },
+      characterState: {
+        dr_chen: {
+          conditions: [],
+          skills: [],
+          equipment: [],
+          wornArmor: null,
+          minimumStress: 2,
+          bleeding: 0,
+          pendingDeathSave: null,
+        },
+      },
       entities: {},
       flags: {
         adventure_complete: { value: false, trigger: 'Escape.' },
@@ -898,5 +916,205 @@ describe('SessionService (integration) — telemetry with dice and lookups', () 
     expect(payload.rulesLookups).toHaveLength(1);
     expect(payload.rulesLookups[0].resultCount).toBe(0);
     expect(payload.rulesLookups[0].topSimilarity).toBeNull();
+  });
+});
+
+describe('SessionService (integration) — the wounds chain', () => {
+  /**
+   * The whole chain in one `submit_gm_response`, as the prompt directs:
+   * damage carrying its `damageType` drives Health to zero, Wounds goes up,
+   * the Wounds Table result writes bleeding, and Health resets to Maximum
+   * minus carryover as a *second* delta against the same pool.
+   *
+   * The Warden's output is scripted here rather than generated — what is under
+   * test is that the backend accepts and applies the chain atomically, not
+   * that a model produces it. Whether it does is what the eval measures.
+   */
+  it('resolves damage → wound → table result → carryover reset in one turn', async () => {
+    const db = getTestDb();
+    const { campaignId, adventureId } = await seedReadyAdventure();
+
+    // 10 Health, a hit for 14: carryover 4, so Health resets to 10 - 4 = 6.
+    const callSession = vi.fn().mockResolvedValue(
+      toolUseMessage({
+        playerText: 'The round punches through your suit.',
+        stateChanges: {
+          resourcePools: [
+            {
+              owner: 'dr_chen',
+              pool: 'hp',
+              delta: -10,
+              reason: 'gunshot from contractor Alpha, 14 damage',
+              damageType: 'gunshot',
+            },
+            {
+              owner: 'dr_chen',
+              pool: 'wounds',
+              delta: 1,
+              reason: 'reached 0 Health',
+            },
+            {
+              owner: 'dr_chen',
+              pool: 'hp',
+              delta: 6,
+              reason: 'Health resets to Maximum (10) minus carryover (4)',
+            },
+          ],
+          characterState: [
+            { op: 'bleeding_set', entityId: 'dr_chen', value: 2 },
+          ],
+        },
+      }),
+    );
+    const service = new SessionService(
+      repo,
+      mockAnthropic(callSession),
+      campaignRepo,
+      stubDice(),
+      stubRules(),
+      stubWardens(),
+    );
+
+    const result = await service.sendMessage(baseArgs(campaignId, adventureId));
+
+    expect(result.applied.resourcePools.dr_chen.hp).toEqual({
+      current: 6,
+      max: 10,
+    });
+    expect(result.applied.resourcePools.dr_chen.wounds.current).toBe(1);
+    expect(result.applied.characterState.dr_chen.bleeding).toBe(2);
+
+    const [stateRow] = await db
+      .select()
+      .from(schema.campaignStates)
+      .where(eq(schema.campaignStates.campaignId, campaignId));
+    const data = stateRow.data as {
+      resourcePools: Record<string, Record<string, { current: number }>>;
+      characterState: Record<string, { bleeding: number }>;
+    };
+    // Persisted, and the intermediate zero is not what landed.
+    expect(data.resourcePools.dr_chen.hp.current).toBe(6);
+    expect(data.resourcePools.dr_chen.wounds.current).toBe(1);
+    expect(data.characterState.dr_chen.bleeding).toBe(2);
+    // The deep merge held: the pools the turn did not mention survive.
+    expect(data.resourcePools.dr_chen.stress.current).toBe(2);
+    expect(data.resourcePools.dr_chen.body.current).toBe(30);
+  });
+
+  it('writes a pending Death Save at maximum wounds', async () => {
+    const db = getTestDb();
+    const { campaignId, adventureId } = await seedReadyAdventure();
+
+    // Wounds 0 → 2, which is this character's maximum. Only here does a Death
+    // Save arrive — not at every zero-Health crossing.
+    const callSession = vi.fn().mockResolvedValue(
+      toolUseMessage({
+        playerText: 'Something gives way inside you.',
+        stateChanges: {
+          resourcePools: [
+            {
+              owner: 'dr_chen',
+              pool: 'hp',
+              delta: -10,
+              reason: 'crushed against the bulkhead',
+              damageType: 'blunt_force',
+            },
+            {
+              owner: 'dr_chen',
+              pool: 'wounds',
+              delta: 2,
+              reason: 'lethal injury',
+            },
+            {
+              owner: 'dr_chen',
+              pool: 'hp',
+              delta: 10,
+              reason: 'Health resets to Maximum, no carryover',
+            },
+          ],
+          characterState: [
+            {
+              op: 'death_save_pending',
+              entityId: 'dr_chen',
+              roundsRemaining: 7,
+            },
+          ],
+        },
+      }),
+    );
+    const service = new SessionService(
+      repo,
+      mockAnthropic(callSession),
+      campaignRepo,
+      stubDice(),
+      stubRules(),
+      stubWardens(),
+    );
+
+    const result = await service.sendMessage(baseArgs(campaignId, adventureId));
+
+    expect(result.applied.resourcePools.dr_chen.wounds.current).toBe(2);
+    expect(result.applied.characterState.dr_chen.pendingDeathSave).toBe(7);
+
+    const [stateRow] = await db
+      .select()
+      .from(schema.campaignStates)
+      .where(eq(schema.campaignStates.campaignId, campaignId));
+    const data = stateRow.data as {
+      characterState: Record<string, { pendingDeathSave: number | null }>;
+    };
+    expect(data.characterState.dr_chen.pendingDeathSave).toBe(7);
+  });
+
+  it('leaves Health untouched when half a chain is rejected', async () => {
+    // Wounds cannot exceed its ceiling, so the second entry fails — and the
+    // damage that preceded it must not land. A character at 0 Health with no
+    // Wound recorded is a state Mothership has no rule for.
+    const db = getTestDb();
+    const { campaignId, adventureId } = await seedReadyAdventure();
+
+    const rejecting = {
+      playerText: 'The round punches through.',
+      stateChanges: {
+        resourcePools: [
+          {
+            owner: 'dr_chen',
+            pool: 'hp',
+            delta: -10,
+            reason: 'gunshot',
+            damageType: 'gunshot',
+          },
+          {
+            owner: 'dr_chen',
+            pool: 'wounds',
+            delta: 9,
+            reason: 'nine wounds at once',
+          },
+        ],
+      },
+    };
+    const callSession = vi.fn().mockResolvedValue(toolUseMessage(rejecting));
+    const service = new SessionService(
+      repo,
+      mockAnthropic(callSession),
+      campaignRepo,
+      stubDice(),
+      stubRules(),
+      stubWardens(),
+    );
+
+    await expect(
+      service.sendMessage(baseArgs(campaignId, adventureId)),
+    ).rejects.toThrow(SessionCorrectionError);
+
+    const [stateRow] = await db
+      .select()
+      .from(schema.campaignStates)
+      .where(eq(schema.campaignStates.campaignId, campaignId));
+    const data = stateRow.data as {
+      resourcePools: Record<string, Record<string, { current: number }>>;
+    };
+    expect(data.resourcePools.dr_chen.hp.current).toBe(10);
+    expect(data.resourcePools.dr_chen.wounds.current).toBe(0);
   });
 });
