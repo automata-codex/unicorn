@@ -14,9 +14,9 @@ This document defines the Zoltar database schema for Phase 1. It serves as the s
 
 **User identity:** Auth.js manages its own tables (`users`, `accounts`, `sessions`, `verification_tokens`). Columns that reference users use `text` to match Auth.js's string user IDs. The Auth.js Drizzle adapter is used so Auth.js tables are defined in the Drizzle schema and managed by Flyway alongside application tables.
 
-**JSONB blobs:** Used for system-specific state (`campaign_state.data`, `character_sheets.data`, `gm_context.blob`) and flexible metadata (`grid_entities.tags`, `game_events.payload`, `pending_canon.entry`). Validated at the application layer with Zod — the database does not enforce blob shape.
+**JSONB blobs:** Used for system-specific state (`campaign_state.data`, `character_sheet.data`, `gm_context.blob`) and flexible metadata (`grid_entities.tags`, `game_events.payload`, `pending_canon.entry`). Validated at the application layer with Zod — the database does not enforce blob shape.
 
-**`schema_version` columns:** Integer. Present on each table whose jsonb blob has a structured shape application code depends on (`campaign_state.schema_version`, `character_sheets.schema_version`, `gm_context.schema_version`). Bump only on a **breaking shape change** — a field removed, renamed, or type-changed, or a structural rearrangement that existing-row readers can't handle. Purely additive changes (new optional fields, new entries in a `Record`) do **not** bump; they're forward-compatible against older readers and backward-compatible against older data. Each bump is paired with migration code that either lazily migrates on read or rejects old rows loudly — either way, the integer is the signal that handling is required. This is distinct from the semver string convention used on oracle table files (`docs/specs/zoltar-playtest/pre-playtest-1.md`), which tracks content evolution for an audit trail rather than gating code paths.
+**`schema_version` columns:** Integer. Present on each table whose jsonb blob has a structured shape application code depends on (`campaign_state.schema_version`, `character_sheet.schema_version`, `gm_context.schema_version`). Bump only on a **breaking shape change** — a field removed, renamed, or type-changed, or a structural rearrangement that existing-row readers can't handle. Purely additive changes (new optional fields, new entries in a `Record`) do **not** bump; they're forward-compatible against older readers and backward-compatible against older data. Each bump is paired with migration code that either lazily migrates on read or rejects old rows loudly — either way, the integer is the signal that handling is required. This is distinct from the semver string convention used on oracle table files (`docs/specs/zoltar-playtest/pre-playtest-1.md`), which tracks content evolution for an audit trail rather than gating code paths.
 
 **`org_id`:** Present but nullable on `campaigns`. Null in self-hosted deployments (single implicit tenant). Populated in SaaS deployments and enforced via Row Level Security. RLS policies are not defined in this schema — they are applied by the SaaS deployment layer only.
 
@@ -165,6 +165,44 @@ CREATE TABLE campaign_state (
   updated_at     timestamptz NOT NULL DEFAULT now(),
   UNIQUE (campaign_id)
 );
+
+**`campaign_state.data` — the Mothership shape, since M7.6.** The blob is
+validated by `MothershipCampaignStateSchema` (`@uv/game-systems`); the two
+members worth stating here because their shape is not guessable from the column
+are:
+
+```
+resourcePools: { [owner]: { [poolName]: { current, max } } }
+characterState: { [entityId]: { conditions, skills, equipment, wornArmor,
+                                minimumStress, bleeding, pendingDeathSave } }
+```
+
+`resourcePools` is **two levels**, replacing the flat `{entity_id}_{pool_name}`
+composite key. The outer key is an *owner*, not necessarily an entity: pools
+belonging to no entity — countdown timers, station subsystems — take the
+reserved owner `_scenario`. Reserved owners begin with `_`; entity ids never
+do, and that is the whole collision rule. Ownership is otherwise unconstrained
+(`docs/plans/016-…-implementation-plan.md § D1`).
+
+**Merges into either member must go one level deep.** A shallow spread at the
+owner level replaces a character's entire pool set with whichever pool the turn
+wrote — eleven pools becoming one, silently. `characterState` is the exception
+and is replaced per entity by design: the validator's applied value there is the
+entity's whole new state rather than a diff, because the operations edit nested
+arrays.
+
+`schema_version` stays at **1** across the M7.6 shape change. No row survived
+it — `V19__character_sheet_m76_reset.sql` deletes `campaign_state` and
+`character_sheet` outright — so there is nothing for the integer to
+distinguish, and bumping it would make `synthesis.write.ts`'s parse reject
+exactly the rows that migration removes.
+
+**`character_sheet.data` holds immutable creation data only**, since M7.6:
+identity, class, trinket, patch, trauma response, the creation rolls as dice,
+and the class Stat choice for the two classes that make one. Everything that
+changes during play — Stats, Saves, Health, Stress, skills, equipment, armor —
+lives in `campaign_state.data`, because the sheet has no write path from a
+turn.
 
 CREATE TABLE campaign_member (
   campaign_id uuid                 NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,

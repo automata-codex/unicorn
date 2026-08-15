@@ -879,6 +879,159 @@ A generic prompt module was rejected because oracle category counts, character s
 
 ---
 
+### M7.6 pool and character-state contract — resolved decisions
+
+*Closing out `docs/plans/016-m7.6-character-sheet-fidelity-implementation-plan.md`,
+whose D1–D4 were open when it was written. The reasoning lives in the plan; what
+follows is what was actually built, plus what was deliberately left out.*
+
+**D1 — `resourcePools` nests by owner, and ownership is unconstrained.**
+`resourcePools[owner][poolName]`. Most owners are entity ids; pools belonging to
+no entity take the reserved owner `_scenario`. No pools move to `scenarioState`,
+which has no producer at all — `submitGmContextSchema.structured` has four
+members and none is `scenarioState`, and play-time writes to undeclared keys are
+rejected, so no key can enter it by any path that exists. Relocating live pools
+into a write-only bucket would also have moved them out of the delta stream this
+milestone exists to build: no `reason`, no `maxDelta`, no `sum(deltas)` audit
+property, no per-pool rejection telemetry.
+
+**D1-A.1 — `_scenario` is reserved by its leading underscore.** Entity ids may
+not begin with `_`; reserved owners must. One narrow assertion enforces it —
+reject an `_`-prefixed owner that is not a known reserved owner — on both write
+paths. **General identifier-format validation is still not built anywhere**, and
+is on the roadmap rather than here: enforcing format across entity creation,
+synthesis and the tool boundary is its own change with its own failure modes,
+and `_scenario` works as a convention whether or not collisions are prevented.
+
+**D2 — `creationChoices.adjustedStat` records the class Stat choice.** The
+Android's −10 and the Scientist's +5 land on a Stat the player picks, so without
+it the acceptance criterion — rolls plus class arithmetic reconcile to each
+starting ceiling — cannot be computed at all. It is the missing *input* to that
+audit, not a second copy of a value living elsewhere, which is the same argument
+that admits `creationRolls`. The schema requires it for those two classes and
+rejects it for the other two.
+
+**D3 — `stateChanges` gains `characterState`, and its five families stay
+outside the delta stream.** Six operations discriminated on `op` — conditions
+add/remove, armor damage, bleeding, pending Death Save, minimum stress — because
+the sheet has no write path from a turn and a Panic result granting a Condition
+would otherwise have nowhere to land.
+
+**The exclusion is the half a later reader will need, and a schema alone does
+not record it.** Bleeding, minimum stress and the pending Death Save are numeric
+counters that change during play; each would fit the pool mechanism and would
+inherit `reason`, in-order folding and rejection telemetry for free. They were
+**identified as candidates and left out, not overlooked**. Nobody has asked to
+audit a bleeding counter, and building an audit path for a hypothesis is the
+thing this project does not do.
+
+Two consequences, which are the price:
+
+- **The M7.6 re-baseline measures nothing about `characterState`.** The
+  rejection telemetry is per-pool. The milestone establishes a floor for
+  pool-delta behaviour and no floor at all for these five families — including
+  whether the Warden writes bleeding reliably. The one exception is the
+  absolute-vs-delta count, in scope precisely because prompt instruction 3 is
+  where the contract is inconsistent with itself.
+- **Reversal trigger, stated because "if interest is expressed" never fires:** a
+  playtest produces a bleeding, minimum-stress, or armor value nobody can
+  explain. That is the same shape as the Strength question that motivated
+  `reason`, and it will arrive in a playtest report rather than as a feature
+  request.
+
+**D4 — rejection is all-or-nothing per turn, and the fold runs on a working
+copy.** `resourcePools` entries are folded in order against a running state, so
+the wounds chain is expressible. A rejected entry aborts the whole array,
+`characterState` aborts with it, and nothing is applied.
+
+**The guarantee is validate-all-then-apply, and it is stronger than the
+transactional one.** `validateStateChanges` accumulates across every
+`stateChanges` member and returns one pass/fail; `SessionService` throws before
+`applyValidatedTurn` runs; and when a correction round succeeds it is the
+correction's applied set that is used, round one's being discarded entirely. So
+nothing reaches the applier on rejection and transaction atomicity never comes
+into it. Recorded rather than left implicit, per
+`roadmap.md § Prerequisite — turn-path lock audit`: a guarantee that holds by
+accident is one refactor away from not holding, and that item exists because
+exactly this went unrecorded once already.
+
+**Still open:** whether a pool rejection should also abort `entities`, `flags`,
+`scenarioState` and `worldFacts`. It does not today, and there is a test
+pinning that so the behaviour is visible rather than assumed.
+
+**Payload field name: `owner`, not `entityId`.** The plan and the spec §2.1 both
+write `entityId` on the pool-change entry. Both predate D1-A's amendment from
+entity-keyed to owner-keyed, and a field named `entityId` that legally holds
+`_scenario` contradicts itself in the document the model reads most carefully.
+`characterState` entries keep `entityId`, where it really is one.
+
+**Deferred and worth naming: `armor_repair`.** A Patch Kit sets a vaccsuit to
+AP 1 and replacement swaps the item — both are equipment operations, and
+equipment has no write path in M7.6. Armor can be damaged and destroyed this
+milestone, never restored.
+
+---
+
+### The M7.6 migration drops and recreates rather than transforming
+
+**Confirmed 2026-08-14, built 2026-08-15.** `V19__character_sheet_m76_reset.sql`
+deletes every `character_sheet` and `campaign_state` row rather than migrating
+them.
+
+Recorded here because **the migration file is disposable and this reasoning is
+not.** The pre-`v0.1.0` Flyway consolidation pass collapses V1–Vn into a single
+baseline and discards the file, taking its comments with it.
+
+Three facts made the call safe: local dev was empty, the eval droplet runs only
+the harness (which seeds its own rows per run), and no eval fixture carries
+sheet data.
+
+**A defensive transform could not have worked in any case.** The reduced sheet
+requires `creationRolls`, and there is no way to recover what the dice showed
+from a stored total — the old sheet held sums and derived values, never the
+rolls. Any transform would have had to invent them.
+
+Both tables, not just `character_sheet`: `campaign_state.data.resourcePools`
+changed shape in the same milestone, and a sheet reset that left the old pools
+behind leaves a campaign whose pools no reader can address.
+
+**`schema_version` deliberately stays at 1.** There is no row to distinguish,
+and a bump would make `synthesis.write.ts`'s parse reject exactly the rows this
+migration removes.
+
+---
+
+### Armor Points are a threshold, not a pool — the M7.6 spec was wrong about this
+
+**Found during implementation, 2026-08-15.** The M7.6 spec §1.3 and the
+reconciled diff §5 both state that "AP is consumed", and the implementation plan
+builds `armor_damage` around AP being ground down hit by hit.
+
+That is not the rule. `docs/rules-extraction-findings.md § S25.6`, recorded from
+reading PSG p.28 directly, states it plainly: a character ignores all Damage
+**less than** their AP, a single hit at or above AP destroys the armor and the
+remainder lands, and **armor is never worn down across several hits.** That
+finding is what corrected the Warden primer in M7.5, and the live prompt has
+said so since.
+
+The primary-source reading beats a derived spec line, so the built behaviour
+follows the finding: `armor_damage` keeps the plan's `{ apDelta, destroyed }`
+shape, but `destroyed` is `literal(true)` and the validator rejects an `apDelta`
+that leaves AP above zero, naming the rule in the rejection. A hit below AP is
+not a state change at all and must not be sent.
+
+**Damage Reduction is the opposite in kind and is a separate field for exactly
+this reason:** it applies first, and survives both armor destruction and
+Anti-Armor. A single number could not express "the armor is gone but the
+reduction is not", which is why `wornArmor` carries `dr` alongside `apCurrent`
+and why `<character_attributes>` renders DR even at zero.
+
+Recorded here because a reader hitting the spec first will find the opposite
+claim, and because "subtract armor from each hit" is named in the S25.6 finding
+as the error a Warden defaults to — the code should not make the same one.
+
+---
+
 ## Claude Integration — Turn Loop & Correction
 
 ### Correction loop bounded at one re-prompt
