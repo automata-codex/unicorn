@@ -24,21 +24,24 @@ const baseSheet: MothershipCharacterSheet = {
 };
 
 describe('deriveMothershipCharacterResourcePools', () => {
-  it('produces {entity_id}_hp at full and {entity_id}_stress at zero', () => {
+  it('nests hp at full and stress at zero under the entity id', () => {
     const pools = deriveMothershipCharacterResourcePools(baseSheet);
     expect(pools).toEqual({
-      vasquez_hp: { current: 15, max: 15 },
-      vasquez_stress: { current: 0, max: 20 },
+      vasquez: {
+        hp: { current: 15, max: 15 },
+        stress: { current: 0, max: 20 },
+      },
     });
   });
 
-  it('uses the entityId, not the display name, as the pool prefix', () => {
+  it('uses the entityId, not the display name, as the owner key', () => {
     const pools = deriveMothershipCharacterResourcePools({
       ...baseSheet,
       entityId: 'dr_chen',
       name: 'Dr. Chen',
     });
-    expect(Object.keys(pools).sort()).toEqual(['dr_chen_hp', 'dr_chen_stress']);
+    expect(Object.keys(pools)).toEqual(['dr_chen']);
+    expect(Object.keys(pools.dr_chen).sort()).toEqual(['hp', 'stress']);
   });
 
   it('carries maxHp/maxStress through verbatim, even at extremes', () => {
@@ -47,7 +50,7 @@ describe('deriveMothershipCharacterResourcePools', () => {
       maxHp: 1,
       maxStress: 1,
     });
-    expect(pools.vasquez_hp).toEqual({ current: 1, max: 1 });
-    expect(pools.vasquez_stress).toEqual({ current: 0, max: 1 });
+    expect(pools.vasquez.hp).toEqual({ current: 1, max: 1 });
+    expect(pools.vasquez.stress).toEqual({ current: 0, max: 1 });
   });
 });

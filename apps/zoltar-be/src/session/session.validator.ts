@@ -1,5 +1,6 @@
 import {
   EntityStatusSchema,
+  isInvalidReservedPoolOwner,
   type MothershipCampaignState,
   type PoolDefinition,
 } from '@uv/game-systems';
@@ -23,7 +24,11 @@ export interface ThresholdCrossing {
 
 export interface ValidationResult {
   applied: {
-    resourcePools: Record<string, { current: number; max: number | null }>;
+    /** `resourcePools[owner][poolName]`, matching campaign state's shape. */
+    resourcePools: Record<
+      string,
+      Record<string, { current: number; max: number | null }>
+    >;
     entities: Record<
       string,
       { visible: boolean; status: EntityStatus; npcState?: string }
@@ -71,11 +76,11 @@ export function validateStateChanges(input: {
 
   const proposed = input.proposed ?? {};
 
-  for (const [poolName, change] of Object.entries(
+  for (const [address, change] of Object.entries(
     proposed.resourcePools ?? {},
   )) {
     applyResourcePool(
-      poolName,
+      address,
       change,
       input.currentData,
       input.poolDef,
@@ -104,13 +109,40 @@ export function validateStateChanges(input: {
 }
 
 /**
- * True when `poolName` names a pool of a kind the player already owns, under a
- * prefix that resolves to neither the player nor any entity the snapshot could
- * have shown — `alvarez_hp` while the sheet says `lt_alvarez`. Scenario-level
- * pools whose prefix resolves to nothing but which name no player pool
- * (`station_power_reserve`) are unaffected.
+ * Splits a `{owner}.{poolName}` payload address. Returns null when the address
+ * does not have exactly that shape — a bare `hp` names no owner, and
+ * `a.b.c` names no pool this state can address.
+ *
+ * The tool payload carries the two levels joined by a dot rather than as a
+ * nested object because the payload is a map keyed by address; M7.6 Part 4
+ * replaces the whole member with an array of self-describing entries and this
+ * parse goes away with it.
+ */
+function parsePoolAddress(
+  address: string,
+): { owner: string; poolName: string } | null {
+  const parts = address.split('.');
+  if (parts.length !== 2) return null;
+  const [owner, poolName] = parts;
+  if (owner.length === 0 || poolName.length === 0) return null;
+  return { owner, poolName };
+}
+
+/**
+ * True when `owner` is a spelling of the player's id that nothing declares,
+ * carrying pools of a kind the player already owns — `alvarez.hp` while the
+ * sheet says `lt_alvarez`. Scenario-level owners that resolve to nothing but
+ * name no player pool (`_scenario.station_power_reserve`) are unaffected.
+ *
+ * Still two clauses, and both are load-bearing. Nesting removed the string
+ * slicing this used to need — the pool-name comparison is now a set
+ * intersection — but not the `!known.has(owner)` guard. Dropping to a bare "is
+ * the owner a player entity id" test would reject every legitimate NPC pool:
+ * `decommissioned_android.hp` names a pool of a kind the player owns, and it
+ * survives only because its owner is in `knownEntityIds`.
  */
 function impersonatesPlayerPool(
+  owner: string,
   poolName: string,
   currentData: MothershipCampaignState,
   identifiers: {
@@ -122,21 +154,14 @@ function impersonatesPlayerPool(
     ...identifiers.playerEntityIds,
     ...identifiers.knownEntityIds,
   ]);
-  for (const playerId of identifiers.playerEntityIds) {
-    const prefix = `${playerId}_`;
-    for (const existingKey of Object.keys(currentData.resourcePools)) {
-      if (!existingKey.startsWith(prefix)) continue;
-      const suffix = existingKey.slice(prefix.length);
-      if (!poolName.endsWith(`_${suffix}`)) continue;
-      const candidate = poolName.slice(0, poolName.length - suffix.length - 1);
-      if (candidate.length > 0 && !known.has(candidate)) return true;
-    }
-  }
-  return false;
+  if (known.has(owner)) return false;
+  return identifiers.playerEntityIds.some((playerId) =>
+    Object.hasOwn(currentData.resourcePools[playerId] ?? {}, poolName),
+  );
 }
 
 function applyResourcePool(
-  poolName: string,
+  address: string,
   change: { delta: number },
   currentData: MothershipCampaignState,
   poolDef: (poolName: string) => PoolDefinition,
@@ -146,7 +171,32 @@ function applyResourcePool(
     knownEntityIds: readonly string[];
   },
 ): void {
-  const existing = currentData.resourcePools[poolName];
+  const parsed = parsePoolAddress(address);
+  if (!parsed) {
+    result.rejections.push({
+      path: `resourcePools.${address}`,
+      reason:
+        'Pool address must be "{owner}.{poolName}" — the owning entity id, a ' +
+        'dot, then the bare pool name. "dr_chen.hp", not "dr_chen_hp".',
+      received: change,
+    });
+    return;
+  }
+  const { owner, poolName } = parsed;
+
+  if (isInvalidReservedPoolOwner(owner)) {
+    result.rejections.push({
+      path: `resourcePools.${owner}.${poolName}`,
+      reason:
+        `Owner "${owner}" claims the reserved leading-underscore namespace. ` +
+        'The only reserved owner is "_scenario", for pools belonging to no ' +
+        'entity. Entity ids never begin with an underscore.',
+      received: change,
+    });
+    return;
+  }
+
+  const existing = currentData.resourcePools[owner]?.[poolName];
   const delta = change.delta;
   const def = poolDef(poolName);
 
@@ -154,28 +204,28 @@ function applyResourcePool(
     if (
       identifiers &&
       identifiers.playerEntityIds.length > 0 &&
-      impersonatesPlayerPool(poolName, currentData, identifiers)
+      impersonatesPlayerPool(owner, poolName, currentData, identifiers)
     ) {
       // Bootstrapping this would give one character two pools of the same kind
       // under two spellings of their id — the defect that made the M7.5
       // capture's `actingEntityId` values unresolvable. Named ids in the
       // reason so the model corrects in-loop rather than retrying blind.
       result.rejections.push({
-        path: `resourcePools.${poolName}`,
+        path: `resourcePools.${owner}.${poolName}`,
         reason:
-          `Pool name does not resolve to a known entity, and the player ` +
-          `character already has a pool of this kind. The player's entity id ` +
-          `is ${identifiers.playerEntityIds.join(' or ')} — use that exact ` +
-          `spelling as the prefix.`,
+          `Owner "${owner}" does not resolve to a known entity, and the ` +
+          `player character already has a "${poolName}" pool. The player's ` +
+          `entity id is ${identifiers.playerEntityIds.join(' or ')} — use ` +
+          `that exact spelling as the owner.`,
         received: change,
       });
       return;
     }
     if (delta > 0) {
-      result.applied.resourcePools[poolName] = { current: delta, max: null };
+      recordApplied(result, owner, poolName, { current: delta, max: null });
     } else {
       result.rejections.push({
-        path: `resourcePools.${poolName}`,
+        path: `resourcePools.${owner}.${poolName}`,
         reason:
           'Pool does not exist — bootstrap with a positive delta before applying damage or spending.',
         received: change,
@@ -188,7 +238,7 @@ function applyResourcePool(
 
   if (def.min !== null && newCurrent < def.min) {
     result.rejections.push({
-      path: `resourcePools.${poolName}`,
+      path: `resourcePools.${owner}.${poolName}`,
       reason:
         def.min === 0
           ? 'Cannot spend more than available.'
@@ -200,17 +250,17 @@ function applyResourcePool(
 
   if (def.max !== null && newCurrent > def.max) {
     result.rejections.push({
-      path: `resourcePools.${poolName}`,
+      path: `resourcePools.${owner}.${poolName}`,
       reason: `Pool value would exceed maximum (${def.max}).`,
       received: change,
     });
     return;
   }
 
-  result.applied.resourcePools[poolName] = {
+  recordApplied(result, owner, poolName, {
     current: newCurrent,
     max: existing.max,
-  };
+  });
 
   // Thresholds fire only on downward crossings (negative delta). The spec's
   // formal rule in §"Part 2 → resourcePools → 3" lists a symmetric positive-
@@ -221,12 +271,22 @@ function applyResourcePool(
   for (const t of def.thresholds) {
     if (delta < 0 && existing.current >= t.value && newCurrent < t.value) {
       result.thresholds.push({
-        pool: poolName,
+        pool: `${owner}.${poolName}`,
         finalValue: newCurrent,
         effect: t.effect,
       });
     }
   }
+}
+
+function recordApplied(
+  result: ValidationResult,
+  owner: string,
+  poolName: string,
+  pool: { current: number; max: number | null },
+): void {
+  const forOwner = (result.applied.resourcePools[owner] ??= {});
+  forOwner[poolName] = pool;
 }
 
 function applyEntity(

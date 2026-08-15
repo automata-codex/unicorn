@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   MothershipCampaignStateSchema,
+  SCENARIO_POOL_OWNER,
   emptyMothershipState,
+  isInvalidReservedPoolOwner,
 } from './campaign-state.schema';
 
 describe('MothershipCampaignStateSchema', () => {
@@ -19,8 +21,11 @@ describe('MothershipCampaignStateSchema', () => {
     const result = MothershipCampaignStateSchema.parse({
       schemaVersion: 1,
       resourcePools: {
-        dr_chen_hp: { current: 8, max: 10 },
-        dr_chen_stress: { current: 2, max: 20 },
+        dr_chen: {
+          hp: { current: 8, max: 10 },
+          stress: { current: 2, max: 20 },
+        },
+        _scenario: { hull_breach_timer: { current: 5, max: 5 } },
       },
       entities: {
         dr_chen: { visible: true, status: 'alive', npcState: 'Cooperative' },
@@ -33,7 +38,8 @@ describe('MothershipCampaignStateSchema', () => {
       },
       worldFacts: { bridge_display: 'ERROR 0x4A' },
     });
-    expect(result.resourcePools.dr_chen_hp.current).toBe(8);
+    expect(result.resourcePools.dr_chen.hp.current).toBe(8);
+    expect(result.resourcePools._scenario.hull_breach_timer.current).toBe(5);
     expect(result.entities.dr_chen.npcState).toBe('Cooperative');
     expect(result.scenarioState.oxygen.note).toBe('bleeding slowly');
   });
@@ -48,7 +54,16 @@ describe('MothershipCampaignStateSchema', () => {
     expect(() =>
       MothershipCampaignStateSchema.parse({
         schemaVersion: 1,
-        resourcePools: { dr_chen_hp: { current: 'eight', max: 10 } },
+        resourcePools: { dr_chen: { hp: { current: 'eight', max: 10 } } },
+      }),
+    ).toThrow();
+  });
+
+  it('rejects a flat pool map left over from the pre-M7.6 shape', () => {
+    expect(() =>
+      MothershipCampaignStateSchema.parse({
+        schemaVersion: 1,
+        resourcePools: { dr_chen_hp: { current: 8, max: 10 } },
       }),
     ).toThrow();
   });
@@ -60,6 +75,22 @@ describe('MothershipCampaignStateSchema', () => {
         flags: { adventure_complete: { value: false } },
       }),
     ).toThrow();
+  });
+});
+
+describe('isInvalidReservedPoolOwner', () => {
+  it('accepts the reserved scenario owner', () => {
+    expect(isInvalidReservedPoolOwner(SCENARIO_POOL_OWNER)).toBe(false);
+  });
+
+  it('rejects any other leading-underscore owner', () => {
+    expect(isInvalidReservedPoolOwner('_station')).toBe(true);
+    expect(isInvalidReservedPoolOwner('_')).toBe(true);
+  });
+
+  it('leaves ordinary entity ids alone', () => {
+    expect(isInvalidReservedPoolOwner('dr_chen')).toBe(false);
+    expect(isInvalidReservedPoolOwner('scenario')).toBe(false);
   });
 });
 

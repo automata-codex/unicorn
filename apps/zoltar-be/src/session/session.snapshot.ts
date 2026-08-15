@@ -76,16 +76,35 @@ export function buildStateSnapshot(input: {
   return `<state_snapshot>\n\n${sections.join('\n\n')}\n\n</state_snapshot>`;
 }
 
+/**
+ * Renders `<resource_pools>` from the two-level `resourcePools[owner][pool]`
+ * map, one line per pool, addressed owner-first as `alvarez.hp: 18/20`.
+ *
+ * The rendered address is deliberately the same string the tool payload keys
+ * pool changes by. A flat list rather than an owner-grouped block for the same
+ * reason: the Warden writes one address per change, and a grouped block would
+ * make it reassemble the address from a heading it might be several lines away
+ * from. Owners sort together anyway, so grouping buys nothing but a chance to
+ * get the join wrong.
+ *
+ * Owners with no pools render nothing rather than an empty heading — that state
+ * is reachable after `CharacterService.delete` removes an owner's pools.
+ */
 function renderResourcePools(
   resourcePools: CampaignStateData['resourcePools'],
 ): string | null {
-  const keys = Object.keys(resourcePools).sort();
-  if (keys.length === 0) return null;
+  const lines: string[] = [];
 
-  const lines = keys.map((key) => {
-    const { current, max } = resourcePools[key];
-    return max === null ? `${key}: ${current}` : `${key}: ${current}/${max}`;
-  });
+  for (const owner of Object.keys(resourcePools).sort()) {
+    const pools = resourcePools[owner];
+    for (const poolName of Object.keys(pools).sort()) {
+      const { current, max } = pools[poolName];
+      const value = max === null ? `${current}` : `${current}/${max}`;
+      lines.push(`${owner}.${poolName}: ${value}`);
+    }
+  }
+
+  if (lines.length === 0) return null;
 
   return `<resource_pools>\n${lines.join('\n')}\n</resource_pools>`;
 }

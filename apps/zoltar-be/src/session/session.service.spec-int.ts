@@ -184,7 +184,7 @@ async function seedReadyAdventure(): Promise<{
     system: 'mothership',
     data: {
       schemaVersion: 1,
-      resourcePools: { dr_chen_hp: { current: 10, max: 10 } },
+      resourcePools: { dr_chen: { hp: { current: 10, max: 10 } } },
       entities: {},
       flags: {
         adventure_complete: { value: false, trigger: 'Escape.' },
@@ -238,7 +238,7 @@ describe('SessionService (integration) — happy path', () => {
       toolUseMessage({
         playerText: 'The airlock hisses open.',
         stateChanges: {
-          resourcePools: { dr_chen_hp: { delta: -2 } },
+          resourcePools: { 'dr_chen.hp': { delta: -2 } },
           worldFacts: { corridor_length: 'eight meters' },
         },
         gmUpdates: {
@@ -263,7 +263,7 @@ describe('SessionService (integration) — happy path', () => {
 
     expect(result.message.role).toBe('gm');
     expect(result.message.content).toBe('The airlock hisses open.');
-    expect(result.applied.resourcePools.dr_chen_hp).toEqual({
+    expect(result.applied.resourcePools.dr_chen.hp).toEqual({
       current: 8,
       max: 10,
     });
@@ -274,10 +274,10 @@ describe('SessionService (integration) — happy path', () => {
       .from(schema.campaignStates)
       .where(eq(schema.campaignStates.campaignId, campaignId));
     const data = stateRow.data as {
-      resourcePools: Record<string, { current: number }>;
+      resourcePools: Record<string, Record<string, { current: number }>>;
       worldFacts: Record<string, string>;
     };
-    expect(data.resourcePools.dr_chen_hp.current).toBe(8);
+    expect(data.resourcePools.dr_chen.hp.current).toBe(8);
     expect(data.worldFacts.corridor_length).toBe('eight meters');
 
     // Three events: player_action, gm_response, state_update.
@@ -443,14 +443,14 @@ describe('SessionService (integration) — correction succeeds', () => {
     const rejectedResponse = toolUseMessage({
       playerText: 'You punch through the alien.',
       stateChanges: {
-        resourcePools: { xenomorph_hp: { delta: -4 } }, // unknown pool, negative delta
+        resourcePools: { 'xenomorph.hp': { delta: -4 } }, // unknown pool, negative delta
       },
       gmUpdates: {},
     });
     const correctedResponse = toolUseMessage({
       playerText: 'You miss; the alien screeches.',
       stateChanges: {
-        resourcePools: { dr_chen_hp: { delta: -1 } },
+        resourcePools: { 'dr_chen.hp': { delta: -1 } },
       },
       gmUpdates: { npcStates: {} },
     });
@@ -471,7 +471,7 @@ describe('SessionService (integration) — correction succeeds', () => {
 
     expect(callSession).toHaveBeenCalledTimes(2);
     expect(result.message.content).toBe('You miss; the alien screeches.');
-    expect(result.applied.resourcePools.dr_chen_hp).toEqual({
+    expect(result.applied.resourcePools.dr_chen.hp).toEqual({
       current: 9,
       max: 10,
     });
@@ -517,7 +517,7 @@ describe('SessionService (integration) — correction succeeds', () => {
     };
     expect(telePayload.correction).toBeDefined();
     expect(telePayload.correction!.rejections[0].path).toBe(
-      'resourcePools.xenomorph_hp',
+      'resourcePools.xenomorph.hp',
     );
   });
 });
@@ -535,7 +535,7 @@ describe('SessionService (integration) — correction fails', () => {
     const alwaysRejecting = toolUseMessage({
       playerText: 'Impossible action.',
       stateChanges: {
-        resourcePools: { xenomorph_hp: { delta: -4 } },
+        resourcePools: { 'xenomorph.hp': { delta: -4 } },
       },
       gmUpdates: {},
     });

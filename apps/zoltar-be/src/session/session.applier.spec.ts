@@ -23,7 +23,7 @@ describe('applyValidatedTurn', () => {
     it('returns an equivalent state when applied is empty', () => {
       const priorCampaignState: MothershipCampaignState = {
         ...emptyMothershipState(),
-        resourcePools: { dr_chen_hp: { current: 5, max: 10 } },
+        resourcePools: { dr_chen: { hp: { current: 5, max: 10 } } },
         worldFacts: { corridor_smell: 'ozone' },
       };
 
@@ -40,7 +40,7 @@ describe('applyValidatedTurn', () => {
     it('does not mutate the input state', () => {
       const priorCampaignState: MothershipCampaignState = {
         ...emptyMothershipState(),
-        resourcePools: { dr_chen_hp: { current: 5, max: 10 } },
+        resourcePools: { dr_chen: { hp: { current: 5, max: 10 } } },
       };
       const snapshot = structuredClone(priorCampaignState);
 
@@ -49,7 +49,7 @@ describe('applyValidatedTurn', () => {
         priorGmContextBlob: {},
         applied: {
           ...emptyApplied(),
-          resourcePools: { dr_chen_hp: { current: 2, max: 10 } },
+          resourcePools: { dr_chen: { hp: { current: 2, max: 10 } } },
         },
         npcStates: {},
       });
@@ -57,12 +57,12 @@ describe('applyValidatedTurn', () => {
       expect(priorCampaignState).toEqual(snapshot);
     });
 
-    it('shallow-merges resourcePools, preserving keys not mentioned in applied', () => {
+    it('merges resourcePools, preserving owners not mentioned in applied', () => {
       const priorCampaignState: MothershipCampaignState = {
         ...emptyMothershipState(),
         resourcePools: {
-          dr_chen_hp: { current: 5, max: 10 },
-          vasquez_stress: { current: 3, max: null },
+          dr_chen: { hp: { current: 5, max: 10 } },
+          vasquez: { stress: { current: 3, max: null } },
         },
       };
 
@@ -71,14 +71,80 @@ describe('applyValidatedTurn', () => {
         priorGmContextBlob: {},
         applied: {
           ...emptyApplied(),
-          resourcePools: { dr_chen_hp: { current: 2, max: 10 } },
+          resourcePools: { dr_chen: { hp: { current: 2, max: 10 } } },
         },
         npcStates: {},
       });
 
       expect(newCampaignState.resourcePools).toEqual({
-        dr_chen_hp: { current: 2, max: 10 },
-        vasquez_stress: { current: 3, max: null },
+        dr_chen: { hp: { current: 2, max: 10 } },
+        vasquez: { stress: { current: 3, max: null } },
+      });
+    });
+
+    it('writing one pool leaves that owner’s other pools intact', () => {
+      // The deep-merge regression this nesting introduces. A shallow spread
+      // over the owner key replaces the owner's entire pool set with whichever
+      // single pool the turn wrote — ten pools become one, silently.
+      const priorCampaignState: MothershipCampaignState = {
+        ...emptyMothershipState(),
+        resourcePools: {
+          dr_chen: {
+            hp: { current: 18, max: 20 },
+            wounds: { current: 0, max: 2 },
+            stress: { current: 4, max: null },
+            strength: { current: 35, max: 35 },
+            speed: { current: 30, max: 30 },
+            intellect: { current: 45, max: 45 },
+            combat: { current: 33, max: 33 },
+            sanity: { current: 25, max: 25 },
+            fear: { current: 20, max: 20 },
+            body: { current: 28, max: 28 },
+            credits: { current: 120, max: null },
+          },
+        },
+      };
+
+      const { newCampaignState } = applyValidatedTurn({
+        priorCampaignState,
+        priorGmContextBlob: {},
+        applied: {
+          ...emptyApplied(),
+          resourcePools: { dr_chen: { hp: { current: 12, max: 20 } } },
+        },
+        npcStates: {},
+      });
+
+      expect(newCampaignState.resourcePools.dr_chen).toEqual({
+        ...priorCampaignState.resourcePools.dr_chen,
+        hp: { current: 12, max: 20 },
+      });
+      expect(Object.keys(newCampaignState.resourcePools.dr_chen)).toHaveLength(
+        11,
+      );
+    });
+
+    it('adds a pool to an owner that has none yet', () => {
+      const priorCampaignState: MothershipCampaignState = {
+        ...emptyMothershipState(),
+        resourcePools: { dr_chen: { hp: { current: 5, max: 10 } } },
+      };
+
+      const { newCampaignState } = applyValidatedTurn({
+        priorCampaignState,
+        priorGmContextBlob: {},
+        applied: {
+          ...emptyApplied(),
+          resourcePools: {
+            _scenario: { hull_breach_timer: { current: 5, max: 5 } },
+          },
+        },
+        npcStates: {},
+      });
+
+      expect(newCampaignState.resourcePools).toEqual({
+        dr_chen: { hp: { current: 5, max: 10 } },
+        _scenario: { hull_breach_timer: { current: 5, max: 5 } },
       });
     });
 

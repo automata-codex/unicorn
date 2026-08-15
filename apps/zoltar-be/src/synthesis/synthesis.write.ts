@@ -1,5 +1,6 @@
 import {
   emptyMothershipState,
+  isInvalidReservedPoolOwner,
   MothershipCampaignStateSchema,
   ResourcePoolSchema,
 } from '@uv/game-systems';
@@ -14,6 +15,7 @@ export class SynthesisWriteValidationError extends Error {
 }
 
 type ResourcePool = { current: number; max: number | null };
+type OwnedResourcePools = Record<string, Record<string, ResourcePool>>;
 
 /**
  * Pre-write validation for `submit_gm_context` input. Enforces invariants the
@@ -62,39 +64,42 @@ export type ResourcePoolContext = {
 };
 
 /**
- * Suffixes of the pools the player character already owns — for a sheet with
+ * Names of the pools the player character already owns — for a sheet with
  * `entityId: 'lt_alvarez'` and the pools character creation derives, this is
  * `{'hp', 'stress'}`. Used to recognise a second pool of the same kind minted
  * under a different spelling of the player's id.
+ *
+ * Since M7.6 this is the player owner's key set rather than a prefix scan over
+ * flat composite keys — the address carries the owner explicitly, so there is
+ * nothing to parse.
  */
-function playerPoolSuffixes(
-  existingPools: Record<string, ResourcePool>,
+function playerPoolNames(
+  existingPools: OwnedResourcePools,
   playerEntityId: string,
 ): Set<string> {
-  const prefix = `${playerEntityId}_`;
-  const suffixes = new Set<string>();
-  for (const key of Object.keys(existingPools)) {
-    if (key.startsWith(prefix)) suffixes.add(key.slice(prefix.length));
-  }
-  return suffixes;
+  return new Set(Object.keys(existingPools[playerEntityId] ?? {}));
 }
 
 /**
  * Merges resource pools from `initialState` into any pools already present in
- * the existing campaign state. Existing pools always win on key conflict —
- * player HP and stress, once seeded by character creation, must never be
+ * the existing campaign state. Existing pools always win on conflict — the
+ * player's own pools, once seeded by character creation, must never be
  * clobbered by synthesis output.
  *
- * Key preservation alone is not enough to keep one character to one set of
- * pools, and assuming it was is how the M7.5 capture ended up carrying
- * `alvarez_hp` alongside `lt_alvarez_hp`. Preservation only settles a
- * *collision*; the failure mode is the opposite one, where the model spells the
- * player's id differently, collides with nothing, and both spellings persist.
- * So a key that reads as a player pool — same suffix as one the player already
- * owns — is rejected unless its prefix resolves to the player's own id or to an
- * entity this payload declares. Prefixes that resolve to neither but name no
- * player pool (`station_power_reserve`, `contamination_spread_timer`) are
- * scenario-level state and pass through untouched.
+ * `initialState` is keyed by the `{owner}.{poolName}` address, matching
+ * `campaign_state.data.resourcePools`' two levels. Entries whose key is not
+ * that shape are skipped rather than guessed at.
+ *
+ * Preservation alone is not enough to keep one character to one set of pools,
+ * and assuming it was is how the M7.5 capture ended up carrying `alvarez.hp`
+ * alongside `lt_alvarez.hp`. Preservation only settles a *collision*; the
+ * failure mode is the opposite one, where the model spells the player's id
+ * differently, collides with nothing, and both spellings persist. So an entry
+ * that reads as a player pool — same pool name as one the player already owns
+ * — is rejected unless its owner resolves to the player's own id or to an
+ * entity this payload declares. Owners that resolve to neither but name no
+ * player pool (`_scenario.station_power_reserve`) are scenario-level state and
+ * pass through untouched.
  *
  * Returns the merged pools plus any keys dropped, so the caller can log them:
  * a drop here is a signal about model behaviour, not routine filtering.
@@ -102,31 +107,44 @@ function playerPoolSuffixes(
  * The function is pure; all inputs are plain data and the return is fresh.
  */
 export function buildResourcePools(
-  existingPools: Record<string, ResourcePool>,
+  existingPools: OwnedResourcePools,
   initialState: Record<string, unknown>,
   context: ResourcePoolContext,
-): { pools: Record<string, ResourcePool>; skipped: string[] } {
-  const merged: Record<string, ResourcePool> = { ...existingPools };
+): { pools: OwnedResourcePools; skipped: string[] } {
+  const merged: OwnedResourcePools = {};
+  for (const [owner, pools] of Object.entries(existingPools)) {
+    merged[owner] = { ...pools };
+  }
   const skipped: string[] = [];
-  const suffixes = playerPoolSuffixes(existingPools, context.playerEntityId);
+  const playerPools = playerPoolNames(existingPools, context.playerEntityId);
   const known = new Set([context.playerEntityId, ...context.knownEntityIds]);
 
-  for (const [key, value] of Object.entries(initialState)) {
-    if (key in merged) continue; // preserve existing player pools
-    const parsed = ResourcePoolSchema.safeParse(value);
-    if (!parsed.success) continue; // non-pool entries: see validate* above
+  for (const [address, value] of Object.entries(initialState)) {
+    const parts = address.split('.');
+    if (parts.length !== 2 || parts[0].length === 0 || parts[1].length === 0) {
+      skipped.push(address);
+      continue;
+    }
+    const [owner, poolName] = parts;
 
-    const impersonatesPlayer = [...suffixes].some((suffix) => {
-      if (!key.endsWith(`_${suffix}`)) return false;
-      const prefix = key.slice(0, key.length - suffix.length - 1);
-      return prefix.length > 0 && !known.has(prefix);
-    });
-    if (impersonatesPlayer) {
-      skipped.push(key);
+    // Reserved owners are the `_`-prefixed namespace, and `_scenario` is the
+    // only member. A typo there would otherwise create a silent second bucket
+    // that nothing renders under the name the model thought it used.
+    if (isInvalidReservedPoolOwner(owner)) {
+      skipped.push(address);
       continue;
     }
 
-    merged[key] = parsed.data;
+    if (merged[owner]?.[poolName]) continue; // preserve existing player pools
+    const parsed = ResourcePoolSchema.safeParse(value);
+    if (!parsed.success) continue; // non-pool entries: see validate* above
+
+    if (!known.has(owner) && playerPools.has(poolName)) {
+      skipped.push(address);
+      continue;
+    }
+
+    (merged[owner] ??= {})[poolName] = parsed.data;
   }
   return { pools: merged, skipped };
 }
@@ -160,8 +178,7 @@ export function buildCampaignStateData(
 ): { data: Record<string, unknown>; skippedPools: string[] } {
   const base = existing ?? emptyMothershipState();
   const existingPools =
-    (base as { resourcePools?: Record<string, ResourcePool> }).resourcePools ??
-    {};
+    (base as { resourcePools?: OwnedResourcePools }).resourcePools ?? {};
   const existingEntities =
     (
       base as {

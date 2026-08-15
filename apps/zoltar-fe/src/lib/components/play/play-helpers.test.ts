@@ -30,8 +30,10 @@ describe('deriveCharacterStatus', () => {
     const status = deriveCharacterStatus({
       state: stateWith({
         resourcePools: {
-          dr_chen_hp: { current: 7, max: 10 },
-          dr_chen_stress: { current: 2, max: 20 },
+          dr_chen: {
+            hp: { current: 7, max: 10 },
+            stress: { current: 2, max: 20 },
+          },
         },
       }),
       playerEntityId: 'dr_chen',
@@ -47,7 +49,7 @@ describe('deriveCharacterStatus', () => {
     const status = deriveCharacterStatus({
       state: stateWith({
         resourcePools: {
-          dr_chen_hp: { current: 9, max: null },
+          dr_chen: { hp: { current: 9, max: null } },
         },
       }),
       playerEntityId: 'dr_chen',
@@ -84,12 +86,12 @@ describe('applyStatusDelta', () => {
     conditions: '',
   };
 
-  it('overwrites HP when applied.resourcePools carries the player HP key', () => {
+  it('overwrites HP when applied.resourcePools carries the player hp pool', () => {
     const next = applyStatusDelta({
       previous,
       playerEntityId: 'dr_chen',
       applied: {
-        resourcePools: { dr_chen_hp: { current: 6, max: 10 } },
+        resourcePools: { dr_chen: { hp: { current: 6, max: 10 } } },
       },
     });
     expect(next.hp).toEqual({ current: 6, max: 10 });
@@ -110,7 +112,7 @@ describe('applyStatusDelta', () => {
       previous,
       playerEntityId: 'dr_chen',
       applied: {
-        resourcePools: { dr_chen_hp: { current: 4, max: null } },
+        resourcePools: { dr_chen: { hp: { current: 4, max: null } } },
       },
     });
     expect(next.hp).toEqual({ current: 4, max: 10 });
@@ -133,7 +135,7 @@ describe('applyStatusDelta', () => {
 describe('formatThresholdLine', () => {
   it('capitalizes the entity id and unsnakes the effect', () => {
     const line = formatThresholdLine({
-      pool: 'dr_chen_hp',
+      pool: 'dr_chen.hp',
       finalValue: 0,
       effect: 'death_save_required',
     });

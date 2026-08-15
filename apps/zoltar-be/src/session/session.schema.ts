@@ -12,8 +12,19 @@ export const submitGmResponseSchema = z.object({
 
   stateChanges: z
     .object({
+      // Keyed by the pool's two-level address, `{owner}.{poolName}` — the same
+      // string `<resource_pools>` renders in the state snapshot. M7.6 Part 4
+      // replaces this map with an array of self-describing entries carrying
+      // `reason`, `maxDelta` and `damageType`.
       resourcePools: z
         .record(z.string(), z.object({ delta: z.number().int() }))
+        .describe(
+          'Resource pool changes, keyed by "{owner}.{poolName}" — the owning ' +
+            'entity id, a dot, then the bare pool name, exactly as shown in ' +
+            '<resource_pools>. "dr_chen.hp", not "dr_chen_hp". Pools that ' +
+            'belong to no entity (countdown timers, station subsystems) use ' +
+            'the reserved owner "_scenario".',
+        )
         .optional(),
 
       entities: z

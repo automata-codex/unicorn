@@ -282,7 +282,10 @@ describe('CampaignRepository (integration)', () => {
 
   describe('mergePlayerResourcePools', () => {
     async function seedCampaignWithState(
-      initialPools: Record<string, { current: number; max: number | null }>,
+      initialPools: Record<
+        string,
+        Record<string, { current: number; max: number | null }>
+      >,
     ): Promise<string> {
       const systemId = await seedMothershipSystem();
       const campaign = await repo.insertCampaign({
@@ -311,8 +314,10 @@ describe('CampaignRepository (integration)', () => {
       const campaignId = await seedCampaignWithState({});
 
       await repo.mergePlayerResourcePools(campaignId, {
-        vasquez_hp: { current: 15, max: 15 },
-        vasquez_stress: { current: 0, max: 20 },
+        vasquez: {
+          hp: { current: 15, max: 15 },
+          stress: { current: 0, max: 20 },
+        },
       });
 
       const [row] = await db
@@ -322,21 +327,26 @@ describe('CampaignRepository (integration)', () => {
       const pools = (row.data as { resourcePools: Record<string, unknown> })
         .resourcePools;
       expect(pools).toEqual({
-        vasquez_hp: { current: 15, max: 15 },
-        vasquez_stress: { current: 0, max: 20 },
+        vasquez: {
+          hp: { current: 15, max: 15 },
+          stress: { current: 0, max: 20 },
+        },
       });
     });
 
-    it('preserves existing pools on key conflict', async () => {
+    it('preserves existing pools on conflict, per pool rather than per owner', async () => {
       const db = getTestDb();
       const campaignId = await seedCampaignWithState({
-        vasquez_hp: { current: 3, max: 15 }, // live value, must be preserved
-        dr_chen_hp: { current: 10, max: 10 },
+        // Live value, must be preserved.
+        vasquez: { hp: { current: 3, max: 15 } },
+        dr_chen: { hp: { current: 10, max: 10 } },
       });
 
       await repo.mergePlayerResourcePools(campaignId, {
-        vasquez_hp: { current: 15, max: 15 }, // should NOT overwrite
-        vasquez_stress: { current: 0, max: 20 }, // should be added
+        vasquez: {
+          hp: { current: 15, max: 15 }, // should NOT overwrite
+          stress: { current: 0, max: 20 }, // should be added
+        },
       });
 
       const [row] = await db
@@ -345,12 +355,47 @@ describe('CampaignRepository (integration)', () => {
         .where(eq(schema.campaignStates.campaignId, campaignId));
       const pools = (
         row.data as {
-          resourcePools: Record<string, { current: number; max: number }>;
+          resourcePools: Record<
+            string,
+            Record<string, { current: number; max: number }>
+          >;
         }
       ).resourcePools;
-      expect(pools.vasquez_hp).toEqual({ current: 3, max: 15 });
-      expect(pools.dr_chen_hp).toEqual({ current: 10, max: 10 });
-      expect(pools.vasquez_stress).toEqual({ current: 0, max: 20 });
+      expect(pools.vasquez.hp).toEqual({ current: 3, max: 15 });
+      expect(pools.dr_chen.hp).toEqual({ current: 10, max: 10 });
+      expect(pools.vasquez.stress).toEqual({ current: 0, max: 20 });
+    });
+
+    it('seeding one pool does not drop the owner\u2019s existing pools', async () => {
+      // The nesting hazard: a per-owner overwrite would replace vasquez's
+      // whole pool set with just `hp`, deleting nine live values.
+      const db = getTestDb();
+      const campaignId = await seedCampaignWithState({
+        vasquez: {
+          hp: { current: 12, max: 20 },
+          stress: { current: 5, max: null },
+          wounds: { current: 1, max: 2 },
+        },
+      });
+
+      await repo.mergePlayerResourcePools(campaignId, {
+        vasquez: { credits: { current: 90, max: null } },
+      });
+
+      const [row] = await db
+        .select()
+        .from(schema.campaignStates)
+        .where(eq(schema.campaignStates.campaignId, campaignId));
+      const pools = (
+        row.data as { resourcePools: Record<string, Record<string, unknown>> }
+      ).resourcePools;
+      expect(Object.keys(pools.vasquez).sort()).toEqual([
+        'credits',
+        'hp',
+        'stress',
+        'wounds',
+      ]);
+      expect(pools.vasquez.hp).toEqual({ current: 12, max: 20 });
     });
 
     it('throws when no campaign_state row exists for the campaign', async () => {
@@ -363,7 +408,7 @@ describe('CampaignRepository (integration)', () => {
       });
       await expect(
         repo.mergePlayerResourcePools(campaign.id, {
-          x_hp: { current: 1, max: 1 },
+          x: { hp: { current: 1, max: 1 } },
         }),
       ).rejects.toThrow(/campaign_state row missing/);
     });

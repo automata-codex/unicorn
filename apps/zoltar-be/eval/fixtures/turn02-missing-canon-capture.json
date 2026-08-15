@@ -7,65 +7,81 @@
     "campaignState": {
       "schemaVersion": 1,
       "resourcePools": {
-        "alvarez_hp": {
-          "max": 20,
-          "current": 20
+        "alvarez": {
+          "hp": {
+            "max": 20,
+            "current": 20
+          },
+          "armor": {
+            "max": 30,
+            "current": 30
+          },
+          "stress": {
+            "max": 3,
+            "current": 0
+          }
         },
-        "alvarez_armor": {
-          "max": 30,
-          "current": 30
+        "_scenario": {
+          "hull_breach_timer": {
+            "max": 5,
+            "current": 5
+          },
+          "station_power_reserve": {
+            "max": 4,
+            "current": 4
+          },
+          "station_power_integrity": {
+            "max": 10,
+            "current": 6
+          },
+          "contamination_spread_timer": {
+            "max": 6,
+            "current": 6
+          },
+          "signal_pattern_shift_timer": {
+            "max": 3,
+            "current": 3
+          }
         },
-        "alvarez_stress": {
-          "max": 3,
-          "current": 0
+        "decommissioned_android": {
+          "memory_integrity": {
+            "max": 3,
+            "current": 3
+          },
+          "hp": {
+            "max": 12,
+            "current": 12
+          }
         },
-        "hull_breach_timer": {
-          "max": 5,
-          "current": 5
+        "veridian_contractor_beta": {
+          "hp": {
+            "max": 15,
+            "current": 15
+          }
         },
-        "station_power_reserve": {
-          "max": 4,
-          "current": 4
+        "veridian_contractor_alpha": {
+          "hp": {
+            "max": 15,
+            "current": 15
+          }
         },
-        "station_power_integrity": {
-          "max": 10,
-          "current": 6
+        "veridian_contractor_delta": {
+          "hp": {
+            "max": 15,
+            "current": 15
+          }
         },
-        "android_memory_integrity": {
-          "max": 3,
-          "current": 3
+        "veridian_contractor_gamma": {
+          "hp": {
+            "max": 15,
+            "current": 15
+          }
         },
-        "decommissioned_android_hp": {
-          "max": 12,
-          "current": 12
-        },
-        "contamination_spread_timer": {
-          "max": 6,
-          "current": 6
-        },
-        "signal_pattern_shift_timer": {
-          "max": 3,
-          "current": 3
-        },
-        "veridian_contractor_beta_hp": {
-          "max": 15,
-          "current": 15
-        },
-        "veridian_contractor_alpha_hp": {
-          "max": 15,
-          "current": 15
-        },
-        "veridian_contractor_delta_hp": {
-          "max": 15,
-          "current": 15
-        },
-        "veridian_contractor_gamma_hp": {
-          "max": 15,
-          "current": 15
-        },
-        "burned_out_medic_supply_timer": {
-          "max": 6,
-          "current": 6
+        "burned_out_medic": {
+          "supply_timer": {
+            "max": 6,
+            "current": 6
+          }
         }
       },
       "entities": {

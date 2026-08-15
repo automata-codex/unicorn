@@ -7,6 +7,7 @@ import * as schema from '../db/schema';
 import type { Db } from '../db/db.provider';
 
 type ResourcePool = { current: number; max: number | null };
+type OwnedResourcePools = Record<string, Record<string, ResourcePool>>;
 
 @Injectable()
 export class CampaignRepository {
@@ -64,17 +65,23 @@ export class CampaignRepository {
   /**
    * Merges new resource pools into `campaign_state.data.resourcePools` for a
    * campaign, preserving any pools already present. Used at character
-   * creation time to seed player HP / stress. Existing keys always win so
-   * that an in-progress adventure can never have its live state clobbered by
+   * creation time to seed player pools. Existing pools always win so that an
+   * in-progress adventure can never have its live state clobbered by
    * re-running character creation (today that path is blocked upstream, but
    * the merge is cheap insurance).
+   *
+   * The merge goes **one owner deep**. Pools are nested as
+   * `resourcePools[owner][poolName]` since M7.6, so a per-owner overwrite
+   * would drop every pool of that owner the new set does not mention —
+   * seeding hp would silently delete stress. Preserve-on-conflict is
+   * therefore per *pool*, not per owner.
    *
    * Runs inside a transaction so concurrent callers can't race the read and
    * the write.
    */
   async mergePlayerResourcePools(
     campaignId: string,
-    newPools: Record<string, ResourcePool>,
+    newPools: OwnedResourcePools,
   ): Promise<void> {
     await this.db.transaction(async (tx) => {
       const rows = await tx
@@ -89,10 +96,13 @@ export class CampaignRepository {
       }
       const data = (rows[0].data as Record<string, unknown> | null) ?? {};
       const existingPools =
-        (data.resourcePools as Record<string, ResourcePool> | undefined) ?? {};
-      const mergedPools: Record<string, ResourcePool> = { ...newPools };
-      for (const [key, value] of Object.entries(existingPools)) {
-        mergedPools[key] = value;
+        (data.resourcePools as OwnedResourcePools | undefined) ?? {};
+      const mergedPools: OwnedResourcePools = {};
+      for (const [owner, pools] of Object.entries(newPools)) {
+        mergedPools[owner] = { ...pools };
+      }
+      for (const [owner, pools] of Object.entries(existingPools)) {
+        mergedPools[owner] = { ...(mergedPools[owner] ?? {}), ...pools };
       }
       const nextData = { ...data, resourcePools: mergedPools };
       await tx

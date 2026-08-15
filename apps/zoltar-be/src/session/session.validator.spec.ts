@@ -18,33 +18,81 @@ function stateWith(
 describe('validateStateChanges — resourcePools', () => {
   it('initializes an unknown pool when the delta is positive', () => {
     const result = validateStateChanges({
-      proposed: { resourcePools: { xenomorph_hp: { delta: 12 } } },
+      proposed: { resourcePools: { 'xenomorph.hp': { delta: 12 } } },
       currentData: emptyMothershipState(),
       poolDef,
     });
     expect(result.rejections).toEqual([]);
     expect(result.applied.resourcePools).toEqual({
-      xenomorph_hp: { current: 12, max: null },
+      xenomorph: { hp: { current: 12, max: null } },
     });
   });
 
   it('rejects an unknown pool when the delta is non-positive', () => {
     const result = validateStateChanges({
-      proposed: { resourcePools: { xenomorph_hp: { delta: -3 } } },
+      proposed: { resourcePools: { 'xenomorph.hp': { delta: -3 } } },
       currentData: emptyMothershipState(),
       poolDef,
     });
     expect(result.applied.resourcePools).toEqual({});
     expect(result.rejections).toHaveLength(1);
-    expect(result.rejections[0].path).toBe('resourcePools.xenomorph_hp');
+    expect(result.rejections[0].path).toBe('resourcePools.xenomorph.hp');
     expect(result.rejections[0].reason).toMatch(/bootstrap/i);
+  });
+
+  it('rejects an address that is not {owner}.{poolName}', () => {
+    const result = validateStateChanges({
+      proposed: { resourcePools: { dr_chen_hp: { delta: -2 } } },
+      currentData: emptyMothershipState(),
+      poolDef,
+    });
+    expect(result.applied.resourcePools).toEqual({});
+    expect(result.rejections).toHaveLength(1);
+    expect(result.rejections[0].path).toBe('resourcePools.dr_chen_hp');
+    expect(result.rejections[0].reason).toMatch(/\{owner\}\.\{poolName\}/);
+  });
+
+  it('rejects an address with more than two parts', () => {
+    const result = validateStateChanges({
+      proposed: { resourcePools: { 'a.b.c': { delta: 1 } } },
+      currentData: emptyMothershipState(),
+      poolDef,
+    });
+    expect(result.applied.resourcePools).toEqual({});
+    expect(result.rejections).toHaveLength(1);
+  });
+
+  it('accepts the reserved _scenario owner', () => {
+    const result = validateStateChanges({
+      proposed: {
+        resourcePools: { '_scenario.hull_breach_timer': { delta: 5 } },
+      },
+      currentData: emptyMothershipState(),
+      poolDef,
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.applied.resourcePools._scenario.hull_breach_timer).toEqual({
+      current: 5,
+      max: null,
+    });
+  });
+
+  it('rejects an unrecognised leading-underscore owner', () => {
+    const result = validateStateChanges({
+      proposed: { resourcePools: { '_station.power_reserve': { delta: 4 } } },
+      currentData: emptyMothershipState(),
+      poolDef,
+    });
+    expect(result.applied.resourcePools).toEqual({});
+    expect(result.rejections).toHaveLength(1);
+    expect(result.rejections[0].reason).toMatch(/_scenario/);
   });
 
   it('rejects bootstrapping a pool that re-spells the player entity id', () => {
     const result = validateStateChanges({
-      proposed: { resourcePools: { alvarez_hp: { delta: 20 } } },
+      proposed: { resourcePools: { 'alvarez.hp': { delta: 20 } } },
       currentData: stateWith({
-        resourcePools: { lt_alvarez_hp: { current: 20, max: 20 } },
+        resourcePools: { lt_alvarez: { hp: { current: 20, max: 20 } } },
       }),
       poolDef,
       identifiers: {
@@ -54,16 +102,16 @@ describe('validateStateChanges — resourcePools', () => {
     });
     expect(result.applied.resourcePools).toEqual({});
     expect(result.rejections).toHaveLength(1);
-    expect(result.rejections[0].path).toBe('resourcePools.alvarez_hp');
+    expect(result.rejections[0].path).toBe('resourcePools.alvarez.hp');
     // The valid id is named so the model can correct inside the loop.
     expect(result.rejections[0].reason).toContain('lt_alvarez');
   });
 
-  it('still bootstraps a pool for a known entity that shares a player suffix', () => {
+  it('still bootstraps a pool for a known entity that shares a player pool name', () => {
     const result = validateStateChanges({
-      proposed: { resourcePools: { burned_out_medic_hp: { delta: 8 } } },
+      proposed: { resourcePools: { 'burned_out_medic.hp': { delta: 8 } } },
       currentData: stateWith({
-        resourcePools: { lt_alvarez_hp: { current: 20, max: 20 } },
+        resourcePools: { lt_alvarez: { hp: { current: 20, max: 20 } } },
       }),
       poolDef,
       identifiers: {
@@ -73,22 +121,22 @@ describe('validateStateChanges — resourcePools', () => {
     });
     expect(result.rejections).toEqual([]);
     expect(result.applied.resourcePools).toEqual({
-      burned_out_medic_hp: { current: 8, max: null },
+      burned_out_medic: { hp: { current: 8, max: null } },
     });
   });
 
-  it('still bootstraps a scenario-level pool whose prefix names no entity', () => {
+  it('still bootstraps a scenario-level pool naming no player pool', () => {
     const result = validateStateChanges({
-      proposed: { resourcePools: { station_power_reserve: { delta: 4 } } },
+      proposed: { resourcePools: { '_scenario.power_reserve': { delta: 4 } } },
       currentData: stateWith({
-        resourcePools: { lt_alvarez_hp: { current: 20, max: 20 } },
+        resourcePools: { lt_alvarez: { hp: { current: 20, max: 20 } } },
       }),
       poolDef,
       identifiers: { playerEntityIds: ['lt_alvarez'], knownEntityIds: [] },
     });
     expect(result.rejections).toEqual([]);
-    expect(result.applied.resourcePools).toHaveProperty(
-      'station_power_reserve',
+    expect(result.applied.resourcePools._scenario).toHaveProperty(
+      'power_reserve',
     );
   });
 
@@ -96,22 +144,22 @@ describe('validateStateChanges — resourcePools', () => {
     // Mirrors roll_dice's empty-known-set behaviour: a campaign without a
     // character sheet must not have every pool bootstrap rejected.
     const result = validateStateChanges({
-      proposed: { resourcePools: { alvarez_hp: { delta: 20 } } },
+      proposed: { resourcePools: { 'alvarez.hp': { delta: 20 } } },
       currentData: stateWith({
-        resourcePools: { lt_alvarez_hp: { current: 20, max: 20 } },
+        resourcePools: { lt_alvarez: { hp: { current: 20, max: 20 } } },
       }),
       poolDef,
       identifiers: { playerEntityIds: [], knownEntityIds: [] },
     });
     expect(result.rejections).toEqual([]);
-    expect(result.applied.resourcePools).toHaveProperty('alvarez_hp');
+    expect(result.applied.resourcePools).toHaveProperty('alvarez');
   });
 
   it('rejects spending a min:0 pool below zero without applying a partial delta', () => {
     const result = validateStateChanges({
-      proposed: { resourcePools: { dr_chen_stress: { delta: -5 } } },
+      proposed: { resourcePools: { 'dr_chen.stress': { delta: -5 } } },
       currentData: stateWith({
-        resourcePools: { dr_chen_stress: { current: 3, max: null } },
+        resourcePools: { dr_chen: { stress: { current: 3, max: null } } },
       }),
       poolDef,
     });
@@ -120,30 +168,69 @@ describe('validateStateChanges — resourcePools', () => {
     expect(result.rejections[0].reason).toMatch(/spend more than available/i);
   });
 
-  it('reports the death_save_required threshold when HP crosses zero downward', () => {
+  it('rejects HP falling below zero now that hp carries min: 0', () => {
+    // Pre-M7.6 hp had `min: null` and slid negative. The floor is what makes
+    // the wounds chain (Part 5) reachable instead of HP staying below zero.
     const result = validateStateChanges({
-      proposed: { resourcePools: { dr_chen_hp: { delta: -6 } } },
+      proposed: { resourcePools: { 'dr_chen.hp': { delta: -6 } } },
       currentData: stateWith({
-        resourcePools: { dr_chen_hp: { current: 5, max: 10 } },
+        resourcePools: { dr_chen: { hp: { current: 5, max: 10 } } },
+      }),
+      poolDef,
+    });
+    expect(result.applied.resourcePools).toEqual({});
+    expect(result.rejections).toHaveLength(1);
+    expect(result.rejections[0].path).toBe('resourcePools.dr_chen.hp');
+  });
+
+  it('reports the death_save_required threshold when HP reaches zero', () => {
+    const result = validateStateChanges({
+      proposed: { resourcePools: { 'dr_chen.hp': { delta: -5 } } },
+      currentData: stateWith({
+        resourcePools: { dr_chen: { hp: { current: 5, max: 10 } } },
       }),
       poolDef,
     });
     expect(result.rejections).toEqual([]);
-    expect(result.applied.resourcePools.dr_chen_hp).toEqual({
-      current: -1,
+    expect(result.applied.resourcePools.dr_chen.hp).toEqual({
+      current: 0,
       max: 10,
     });
+    // Threshold crossings are strict (`newCurrent < t.value`), so landing
+    // exactly on zero does not fire it. hp's floor is now zero, so nothing can
+    // cross below — which is why this threshold is dead weight and Part 5
+    // removes it along with the wounds chain that replaces it.
+    expect(result.thresholds).toEqual([]);
+  });
+
+  it('addresses a threshold crossing owner-first', () => {
+    const customPoolDef = () => ({
+      min: null,
+      max: null,
+      thresholds: [{ value: 0, effect: 'reactor_scram' }],
+    });
+    const result = validateStateChanges({
+      proposed: { resourcePools: { '_scenario.coolant': { delta: -6 } } },
+      currentData: stateWith({
+        resourcePools: { _scenario: { coolant: { current: 5, max: 10 } } },
+      }),
+      poolDef: customPoolDef,
+    });
     expect(result.thresholds).toEqual([
-      { pool: 'dr_chen_hp', finalValue: -1, effect: 'death_save_required' },
+      { pool: '_scenario.coolant', finalValue: -1, effect: 'reactor_scram' },
     ]);
   });
 
   it('rejects a delta that would drop a pool below its non-zero minimum', () => {
     const customPoolDef = () => ({ min: 5, max: null, thresholds: [] });
     const result = validateStateChanges({
-      proposed: { resourcePools: { reactor_coolant: { delta: -4 } } },
+      proposed: {
+        resourcePools: { '_scenario.reactor_coolant': { delta: -4 } },
+      },
       currentData: stateWith({
-        resourcePools: { reactor_coolant: { current: 8, max: null } },
+        resourcePools: {
+          _scenario: { reactor_coolant: { current: 8, max: null } },
+        },
       }),
       poolDef: customPoolDef,
     });
@@ -155,9 +242,13 @@ describe('validateStateChanges — resourcePools', () => {
   it('rejects a delta that would push a pool above its maximum', () => {
     const customPoolDef = () => ({ min: null, max: 100, thresholds: [] });
     const result = validateStateChanges({
-      proposed: { resourcePools: { reactor_coolant: { delta: 30 } } },
+      proposed: {
+        resourcePools: { '_scenario.reactor_coolant': { delta: 30 } },
+      },
       currentData: stateWith({
-        resourcePools: { reactor_coolant: { current: 80, max: 100 } },
+        resourcePools: {
+          _scenario: { reactor_coolant: { current: 80, max: 100 } },
+        },
       }),
       poolDef: customPoolDef,
     });
@@ -166,19 +257,49 @@ describe('validateStateChanges — resourcePools', () => {
     expect(result.rejections[0].reason).toMatch(/exceed maximum \(100\)/);
   });
 
-  it('does not fire the HP threshold when healing from -1 to +2 (already past it)', () => {
-    const result = validateStateChanges({
-      proposed: { resourcePools: { dr_chen_hp: { delta: 3 } } },
-      currentData: stateWith({
-        resourcePools: { dr_chen_hp: { current: -1, max: 10 } },
-      }),
-      poolDef,
+  it('does not fire a threshold when healing from -1 to +2 (already past it)', () => {
+    const customPoolDef = () => ({
+      min: null,
+      max: null,
+      thresholds: [{ value: 0, effect: 'reactor_scram' }],
     });
-    expect(result.applied.resourcePools.dr_chen_hp).toEqual({
+    const result = validateStateChanges({
+      proposed: { resourcePools: { '_scenario.coolant': { delta: 3 } } },
+      currentData: stateWith({
+        resourcePools: { _scenario: { coolant: { current: -1, max: 10 } } },
+      }),
+      poolDef: customPoolDef,
+    });
+    expect(result.applied.resourcePools._scenario.coolant).toEqual({
       current: 2,
       max: 10,
     });
     expect(result.thresholds).toEqual([]);
+  });
+
+  it('applies two pools of the same owner in one turn', () => {
+    const result = validateStateChanges({
+      proposed: {
+        resourcePools: {
+          'dr_chen.hp': { delta: -2 },
+          'dr_chen.stress': { delta: 1 },
+        },
+      },
+      currentData: stateWith({
+        resourcePools: {
+          dr_chen: {
+            hp: { current: 10, max: 10 },
+            stress: { current: 2, max: null },
+          },
+        },
+      }),
+      poolDef,
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.applied.resourcePools.dr_chen).toEqual({
+      hp: { current: 8, max: 10 },
+      stress: { current: 3, max: null },
+    });
   });
 });
 
@@ -190,7 +311,7 @@ describe('validateStateChanges — entities', () => {
         entities: {
           dr_chen: { visible: true, status: 'alive', npcState: 'Stressed' },
         },
-        resourcePools: { dr_chen_hp: { current: 5, max: 10 } },
+        resourcePools: { dr_chen: { hp: { current: 5, max: 10 } } },
       }),
       poolDef,
     });
@@ -342,8 +463,8 @@ describe('validateStateChanges — mixed batch', () => {
     const result = validateStateChanges({
       proposed: {
         resourcePools: {
-          dr_chen_hp: { delta: -2 },
-          xenomorph_hp: { delta: -5 },
+          'dr_chen.hp': { delta: -2 },
+          'xenomorph.hp': { delta: -5 },
         },
         flags: {
           unknown_flag: { value: true },
@@ -352,7 +473,7 @@ describe('validateStateChanges — mixed batch', () => {
         worldFacts: { corridor_smell: 'ozone and burnt hair' },
       },
       currentData: stateWith({
-        resourcePools: { dr_chen_hp: { current: 5, max: 10 } },
+        resourcePools: { dr_chen: { hp: { current: 5, max: 10 } } },
         flags: {
           known_flag: { value: false, trigger: 'airlock cycles' },
         },
@@ -361,7 +482,7 @@ describe('validateStateChanges — mixed batch', () => {
     });
 
     expect(result.applied.resourcePools).toEqual({
-      dr_chen_hp: { current: 3, max: 10 },
+      dr_chen: { hp: { current: 3, max: 10 } },
     });
     expect(result.applied.flags).toEqual({
       known_flag: { value: true, trigger: 'airlock cycles' },
@@ -372,7 +493,7 @@ describe('validateStateChanges — mixed batch', () => {
     expect(result.rejections).toHaveLength(2);
     expect(result.rejections.map((r) => r.path).sort()).toEqual([
       'flags.unknown_flag',
-      'resourcePools.xenomorph_hp',
+      'resourcePools.xenomorph.hp',
     ]);
   });
 });

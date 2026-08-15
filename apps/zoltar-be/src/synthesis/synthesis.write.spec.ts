@@ -45,7 +45,7 @@ function makeInput(overrides: Partial<SubmitGmContext> = {}): SubmitGmContext {
         },
       },
       initialState: {
-        dr_chen_hp: { current: 10, max: 10 },
+        'dr_chen.hp': { current: 10, max: 10 },
       },
     },
     ...overrides,
@@ -94,27 +94,41 @@ describe('validateSubmitGmContextForWrite', () => {
 });
 
 describe('buildResourcePools', () => {
-  it('preserves existing pools on key conflict', () => {
+  it('preserves existing pools on address conflict', () => {
     const existing = {
-      vasquez_hp: { current: 15, max: 15 },
-      dr_chen_hp: { current: 1, max: 10 },
+      vasquez: { hp: { current: 15, max: 15 } },
+      dr_chen: { hp: { current: 1, max: 10 } },
     };
     const initialState = {
-      dr_chen_hp: { current: 10, max: 10 }, // should be ignored
-      crewman_wick_timer: { current: 4, max: 4 },
+      'dr_chen.hp': { current: 10, max: 10 }, // should be ignored
+      'crewman_wick.timer': { current: 4, max: 4 },
     };
     const result = buildResourcePools(existing, initialState, {
       playerEntityId: 'vasquez',
       knownEntityIds: ['dr_chen', 'crewman_wick'],
     });
-    expect(result.pools.vasquez_hp).toEqual({ current: 15, max: 15 });
-    expect(result.pools.dr_chen_hp).toEqual({ current: 1, max: 10 });
-    expect(result.pools.crewman_wick_timer).toEqual({ current: 4, max: 4 });
+    expect(result.pools.vasquez.hp).toEqual({ current: 15, max: 15 });
+    expect(result.pools.dr_chen.hp).toEqual({ current: 1, max: 10 });
+    expect(result.pools.crewman_wick.timer).toEqual({ current: 4, max: 4 });
     expect(result.skipped).toEqual([]);
   });
 
-  it('returns a fresh top-level object', () => {
-    const existing = { vasquez_hp: { current: 15, max: 15 } };
+  it('adds a pool to an owner that already has one, keeping both', () => {
+    // The deep-merge case. A per-owner overwrite would drop `hp` here.
+    const existing = { vasquez: { hp: { current: 15, max: 15 } } };
+    const result = buildResourcePools(
+      existing,
+      { 'vasquez.oxygen': { current: 6, max: 6 } },
+      { playerEntityId: 'vasquez', knownEntityIds: [] },
+    );
+    expect(result.pools.vasquez).toEqual({
+      hp: { current: 15, max: 15 },
+      oxygen: { current: 6, max: 6 },
+    });
+  });
+
+  it('returns a fresh object at both levels', () => {
+    const existing = { vasquez: { hp: { current: 15, max: 15 } } };
     const result = buildResourcePools(
       existing,
       {},
@@ -124,57 +138,81 @@ describe('buildResourcePools', () => {
       },
     );
     expect(result.pools).not.toBe(existing);
-    // Adding a key to `result.pools` must not mutate `existing`.
-    result.pools.new_pool = { current: 1, max: 1 };
-    expect(existing).not.toHaveProperty('new_pool');
+    expect(result.pools.vasquez).not.toBe(existing.vasquez);
+    // Writing into `result.pools` must not mutate `existing` at either level.
+    result.pools.new_owner = { some_pool: { current: 1, max: 1 } };
+    result.pools.vasquez.stress = { current: 2, max: null };
+    expect(existing).not.toHaveProperty('new_owner');
+    expect(existing.vasquez).not.toHaveProperty('stress');
   });
 
   it('drops a pool that re-spells the player id, and reports it as skipped', () => {
     // The M7.5 capture in miniature: the sheet says `lt_alvarez`, the model
-    // emits `alvarez_*`. Nothing collides, so key preservation alone lets both
+    // emits `alvarez.*`. Nothing collides, so preservation alone lets both
     // spellings persist for one character.
     const existing = {
-      lt_alvarez_hp: { current: 20, max: 20 },
-      lt_alvarez_stress: { current: 0, max: 3 },
+      lt_alvarez: {
+        hp: { current: 20, max: 20 },
+        stress: { current: 0, max: 3 },
+      },
     };
     const initialState = {
-      alvarez_hp: { current: 20, max: 20 },
-      alvarez_stress: { current: 0, max: 3 },
+      'alvarez.hp': { current: 20, max: 20 },
+      'alvarez.stress': { current: 0, max: 3 },
     };
     const result = buildResourcePools(existing, initialState, {
       playerEntityId: 'lt_alvarez',
       knownEntityIds: ['burned_out_medic'],
     });
     expect(result.pools).toEqual(existing);
-    expect(result.skipped.sort()).toEqual(['alvarez_hp', 'alvarez_stress']);
+    expect(result.skipped.sort()).toEqual(['alvarez.hp', 'alvarez.stress']);
   });
 
-  it('keeps NPC pools that share a suffix with a player pool', () => {
-    const existing = { lt_alvarez_hp: { current: 20, max: 20 } };
+  it('keeps NPC pools that share a pool name with a player pool', () => {
+    const existing = { lt_alvarez: { hp: { current: 20, max: 20 } } };
     const result = buildResourcePools(
       existing,
-      { burned_out_medic_hp: { current: 8, max: 8 } },
+      { 'burned_out_medic.hp': { current: 8, max: 8 } },
       { playerEntityId: 'lt_alvarez', knownEntityIds: ['burned_out_medic'] },
     );
-    expect(result.pools).toHaveProperty('burned_out_medic_hp');
+    expect(result.pools.burned_out_medic).toHaveProperty('hp');
     expect(result.skipped).toEqual([]);
   });
 
-  it('keeps scenario-level pools whose prefix resolves to no entity', () => {
-    // `station_power` is not an entity and never will be — these are the
-    // legitimate unattached pools the check must not touch.
-    const existing = { lt_alvarez_hp: { current: 20, max: 20 } };
+  it('keeps _scenario pools naming no player pool', () => {
+    // The legitimate unattached pools the impersonation check must not touch.
+    const existing = { lt_alvarez: { hp: { current: 20, max: 20 } } };
     const result = buildResourcePools(
       existing,
       {
-        station_power_reserve: { current: 4, max: 4 },
-        contamination_spread_timer: { current: 6, max: 6 },
+        '_scenario.station_power_reserve': { current: 4, max: 4 },
+        '_scenario.contamination_spread_timer': { current: 6, max: 6 },
       },
       { playerEntityId: 'lt_alvarez', knownEntityIds: [] },
     );
-    expect(result.pools).toHaveProperty('station_power_reserve');
-    expect(result.pools).toHaveProperty('contamination_spread_timer');
+    expect(result.pools._scenario).toHaveProperty('station_power_reserve');
+    expect(result.pools._scenario).toHaveProperty('contamination_spread_timer');
     expect(result.skipped).toEqual([]);
+  });
+
+  it('skips a composite single-part key left over from the pre-M7.6 shape', () => {
+    const result = buildResourcePools(
+      {},
+      { station_power_reserve: { current: 4, max: 4 } },
+      { playerEntityId: 'vasquez', knownEntityIds: [] },
+    );
+    expect(result.pools).toEqual({});
+    expect(result.skipped).toEqual(['station_power_reserve']);
+  });
+
+  it('skips an unrecognised leading-underscore owner', () => {
+    const result = buildResourcePools(
+      {},
+      { '_station.power_reserve': { current: 4, max: 4 } },
+      { playerEntityId: 'vasquez', knownEntityIds: [] },
+    );
+    expect(result.pools).toEqual({});
+    expect(result.skipped).toEqual(['_station.power_reserve']);
   });
 });
 
@@ -192,7 +230,7 @@ describe('buildCampaignStateData', () => {
   it('merges onto an existing row and satisfies MothershipCampaignStateSchema', () => {
     const existing = {
       schemaVersion: 1,
-      resourcePools: { vasquez_hp: { current: 15, max: 15 } },
+      resourcePools: { vasquez: { hp: { current: 15, max: 15 } } },
       entities: {
         vasquez: { visible: true, status: 'alive', npcState: 'alert' },
       },
@@ -202,14 +240,14 @@ describe('buildCampaignStateData', () => {
     };
     const result = buildCampaignStateData(existing, makeInput(), 'vasquez')
       .data as {
-      resourcePools: Record<string, unknown>;
+      resourcePools: Record<string, Record<string, unknown>>;
       entities: Record<string, unknown>;
       flags: Record<string, unknown>;
       scenarioState: Record<string, unknown>;
       worldFacts: Record<string, unknown>;
     };
-    expect(result.resourcePools).toHaveProperty('vasquez_hp');
-    expect(result.resourcePools).toHaveProperty('dr_chen_hp');
+    expect(result.resourcePools.vasquez).toHaveProperty('hp');
+    expect(result.resourcePools.dr_chen).toHaveProperty('hp');
     expect(result.entities).toHaveProperty('vasquez');
     expect(result.entities).toHaveProperty('dr_chen');
     // Flags come entirely from the new input — not merged with old.
@@ -244,12 +282,12 @@ describe('buildCampaignStateData', () => {
   it('initializes to emptyMothershipState when no existing row', () => {
     const result = buildCampaignStateData(null, makeInput(), 'vasquez')
       .data as {
-      resourcePools: Record<string, unknown>;
+      resourcePools: Record<string, Record<string, unknown>>;
       scenarioState: Record<string, unknown>;
       worldFacts: Record<string, unknown>;
     };
     expect(result.resourcePools).toEqual({
-      dr_chen_hp: { current: 10, max: 10 },
+      dr_chen: { hp: { current: 10, max: 10 } },
     });
     expect(result.scenarioState).toEqual({});
     expect(result.worldFacts).toEqual({});

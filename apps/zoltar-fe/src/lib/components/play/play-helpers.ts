@@ -10,8 +10,11 @@ export interface ResourcePool {
   max: number | null;
 }
 
+/** `resourcePools[owner][poolName]`, matching the backend's campaign state. */
+export type OwnedResourcePools = Record<string, Record<string, ResourcePool>>;
+
 export interface CampaignStateData {
-  resourcePools: Record<string, ResourcePool>;
+  resourcePools: OwnedResourcePools;
   entities: Record<
     string,
     { visible: boolean; status: string; npcState?: string }
@@ -49,8 +52,8 @@ export function deriveCharacterStatus(input: {
   fallbackMaxStress: number;
 }): CharacterStatus {
   const { state, playerEntityId, fallbackMaxHp, fallbackMaxStress } = input;
-  const hpPool = state.resourcePools[`${playerEntityId}_hp`];
-  const stressPool = state.resourcePools[`${playerEntityId}_stress`];
+  const hpPool = state.resourcePools[playerEntityId]?.hp;
+  const stressPool = state.resourcePools[playerEntityId]?.stress;
   const entity = state.entities[playerEntityId];
 
   return {
@@ -77,7 +80,7 @@ export function applyStatusDelta(input: {
   previous: CharacterStatus;
   playerEntityId: string;
   applied: {
-    resourcePools?: Record<string, ResourcePool>;
+    resourcePools?: OwnedResourcePools;
     entities?: Record<
       string,
       { visible: boolean; status: string; npcState?: string }
@@ -85,8 +88,8 @@ export function applyStatusDelta(input: {
   };
 }): CharacterStatus {
   const { previous, playerEntityId, applied } = input;
-  const appliedHp = applied.resourcePools?.[`${playerEntityId}_hp`];
-  const appliedStress = applied.resourcePools?.[`${playerEntityId}_stress`];
+  const appliedHp = applied.resourcePools?.[playerEntityId]?.hp;
+  const appliedStress = applied.resourcePools?.[playerEntityId]?.stress;
   const appliedEntity = applied.entities?.[playerEntityId];
 
   return {
@@ -104,14 +107,16 @@ export function applyStatusDelta(input: {
 }
 
 /**
- * Renders a ThresholdCrossing as a single human-readable line. The pool name
- * prefix is the entity id; strip it and replace underscores with spaces for a
- * display-friendly label. "`dr_chen_hp` at 0" → "Dr Chen HP at 0 — death save
- * required".
+ * Renders a ThresholdCrossing as a single human-readable line. `t.pool` is the
+ * two-level address `{owner}.{poolName}`; both halves are underscore-separated
+ * identifiers, so the label is every chunk of both, title-cased.
+ * "`dr_chen.hp` at 0" → "Dr Chen Hp at 0 — death save required".
  */
 export function formatThresholdLine(t: ThresholdCrossing): string {
   const label = t.pool
-    .split('_')
+    .split('.')
+    .flatMap((part) => part.split('_'))
+    .filter((chunk) => chunk.length > 0)
     .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
     .join(' ');
   const effect = t.effect.replace(/_/g, ' ');

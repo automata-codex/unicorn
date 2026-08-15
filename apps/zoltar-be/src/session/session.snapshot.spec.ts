@@ -32,19 +32,56 @@ describe('buildStateSnapshot', () => {
     expect(snapshot).toContain('</state_snapshot>');
   });
 
-  it('formats resource pools with and without a max', () => {
+  it('formats resource pools owner-first, with and without a max', () => {
     const snapshot = buildStateSnapshot({
       gmContextBlob: emptyBlob,
       campaignStateData: makeState({
         resourcePools: {
-          dr_chen_hp: { current: 8, max: 10 },
-          emergency_timer: { current: 6, max: null },
+          dr_chen: { hp: { current: 8, max: 10 } },
+          _scenario: { emergency_timer: { current: 6, max: null } },
         },
       }),
     });
-    expect(snapshot).toContain('dr_chen_hp: 8/10');
-    expect(snapshot).toContain('emergency_timer: 6');
-    expect(snapshot).not.toContain('emergency_timer: 6/');
+    expect(snapshot).toContain('dr_chen.hp: 8/10');
+    expect(snapshot).toContain('_scenario.emergency_timer: 6');
+    expect(snapshot).not.toContain('_scenario.emergency_timer: 6/');
+  });
+
+  it('renders every pool of an owner, sorted within the owner', () => {
+    const snapshot = buildStateSnapshot({
+      gmContextBlob: emptyBlob,
+      campaignStateData: makeState({
+        resourcePools: {
+          dr_chen: {
+            stress: { current: 2, max: null },
+            hp: { current: 8, max: 10 },
+            wounds: { current: 0, max: 2 },
+          },
+        },
+      }),
+    });
+    const block = snapshot
+      .slice(
+        snapshot.indexOf('<resource_pools>'),
+        snapshot.indexOf('</resource_pools>'),
+      )
+      .trim()
+      .split('\n')
+      .slice(1);
+    expect(block).toEqual([
+      'dr_chen.hp: 8/10',
+      'dr_chen.stress: 2',
+      'dr_chen.wounds: 0/2',
+    ]);
+  });
+
+  it('omits the block entirely when every owner has an empty pool set', () => {
+    // Reachable after CharacterService.delete removes an owner's pools.
+    const snapshot = buildStateSnapshot({
+      gmContextBlob: emptyBlob,
+      campaignStateData: makeState({ resourcePools: { dr_chen: {} } }),
+    });
+    expect(snapshot).not.toContain('<resource_pools>');
   });
 
   it('elides hidden entities from the <entities> block', () => {
@@ -242,7 +279,7 @@ describe('buildStateSnapshot', () => {
     const snapshot = buildStateSnapshot({
       gmContextBlob: emptyBlob,
       campaignStateData: makeState({
-        resourcePools: { dr_chen_hp: { current: 10, max: 10 } },
+        resourcePools: { dr_chen: { hp: { current: 10, max: 10 } } },
         entities: { kowalski: { visible: true, status: 'alive' } },
         flags: {
           adventure_complete: { value: false, trigger: 'Escape pod.' },

@@ -378,7 +378,7 @@ describe('playtest-review CLI — snapshot', () => {
           },
         },
         applied: {
-          resourcePools: { dr_chen_hp: { current: 8, max: 10 } },
+          resourcePools: { dr_chen: { hp: { current: 8, max: 10 } } },
           entities: {},
           flags: {},
           scenarioState: {},
@@ -439,7 +439,7 @@ describe('playtest-review CLI — snapshot', () => {
           completionTokens: 310,
         },
         applied: {
-          resourcePools: { dr_chen_stress: { current: 4, max: 20 } },
+          resourcePools: { dr_chen: { stress: { current: 4, max: 20 } } },
           entities: {},
           flags: {},
           scenarioState: {},
@@ -447,7 +447,7 @@ describe('playtest-review CLI — snapshot', () => {
         },
         thresholds: [
           {
-            pool: 'dr_chen_stress',
+            pool: 'dr_chen.stress',
             finalValue: 4,
             effect: 'Panic check required — 1d100 vs stress',
           },

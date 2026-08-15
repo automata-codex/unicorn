@@ -32,7 +32,10 @@
   import type { Adventure, CharacterSheet } from '../lib/types';
 
   interface TurnAppliedState {
-    resourcePools?: Record<string, { current: number; max: number | null }>;
+    resourcePools?: Record<
+      string,
+      Record<string, { current: number; max: number | null }>
+    >;
     entities?: Record<
       string,
       { visible: boolean; status: string; npcState?: string }

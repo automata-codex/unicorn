@@ -94,8 +94,10 @@ describe('CharacterService', () => {
         data: fakeData,
       });
       expect(campaignRepo.mergePlayerResourcePools).toHaveBeenCalledWith('c1', {
-        vasquez_hp: { current: 20, max: 20 },
-        vasquez_stress: { current: 0, max: 3 },
+        vasquez: {
+          hp: { current: 20, max: 20 },
+          stress: { current: 0, max: 3 },
+        },
       });
       expect(result).toEqual(fakeCharacter);
     });
