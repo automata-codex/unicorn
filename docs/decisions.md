@@ -1694,8 +1694,7 @@ never have been a list** (2026-08-11).
 The paragraph above closes with "for now the ceiling half of this rule is enforced by
 remembering it." That is no longer the plan, in two steps of increasing directness. A **Haiku 4.5
 control arm** rides M7.6's re-baseline, scoped by `--fixtures` to the pinned checks: a weaker
-model failing them is evidence they can reach a `fail` verdict at all (§ Warden model upgraded to
-`claude-sonnet-5`, addendum). **M7.8 — Harness Meta-Eval** then asserts the same property
+model failing them is evidence they can reach a `fail` verdict at all (ADR-0023, addendum). **M7.8 — Harness Meta-Eval** then asserts the same property
 directly, with hand-authored fixtures engineered to fail a specific check and the assertion being
 that the harness agrees — both directions, repeatable, and no Warden run. The arm is the interim
 instrument and the fixtures are the actual one; both are scheduled rather than remembered, which

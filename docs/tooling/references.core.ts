@@ -123,7 +123,13 @@ export function extractReferenceText(text: string, index: number): string {
   }
 
   // Not in a code span: run to the end of the sentence or clause.
-  const stop = after.search(/[\n)]|\. |, (?=[a-z])/);
+  //
+  // A single newline is not a boundary. A bare reference wraps like any other
+  // prose, and stopping at the line break truncates the title mid-phrase —
+  // which then reads as an author truncation ("§ Warden model upgraded to")
+  // and lands in the ambiguous pile instead of resolving. A blank line does
+  // end it: a reference never spans a paragraph.
+  const stop = after.search(/\n\s*\n|[)]|\. |, (?=[a-z])/);
   return (stop === -1 ? after : after.slice(0, stop)).trim();
 }
 

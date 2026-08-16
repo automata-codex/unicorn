@@ -134,6 +134,23 @@ describe('extractReferenceText', () => {
     expect(extractReferenceText(text, index)).toContain('actingEntityId');
   });
 
+  it('spans a newline for a bare reference that is not in a code span', () => {
+    // Cutting at the line break turned this into "Warden model upgraded to",
+    // which reads as an author truncation and lands in the ambiguous pile.
+    const text =
+      'reach a `fail` verdict at all (§ Warden model upgraded to\n`claude-sonnet-5`, addendum). Next sentence.';
+    const index = text.indexOf('§');
+    expect(normalize(extractReferenceText(text, index))).toBe(
+      'warden model upgraded to claude-sonnet-5',
+    );
+  });
+
+  it('stops a bare reference at a blank line', () => {
+    const text = '(§ Some heading name\n\nA new paragraph entirely.';
+    const index = text.indexOf('§');
+    expect(extractReferenceText(text, index)).toBe('Some heading name');
+  });
+
   it('spans a newline when the reference wraps', () => {
     const text =
       'applied: `docs/decisions.md § Entity and resource\npool identifiers use underscores only`.';
