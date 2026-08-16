@@ -265,8 +265,7 @@ A dependent roll names the roll it waited on:
 #### The three fields added in M7.5, and what each is for
 
 These are **measurement infrastructure**, not narration hints
-(`docs/decisions.md § rollType / gatedByRollId / actingEntityId on roll_dice
-stay deferred, but they are measurement infrastructure`). Two of the eval
+(`ADR-0045`). Two of the eval
 harness's structural checks could not reach a verdict without them:
 
 - **`actingEntityId`** lets `system-rolled-player-action` tell a Warden-side

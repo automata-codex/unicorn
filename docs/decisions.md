@@ -10,49 +10,65 @@ Each entry records what was decided, what the alternatives were, and why.
 
 ---
 
+<!--
+  GENERATED FILE — DO NOT EDIT.
+
+  Source of truth is one file per decision in `docs/decisions/`.
+  Edit the entry there, then run `task docs:decisions:build`.
+  `task docs:decisions:check` fails if this file is stale.
+-->
+
+---
+
+## Open
+
+- [ADR-0080](decisions/0080-open-the-undecided-discipline-has-never-been-extended-to-jud.md) — OPEN — the undecided discipline has never been extended to judged checks, and `turn24-over-resolution` is the case that shows it should be
+
+---
+
 ## Architecture & Backend
 
-### ORM: Drizzle over TypeORM
+### [ADR-0001](decisions/0001-orm-drizzle-over-typeorm.md) — ORM: Drizzle over TypeORM
 
 Drizzle's approach to Row Level Security is cleaner than TypeORM's — setting Postgres session variables and working with RLS policies requires less ceremony. Drizzle also produces more predictable SQL and infers TypeScript types directly from the schema definition at compile time, with no generation step. TypeORM is the NestJS default but not the right fit here.
 
-### Migrations: Flyway over drizzle-kit
+### [ADR-0002](decisions/0002-migrations-flyway-over-drizzle-kit.md) — Migrations: Flyway over drizzle-kit
 
 Flyway is ORM-agnostic and produces plain SQL migration files that are inspectable, version-controlled, and portable. Drizzle-kit generates SQL from schema diffs, which is useful during development but ties migration management to the ORM. Running Flyway from a Docker container in the Compose stack eliminates the JVM overhead concern. The two tools are not in conflict — drizzle-kit can be used for schema diffing during development while Flyway owns what actually gets applied.
 
-### No circular FK between `adventure` and `gm_context`
+### [ADR-0003](decisions/0003-no-circular-fk-between-adventure-and-gm-context.md) — No circular FK between `adventure` and `gm_context`
 
 An earlier design put `gm_context_id` on `adventure` as well as `adventure_id` on `gm_context`, creating a circular FK that required a nullable column and a three-step insert (adventure → gm_context → update adventure). Dropped in favour of a unidirectional reference: `gm_context.adventure_id` with a unique index. Lookup in either direction is a single indexed query.
 
-### `session` renamed to `adventure`
+### [ADR-0004](decisions/0004-session-renamed-to-adventure.md) — `session` renamed to `adventure`
 
 The domain concept is an adventure, not a session. Sessions in the traditional sense are a social scheduling artifact that dissolves in solo async play. Adventures are the first-class domain concept — they own the GM context, messages, and game events. The table is named `adventure` rather than `session` throughout.
 
-### No `@nestjs/cqrs`
+### [ADR-0005](decisions/0005-no-nestjs-cqrs.md) — No `@nestjs/cqrs`
 
 The API follows a CQRS-flavored pattern with clean separation between the command path (GM pipeline) and the query path (direct DB reads), enforced by NestJS module boundaries. The formal `@nestjs/cqrs` command/query bus infrastructure adds overhead without meaningful benefit at this scale. Module separation achieves the same discipline.
 
-### No event sourcing
+### [ADR-0006](decisions/0006-no-event-sourcing.md) — No event sourcing
 
 ES is a natural fit for games in theory but awkward with an AI GM layer — Claude's responses aren't deterministic, so replaying events doesn't reproduce the same narrative. The message log plus state snapshot approach provides most of the practical ES benefits (audit trail, session reconstruction, correction without deletion) without the full ceremony.
 
-### `@uv/auth-core` and `@uv/service-interfaces` are separate packages
+### [ADR-0007](decisions/0007-uv-auth-core-and-uv-service-interfaces-are-separate-packages.md) — `@uv/auth-core` and `@uv/service-interfaces` are separate packages
 
 Both packages exist so the future closed-source SaaS implementation repo can import abstract classes without depending on the open-source backend app. The split between the two packages reflects a difference in consumer profile: `AuthService` is a cross-cutting concern relevant to frontend-adjacent code (session validation, future SSR auth checks) and may be consumed outside a pure backend context. The six remaining service interfaces (`EntitlementsService`, `MeteringService`, `EmailService`, `AssetStorageService`, `RealtimeService`, `FeatureFlagService`) are backend-only concerns with no plausible frontend consumer. Keeping `auth-core` separate preserves the existing package boundary established in M1 and avoids mixing concerns that evolve at different rates.
 
-### Explicit `status` column on `adventures` table; no inference from `gm_context` row presence
+### [ADR-0008](decisions/0008-explicit-status-column-on-adventures-table-no-inference-from.md) — Explicit `status` column on `adventures` table; no inference from `gm_context` row presence
 
 An earlier design derived adventure status from whether a `gm_context` row existed for the adventure. Row absence is ambiguous: it could mean synthesis is in progress, synthesis failed, or a bug prevented row creation. There is no clean way to represent synthesis failure without an explicit status field. An explicit `adventure_status` enum column (`synthesizing`, `ready`, `completed`, `failed`) makes status queryable without a join and allows the `failed` state to be surfaced to users rather than leaving them with a stuck adventure. The column is added in V9 migration with a back-fill for any existing adventures.
 
-### Magic link auth is backend-owned; Auth.js is not used
+### [ADR-0009](decisions/0009-magic-link-auth-is-backend-owned-auth-js-is-not-used.md) — Magic link auth is backend-owned; Auth.js is not used
 
 Auth.js (`@auth/sveltekit`) requires SvelteKit's server-side hooks infrastructure to function. The frontend is a pure Svelte 5 SPA with no SSR or server-side hooks, so Auth.js cannot be used. Rather than pull in SvelteKit as a dependency for a single feature, magic link auth is implemented natively in the NestJS backend: the backend owns token generation, email delivery, session creation, and session validation. The `user`, `session`, and `verification_token` tables from V1 (originally created in the Auth.js schema format) are used as-is — we write to them directly. `AuthService.validateSession()` is unchanged: it reads the `session` table regardless of how the session was created.
 
-### Frontend is Svelte 5 SPA, not SvelteKit
+### [ADR-0010](decisions/0010-frontend-is-svelte-5-spa-not-sveltekit.md) — Frontend is Svelte 5 SPA, not SvelteKit
 
 SvelteKit's SSR and routing conventions add complexity without meaningful benefit for this product: the GM pipeline is entirely backend-driven, there is no SEO requirement, and the auth flow is owned by the backend. A plain Svelte 5 + Vite SPA is simpler to reason about, has no server-side rendering surface, and makes the frontend/backend boundary explicit. The tech stack entry in the design doc and README reflects this: "Svelte 5 (SPA)" not "SvelteKit."
 
-### Embedding model: `voyage-4-lite`, chosen together with the column dimension
+### [ADR-0011](decisions/0011-embedding-model-voyage-4-lite-chosen-together-with-the-colum.md) — Embedding model: `voyage-4-lite`, chosen together with the column dimension
 
 M7 shipped with `VOYAGE_EMBED_MODEL` defaulting to `voyage-3-lite` on the stated assumption that it matched the `vector(1024)` declaration on `rules_chunk.embedding`. It does not — `voyage-3-lite` emits 512 dimensions; `voyage-3` is the 1024-dimensional model of that generation. The error was invisible for the whole of M7 because the index is empty: `RulesRepository.findByCosineSimilarity` filters `embedding IS NOT NULL`, so pgvector never evaluated `<=>` against a row and never raised the dimension mismatch. It would have surfaced on the first M7.2 ingestion run.
 
@@ -60,13 +76,13 @@ The default is now `voyage-4-lite`, which emits 1024 dimensions by default and l
 
 Two constraints follow, and neither is enforced by the type system: the ingestion model and the runtime `VOYAGE_EMBED_MODEL` must be the *same model*, not merely two models of the same width, or similarity scores are meaningless while looking healthy; and any future model swap must be checked against the column dimension before ingesting rather than after. M7.2's pipeline should validate the returned vector length against `game_system.embedding_dim` before insert — that check is the cheap guard that would have caught this at M7 time.
 
-No eval re-baseline is owed for this change on its own. Both existing baselines ran against an empty index, so no graded turn ever consumed an embedding; the re-baseline that `docs/decisions.md § Warden model upgraded to claude-sonnet-5` anticipates is owed to ingestion itself, not to the model swap.
+No eval re-baseline is owed for this change on its own. Both existing baselines ran against an empty index, so no graded turn ever consumed an embedding; the re-baseline that `ADR-0023` anticipates is owed to ingestion itself, not to the model swap.
 
 ---
 
 ## Rules Ingestion
 
-### Rules ingestion pipeline and retrieval quality are separate milestones
+### [ADR-0012](decisions/0012-rules-ingestion-pipeline-and-retrieval-quality-are-separate.md) — Rules ingestion pipeline and retrieval quality are separate milestones
 
 M7.2's original spec included post-ingestion validation — an eval re-baseline and a dedicated playtest — as its own Part 6. Both moved out to a new milestone, M7.5 (Rules Retrieval Quality), during M7.2 implementation.
 
@@ -76,9 +92,9 @@ M7.2's original spec included post-ingestion validation — an eval re-baseline 
 
 **The completion-criteria split, not just the reasoning, is why they're separate milestones rather than one milestone with a later Part 6.** M7.2's criteria are binary — the CLI runs, rows land, the harness scores. M7.5's is a quality bar — chunking iteration continues until the bar is met or a stopping rule fires. Milestones with quality-bar criteria absorb whatever is adjacent to them; folding the re-baseline into M7.2 would have made M7.2 itself open-ended, defeating the reason for having Done-When criteria at all.
 
-**Consequence:** M7.2 ends with a populated index and a way to measure it — not with evidence the Warden is actually better off. That evidence is M7.5's. The three entries below waiting on a populated-index re-baseline (`§ Warden model upgraded to claude-sonnet-5`, `§ Agentic graph decomposition stays deferred`, `§ rollType / gatedByRollId / actingEntityId on roll_dice stay deferred`) stay open one milestone longer than an M7.2-only plan would have implied.
+**Consequence:** M7.2 ends with a populated index and a way to measure it — not with evidence the Warden is actually better off. That evidence is M7.5's. The three entries below waiting on a populated-index re-baseline (`ADR-0023`, `ADR-0044`, `ADR-0045`) stay open one milestone longer than an M7.2-only plan would have implied.
 
-### Rules ingestion is CLI-only in Phase 1
+### [ADR-0013](decisions/0013-rules-ingestion-is-cli-only-in-phase-1.md) — Rules ingestion is CLI-only in Phase 1
 
 No web upload surface. A self-hosted user installs the Python pipeline, points
 it at a PDF they own, and runs one command; `ingestion/README.md` is the
@@ -100,7 +116,7 @@ future reader assumes was an oversight.** It is not. Revisit if a hosted
 deployment ever needs non-technical users to add their own books, at which
 point the licensing question has to be answered first, not second.
 
-### Chunk extraction is block-based with footer-derived provenance, not markdown headings
+### [ADR-0014](decisions/0014-chunk-extraction-is-block-based-with-footer-derived-provenan.md) — Chunk extraction is block-based with footer-derived provenance, not markdown headings
 
 The design doc's chunking premise — treat each `###` Markdown heading as a candidate chunk boundary — does not survive contact with the actual extraction output. The PSG's whole-book heading histogram is 84 `#`, 3 `##`, 10 `###`, 55 `####` (`docs/rules-extraction-findings.md § S1.5`): 10 `###` headings against a 100–400-chunk target kills the approach on arithmetic alone, and the levels are assigned by font size rather than document structure — `#### ARMOR` and `# 14 ARMOR` are the same section at different levels, and reading order scrambles across the character-creation spread. Markdown output is also the wrong extraction format independent of the heading problem: it discards page attribution entirely, and the only page-marker mechanism it carries (`<span id="page-N-M">` anchors) covers 16 of 44 pages.
 
@@ -110,7 +126,7 @@ Provenance is derived, not read from any marker field. `blocks[].page` is an int
 
 **Edition-specific, not general.** The `printed page = physical page + 1` offset and the footer-parsing approach are verified only against the PSG 1e. Any second Mothership book needs its own check before ingestion (`docs/rules-extraction-findings.md § Open questions`).
 
-### Reading order requires an explicit column-aware sort; an LLM may validate it, never perform it
+### [ADR-0015](decisions/0015-reading-order-requires-an-explicit-column-aware-sort-an-llm.md) — Reading order requires an explicit column-aware sort; an LLM may validate it, never perform it
 
 Marker's emitted block order is not reading order on multi-column pages. Of the 16 pages carrying two or more numbered section headers, 8 emit them out of order, including full reversals (`docs/rules-extraction-findings.md § S6.2`); the true rate is plausibly higher since that test can't see unnumbered headings. A chunker that merges blocks in emitted order — the design doc's implicit assumption — would concatenate roughly half the book's body pages backwards.
 
@@ -122,7 +138,7 @@ Two approaches were on the table: an LLM pass that reads the page image and prop
 
 **Coverage caveat carried forward, not resolved here.** The numbered-header test that validates the sort only sees 16 of 44 pages. The LLM-flagging pass is the intended instrument for validating the other 28 (unnumbered headings), not yet run at that scope.
 
-### Character-creation content is excluded from the rules index — structurally unreachable by the Warden
+### [ADR-0016](decisions/0016-character-creation-content-is-excluded-from-the-rules-index.md) — Character-creation content is excluded from the rules index — structurally unreachable by the Warden
 
 Physical pages 4, 41, and 42 cover Mothership character creation. Confirmed via tool-array and query-log inspection that `rules_lookup` is wired only into the play-loop tool array — character creation runs its own flow and makes no Anthropic calls at all, so nothing the Warden does can retrieve these pages regardless of what the index contains (`docs/rules-extraction-findings.md § S2`).
 
@@ -136,7 +152,7 @@ Same action, two different justifications, and conflating them would have been e
 
 **Method note worth carrying forward.** Round 2's decision criterion was fixed before the run as "exclude if recall holds *and unanswerable top-1 similarity falls*." Recall held; unanswerable similarity did not move at all. The second clause was a proxy for false-positive pressure that pointed at the wrong fixtures — page 3's false positives were landing on *answerable* queries, displacing pages that genuinely answered, which an unanswerable-set aggregate cannot see. The exclusion stands on the direct per-fixture evidence instead. Recorded rather than quietly reinterpreted, per `§ S18.4`.
 
-### Fixup match schema keyed on block `id`, not `{section, contains}`
+### [ADR-0017](decisions/0017-fixup-match-schema-keyed-on-block-id-not-section-contains.md) — Fixup match schema keyed on block `id`, not `{section, contains}`
 
 `docs/rules-ingestion.md § Step 2` specifies fixup entries matched by `{section, contains}` — e.g. `{"section": ["Combat", "Panic"], "contains": "1-10Roll"}`. Neither key can express the confirmed extraction defects. `contains` needs text to match against, and the defect is 14 of 32 `Table` blocks extracting as empty (`<p></p>`) — there's nothing there to match on. `section` was meant to derive from `section_hierarchy`, already rejected above as unreliable ancestry.
 
@@ -146,7 +162,7 @@ Same action, two different justifications, and conflating them would have been e
 
 ## Rules Retrieval
 
-### Rules retrieval mechanism: dense embeddings over FTS or LLM-authored regex
+### [ADR-0018](decisions/0018-rules-retrieval-mechanism-dense-embeddings-over-fts-or-llm-a.md) — Rules retrieval mechanism: dense embeddings over FTS or LLM-authored regex
 
 Raised as an alternative to the planned Voyage/pgvector pipeline: have an LLM
 translate a `rules_lookup` query into a regex, grep the extracted rules text,
@@ -193,15 +209,14 @@ landed.
 sensitive to the same two axes (verbosity, vocabulary) that broke FTS, just
 less brittle about it. That's a separate decision, below.
 
-### Query preprocessing for `rules_lookup` promoted from optional to critical path
+### [ADR-0019](decisions/0019-query-preprocessing-for-rules-lookup-promoted-from-optional.md) — Query preprocessing for `rules_lookup` promoted from optional to critical path
 
 Shortening a `rules_lookup` query to its 2–3 distinctive terms puts the
 correct page at rank 1 on *both* FTS and dense retrieval, for all three real
 recorded queries — including the one query no other configuration on either
 backend ever retrieved (`docs/rules-extraction-findings.md § S4`, `§ S5.3`).
 This is the single largest effect measured across the whole retrieval
-investigation, larger than the FTS-vs-embeddings choice itself (`docs/decisions.md
-§ Rules retrieval mechanism`, above).
+investigation, larger than the FTS-vs-embeddings choice itself (`ADR-0018`, above).
 
 Two separable fixes, with different costs:
 
@@ -283,7 +298,7 @@ queries, at a rate the original three-query sample gave no way to see. Both
 fixes are now confirmed necessary and non-overlapping, not alternatives to
 weigh against each other.
 
-### No similarity floor for `rules_lookup` — the distributions overlap, and the free-looking threshold is fitted to noise
+### [ADR-0020](decisions/0020-no-similarity-floor-for-rules-lookup-the-distributions-overl.md) — No similarity floor for `rules_lookup` — the distributions overlap, and the free-looking threshold is fitted to noise
 
 M7.5 Part 4, decided 2026-08-07 against the final index (61 chunks, `drop_pages: [3, 4, 41, 42]`), per `docs/rules-extraction-findings.md § S20`. `RulesLookupService.lookup()` is unchanged: it returns whatever `findByCosineSimilarity` gives back, with no threshold.
 
@@ -299,7 +314,7 @@ The asymmetry settles it. A suppressed unanswerable query costs nothing: the War
 
 A floor becomes available when the unanswerable distribution shifts down, and the only lever that moves it is upstream of retrieval: stop generating concept-absent queries, which `§ S9.3` measured at 130 of 344 out-of-corpus queries (37.8%). That is the mechanical-model primer in M7.5 Part 4.6. **Re-derive the floor after the primer has been measured, not after the next chunking change.**
 
-### The D&D-5e-bias hypothesis has a confirmed instance, in the schema rather than in retrieval
+### [ADR-0021](decisions/0021-the-d-d-5e-bias-hypothesis-has-a-confirmed-instance-in-the-s.md) — The D&D-5e-bias hypothesis has a confirmed instance, in the schema rather than in retrieval
 
 The hypothesis — that the Warden's out-of-corpus vocabulary is specifically D&D 5e lexicon
 bleeding into Mothership play, rather than generic TTRPG vocabulary — was recorded in
@@ -356,7 +371,7 @@ from an adjacent model applied to the PC sheet — with a different adjacent mod
   any Mothership artifact authored without the book open, and specifically on the M7.6
   spec, which is being written to correct exactly these fields.
 - It **does not** validate the retrieval-side claim. The vocabulary gap measured in
-  `§ Query preprocessing for rules_lookup promoted from optional to critical path`
+  `ADR-0019`
   (amendment) splits 157 wrong-word / 130 concept-absent out of 344, and *which* lexicon
   those out-of-corpus terms come from is still unmeasured. Confirming the hypothesis in
   one artifact does not confirm it in another, and the mechanical-model primer's design
@@ -368,7 +383,7 @@ from an adjacent model applied to the PC sheet — with a different adjacent mod
 
 Roadmap: `docs/roadmap.md § M7.6 — Character Sheet Fidelity`.
 
-### The retrieval stopping rule is measured on the metrics with headroom, not on the saturated one
+### [ADR-0022](decisions/0022-the-retrieval-stopping-rule-is-measured-on-the-metrics-with.md) — The retrieval stopping rule is measured on the metrics with headroom, not on the saturated one
 
 `docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md § The stopping rule`
 originally closed M7.5 "after three full iteration rounds that do not
@@ -407,7 +422,7 @@ threshold is written against a metric that is already at its ceiling.
 
 ## Claude Integration — Tool Schemas & State
 
-### Warden model upgraded to `claude-sonnet-5`
+### [ADR-0023](decisions/0023-warden-model-upgraded-to-claude-sonnet-5.md) — Warden model upgraded to `claude-sonnet-5`
 
 Declared 2026-08-03 on the evidence of the 4.6 → Sonnet 5 full-corpus baseline, re-scored under the migrated checkers. Sonnet 5 improves on every axis the harness measures where either model is passable at all, and the two axes where it doesn't are axes where *neither* model is acceptable — which makes them prompt targets rather than arguments against the swap.
 
@@ -432,7 +447,7 @@ Secondary but not minor: **errors dropped from 18 of 150 rows to 4**, almost all
 
 Two failure modes survive the swap with real denominators behind them: `unauditable-mapping` (2 passes across 45 judged inputs spanning both models) and `turn16-narrating-past-a-block` (0/10 under both). Both are now confirmed genuine rather than checker artifacts, which is the useful outcome — they are prompt work, and they are the two places prompt work should go first.
 
-**What this decision does not claim.** All figures are single-grader. Both baselines executed against an empty `rules_chunk` index, so nothing here accounts for how rules availability changes reach-for-dice behaviour; the M7.5 re-baseline is the real test of these numbers (moved from M7.2 — see § Rules ingestion pipeline and retrieval quality are separate milestones). At N=10 the 95% CI half-width at p=0.5 is ~±31pp, so individual rates near the middle are unsettled even where the direction is not. And a first run against a new model audits the harness as much as the model — the two defects that audit surfaced are recorded in `eval-methodology.md`, and the rates above are the post-correction ones.
+**What this decision does not claim.** All figures are single-grader. Both baselines executed against an empty `rules_chunk` index, so nothing here accounts for how rules availability changes reach-for-dice behaviour; the M7.5 re-baseline is the real test of these numbers (moved from M7.2 — see ADR-0012). At N=10 the 95% CI half-width at p=0.5 is ~±31pp, so individual rates near the middle are unsettled even where the direction is not. And a first run against a new model audits the harness as much as the model — the two defects that audit surfaced are recorded in `eval-methodology.md`, and the rates above are the post-correction ones.
 
 **The M7.5 re-baseline answered that, 2026-08-09, and the decision stands — but one number in the table above has to be retired.** Sonnet 5 against the populated index at prompt `0bdd1306`, both sides re-scored under the corrected checker:
 
@@ -449,7 +464,7 @@ The upgrade rationale is unaffected — every one of these is Sonnet 5 against S
 
 What must be retired is the reading that `SYSTEM-ROLLED-PLAYER-ACTION` at 0.90 was "the model's ceiling." It halved once the index was populated and the primer taught when a check is warranted, and the two moves are one behaviour: `UNSURFACED-CHECK` reached 1.00 in the same run. The Warden learned to recognise that a roll is called for and then rolls it itself. That is a prompt target, and it is now the largest one in the corpus.
 
-Also retired: 0.90 was measured with a checker that could not see the failure. The M7.5 `actingEntityId` integration shipped a false pass that graded ten violations clean (§ `actingEntityId` must resolve against a declared identifier set, below). The July figure is unaffected — those artifacts predate the field and take the prose path, verified bit-identical on re-score — but every figure produced between 2026-08-07 and 2026-08-09 on this tag was wrong.
+Also retired: 0.90 was measured with a checker that could not see the failure. The M7.5 `actingEntityId` integration shipped a false pass that graded ten violations clean (ADR-0046, below). The July figure is unaffected — those artifacts predate the field and take the prose path, verified bit-identical on re-score — but every figure produced between 2026-08-07 and 2026-08-09 on this tag was wrong.
 
 **The judged half of that table is now self-graded, and was already half-way there.** `JUDGE_MODEL` has been `claude-sonnet-5` since the judged checks were built — deliberately above the Warden's 4.6, so a more capable grader sat over the model under test. This decision closes that gap: the Warden and its judge are now the same model. The consequence is retroactive as well as forward-looking, and it is a real confound in the comparison above: on the 4.6 side a Sonnet 5 judge graded a 4.6 generator, while on the Sonnet 5 side it graded itself. Every judged row in the table therefore has an asymmetry the structural rows don't.
 
@@ -481,7 +496,7 @@ July; 0.94 now) and `turn28-hidden-info-leak` (1.00, 10/10) pin at the top, and 
 rule is that a rate sitting at either extreme across every rep is a harness suspect rather than a
 finding — with the ceiling case exactly as suspect as the floor and materially less likely to be
 investigated, because a pinned 1.00 presents with full applicability and a healthy denominator
-(§ A rate that never moves is a harness suspect, not a finding; that entry's instance list is
+(ADR-0082; that entry's instance list is
 amended to include `turn28-hidden-info-leak`). A weaker model failing those checks is the only
 evidence currently available that they can reach a `fail` verdict at all. Drop both arms and that
 guard goes with them, silently.
@@ -519,20 +534,20 @@ identical from here. That gap is exactly what M7.8 closes and why the arm is tra
 permanent. The arm also says nothing about the judge, which is probabilistic by construction and
 characterised through `eval:judge-variance` against frozen input, not through a second generator.
 
-### Tool use over prompt instructions for structured output
+### [ADR-0024](decisions/0024-tool-use-over-prompt-instructions-for-structured-output.md) — Tool use over prompt instructions for structured output
 
 Claude is required to call `submit_gm_response` and `submit_gm_context` rather than producing structured JSON in plain text. Tool use enforces the schema at the API level and eliminates a whole category of malformed response runtime errors. Prompt instructions alone are not sufficient for this guarantee.
 
-### HP and all numeric resources in `resourcePools`, not a separate `entities.hp` field
+### [ADR-0025](decisions/0025-hp-and-all-numeric-resources-in-resourcepools-not-a-separate.md) — HP and all numeric resources in `resourcePools`, not a separate `entities.hp` field
 
 An earlier design gave entities a special `hp` field alongside `resourcePools`. Folded into `resourcePools` for consistency — HP is a resource pool mechanically, and the threshold behavior (death, unconscious) is handled by the validator reading pool definitions from the system Zod schema, not by special-casing field names. This keeps the schema extensible across systems that track hit points differently.
 
-### State placement is decided by the lifetime of the referent, not the lifetime of the value
+### [ADR-0026](decisions/0026-state-placement-is-decided-by-the-lifetime-of-the-referent-n.md) — State placement is decided by the lifetime of the referent, not the lifetime of the value
 
 There are three places a piece of state can live — the character sheet, campaign state,
 and adventure state — and until now there was no rule for choosing between them. The
 sheet/campaign line was settled once, for HP and current Stress, in
-`§ Character sheet stores identity and build, not live mutable state`. The
+`ADR-0027`. The
 campaign/adventure line was never stated at all: `adventures` carries `mode`,
 `initiative_order`, `caller_id` and `rolling_summary`, and everything else defaults into
 `campaign_state.data` because that is where the blob is.
@@ -567,7 +582,7 @@ discriminator.
 
 **A cross-check that agrees with the rule.** The writer already correlates with the
 scope. Character creation writes campaign-scoped player pools
-(`§ Player resource pools are derived at character creation, not at synthesis`);
+(`ADR-0036`);
 synthesis writes NPC, threat, and timer pools. If synthesis wrote it, it is adventure
 state.
 
@@ -579,7 +594,7 @@ no home for it. Revisit at Phase 3–4 when those systems land, not before.
 
 Roadmap: `docs/roadmap.md § M7.6 — Character Sheet Fidelity`.
 
-### Character sheet stores identity and build, not live mutable state
+### [ADR-0027](decisions/0027-character-sheet-stores-identity-and-build-not-live-mutable-s.md) — Character sheet stores identity and build, not live mutable state
 
 `character_sheet.data` carries the character's identity (name, class, entityId), build (stats, saves, skills, equipment), and ceilings (`maxHp`, `maxStress`). It does not carry current HP or current stress — those are mutable values that change during play and live exclusively in `campaign_state.data.resourcePools` as `{entityId}_hp` and `{entityId}_stress`. At character creation time, `deriveMothershipCharacterResourcePools` seeds the pools at full HP and zero stress from the ceilings. An earlier design kept `currentHp` and `stress: { current, max }` on the sheet, but these drifted from the authoritative pool values the moment play began and served no purpose after creation.
 
@@ -619,8 +634,7 @@ is a verification item for M7.6.
 
 Full field-by-field derivation, with rule citations, in the M7.6 PSG inventory. The
 placement rule this addendum is an instance of is
-`§ State placement is decided by the lifetime of the referent, not the lifetime of the
-value`.
+`ADR-0026`.
 
 **Addendum 2 — the code inventory resolves the open verification item, and the schema is
 further from the rules than the first addendum assumed**
@@ -639,8 +653,7 @@ not one:
 
 **A behavioural divergence the spec has to resolve deliberately.** A delta that would take
 a pool below its `min` is **rejected**, not clamped. For HP this never fires — `min` is
-`null`, which is what makes `§ Pool validator applies full delta before threshold
-detection` work as written (the goblin at −2 HP). For stress it fires at zero. If M7.6
+`null`, which is what makes `ADR-0028` work as written (the goblin at −2 HP). For stress it fires at zero. If M7.6
 routes Stats and Saves through pools, each one needs an explicit reject-or-clamp decision
 rather than inheriting whichever behaviour its `min` happens to produce.
 
@@ -651,8 +664,7 @@ addendum lists:**
   `instinct` is a Contractor stat (§40.1) and not a player-character attribute at all.
   `saves` correspondingly lacks Sanity.
 - **Wounds are entirely absent** — no `maxWounds`, no wounds pool. See
-  `§ The D&D-5e-bias hypothesis has a confirmed instance, in the schema rather than in
-  retrieval` for what the code does instead.
+  `ADR-0021` for what the code does instead.
 - **`level` exists, is written by nothing and read by nothing**, in a game with no levels.
 
 **Addendum 3 — considered and rejected: writing state back to the sheet at adventure end**
@@ -675,12 +687,11 @@ Worth stating plainly because the correct carry-forward behaviour was arrived at
 accident rather than by design, and it is easy to mistake for a gap. The defect the code
 inventory found at the adventure boundary was never character carry-forward; it was that
 *scenario* state carries forward too, which
-`§ Adventure state gets its own row, not an adventure tag on campaign state` addresses.
+`ADR-0054` addresses.
 
 **It would also serve no system on the roadmap.** 5e resets at *rests*, Feng Shui 2's
 Fortune per *session*, Infinity 2d20's Momentum per *scene*. None of those is an adventure
-boundary. This is `§ State placement is decided by the lifetime of the referent, not the
-lifetime of the value`'s "reset is a rule, not a lifecycle" applied one level down: a sync
+boundary. This is `ADR-0026`'s "reset is a rule, not a lifecycle" applied one level down: a sync
 mechanism keyed to adventure completion would encode a reset assumption no supported
 system actually has.
 
@@ -695,15 +706,15 @@ of character state at each adventure's end has real value — character history,
 adds a row rather than overwriting an authority, so it composes with delta provenance
 instead of competing with it. Not Phase 1, and not this mechanism.
 
-### Pool validator applies full delta before threshold detection
+### [ADR-0028](decisions/0028-pool-validator-applies-full-delta-before-threshold-detection.md) — Pool validator applies full delta before threshold detection
 
 When a resource pool delta would cross a threshold (death, panic, etc.), the full delta is applied first and threshold crossings are detected on the resulting value. The delta is never pre-capped. If a goblin with 7 HP takes 9 damage, the result is -2 HP — the death threshold is crossed and Claude is notified of both the final value and which thresholds fired. Pre-capping would silently discard mechanically meaningful information.
 
-### Pool behavior defined in system Zod schema, not hardcoded in validator
+### [ADR-0029](decisions/0029-pool-behavior-defined-in-system-zod-schema-not-hardcoded-in.md) — Pool behavior defined in system Zod schema, not hardcoded in validator
 
 Each pool definition in the system Zod schema carries `min`, `max`, and `thresholds` metadata. The validator reads this rather than hardcoding HP-specific or system-specific logic. A pool with `min: null` can go negative; `min: 0` is floored at zero. This keeps the validator generic and system-agnostic.
 
-### Typed system-specific fields on tool schemas are acceptable while one system is supported
+### [ADR-0030](decisions/0030-typed-system-specific-fields-on-tool-schemas-are-acceptable.md) — Typed system-specific fields on tool schemas are acceptable while one system is supported
 
 `damageType` on the pool-delta object (M7.6) is the first **rules-semantic** field on a
 tool schema — a field whose permitted values come from one book. `rollType` is arguably
@@ -713,7 +724,7 @@ Explosives, Gore & Massive.
 
 The generic alternative is `properties: Record<string, unknown>`, validated per system.
 **Deferred, for the same reason the synthesis driver registry is deferred**
-(`§ Synthesis prompts are system-specific; no driver registry yet`): until a second system
+(`ADR-0037`): until a second system
 exists, any interface is a guess shaped entirely by Mothership's needs, and the second
 system is likelier to reveal the right abstraction than to conform to a premature one.
 
@@ -724,7 +735,7 @@ shape — it is a prompt instruction and a closed enum the Warden selects from. 
 The first is fine; the second reintroduces `UNAUDITABLE-MAPPING` through a side door.
 Note also that the machinery which would dispatch per-system validation does not exist in
 this path today: pool behaviour is selected by pool key
-(`§ Pool behavior defined in system Zod schema, not hardcoded in validator`), not by
+(`ADR-0029`), not by
 campaign system.
 
 **The trigger to generalize is the second system needing a *different* field, not this
@@ -745,11 +756,11 @@ is cheaper than it looks today.
 Recorded now as a recognised boundary with a named trigger, so that the Phase 2
 implementer meets a decision rather than a surprise.
 
-### Entity death does not auto-zero prefixed pools
+### [ADR-0031](decisions/0031-entity-death-does-not-auto-zero-prefixed-pools.md) — Entity death does not auto-zero prefixed pools
 
 When an entity's `status` flips to `'dead'`, the validator does not automatically zero resource pools whose keys are prefixed with that entity's id. Claude must send explicit pool deltas alongside the status change. An earlier playtest-tool prototype auto-zeroed to work around Claude forgetting; M6 opts for explicit behavior to keep the correction mechanism as the single channel for state-change feedback. Revisit if playtest data shows the omission happens often enough to cause drift.
 
-### Entity and resource pool identifiers use underscores only
+### [ADR-0032](decisions/0032-entity-and-resource-pool-identifiers-use-underscores-only.md) — Entity and resource pool identifiers use underscores only
 
 Dots in identifier strings cause subtle bugs when code uses dot-notation property access on JSON keys. Hyphens are legal but inconsistent with TypeScript naming conventions. Underscores are unambiguous. Resource pools follow the pattern `{entity_id}_{pool_name}`: `dr_chen_hp`, `vasquez_stress`.
 
@@ -799,19 +810,19 @@ was settled. D1-A constrains nothing about ownership: `resourcePools` nests by *
 and pools with no entity owner take the reserved owner `_scenario`
 (`docs/plans/016-m7.6-character-sheet-fidelity-implementation-plan.md` D1-A.1). Entity ids
 may not begin with `_`; reserved owners must. See also
-`§ Adventure state gets its own row…`, addendum, on why owner and scope are orthogonal.
+`ADR-0054`, addendum, on why owner and scope are orthogonal.
 
 Spec: `docs/specs/zoltar/016-m7.6-character-sheet-fidelity.md` §1.3, §2.1.
 
-### `diceRequests` IDs assigned by the backend, not Claude
+### [ADR-0033](decisions/0033-dicerequests-ids-assigned-by-the-backend-not-claude.md) — `diceRequests` IDs assigned by the backend, not Claude
 
 An earlier design had Claude generate UUIDs for dice request entries. Claude doesn't generate UUIDs reliably. The backend assigns IDs after receiving `submit_gm_response` and returns them in the action response. Claude omits the ID field entirely.
 
-### State snapshot field consolidation deferred to Milestone 1.2
+### [ADR-0034](decisions/0034-state-snapshot-field-consolidation-deferred-to-milestone-1-2.md) — State snapshot field consolidation deferred to Milestone 1.2
 
 The snapshot has accumulated fields across playtesting — `initialState` counters, `world_facts` scratchpad, character state, entity positions, and flags — each solving a distinct problem as it was discovered. At 1.2, when the tool schema is being locked, both sides of the read/write contract should be rationalized together: what Claude reads in the snapshot and what it writes via tools. Doing this earlier would be premature; the playtest data doesn't exist yet to inform good consolidation decisions.
 
-### `flags` structure merges value and trigger into a single object
+### [ADR-0035](decisions/0035-flags-structure-merges-value-and-trigger-into-a-single-objec.md) — `flags` structure merges value and trigger into a single object
 
 An earlier design kept flags and flag triggers as two parallel top-level maps in campaign state: `flags: Record<string, boolean>` and `flagTriggers: Record<string, string>`. These were merged into a single structure keyed by flag name:
 
@@ -821,7 +832,7 @@ flags: Record<string, { value: boolean, trigger: string }>
 
 Keeping them parallel required maintaining two maps in sync — a flag with no corresponding trigger entry was an invisible bug waiting to happen. The merged structure makes each flag self-contained. The trigger is immutable after initialization (it describes the in-fiction condition that flips the flag, which doesn't change). `stateChanges.flagTriggers` on the `submit_gm_response` write path only carries the new value (`{ flagName: newValue }`) — it does not restate the trigger.
 
-### Player resource pools are derived at character creation, not at synthesis
+### [ADR-0036](decisions/0036-player-resource-pools-are-derived-at-character-creation-not.md) — Player resource pools are derived at character creation, not at synthesis
 
 Player HP and stress pools (e.g. `vasquez_hp`, `vasquez_stress`) are written into `campaign_state.data.resourcePools` at the moment the character sheet is created — not later, and not re-derived by synthesis. The derivation is a pure function in `@uv/game-systems` (`deriveMothershipCharacterResourcePools`) that maps `{ currentHp, maxHp, stress }` from the sheet onto the canonical `{entity_id}_{pool_name}` naming convention. `CharacterService.create` calls `CampaignRepository.mergePlayerResourcePools` immediately after inserting the sheet; the merge is transactional and preserves any existing pools on key conflict.
 
@@ -839,7 +850,7 @@ Three changes close it, and the split between them is deliberate:
 - **The synthesis write path drops impersonating keys and logs them.** A key naming a pool of a kind the player already owns, under a prefix resolving to neither the player's id nor an entity the payload declares, is dropped. It is redundant by construction, so dropping loses nothing — but it is logged, because a drop means the model re-spelled the id after being handed it, which is worth seeing before a playtest rather than after.
 - **The play-time validator rejects rather than drops.** `applyResourcePool`'s bootstrap branch applies the same rule and pushes a rejection naming the valid id, so the model corrects inside the tool loop. Rejection is right here and wrong at synthesis: mid-turn there is a loop to correct in, and failing an expensive synthesis over a naming quirk is not.
 
-**The rule is suffix-collision, not prefix-must-resolve.** A stricter "every pool prefix must name a declared entity" would reject `station_power_reserve` and `contamination_spread_timer` — legitimate scenario-level pools that attach to no entity and never will. Only a pool that duplicates a kind the player already owns is refused, which is exactly the observed defect and nothing else. The check is disabled entirely when no player ids are declared, mirroring `roll_dice`'s empty-known-set behaviour under `§ actingEntityId must resolve against a declared identifier set` — a campaign with no character sheet must not have every pool bootstrap rejected.
+**The rule is suffix-collision, not prefix-must-resolve.** A stricter "every pool prefix must name a declared entity" would reject `station_power_reserve` and `contamination_spread_timer` — legitimate scenario-level pools that attach to no entity and never will. Only a pool that duplicates a kind the player already owns is refused, which is exactly the observed defect and nothing else. The check is disabled entirely when no player ids are declared, mirroring `roll_dice`'s empty-known-set behaviour under `ADR-0046` — a campaign with no character sheet must not have every pool bootstrap rejected.
 
 The entry's main claim is unaffected: derivation still happens at character creation, and synthesis still does not re-derive.
 
@@ -865,21 +876,18 @@ cause — nothing reconciles sheet and pools after creation:**
 - With no sheet, `getPlayerEntityIds` returns `[]`, and per `session.service.ts:908-912`
   an empty set disables `actingEntityId` validation entirely. So deleting a character
   silently switches off a structural guard that M7.5 landed
-  (`§ actingEntityId must resolve against a declared identifier set, and an unresolvable
-  id is undecided`).
+  (`ADR-0046`).
 - The `assertNoActiveAdventure` guard on update and delete blocks only `synthesizing`,
   `ready`, and `in_progress` — sheets are editable once an adventure is `completed`,
   `aborted`, or `failed`.
 
-### Synthesis prompts are system-specific; no driver registry yet
+### [ADR-0037](decisions/0037-synthesis-prompts-are-system-specific-no-driver-registry-yet.md) — Synthesis prompts are system-specific; no driver registry yet
 
 Each supported game system owns its own synthesis prompt module under `apps/zoltar-be/src/synthesis/<system>/synthesis.prompts.ts` (currently only `mothership/`). System-specific exports — system prompt, character-sheet prose formatter, synthesis user prompt, coherence check prompt, and the canonical oracle-category list — are all prefixed with the system name (`MOTHERSHIP_SYNTHESIS_SYSTEM_PROMPT`, `formatMothershipCharacterProse`, etc.) so names never falsely suggest cross-system generality. Universals — the `submit_gm_context` and `report_coherence` tool definitions and the coherence report Zod schema — live in `src/synthesis/synthesis.tools.ts` and `synthesis.schema.ts` and are imported by every system module.
 
 A generic prompt module was rejected because oracle category counts, character sheet structure, and tonal framing all differ across systems; a single parameterized builder would either be the least common denominator or a tangle of per-system branches. A `synthesisDrivers[systemId]` registry was also considered and deferred: until a second system exists, any interface we define is a guess shaped entirely by Mothership's needs, and the second system is more likely to reveal the right abstraction than to conform to a premature one. When UVG (or the next system) lands, the registry pattern can be introduced at that moment with two concrete implementations to compare against.
 
----
-
-### M7.6 pool and character-state contract — resolved decisions
+### [ADR-0038](decisions/0038-m7-6-pool-and-character-state-contract-resolved-decisions.md) — M7.6 pool and character-state contract — resolved decisions
 
 *Closing out `docs/plans/016-m7.6-character-sheet-fidelity-implementation-plan.md`,
 whose D1–D4 were open when it was written. The reasoning lives in the plan; what
@@ -970,9 +978,7 @@ AP 1 and replacement swaps the item — both are equipment operations, and
 equipment has no write path in M7.6. Armor can be damaged and destroyed this
 milestone, never restored.
 
----
-
-### The M7.6 migration drops and recreates rather than transforming
+### [ADR-0039](decisions/0039-the-m7-6-migration-drops-and-recreates-rather-than-transform.md) — The M7.6 migration drops and recreates rather than transforming
 
 **Confirmed 2026-08-14, built 2026-08-15.** `V19__character_sheet_m76_reset.sql`
 deletes every `character_sheet` and `campaign_state` row rather than migrating
@@ -999,9 +1005,7 @@ behind leaves a campaign whose pools no reader can address.
 and a bump would make `synthesis.write.ts`'s parse reject exactly the rows this
 migration removes.
 
----
-
-### Armor Points are a threshold, not a pool — the M7.6 spec was wrong about this
+### [ADR-0040](decisions/0040-armor-points-are-a-threshold-not-a-pool-the-m7-6-spec-was-wr.md) — Armor Points are a threshold, not a pool — the M7.6 spec was wrong about this
 
 **Found during implementation, 2026-08-15.** The M7.6 spec §1.3 and the
 reconciled diff §5 both state that "AP is consumed", and the implementation plan
@@ -1034,13 +1038,13 @@ as the error a Warden defaults to — the code should not make the same one.
 
 ## Claude Integration — Turn Loop & Correction
 
-### Correction loop bounded at one re-prompt
+### [ADR-0041](decisions/0041-correction-loop-bounded-at-one-re-prompt.md) — Correction loop bounded at one re-prompt
 
 When Claude's proposed state changes fail validation, the backend re-prompts once with a structured `tool_result` describing the rejections and waits for a corrected `submit_gm_response`. If that second response also fails validation, the turn aborts with 502 and the entire turn transaction rolls back — leaving only the player-message row that was persisted before the Claude call. Not two retries, not a budget — a hard cap at one re-prompt.
 
 The cost of a correction round is one extra Claude API call on a path that should be rare in practice; compounding two rounds doubles that cost and masks the real problem, which is either a bug in the validator rules or a model that needs prompt work. Playtest evidence should drive validator tuning and prompt revision, not a larger retry budget. If the cap proves too aggressive, loosen it only after identifying a specific class of rejection that a second retry would have fixed without just papering over a validator-or-prompt bug.
 
-### The correction loop does not re-enter the inner tool loop
+### [ADR-0042](decisions/0042-the-correction-loop-does-not-re-enter-the-inner-tool-loop.md) — The correction loop does not re-enter the inner tool loop
 
 M7 introduces an inner tool-use loop in `SessionService.sendMessage`: Claude may call `roll_dice` and `rules_lookup` any number of times before issuing `submit_gm_response`. When the M6 validator subsequently rejects the proposed `stateChanges`, the correction pass re-prompts Claude with `tool_choice: { type: 'tool', name: 'submit_gm_response' }` — explicitly narrowing away from `{ type: 'any' }` — so the correction cannot invoke additional tools. The rejection is handed to Claude as a `tool_result { is_error: true }` and Claude must resubmit directly.
 
@@ -1048,7 +1052,7 @@ Rationale: dice and rules retrieval are inputs to Claude's reasoning. By the tim
 
 Implementation: `buildCorrectionRequest` in `session.correction.ts` hardcodes `toolChoice: { type: 'tool', name: 'submit_gm_response' }` in its return, overriding whatever was on the original request. The unit test `session.correction.spec.ts` asserts this override explicitly.
 
-### `rules_lookup` calls are captured in `adventure_telemetry.payload.rulesLookups`, not in `game_events`
+### [ADR-0043](decisions/0043-rules-lookup-calls-are-captured-in-adventure-telemetry-paylo.md) — `rules_lookup` calls are captured in `adventure_telemetry.payload.rulesLookups`, not in `game_events`
 
 Every `roll_dice` call writes a `dice_roll` row to `game_events` — dice are mechanically consequential, part of the turn's audit trail, and rolls (like player actions and GM responses) carry sequence numbers so the full turn can be replayed from the event log.
 
@@ -1058,7 +1062,7 @@ Instead, `rulesLookups: RulesLookupRecord[]` lives in `adventure_telemetry.paylo
 
 The record carries `query`, `limit`, `resultCount`, `topSimilarity`, and `sources` (citation strings). Full chunk text is deliberately omitted: re-running the query at review time reproduces the chunks deterministically until the index is re-ingested, and storing them inline would bloat the telemetry JSONB without marginal benefit. If Phase 2 review surfaces a need for full-text capture, a `texts: string[]` field can be added.
 
-### Agentic graph decomposition stays deferred; dice-arbitration evidence weakens the case without closing it
+### [ADR-0044](decisions/0044-agentic-graph-decomposition-stays-deferred-dice-arbitration.md) — Agentic graph decomposition stays deferred; dice-arbitration evidence weakens the case without closing it
 
 The standing deferral on a LangGraph-style decomposition of the turn loop carried a falsifiable criterion: harness results should first show which failure categories resist prompt-level fixes. Dice arbitration reliability was the lead candidate for a category that would, on the theory that reliable sequencing of request → resolution → narration is a control-flow problem a single prompt can't be made to solve.
 
@@ -1094,7 +1098,7 @@ So the live hypothesis is prompt *structure*, not prompt *content*: M7.5 appende
 
 An earlier version of this criterion also called for extending the `turn19`/`turn21` fixtures through the follow-up turn, on the theory that a model which splits a to-hit request from its resolution puts the ordering evidence on a turn the fixture doesn't contain. **That is withdrawn.** The violation window is the captured turn: once a gate is deferred, the turn ends, so any dependent roll landing on the follow-up turn is necessarily *after* the gate resolved. Extending the fixtures would have produced a structurally guaranteed PASS and read as evidence of correct sequencing.
 
-### `rollType` / `gatedByRollId` / `actingEntityId` on `roll_dice` stay deferred, but they are measurement infrastructure
+### [ADR-0045](decisions/0045-rolltype-gatedbyrollid-actingentityid-on-roll-dice-stay-defe.md) — `rollType` / `gatedByRollId` / `actingEntityId` on `roll_dice` stay deferred, but they are measurement infrastructure
 
 > **Status: closed 2026-08-07.** The fields landed in M7.5, on the schedule this entry set.
 > The heading is kept in its original wording because several documents link to it by title;
@@ -1113,7 +1117,7 @@ So the fields are not only a possible fix; they are the precondition for knowing
 
 What they bought, on the two checks that were waiting:
 
-- `gatedByRollId` — `out-of-order-resolution` now decides the in-turn case by comparing a named gate's sequence number against the roll naming it. See `§ out-of-order-resolution reads the deferred gate` above for the three sub-cases and for the deferred-gate residual this does *not* close.
+- `gatedByRollId` — `out-of-order-resolution` now decides the in-turn case by comparing a named gate's sequence number against the roll naming it. See `ADR-0079` above for the three sub-cases and for the deferred-gate residual this does *not* close.
 - `actingEntityId` — `system-rolled-player-action` attributes without reading `purpose`. This was the last prose dependency in the structural checks; on post-M7.5 output there is none left. **The first integration of this field was defective and shipped a false pass — see the entry immediately below, which is a correction to this bullet, not a footnote on it.**
 - `rollType` — **no measurement role, and none was invented for it.** The entry above claims all three were "the precondition for knowing whether a fix is needed"; that was true of the other two and never of this one. Checked during M7.5 planning: it appears in `docs/specs/zoltar/011-eval-harness-multi-run.md § Part 6` only as a *hypothetical example* of a field some future check might need, is absent from the M7.4 spec entirely, and the two bullets above give it no job. It ships as a descriptive enum (`check` / `save` / `damage` / `panic_check` / `table` / `other`) read by no checker — telemetry and a reporting axis. The justification is this entry's own economics rather than a requirement: the re-baseline was being bought anyway, and discovering a use for it later would have meant buying another.
 
@@ -1121,13 +1125,13 @@ The prose paths are kept rather than deleted, and every consumer branches on fie
 
 **Provenance note.** During M7.2 implementation planning this conclusion was briefly reversed — a plan document recorded "resolved with Alex: the fields do not ride along, a third baseline gets paid for separately" — and instructed that this entry be rewritten to match. That rewrite never happened here. The reversal was itself reversed during M7.5 spec review: the fields land with M7.5's re-baseline, per the original reasoning above, which was correct throughout. Noted so the now-stale reasoning in that plan document isn't mistaken for a second, independent decision.
 
-### `actingEntityId` must resolve against a declared identifier set, and an unresolvable id is undecided
+### [ADR-0046](decisions/0046-actingentityid-must-resolve-against-a-declared-identifier-se.md) — `actingEntityId` must resolve against a declared identifier set, and an unresolvable id is undecided
 
 M7.5's first integration of `actingEntityId` compared it against `applicability.playerEntity` for equality. The field carries an entity **id** (`lt_alvarez`); `playerEntity` carries a display **name** (`Alvarez`). Nothing ever matched, and because "no roll belongs to the player" is `system-rolled-player-action`'s PASS condition, the check did not report *less* — it inverted. It graded ten violations clean, including a rep whose payload reads `system_generated` / `lt_alvarez` / `"Alvarez Combat Check to shoot contractor alpha"`. Full account in `docs/rules-extraction-findings.md § S30`.
 
 Three rules come out of it, and they generalise past this field.
 
-**An identifier comparison must name both namespaces.** The bug was not a typo; it was comparing two things that had never been the same kind of thing, in a codebase whose own convention (`docs/decisions.md § Entity and resource pool identifiers use underscores only`) makes ids and display names visibly distinct. `rollActsFor` now takes an explicit `AttributionContext` carrying `playerEntityIds`, `knownEntityIds`, and the display name for the legacy prose path, so the comparison cannot be written without stating which set is being consulted.
+**An identifier comparison must name both namespaces.** The bug was not a typo; it was comparing two things that had never been the same kind of thing, in a codebase whose own convention (`ADR-0032`) makes ids and display names visibly distinct. `rollActsFor` now takes an explicit `AttributionContext` carrying `playerEntityIds`, `knownEntityIds`, and the display name for the legacy prose path, so the comparison cannot be written without stating which set is being consulted.
 
 **A resolution failure is a third state, not a negative answer.** `rollActsFor` returns `'player' | 'other' | 'unknown'`. An id matching neither the declared player set nor the fixture's seeded entities is `'unknown'` — `NOT_APPLICABLE`, excluded from the denominator, never a pass. This is the same discipline as "Structural checks report undecided rather than guessing" above, applied to structured data rather than prose: the shipped bug's mechanism was a resolution failure silently collapsing into `'other'`. It is load-bearing, not defensive — Sonnet 4.6 emitted resource *pool* names in this field 13 times across one run.
 
@@ -1145,7 +1149,7 @@ This changes the state snapshot and therefore the Warden prompt, so it invalidat
 
 **Two things the original paragraph got wrong, worth separating from what it got right.**
 
-The diagnosis was right: the model had no id to read and inferred one from pool names. But the paragraph attributes the ambiguity it inferred *from* to a `character_sheet` table with zero rows, and that is the eval's condition, not the defect's cause. The duplicate prefixes were minted at synthesis time by a prompt that showed the model a display name and no `entityId` — they would have appeared in a campaign with a perfectly good sheet, because character creation writes `{entityId}_hp` while synthesis independently invents its own prefix. Zero rows explains why `playerEntityIds` was empty; it does not explain why the pools disagreed. That half is closed separately under `§ Player resource pools are derived at character creation, not at synthesis`, and the two fixes are independent: this one stops the Warden inferring an id, that one stops the state offering two to infer from.
+The diagnosis was right: the model had no id to read and inferred one from pool names. But the paragraph attributes the ambiguity it inferred *from* to a `character_sheet` table with zero rows, and that is the eval's condition, not the defect's cause. The duplicate prefixes were minted at synthesis time by a prompt that showed the model a display name and no `entityId` — they would have appeared in a campaign with a perfectly good sheet, because character creation writes `{entityId}_hp` while synthesis independently invents its own prefix. Zero rows explains why `playerEntityIds` was empty; it does not explain why the pools disagreed. That half is closed separately under `ADR-0036`, and the two fixes are independent: this one stops the Warden inferring an id, that one stops the state offering two to infer from.
 
 The claim that seeding fixtures "closes this for the eval" also understates what the harness already does. `seedScratchAdventure` seeds exactly one `character_sheet` row from the *first* declared id, and `SessionService` overwrites the seeded blob's `playerEntityIds` with the repository's answer — so a fixture declaring `['lt_alvarez', 'alvarez']` has always resolved to one id at run time. The two-id declaration is read only by the checker, deliberately, per "the checker tolerates aliases" above. Fixtures therefore need no cleanup for this change to be safe; what they still carry is the duplicate *pools*, which is a separate open question about seeded state.
 
@@ -1153,7 +1157,7 @@ The claim that seeding fixtures "closes this for the eval" also understates what
 
 ## Claude Integration — Continuity & Spatial
 
-### Phase 1 spatial consistency is prose-based, not structured
+### [ADR-0047](decisions/0047-phase-1-spatial-consistency-is-prose-based-not-structured.md) — Phase 1 spatial consistency is prose-based, not structured
 
 The `grid_cell` and `grid_entity` tables exist and are migrated, but no generation pipeline populates them and no runtime system queries them. Phase 1 spatial consistency — making sure the ship layout stays coherent across turns — is handled by `worldFacts` entries authored by Claude during synthesis and maintained during play. The Warden prompt directs Claude to record the location's overall layout in `worldFacts` at synthesis time and to consult and extend those entries when narrating spatial relationships.
 
@@ -1163,7 +1167,7 @@ A structured map model — generated room graphs, cell grids, LOS computation �
 
 This decision is a deferral under uncertainty, not a final answer. The next Phase 1 playtests should watch for spatial-consistency failures — contradictory room connections, forgotten deck assignments, layout drift across long sessions. If prose-based layout holds up, the deferral is validated. If it breaks down in characteristic ways, those failure modes become the design input for a real spatial system, to be built with evidence rather than speculation. The M5 roadmap entry is updated accordingly: LOS computation service is removed, and the state snapshot builder's "no entity positions" note no longer points to a pending spec.
 
-### Phase 1 continuity is carried by cached GM context and working-memory fields, not a rolling summary
+### [ADR-0048](decisions/0048-phase-1-continuity-is-carried-by-cached-gm-context-and-worki.md) — Phase 1 continuity is carried by cached GM context and working-memory fields, not a rolling summary
 
 The original M5 design included a rolling summary stored in `adventures.rolling_summary`, lazily generated at adventure resume to carry continuity across messages that age out of the rolling window. Dropped from M5 pending playtest evidence that the gap exists.
 
@@ -1175,7 +1179,7 @@ The `adventure.rolling_summary` column from M1 remains in the schema and stays n
 
 This decision is a deferral under uncertainty, not a final answer. The next Phase 1 playtests should watch for narrative-continuity failures of the specific kind the summary was designed to prevent. If the cached GM context plus working-memory fields hold up, the deferral is validated. If it breaks down in characteristic ways, those failure modes become the design input for the summary, to be built with evidence rather than speculation.
 
-### The `<character_attributes>` snapshot block is specified but deferred until a data source exists
+### [ADR-0049](decisions/0049-the-character-attributes-snapshot-block-is-specified-but-def.md) — The `<character_attributes>` snapshot block is specified but deferred until a data source exists
 
 The M5 spec, the design doc's state-snapshot section, and the M5 roadmap bullet all reference a `<character_attributes>` block — persistent qualitative character state (armor mode, weapon loadout, active conditions) emitted in the per-turn snapshot. The M5 snapshot builder has no source to populate this block from: `MothershipCampaignState` carries no `characterAttributes` field, synthesis does not write one, and the Mothership character sheet shape (`equipment: string[]`, `saves.armor: number`) does not cleanly separate armor from loadout or carry conditions. The block is omitted in M5 per the spec's "omit an entire block if its source is empty or missing" rule.
 
@@ -1187,7 +1191,7 @@ The three doc references stand unchanged — they describe the intended end stat
 
 **Amendment — the deferral scope was too broad; static build data was never blocked**
 
-This entry conflated two different claims under one deferral: the qualitative `characterAttributes` block (armor mode, loadout, conditions), which genuinely lacks a data source, and character-sheet *build* data — stats, saves — which does not. `character_sheets.data` already carries `Strength`/`Speed`/`Intellect`/`Combat` and the saves as structured fields, populated at character creation (see `§ Player resource pools are derived at character creation, not at synthesis`), and rendering them into the snapshot requires no schema addition and no synthesis write path — only a render function and a call site, the same shape already anticipated above for the qualitative block.
+This entry conflated two different claims under one deferral: the qualitative `characterAttributes` block (armor mode, loadout, conditions), which genuinely lacks a data source, and character-sheet *build* data — stats, saves — which does not. `character_sheets.data` already carries `Strength`/`Speed`/`Intellect`/`Combat` and the saves as structured fields, populated at character creation (see `ADR-0036`), and rendering them into the snapshot requires no schema addition and no synthesis write path — only a render function and a call site, the same shape already anticipated above for the qualitative block.
 
 "Reactivate at the milestone that first needs the data" was the intended trigger, and for this narrower slice it already fired: Phase 1 has no rule evaluator, so Claude adjudicates every stat check itself, and without these fields in the snapshot its only source for the check target is the player stating their own stat in the action text — the system asking the player for data the system already has. That gap has existed since M6/M7 started resolving checks, not from some future milestone.
 
@@ -1205,7 +1209,7 @@ Two corrections to the amendment above, for the record. Its trigger analysis was
 
 Roadmap: `docs/roadmap.md § M7.6 — Character Sheet Fidelity`.
 
-### Message ordering relies on `createdAt` only; no shared sequence key with `game_events`
+### [ADR-0050](decisions/0050-message-ordering-relies-on-createdat-only-no-shared-sequence.md) — Message ordering relies on `createdAt` only; no shared sequence key with `game_events`
 
 The `messages` table has no `sequence_number` column, unlike `game_events`. Reconstruction and message-window ordering (`buildMessageWindow`) rely purely on `createdAt` timestamps. Player and GM messages for the same turn are not written in the same transaction — the player message commits first, in its own transaction, before the GM call runs (intentionally, so a retry can reproduce the player's action) — so there is no transactional guarantee of ordering either, only the practical guarantee that a player's message is always written before the GM's response to it.
 
@@ -1222,7 +1226,7 @@ Deferred under uncertainty, consistent with the project's general bias against f
 
 ## API & Data Model
 
-### Narrative and dice-result submissions are separate endpoints, not a discriminated union under `POST /actions`
+### [ADR-0051](decisions/0051-narrative-and-dice-result-submissions-are-separate-endpoints.md) — Narrative and dice-result submissions are separate endpoints, not a discriminated union under `POST /actions`
 
 Earlier drafts of `docs/api.md` specified a single `POST /api/v1/campaigns/:id/adventures/:id/actions` endpoint with a discriminated-union request body: `{ type: 'narrative', content } | { type: 'diceResult', requestId, notation, results, source }`. The M7 implementation ships two separate endpoints instead: `POST /messages` for narrative turns and `POST /dice-results` for dice submissions. `docs/api.md` has been updated to match what actually ships; this entry records why.
 
@@ -1232,7 +1236,7 @@ Two endpoints with distinct error codes also self-document failure modes better 
 
 The tradeoff accepted here: if M8 adds further player actions (caller transfer, advance initiative), those will live at their own nouns (`/caller`, `/initiative`, etc.) rather than being bundled under `/actions`. This is acceptable — the surface area stays small per endpoint, each gets its own test file and failure taxonomy, and the alternative (growing a union-typed action endpoint) would accumulate branch complexity inside one handler faster than it accumulates URL count. Revisit if the endpoint list becomes genuinely unwieldy (> 8–10 player-action endpoints) or if M8's caller/initiative work surfaces tight coupling that a unified endpoint would simplify.
 
-### Campaign canon is separate from adventure canon
+### [ADR-0052](decisions/0052-campaign-canon-is-separate-from-adventure-canon.md) — Campaign canon is separate from adventure canon
 
 Adventure GM context blobs are scoped to a single narrative arc. Promoted canon within an adventure is correct at that scope. But facts with campaign-level significance — an overarching antagonist's scheme, a surviving NPC, a faction relationship — need a persistent home that synthesis for future adventures can read.
 
@@ -1240,7 +1244,7 @@ Adventure GM context blobs are scoped to a single narrative arc. Promoted canon 
 
 The alternative (feeding prior adventure summaries and GM context blobs directly into synthesis) was rejected because synthesis complexity would grow with campaign length, and there would be no explicit record of what the campaign author considered canonical world truth vs. adventure-local detail.
 
-### One active adventure per campaign
+### [ADR-0053](decisions/0053-one-active-adventure-per-campaign.md) — One active adventure per campaign
 
 Campaigns are limited to one adventure in a non-completed, non-failed state at a time. A new adventure cannot be created while another is `synthesizing`, `ready`, or `in progress`. This matches solo play conventions and simplifies the state model. Completed and failed adventures remain visible (toggled by default) but do not block new adventure creation.
 
@@ -1260,8 +1264,7 @@ Creating a second adventure is permitted, and nothing behind it works:
   subsequent adventures"). Adventure 2 would be synthesized with no knowledge of
   adventure 1.
 - `adventure.rolling_summary` stays null through Phase 1 by
-  `§ Phase 1 continuity is carried by cached GM context and working-memory fields, not a
-  rolling summary`, which defers it to Phase 2 for the same reason — "where the related
+  `ADR-0048`, which defers it to Phase 2 for the same reason — "where the related
   'what persists across adventures' questions already need answering."
 - Adventure-scoped state is not separated from campaign state, so adventure 2 inherits
   adventure 1's synthesized entities, pools, and flags. Overlapping entity ids across
@@ -1303,7 +1306,7 @@ work rather than one that does.
 which must not be combined with a mechanical-coverage playtest, per the standing rule in
 `docs/roadmap.md`.
 
-### Adventure state gets its own row, not an adventure tag on campaign state
+### [ADR-0054](decisions/0054-adventure-state-gets-its-own-row-not-an-adventure-tag-on-cam.md) — Adventure state gets its own row, not an adventure tag on campaign state
 
 Given the placement rule above, adventure-scoped state has to be separable from
 campaign-scoped state. Two shapes were available: tag each entity and pool entry in
@@ -1314,11 +1317,9 @@ state row with its own per-system Zod schema, mirroring `campaign_state`.
 the snapshot builder must remember to honour, and the two state defects this project has
 actually hit were both exactly that failure. The `lt_alvarez` / `alvarez` incident was a
 flat map plus a preserve-on-conflict merge, where the safety mechanism is what let the
-duplicate through (`§ Player resource pools are derived at character creation, not at
-synthesis`, amendment). The `<character_attributes>` block sat deferred for two
+duplicate through (`ADR-0036`, amendment). The `<character_attributes>` block sat deferred for two
 milestones past its own stated trigger because nothing structural was watching
-(`§ The <character_attributes> snapshot block is specified but deferred until a data
-source exists`, second amendment). A separate row makes scope structural rather than
+(`ADR-0049`, second amendment). A separate row makes scope structural rather than
 remembered, gives the adventure lifecycle a natural place for cleanup, and bounds a blob
 that is read on every turn and would otherwise grow without limit across a long campaign.
 
@@ -1326,7 +1327,7 @@ that is read on every turn and would otherwise grow without limit across a long 
 two write paths, and a snapshot builder that merges two sources. That is real, and it is
 the price of not relying on every future caller to remember a tag.
 
-**Not implemented in Phase 1.** See the addendum to `§ One active adventure per campaign`
+**Not implemented in Phase 1.** See the addendum to `ADR-0053`
 above — the single-adventure constraint is what makes deferring the implementation safe
 rather than merely postponing it. This entry records the terminal shape now so that the
 Phase 2 migration is written against a decided target rather than choosing one under
@@ -1343,8 +1344,7 @@ assumption.
 **The two axes are independent.** `resourcePools` versus `scenarioState` is a distinction
 of *ownership*: per-entity numerics versus non-entity numerics
 (`campaign-state.schema.ts:26`). Campaign versus adventure is a distinction of *scope*, per
-`§ State placement is decided by the lifetime of the referent, not the lifetime of the
-value`. They cross:
+`ADR-0026`. They cross:
 
 | | Entity-owned | Not entity-owned |
 |---|---|---|
@@ -1373,7 +1373,7 @@ an entity referent after being classified as not having one.
 **A related fact, recorded because it is the mechanism behind the defect this entry
 addresses:** nothing anywhere resets `entities`, `flags`, `scenarioState`, or `worldFacts`
 between adventures (`docs/plans/m7.6-code-inventory.md` @ `e1cdaac`). The single-adventure
-constraint in `§ One active adventure per campaign` (addendum) is what keeps that from
+constraint in `ADR-0053` (addendum) is what keeps that from
 mattering before Phase 2.
 
 **Not settled here.** `entities` mixes recurring NPCs with synthesized threats and needs
@@ -1384,7 +1384,7 @@ fine in `resourcePools`, and `scenarioState` has no producer at synthesis
 `{}` in every fixture and every dump. It may be a bucket whose purpose was superseded
 before it was ever filled.
 
-### `adventure_telemetry` vs session export are distinct artifacts
+### [ADR-0055](decisions/0055-adventure-telemetry-vs-session-export-are-distinct-artifacts.md) — `adventure_telemetry` vs session export are distinct artifacts
 
 These are two different things that were originally both called `adventure_log`. They serve different purposes and must not be conflated. `adventure_telemetry` is infrastructure-level diagnostic telemetry — one row per turn in a DB table, containing the full `submit_gm_response` payload, all `roll_dice` calls with purpose annotations and results, the state snapshot sent to Claude, and prompt/completion token counts. It exists to diagnose pipeline bugs and is not player-facing. The session export is the player-facing portable format — a single JSON file containing the message log (with turn numbers and timestamps), canon log, turn-level state deltas, final state snapshot, and GM context. It supports session restore and post-session analysis. It is produced on demand, not written per-turn to a DB table. Mixing these concerns into a single artifact would make `game_events` harder to query for its application-level purpose and would conflate player-facing data portability with internal diagnostic tooling.
 
@@ -1392,23 +1392,23 @@ These are two different things that were originally both called `adventure_log`.
 
 ## Frontend & Design System
 
-### No utility framework — plain Svelte scoped styles
+### [ADR-0056](decisions/0056-no-utility-framework-plain-svelte-scoped-styles.md) — No utility framework — plain Svelte scoped styles
 
 Tailwind and similar utility frameworks were considered and rejected. The atomic class approach makes HTML harder to read and works against a strong per-system visual identity. More importantly, genre-specific theming (horror for Mothership, high fantasy for OSE, etc.) requires styles that are closely coupled to a semantic token layer — a utility framework adds friction without meaningful benefit in that model. Component styles live in Svelte's scoped `<style>` blocks. No utility framework is a dependency.
 
-### Two-tier CSS custom property token system
+### [ADR-0057](decisions/0057-two-tier-css-custom-property-token-system.md) — Two-tier CSS custom property token system
 
 Theming is implemented via a two-tier CSS variable system. Primitive tokens (`--color-slate-950`, `--font-size-lg`) define the raw design vocabulary and never change between themes. Semantic tokens (`--color-surface`, `--color-text-primary`, `--color-accent`) map purpose to primitives and are what themes actually swap. Components reference semantic tokens only — never primitives directly. This ensures a theme swap is a single token layer substitution, not a component change.
 
-### Theme switching via `data-theme` attribute
+### [ADR-0058](decisions/0058-theme-switching-via-data-theme-attribute.md) — Theme switching via `data-theme` attribute
 
 The active theme is applied by setting a `data-theme` attribute on the root element. Each theme is a CSS file defining the semantic token layer (e.g. `themes/mothership.css`, `themes/fantasy.css`). The primitive token definitions live in `themes/base.css` and are always loaded. This approach requires no JavaScript theming library and works naturally with Svelte's reactivity.
 
-### Bits UI for headless accessibility primitives
+### [ADR-0059](decisions/0059-bits-ui-for-headless-accessibility-primitives.md) — Bits UI for headless accessibility primitives
 
 No opinionated component library is used. Bits UI (the Svelte 5 headless primitive library, successor to Melt UI) is used for accessibility-critical interactive patterns — modals, dropdowns, tooltips, focus traps — where rolling bespoke implementations would be high-risk. All visual styling of Bits UI primitives is owned by the application. This gives accessibility correctness without importing a competing design language.
 
-### Mobile-first design — layouts originate at mobile size
+### [ADR-0060](decisions/0060-mobile-first-design-layouts-originate-at-mobile-size.md) — Mobile-first design — layouts originate at mobile size
 
 All UI layouts are designed at mobile size first and expanded for larger viewports. This applies from the pre-M3 design sprint forward and is a constraint on all subsequent frontend work. The M9 "layout pass" is a responsive polish pass, not the origin of mobile layout decisions. The play view in particular — message log, input field, character status, dice UI — is a constrained layout problem better solved small-to-large than large-to-small.
 
@@ -1416,11 +1416,11 @@ All UI layouts are designed at mobile size first and expanded for larger viewpor
 
 ## Oracle Tables
 
-### Oracle filtering data model includes count fields despite range UI being deferred
+### [ADR-0061](decisions/0061-oracle-filtering-data-model-includes-count-fields-despite-ra.md) — Oracle filtering data model includes count fields despite range UI being deferred
 
 Each oracle category preference record stores `count_min` and `count_max` fields (defaulting to `1/1`) even though the range dial UI is not built in Phase 1. The activate/deactivate pool and the pick-count concept are cleanly separable — the pool model is identical regardless of how many entries are drawn. Adding the fields now avoids a schema migration when variable counts are introduced. The UI commitment is deferred until there is a concrete scenario requiring it (likely Phase 2).
 
-### Oracle filtering UI: activate/deactivate only, no range controls in Phase 1
+### [ADR-0062](decisions/0062-oracle-filtering-ui-activate-deactivate-only-no-range-contro.md) — Oracle filtering UI: activate/deactivate only, no range controls in Phase 1
 
 The oracle filtering UI exposes entry-level activation toggles, select all/deselect all per category, and a submission gate requiring at least one active entry per category. Range dial controls are out of scope for Phase 1. The data model supports variable counts from day one, but the UI will default to picking exactly one entry per category until range controls are designed and built. This keeps the MVP UI simple and avoids designing a UX pattern before there is a concrete use case to design against.
 
@@ -1428,45 +1428,45 @@ The oracle filtering UI exposes entry-level activation toggles, select all/desel
 
 ## Eval Harness
 
-### `checkId` does not encode `checkMode`
+### [ADR-0063](decisions/0063-checkid-does-not-encode-checkmode.md) — `checkId` does not encode `checkMode`
 
 A check's `id` (`out-of-order-resolution`, `hidden-info-leak`) is the failure-mode tag in lower-kebab, deliberately never including `structural`/`judged`. `UNSURFACED-CHECK` has already migrated modes once in this repo — its regex-based structural classifier missed a stakes-gating roll phrased as a question ("Does anything react to Alvarez moving...") rather than using a fixed keyword, so it moved to a judge call after a real-run false pass. `eval:compare` pairs history on `(fixtureId, checkId)`; if the id encoded mode, that migration would have silently un-paired every historical comparison for the check the moment it moved. `checkMode` stays its own column on the score row instead, so a check can migrate modes without breaking the very comparisons that would tell you whether the migration helped.
 
-### One check per fixture today, but the row format is N-ready
+### [ADR-0064](decisions/0064-one-check-per-fixture-today-but-the-row-format-is-n-ready.md) — One check per fixture today, but the row format is N-ready
 
 `selectChecksForFixture` returns an array, and every downstream reader — score rows, rate computation, comparison — is built against "a fixture may have N checks." Today it always returns exactly one, because a judged check needs per-fixture `assertion.facts` (`perceptionBoundary`, `expectedScope`, …) that only exist for the fixture's own tag: running `HIDDEN-INFO-LEAK` against a `SCENE-JUMP` fixture has no boundary text to grade against, and would cost an API call per fixture-check pair to produce one that doesn't exist. The corpus is what's 1:1 today, not the format — giving a fixture a second check later is a registry change, not a schema migration.
 
-### `warden-output.json` is the full serialized `TurnExecutionResult`, not just `submit_gm_response`
+### [ADR-0065](decisions/0065-warden-output-json-is-the-full-serialized-turnexecutionresul.md) — `warden-output.json` is the full serialized `TurnExecutionResult`, not just `submit_gm_response`
 
 The spec describes the artifact as "full `submit_gm_response` payload." That's not enough on its own: `eval:judge-variance` re-runs judged checks against a frozen artifact with **no database at all** — the scratch campaign is torn down at the end of every fixture run by default — so the artifact has to carry everything a structural checker or the judge needs to re-evaluate the turn. The judge summarizes the whole tool-call sequence, not just the narration, so it needs `gameEvents`; structural checkers additionally need `telemetry`/`pendingCanon`/`diceRequests`/`campaignState`. `warden-output.json` is a strict superset of `submit_gm_response`'s payload — the serialized `TurnExecutionResult`, with the narration living inside its `gm_response` game event. Anything narrower makes `eval:judge-variance` impossible without either re-seeding a scratch campaign per re-evaluation or keeping every scratch campaign alive forever, which would defeat the reason `--keep-scratch` defaults to off.
 
-### `harnessVersion` is the git short SHA, not a hand-maintained constant
+### [ADR-0066](decisions/0066-harnessversion-is-the-git-short-sha-not-a-hand-maintained-co.md) — `harnessVersion` is the git short SHA, not a hand-maintained constant
 
 Recorded per rep and per row as `git rev-parse --short HEAD`, with a `-dirty` suffix when `apps/zoltar-be` has uncommitted changes, and `unknown` outside a git checkout. Same argument as `corpusVersion` being a content hash rather than a hand-bumped string: a manually maintained version fails silently when someone forgets to bump it, and the failure mode — two reps labeled identically under different checker semantics — poisons exactly the weeks-apart append the field exists to disambiguate.
 
-### `error` is a fourth verdict, not folded into `fail`
+### [ADR-0067](decisions/0067-error-is-a-fourth-verdict-not-folded-into-fail.md) — `error` is a fourth verdict, not folded into `fail`
 
 M7.4's `runHarness` mapped any turn that didn't complete — a live model call producing output that failed schema validation, the inner tool loop exhausting its iteration cap, a checker rejecting a malformed fixture — to a **failed** `FixtureResult`, with a comment explaining that aborting the whole run over one flaky turn was worse than mislabeling it. That comment was right about the tradeoff and wrong about the fix: a transient failure and a real regression are different events, and conflating them under `fail` corrupts the one number (`pass / (pass + fail)`) the harness exists to produce. `error` is its own verdict — excluded from the denominator but counted and surfaced in `eval:report`'s Errors section, so it can never be silently absorbed into a regression-looking rate. Confirmed for real during the multi-run harness's own manual verification: the inner tool loop hit its 20-iteration cap on a busy off-screen-combat turn, and the resulting row correctly read as `error`, not as a phantom SCENE-JUMP failure.
 
-### `eval:judge-variance` writes beside the run, not into `reps/`
+### [ADR-0068](decisions/0068-eval-judge-variance-writes-beside-the-run-not-into-reps.md) — `eval:judge-variance` writes beside the run, not into `reps/`
 
 `reps/*/scores.jsonl` rows mean "one observation of generator and grader together" — every pass-rate denominator in `eval:report`/`eval:compare` assumes that. A grader-only re-run against frozen input is a different measurement and would corrupt those denominators if appended there. Its output lives in `<run-dir>/judge-variance/<timestamp>.jsonl` instead — an extension beyond the spec, which doesn't say where this command's output goes.
 
-### `eval:harness` retired, not kept alongside `eval:run`
+### [ADR-0069](decisions/0069-eval-harness-retired-not-kept-alongside-eval-run.md) — `eval:harness` retired, not kept alongside `eval:run`
 
 The multi-run harness's whole premise is separating execution from rendering — `eval:run` writes score rows, `eval:report` reads them, and nothing downstream parses markdown. Leaving `eval:harness` in place would have kept a second write path producing no score rows, which is the thing this milestone existed to eliminate. `eval:replay` survives — repointed at the unified check registry — and gained an artifact-based mode (`--run-dir --rep`, no database), covering the quick single-fixture-iteration use `eval:harness` was also serving.
 
-### Judge verdicts stay binary — no confidence scoring
+### [ADR-0070](decisions/0070-judge-verdicts-stay-binary-no-confidence-scoring.md) — Judge verdicts stay binary — no confidence scoring
 
 `judgeVerdictSchema` is `{passed, rationale}` and always has been. A row schema drafted for this milestone listed `judgeConfidence?: number` as a field a rubric could conditionally emit, but no rubric does, because self-reported LLM confidence was rejected earlier in this project's design. That decision predates the multi-run harness and was never written down anywhere except the shape of `judgeVerdictSchema` — recorded here because the new score row was the first place a reviewer might reasonably ask "where's the confidence column," and the honest answer is that a permanently-empty optional field reads as an invitation to fill it, not as a decision. JSONL rows are append-friendly, so if a rubric ever does emit one, adding the field later is non-breaking — old rows simply lack it.
 
-### `eval:compare`'s mixed-rubric warning groups by `checkId`, and `--filter-rubric` is scoped to one check
+### [ADR-0071](decisions/0071-eval-compare-s-mixed-rubric-warning-groups-by-checkid-and-fi.md) — `eval:compare`'s mixed-rubric warning groups by `checkId`, and `--filter-rubric` is scoped to one check
 
 `detectHeterogeneity` originally counted distinct `rubricHash` values across an entire run and warned whenever there was more than one. Since `rubricHashFor(checkId)` hashes one rubric template per judged check, any run covering more than one judged check spans more than one hash by construction — the warning fired on every multi-check run, unconditionally, and named nothing useful. Worse, `--filter-rubric <hash>` filtered every judged row in both runs against a single hash, so following the printed remedy silently dropped every judged check except one.
 
 The fix groups rubric hashes per `checkId` (not per `tag`, though the M7.4 spec's "one rubric per tag" language and the two are 1:1 in the current corpus) and warns only when one check's own rows span more than one hash — the real signal of a rubric template edited mid-run. `--filter-rubric` became `CHECK=HASH`, repeatable, so a filter aimed at one drifting check can never zero out an unrelated check's rows; the bare-hash form is now a usage error. A filter that would still zero a fixture's denominator is reported on stderr rather than rendered as an unremarkable empty row. `checkId` was chosen over `tag` as the grouping key because the actual data model — `manifest.completedReps[].rubricHashes: Record<checkId, rubricHash>` and `rubricHashFor(checkId)` — is keyed on check, not tag; if a tag ever gains a second check, `tag`-based grouping would coarsen incorrectly where `checkId`-based grouping stays precise.
 
-### A warning's suggested remedy must produce a correct comparison, not merely a homogeneous one
+### [ADR-0072](decisions/0072-a-warning-s-suggested-remedy-must-produce-a-correct-comparis.md) — A warning's suggested remedy must produce a correct comparison, not merely a homogeneous one
 
 Three separate warnings in this harness converged on the same defect, which is worth naming as a class rather than fixing three times. Each detected a real inconsistency between the two sides of a comparison, and each printed a remedy that resolved the inconsistency by **deleting** it — making the sides *look* consistent without making the comparison correct:
 
@@ -1478,7 +1478,7 @@ The rule: a warning may only suggest a remedy that leaves the resulting comparis
 
 A related fix belongs to the same principle. Carried-forward rows (`eval:rescore` preserves rows for reps that errored before producing an artifact) are heterogeneous by construction and must never be counted as rubric or harness drift. That filtering now happens **inside `detectHeterogeneity`**, not at its call site. Filtering at the call site is correct exactly as long as every caller remembers to do it, which makes the invariant a convention rather than a property; moving it inside means a new caller cannot reintroduce the false alarm by omission.
 
-### Applicability is fixture-authored, keyed by `checkId`, never inferred from the turn's own output
+### [ADR-0073](decisions/0073-applicability-is-fixture-authored-keyed-by-checkid-never-inf.md) — Applicability is fixture-authored, keyed by `checkId`, never inferred from the turn's own output
 
 `system-rolled-player-action` and `out-of-order-resolution` originally decided applicability by asking "did this turn produce a `dice_roll` event?" — a consequence of the model's own choice, not a property of the fixture's scenario. When the correct behaviour was declining to roll (deferring to a pending `dice_request` instead), the harness scored the turn as `not_applicable` rather than as a pass, silently shrinking the denominator to exactly the reps where the model happened to roll — selection on the outcome variable. Confirmed against a real Sonnet 5 run: 38 of 40 reps across the two checks read `not_applicable` for this reason, and the two reps that didn't were themselves a false pass — a system-rolled to-hit roll the old pattern-only rule didn't match.
 
@@ -1488,7 +1488,7 @@ Checks that need this declare `requiresFixtureSchema: 2` (the field existed, unu
 
 `out-of-order-resolution` is only half-migrated: situation gating is real, but the in-turn ordering case needs a `gatedByRollId` the payload does not record, so the check reports `not_applicable` with a reason naming the missing field rather than the old model-artifact phrasing. An earlier version of this paragraph proposed extending turn19/21 through the follow-up turn to recover that evidence; that proposal is withdrawn — see "`out-of-order-resolution` reads the deferred gate, and declines the in-turn case" below.
 
-### A structural check may read event and state structure; it may not classify prose
+### [ADR-0074](decisions/0074-a-structural-check-may-read-event-and-state-structure-it-may.md) — A structural check may read event and state structure; it may not classify prose
 
 Structural checkers began as regexes over `purpose` and `playerText` because the alternative
 looked like an API call per rep for questions that seemed mechanically answerable. Every
@@ -1601,7 +1601,7 @@ unvalidated or change the harness seed in the same milestone; discovering this d
 implementation would surface as the harness failing for reasons unrelated to the change
 under test.
 
-### `eval:rescore` re-grades frozen artifacts; re-score rows are a distinct row kind
+### [ADR-0075](decisions/0075-eval-rescore-re-grades-frozen-artifacts-re-score-rows-are-a.md) — `eval:rescore` re-grades frozen artifacts; re-score rows are a distinct row kind
 
 A scoring-only corpus bump or a checker change leaves every `warden-output.json` exactly as valid as it was, so re-grading in place is a real measurement rather than an approximation. `eval:rescore` does that with no Warden calls and no database. It landed alone, before any checker changed, so that it could be validated against numbers derived independently — it reproduces the hand-derived `applicability`-fix corrections in `eval-methodology.md` exactly, including the specific finding that two Sonnet 5 passes on `turn21` flip to `FAILED`.
 
@@ -1609,13 +1609,13 @@ Rows extend `scoreRowSchema` rather than forking it, so `computeRates` / `rollup
 
 Rows that cannot be re-graded — the turn errored before producing an artifact — are carried forward rather than dropped, so a re-score file is a complete replacement for a run's rows. Dropping them would silently shrink the error accounting and make a re-scored report look cleaner than the run it describes.
 
-### `applicabilitySource` is declared per check, and the third value is `'ungated'`
+### [ADR-0076](decisions/0076-applicabilitysource-is-declared-per-check-and-the-third-valu.md) — `applicabilitySource` is declared per check, and the third value is `'ungated'`
 
 Every check declares where its `not_applicable` verdicts come from: `'fixture'` (fixture-authored applicability — the scenario decides, denominator fixed before the model runs), `'artifact'` (the turn's own output — the outcome-selection hazard that made 38 of 40 reps read `not_applicable` across two checks), or `'ungated'` (reaches pass or fail every rep). Required rather than optional, with a lookup that throws on an unlisted check, so adding one forces the question rather than defaulting to a guess at the thing the field records. It goes on the row rather than being looked up from the check id at read time, because a migration changes it and a row must keep describing the rules it was scored under.
 
 `'judged-check'` was considered for the third value and rejected. It would put a `mode` value on an applicability axis, and the two coincide only while no check is hybrid — which ended immediately: `narrating-past-a-block` and `unauditable-mapping` are both `mode: 'judged'` with artifact-sourced structural gates, so six checks are judged but only four gate on nothing. A reader would infer the value meant "this check is judged" and be wrong about a third of them. `'none'` was the first choice and was also rejected: an absence-shaped value reads as "not declared yet," which is the exact ambiguity the required field exists to eliminate.
 
-### A judged check may carry a structural pre-filter (`judgeGate`), and gated reps are excluded from judge-variance
+### [ADR-0077](decisions/0077-a-judged-check-may-carry-a-structural-pre-filter-judgegate-a.md) — A judged check may carry a structural pre-filter (`judgeGate`), and gated reps are excluded from judge-variance
 
 `decisions.md` already held that a single check may span both modes. `judgeGate` is the mechanism: an optional function run before the judge call that either settles the rep structurally or returns `null` to mean "the remaining question is genuinely semantic." `mode` stays `'judged'` because that is what `runCheck` dispatches on and what the row records; a third mode value would have forced a fixture-schema change for no gain.
 
@@ -1623,7 +1623,7 @@ The non-obvious consequence is in `eval:judge-variance`. It selects candidates b
 
 `judgeContext` is the companion field. When a gate narrows *which* events the semantic question is about — as `unauditable-mapping`'s does — the judge has to be told which ones. The alternative is a rubric describing the structural filter in prose for the model to re-apply, which is a second implementation of the same rule, free to drift, in the one check being rebuilt precisely because prose descriptions of roll classification do not hold.
 
-### Structural checks report undecided rather than guessing when a prose dependency fails
+### [ADR-0078](decisions/0078-structural-checks-report-undecided-rather-than-guessing-when.md) — Structural checks report undecided rather than guessing when a prose dependency fails
 
 `isAttributedTo` — binding a roll to the acting entity by the Warden's leading-name convention — is the last prose dependency in the structural checks, and it is not removable: nothing in `game_events` records who acted, and `actorType` is `'gm'` for every Warden-side roll whether it represents an NPC or the player, which is exactly the distinction being drawn. It waits on an `actingEntityId` on the roll payload.
 
@@ -1631,7 +1631,7 @@ What was fixable is how it fails. A prose match failing to match is indistinguis
 
 The same audit found that binding a `dice_request` by prose was simply wrong. A request is player-facing by construction — `roll_dice` is documented for GM rolls, `diceRequests` for player-facing ones — so a pending request is a deferred player roll whatever its purpose text says. A manually-verified clean turn had been failing because it deferred correctly with a request that never named the player, which a request addressed *to* the player has no reason to do.
 
-### `out-of-order-resolution` reads the deferred gate, and declines the in-turn case
+### [ADR-0079](decisions/0079-out-of-order-resolution-reads-the-deferred-gate-and-declines.md) — `out-of-order-resolution` reads the deferred gate, and declines the in-turn case
 
 > **Status: the in-turn half closed 2026-08-07**, when `gatedByRollId` landed in M7.5. Title
 > kept for the links that point at it; the resolution is inline below. The deferred-gate
@@ -1653,13 +1653,13 @@ Three sub-cases, kept distinct because collapsing any two of them re-creates a f
 
 A known false FAIL is accepted and pinned by a `[known limitation]` test rather than patched: a player stress check triggered by NPC fire that already resolved is properly ordered but structurally identical to a pre-rolled damage roll — both GM-initiated, both without `requestId`, both after the gate in sequence. It costs 1 of 18 decided reps. **M7.5 did not close this one**, and it is worth being precise about why: `gatedByRollId` records which *roll* gated a roll, while this branch asks whether a roll was gated by a pending *request*. Different link, still unrecorded. The available discriminators are notation (1d10 vs 1d100) and purpose wording, and reaching for either would re-import the "works on the data in front of me" failure that produced the regex being removed. A false FAIL also names the offending roll in the report, so it is diagnosable; the alternative readings risk a false PASS, which is not.
 
-### OPEN — the undecided discipline has never been extended to judged checks, and `turn24-over-resolution` is the case that shows it should be
+### [ADR-0080](decisions/0080-open-the-undecided-discipline-has-never-been-extended-to-jud.md) — OPEN — the undecided discipline has never been extended to judged checks, and `turn24-over-resolution` is the case that shows it should be
 
 *Opened 2026-08-10 from `docs/rules-extraction-findings.md § S33`. Not yet decided.*
 
 The entry above governs *structural* checks. Judged checks were never brought under it, and one rep of the `c45a142a` re-baseline shows the gap. `turn24-over-resolution` is declared `applicabilitySource: 'ungated'` — it has no `not_applicable` path at all — and the judge's own rationale reports that the tool calls do not contain the Delta-vs-UNIT-7 off-screen encounter the rubric asks about, calling the comparison *"a mismatched comparison"*. It then returned `fail`.
 
-**This is `§ actingEntityId must resolve against a declared identifier set` inverted.** There, a structural check that could not resolve its subject collapsed into its PASS condition and graded ten violations clean. Here, a judged check that cannot find its subject collapses into FAIL. The shared root is the one that entry already names — *a check that cannot decide must report undecided* — and the fact that it inverts in the other direction on the judged side is not reassuring. A false FAIL is more diagnosable than a false PASS, but it still poisons a rate, and nothing currently stops it.
+**This is `ADR-0046` inverted.** There, a structural check that could not resolve its subject collapsed into its PASS condition and graded ten violations clean. Here, a judged check that cannot find its subject collapses into FAIL. The shared root is the one that entry already names — *a check that cannot decide must report undecided* — and the fact that it inverts in the other direction on the judged side is not reassuring. A false FAIL is more diagnosable than a false PASS, but it still poisons a rate, and nothing currently stops it.
 
 Three things to settle, and deliberately not settled here:
 
@@ -1669,7 +1669,7 @@ Three things to settle, and deliberately not settled here:
 
 Until it is settled, read `OVER-RESOLUTION` at 0.90 as possibly 1.00 with one undecided rep, and do not treat the -0.10 as a measured cost of the roll-ownership change.
 
-### `missing-canon-capture` stays structural, because a judge cannot say "nothing to grade"
+### [ADR-0081](decisions/0081-missing-canon-capture-stays-structural-because-a-judge-canno.md) — `missing-canon-capture` stays structural, because a judge cannot say "nothing to grade"
 
 Reviewed on the same grounds as the others — its marker-phrase gate is a prose dependency, and it had produced zero verdicts across 20 reps — and it is the one case where the conclusion runs the other way.
 
@@ -1679,7 +1679,7 @@ Migrating it would have made things worse. A judge asked "did the narration intr
 
 The real defect is in the fixture, which asks about a detail neither model reproduces and therefore grades nothing. Recapturing it, or authoring the expectation as something other than a literal phrase, is fixture work tracked separately. What the review did change: the marker now matches across dash shape and case, and `pending_canon` is attributed to the *winning* response rather than the first `gm_response`, a latent bug that would have read canon captured by a correction as a failure to capture.
 
-### A rate that never moves is a harness suspect, not a finding
+### [ADR-0082](decisions/0082-a-rate-that-never-moves-is-a-harness-suspect-not-a-finding.md) — A rate that never moves is a harness suspect, not a finding
 
 `eval-methodology.md` listed six fixtures as "confidently zero — n large enough that the result isn't just small-sample noise." Four were measuring the harness. `turn16-narrating-past-a-block` read 0/10 under both models because the check failed every rep on a `dice_request` the *fixture* seeded with `target: null`, a value fixed at capture time before the Warden under test ever ran.
 
@@ -1693,8 +1693,7 @@ never have been a list** (2026-08-11).
 The paragraph above closes with "for now the ceiling half of this rule is enforced by
 remembering it." That is no longer the plan, in two steps of increasing directness. A **Haiku 4.5
 control arm** rides M7.6's re-baseline, scoped by `--fixtures` to the pinned checks: a weaker
-model failing them is evidence they can reach a `fail` verdict at all (§ Warden model upgraded to
-`claude-sonnet-5`, addendum). **M7.8 — Harness Meta-Eval** then asserts the same property
+model failing them is evidence they can reach a `fail` verdict at all (ADR-0023, addendum). **M7.8 — Harness Meta-Eval** then asserts the same property
 directly, with hand-authored fixtures engineered to fail a specific check and the assertion being
 that the harness agrees — both directions, repeatable, and no Warden run. The arm is the interim
 instrument and the fixtures are the actual one; both are scheduled rather than remembered, which
@@ -1763,7 +1762,7 @@ presenting as a stable mid-range rate — the failure this file catalogues as "a
 fixture rather than the corpus", arrived from the third direction. Re-authoring or retiring `turn16`
 goes with M7.7's fixture work; the class goes to M7.8.
 
-### Applicability is reported alongside every rate, and errors are not in its denominator
+### [ADR-0083](decisions/0083-applicability-is-reported-alongside-every-rate-and-errors-ar.md) — Applicability is reported alongside every rate, and errors are not in its denominator
 
 `eval-methodology.md` already argued that a rate moving because its denominator moved looks identical to a rate moving because behaviour moved, and that reporting applicability is the only thing that separates them. The reports now do: `App` on the per-fixture and per-tag tables, `App A`/`App B`/`ΔApp` on every compare row, and an `Applicability shifts` section peer to Regressions/Improvements.
 
@@ -1773,7 +1772,7 @@ Applicability is `N / (N + NA)` — **errors are excluded from the denominator e
 
 The compare report distinguishes a source *mismatch* (both sides declared, and they differ — a checker migrated between the runs) from an *indeterminate* source (either side is `'unknown'` or `'mixed'`). Only the first is a migration. `'unknown'` is the ordinary state of rows predating the field, including every row `eval:rescore` carries forward, and reporting it per check as a migration buries the real ones — the first run of this on the two frozen runs produced six such false alarms. Indeterminate pairs get one aggregated warning instead.
 
-### `eval:report` and `eval:compare` name which grading they rendered, and share one default
+### [ADR-0084](decisions/0084-eval-report-and-eval-compare-name-which-grading-they-rendere.md) — `eval:report` and `eval:compare` name which grading they rendered, and share one default
 
 Once `eval:rescore` exists a run directory holds several sets of verdicts over the same generator output: the run's own `reps/<nnn>/scores.jsonl` plus one file per re-score pass. "The report for this run" stopped being a well-defined request, and the failure mode is not a crash — it is two people quoting numbers graded by different checker code at each other.
 
@@ -1781,13 +1780,13 @@ Once `eval:rescore` exists a run directory holds several sets of verdicts over t
 
 The flag lives on **both** commands, resolved by one shared `resolveScoring`. A default that changed `eval:report` while `eval:compare` kept reading `reps/` would have manufactured the exact cross-grader comparison the flag exists to prevent. `eval:compare` additionally warns when its two sides end up on different gradings — different kinds, or two re-scores under different harness versions — since one `--scoring auto` can still land differently on two runs.
 
-### Prompt work during a re-baseline is triggered by attribution, not by a number falling
+### [ADR-0085](decisions/0085-prompt-work-during-a-re-baseline-is-triggered-by-attribution.md) — Prompt work during a re-baseline is triggered by attribution, not by a number falling
 
-Recorded 2026-08-16, while M7.6's re-baseline was still running and before any of its numbers were readable. That ordering is the point, and it is the same one as `§ The retrieval stopping rule is measured on the metrics with headroom, not on the saturated one`: a trigger written after the results are in is indistinguishable from picking the trigger that licenses what you already wanted to do.
+Recorded 2026-08-16, while M7.6's re-baseline was still running and before any of its numbers were readable. That ordering is the point, and it is the same one as `ADR-0022`: a trigger written after the results are in is indistinguishable from picking the trigger that licenses what you already wanted to do.
 
 **The default is no.** M8.1 is the prompt-iteration milestone, sequenced after M8 so iteration runs against the complete Phase 1 corpus rather than the pre-multiplayer one. A tag reading low on this run and going onto M8.1's list is the expected outcome, not a deferral that needs justifying.
 
-**The default is not the whole rule, because M7.5 already ran this case.** `0bdd1306` surfaced `SYSTEM-ROLLED-PLAYER-ACTION` at 0.45 against 0.90, that got a prompt ownership/voice change, and `c45a142a` re-measured it at 1.00 (`§ Warden model upgraded to claude-sonnet-5`, addendum). The milestone paid for three runs instead of one and that was correct. So the question is never "is the prompt in scope this milestone" — it is which of four things a moved number is:
+**The default is not the whole rule, because M7.5 already ran this case.** `0bdd1306` surfaced `SYSTEM-ROLLED-PLAYER-ACTION` at 0.45 against 0.90, that got a prompt ownership/voice change, and `c45a142a` re-measured it at 1.00 (`ADR-0023`, addendum). The milestone paid for three runs instead of one and that was correct. So the question is never "is the prompt in scope this milestone" — it is which of four things a moved number is:
 
 1. **A check M7.6 introduced, failing.** The wounds chain, `characterState`, `CARRYOVER-ARITHMETIC`. This is not deferred prompt iteration; it is M7.6 not being finished. Fixed in the milestone, by prompt or otherwise. Where a number could be read as both this and (2) — a new mechanic moving an old tag — the check id decides: if M7.6 introduced the check, it is category 1.
 2. **A pre-existing tag regressing, attributable to something M7.6 changed.** The M7.5 precedent. Fix, then re-measure.
@@ -1798,37 +1797,65 @@ Recorded 2026-08-16, while M7.6's re-baseline was still running and before any o
 
 **`SYSTEM-ROLLED-PLAYER-ACTION` and `UNSURFACED-CHECK` are read as a pair, per `§ S33`.** They moved in opposite directions on one prompt change, and a fix that trades one for the other reads as progress if either is read alone.
 
-**What this costs when it fires.** A category-2 fix supersedes M7.6's re-baseline number and buys a second graded run — affordable when the regression is real, and exactly the waste `§ Don't pay for the same re-baseline twice` names when it is noise. The categories exist so that call is made against a rule written before the numbers were visible rather than against the numbers themselves.
+**What this costs when it fires.** A category-2 fix supersedes M7.6's re-baseline number and buys a second graded run — affordable when the regression is real, and exactly the waste `ADR-0094` names when it is noise. The categories exist so that call is made against a rule written before the numbers were visible rather than against the numbers themselves.
+
+### [ADR-0094](decisions/0094-don-t-pay-for-the-same-re-baseline-twice.md) — Don't pay for the same re-baseline twice
+
+A graded re-baseline is the expensive instrument in this project — roughly 300 Warden turns plus judge calls (2 models × 15 fixtures × N=10). The rule: a change that will force a re-baseline waits for one that is already being bought, rather than triggering its own.
+
+**This entry records a rule that was already operating, not a new one.** It was cited by name in `ADR-0085` before it existed as an entry, and it is applied, in almost these words, in three others:
+
+- `ADR-0012` defers M7.2's re-baseline to M7.5 because "buying it against an index about to be re-chunked means buying it twice," and identifies the same shape of waste already being guarded against by the `roll_dice` field deferral.
+- `ADR-0045` lands those deferred `roll_dice` fields on a re-baseline that was being bought anyway, "rather than paying for a second one" — the fields ride the baseline the populated index was already forcing.
+- `ADR-0030` records that four pool-delta fields landed simultaneously in M7.6 "to avoid paying for two re-baselines," and that every future change to that object carries the same cost.
+
+**What the rule is not.** It is not a reason to defer a fix worth measuring on its own. A category-2 regression under `ADR-0085` supersedes the current number and buys a second graded run, and that is affordable when the regression is real. The waste named here is narrower: re-measuring the same thing after changing it out from under the measurement. Two things worth measuring separately are worth two runs.
+
+**The practical form.** Schema changes, prompt changes, and index changes that move Warden-visible behaviour are batched onto the next re-baseline already on the calendar. When none is scheduled, the question becomes whether the change alone justifies buying one — usually it does not, and the change waits for company. The corollary, recorded in `ADR-0030`: an object that has already absorbed a batch of changes to amortise one re-baseline makes every later change to it expensive, which is an argument for watching it rather than for filing the concern away.
+
+**Why it took this long to write down.** The rule was legible enough in application that four entries leaned on it without anyone noticing it had no home. It surfaced only when a reference migration found the citation in `ADR-0085` resolving to nothing.
 
 ---
 
 ## Monorepo, Tooling & Deployment
 
-### Repo named `unicorn`, not `unicorn-vtt`
+### [ADR-0086](decisions/0086-repo-named-unicorn-not-unicorn-vtt.md) — Repo named `unicorn`, not `unicorn-vtt`
 
 The monorepo houses Zoltar and Unicorn VTT. Zoltar is not a VTT — `unicorn-vtt` misrepresents the contents. `unicorn` names the product family correctly.
 
-### npm workspaces over Turborepo
+### [ADR-0087](decisions/0087-npm-workspaces-over-turborepo.md) — npm workspaces over Turborepo
 
 Turborepo deferred until there is a concrete need — parallel builds across many packages, remote caching, a CI pipeline that would benefit from task graph optimization. For a small monorepo in early development, npm workspaces is sufficient and has no additional tooling overhead. Migration to Turborepo is straightforward when the time comes.
 
-### Traefik routes defined in file provider, not Docker labels
+### [ADR-0088](decisions/0088-traefik-routes-defined-in-file-provider-not-docker-labels.md) — Traefik routes defined in file provider, not Docker labels
 
 Traefik routes for `app.zoltar.local` and `api.zoltar.local` are defined as file-based dynamic config (`infra/traefik/dynamic/host-routes.yml`) rather than as Docker labels on the `backend` and `frontend` compose services. Docker labels only exist on running containers — in Workflow B (the daily development loop), those containers aren't running, so label-based routes produce a 404. File-based routes pointing to `host.docker.internal` work in both workflows: in Workflow B the apps run directly on the host, and in Workflow A Docker publishes container ports to the host. One routing mechanism covers both cases.
 
-### Single `main` branch
+### [ADR-0089](decisions/0089-single-main-branch.md) — Single `main` branch
 
 No `main`/`develop` split. The value of a develop branch is protecting a stable branch from in-progress work when there are multiple contributors or a CI/CD pipeline deploying from `main`. Neither applies for solo development at this stage. Tagged releases provide the stable reference point. Revisit when there are collaborators or a deployment pipeline that warrants it.
+
+### [ADR-0095](decisions/0095-plans-and-specs-are-committed-to-the-repo.md) — Plans and specs are committed to the repo
+
+`docs/plans/` and `docs/specs/zoltar/` are tracked in the repository and stay tracked.
+
+**This records current practice, not a fresh decision.** An earlier practice kept plans and specs out of the repo. That reversed at some point without either the original policy or the reversal being written down, and the reasoning behind either is not recoverable — so this entry states what is true rather than reconstructing why it became true.
+
+**What made the gap visible.** A bullet in M9's documentation-reorganization item proposed pruning accumulated `docs/specs/zoltar/` entries on the grounds that they are "ephemeral by policy," citing a policy that exists nowhere in `docs/`. The citation had been dangling since it was written, because the policy it named had been reversed and the reversal never recorded. The clause was removed rather than repointed on 2026-08-16, since with specs committed and kept there is no standing policy that makes them sweepable.
+
+**Why they stay, as observable from how they are used rather than as remembered rationale.** Decisions entries and specs cite plan files by path, so removing them would break references that the validator now enforces. A CC session loads them as working context; they are a substantial part of what makes a fresh thread productive. And a plan's git history is the record of how a milestone was actually sequenced, which the milestone's own commits do not capture.
+
+**What this does not settle.** Whether plans and specs are *public* artifacts is a separate question and stays open in the M9 bullet, which notes that `decisions.md` is arguably the most valuable thing to publish and `docs/plans/` the least. Tracked in the repo and published to a `v0.1.0` audience are different commitments; this entry makes only the first.
 
 ---
 
 ## Licensing & Business Strategy
 
-### License: Elastic License 2.0
+### [ADR-0090](decisions/0090-license-elastic-license-2-0.md) — License: Elastic License 2.0
 
 Consistent with existing Automata Codex projects. Short, readable, and clear on the one restriction that matters: cannot offer the software as a managed service to third parties without permission. Self-hosting for personal or internal use is unrestricted.
 
-### Open-source release proceeds as designed; no closed-source carve-out for prompts or graph orchestration
+### [ADR-0091](decisions/0091-open-source-release-proceeds-as-designed-no-closed-source-ca.md) — Open-source release proceeds as designed; no closed-source carve-out for prompts or graph orchestration
 
 Considered and rejected: closing the Warden prompts, and/or any future LangGraph-style orchestration logic, as a competitive moat against a funded competitor forking the public repo.
 
@@ -1842,7 +1869,7 @@ ELv2 remains the license for the reasons already in this log (managed-service re
 
 This closes the "open-source release decision" previously flagged as unresolved. Public repo, self-hosted-first build sequence, and M9 milestone scope (Docker Compose production config, self-hosted setup guide, DigitalOcean walkthrough) all stand as currently planned.
 
-### SaaS service implementations stay closed source — enforcement rationale, not competitive secrecy
+### [ADR-0092](decisions/0092-saas-service-implementations-stay-closed-source-enforcement.md) — SaaS service implementations stay closed source — enforcement rationale, not competitive secrecy
 
 Unlike the Warden prompts and any future graph orchestration logic, the concrete SaaS implementations of the service interfaces (`ClerkAuthService`, `StripeEntitlementsService`, `AblyRealtimeService`, the RLS migration scripts and tenant-aware middleware, etc.) remain closed source when built. This is a different rationale from the open-source decision above and should not be read as contradicting it.
 
@@ -1856,6 +1883,6 @@ This costs nothing to maintain, unlike a prompt/graph closed-source boundary wou
 
 ## Security
 
-### Prompt injection risk acknowledged, not addressed at MVP
+### [ADR-0093](decisions/0093-prompt-injection-risk-acknowledged-not-addressed-at-mvp.md) — Prompt injection risk acknowledged, not addressed at MVP
 
 Prompt injection — the risk of a player crafting action text that manipulates Claude's behavior or extracts hidden state — is a known risk and is not addressed in Phase 1. At MVP scale (self-hosted, single player, no adversarial users), the risk is low and the engineering investment is not justified. The natural mitigation in SaaS deployment is that prompts are server-side and player input is clearly delimited in the message structure. Revisit before player input is injected into production prompts in a multi-tenant SaaS context. At that point, input sanitization and structural prompt hardening should be specced.

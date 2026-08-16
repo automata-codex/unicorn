@@ -135,7 +135,7 @@ The `vector(1024)` dimension matches the default output of `voyage-4-lite`. If a
 
 The `rules_lookup` tool handler in `GmService`:
 
-1. Preprocesses the query string — drops high-document-frequency terms via a ceiling computed from the index itself, before embedding. This is not a minor cleanup step: shortening a verbose, keyword-stuffed query to its distinctive terms is the single largest retrieval-quality lever measured against this pipeline, larger than the choice of retrieval backend itself (`docs/decisions.md § Query preprocessing for rules_lookup promoted from optional to critical path`)
+1. Preprocesses the query string — drops high-document-frequency terms via a ceiling computed from the index itself, before embedding. This is not a minor cleanup step: shortening a verbose, keyword-stuffed query to its distinctive terms is the single largest retrieval-quality lever measured against this pipeline, larger than the choice of retrieval backend itself (`ADR-0019`)
 2. Embeds the query string via Voyage AI (`input_type="query"`)
 3. Runs a cosine similarity search against `rules_chunk` filtered to the active `system_id`
 4. Returns the top N chunks (default 3, max 5) with `content`, `source`, and `similarity` score

@@ -8,7 +8,8 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present"
+    "lint": "npm run lint --workspaces --if-present",
+    "test:docs": "vitest run"
   },
   "workspaces": [
     "packages/*",
@@ -19,6 +20,10 @@
     "npm": "11.12.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.11"
+    "@biomejs/biome": "^2.4.11",
+    "tsx": "^4.23.12",
+    "vitest": "^4.1.2",
+    "yaml": "^2.9.0",
+    "zod": "^3.25.76"
   }
 }

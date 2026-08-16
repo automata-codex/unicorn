@@ -141,8 +141,7 @@ instead.
 all, the absolute-vs-delta count excepted, and M7.6's two new checks — `CARRYOVER-ARITHMETIC` and
 `UNEXPLAINED-DELTA` — carry no denominator because no fixture yet exercises them. Three of fifteen
 fixtures (`UNAUDITABLE-MAPPING`) contributed zero applicable reps, and `turn16-narrating-past-a-block`
-is a known-defective fixture (`decisions.md § A rate that never moves is a harness suspect, not a
-finding`, addendum 2026-08-16). **Nine of fifteen fixture rows read 1.00 and almost none of them are
+is a known-defective fixture (`ADR-0082`, addendum 2026-08-16). **Nine of fifteen fixture rows read 1.00 and almost none of them are
 evidence.**
 
 **Corpus version updated 2026-07-29 to `4c9f2e73efd7...` — a grader fix, not a re-run.**
@@ -267,8 +266,7 @@ number rather than assuming it still holds.
 > the number. **N=10 is carried forward unchanged for now**, because re-calibrating
 > against an empty `rules_chunk` index would only have to be redone once the index was
 > populated. **Repointed 2026-08-07:** M7.2 populated the index but deliberately bought no
-> Warden-level measurement — the re-baseline moved to M7.5 (`docs/decisions.md § Rules
-> ingestion pipeline and retrieval quality are separate milestones`). Re-derive N from the
+> Warden-level measurement — the re-baseline moved to M7.5 (`ADR-0012`). Re-derive N from the
 > **M7.5** re-baseline, and treat the current value as inherited rather than estimated
 > until then.
 
@@ -313,8 +311,7 @@ turns on a single reachable fixture. Read the per-fixture table, not just the ra
 rounds that fail to move aggregate and `warden-observed` `recall@3` by more than 5 pp
 close the milestone with the bar restated as "not reached." It is deliberately *not*
 measured on `authored`, which is at 100% and cannot move — see
-`docs/decisions.md § The retrieval stopping rule is measured on the metrics with
-headroom`.
+`ADR-0022`.
 
 **Provenance is part of the measurement.** `ingest.py` writes marker version,
 chunking parameters, embed model, and chunk count to `ingestion/.ingest-manifest.json`,

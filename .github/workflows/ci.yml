@@ -80,6 +80,29 @@ jobs:
           ANTHROPIC_API_KEY: ci-placeholder-no-live-calls
           VOYAGE_API_KEY: ci-placeholder-no-live-calls
 
+  docs:
+    name: Docs (ADR corpus)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # No database, no workspace builds, no API-key placeholders. The docs
+      # tooling is pure text processing over docs/, so this job is independent
+      # of the other three and stays fast.
+      - name: Validate ADR corpus
+        run: npx tsx docs/tooling/check.ts
+
+      - name: Unit tests
+        run: npm run test:docs
+
   frontend:
     name: Frontend (svelte-check, vitest)
     runs-on: ubuntu-latest

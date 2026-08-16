@@ -400,7 +400,7 @@ CREATE TABLE rules_chunk (
   id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   system_id    uuid        NOT NULL REFERENCES game_system(id) ON DELETE CASCADE,
   source       text        NOT NULL,   -- e.g. 'Mothership Player''s Survival Guide p.34'
-  section_path text[]      NOT NULL,   -- footer-derived chapter label, e.g. '{"Panic Checks"}' — one level, not heading ancestry (see docs/decisions.md § Chunk extraction is block-based...); stored for provenance, not currently returned by rules_lookup
+  section_path text[]      NOT NULL,   -- footer-derived chapter label, e.g. '{"Panic Checks"}' — one level, not heading ancestry (see ADR-0014); stored for provenance, not currently returned by rules_lookup
   content      text        NOT NULL,
   embedding    vector(1024),
   created_at   timestamptz NOT NULL DEFAULT now()

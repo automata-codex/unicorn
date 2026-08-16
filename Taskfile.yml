@@ -22,6 +22,21 @@ tasks:
     cmds:
       - docker compose down
 
+  docs:decisions:build:
+    desc: Regenerate docs/decisions.md from the per-decision files in docs/decisions/. Run after editing any ADR file.
+    cmds:
+      - npx tsx docs/tooling/build-index.ts
+
+  docs:decisions:check:
+    desc: Validate the ADR corpus — identifiers, front matter, and whether the generated docs/decisions.md is stale.
+    cmds:
+      - npx tsx docs/tooling/check.ts
+
+  docs:decisions:missing-summaries:
+    desc: List ADR entries with no summary, longest body first. This is the summary-authoring queue.
+    cmds:
+      - npx tsx docs/tooling/missing-summaries.ts
+
   db:backup:
     desc: Back up the local dev database to infra/db/backups/ (or $DB_BACKUP_DIR). Usage — task db:backup [-- <output-file>]
     dotenv: ['.env']
