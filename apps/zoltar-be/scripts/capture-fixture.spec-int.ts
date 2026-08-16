@@ -1,6 +1,7 @@
 import { emptyMothershipState } from '@uv/game-systems';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { tagIndependentCheckIds } from '../eval/checks/registry';
 import { evalFixtureSchema } from '../eval/fixture.schema';
 import { CanonRepository } from '../src/canon/canon.repository';
 import * as schema from '../src/db/schema';
@@ -174,6 +175,17 @@ describe('captureFixture (integration)', () => {
       applies: false,
       situation: expect.stringContaining('TODO'),
     });
+
+    // ...and one for every check that attaches by applicability rather than
+    // by tag, which is the only route those have onto a fixture (`ADR-0096`).
+    // Asserted here as well as in the unit spec because this is the path that
+    // actually writes fixture files.
+    for (const checkId of tagIndependentCheckIds) {
+      expect(fixture.applicability?.[checkId]).toEqual({
+        applies: false,
+        situation: expect.stringContaining('TODO'),
+      });
+    }
     expect(evalFixtureSchema.safeParse(fixture).success).toBe(true);
   });
 

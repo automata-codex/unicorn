@@ -317,6 +317,25 @@ function buildChecks(): Record<string, EvalCheck> {
 export const evalChecks: Record<string, EvalCheck> = buildChecks();
 
 /**
+ * Check ids a fixture may attach regardless of its own `tag` — see
+ * `EvalCheck.tagIndependent`.
+ *
+ * Derived from the built registry rather than re-listing
+ * `TAG_INDEPENDENT_CHECK_IDS`, so it cannot drift from the flag the selection
+ * rule actually reads, and sorted so anything writing it into a file emits a
+ * stable order. Exported for `capture-fixture`, which stubs one
+ * `applicability` entry per id: a tag-independent check has no route onto a
+ * fixture except an authored entry, so a capture that omits the stub is a
+ * fixture that check can never reach.
+ */
+export const tagIndependentCheckIds: readonly string[] = Object.values(
+  evalChecks,
+)
+  .filter((check) => check.tagIndependent)
+  .map((check) => check.id)
+  .sort();
+
+/**
  * The check matching the fixture's `tag`, plus every **tag-independent**
  * check the fixture authors an `applicability` entry for.
  *
