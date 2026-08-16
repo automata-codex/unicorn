@@ -10,21 +10,21 @@ rewrite there is discarded by the next build. `specs/`, `plans/`, and
 
 ## Totals
 
-243 `§` tokens across 100 files.
+242 `§` tokens across 100 files.
 
 | Class | Count | Disposition |
 |---|---|---|
 | resolves | 0 | Rewritten automatically to a bare `ADR-NNNN` token |
 | ambiguous | 0 | **Left in place. Needs Alex.** |
 | out of scope | 239 | Untouched — numeric citations, other documents, intra-document sections |
-| unresolved | 4 | **Left in place. The rot report.** |
+| unresolved | 3 | **Left in place. The rot report.** |
 
 ## Files with at least one in-scope reference
 
 | File | resolves | ambiguous | out of scope | unresolved |
 |---|---|---|---|---|
 | `decisions/0085-prompt-work-during-a-re-baseline-is-triggered-by-attribution.md` | 0 | 0 | 3 | 1 |
-| `roadmap.md` | 0 | 0 | 55 | 2 |
+| `roadmap.md` | 0 | 0 | 55 | 1 |
 | `api.md` | 0 | 0 | 0 | 1 |
 
 ## Ambiguous — author-truncated titles
@@ -45,18 +45,4 @@ The rot report. Do not guess a target for these.
 |---|---|
 | `decisions/0085-prompt-work-during-a-re-baseline-is-triggered-by-attribution.md:26` | Don't pay for the same re-baseline twice |
 | `roadmap.md:286` | Open questions |
-| `roadmap.md:366` | Design documentation discipline |
 | `api.md:140` | Player-Action Endpoint Shape |
-
-### Hand analysis of the unresolved four
-
-| Location | Verdict |
-|---|---|
-| `roadmap.md` — `§ Open questions` | **Not rot.** Targets `rules-extraction-findings.md ## Open questions`. The author omitted the path; the neighbouring references in the same parenthesis are `§ S3.7` and `§ S2`, that document's sections too. Out of scope. |
-| `roadmap.md` — `§ Design documentation discipline` | **Rot.** The phrase appears nowhere in `docs/` as a heading or an entry title. |
-| `api.md` — `docs/decisions.md § Player-Action Endpoint Shape` | **Rot.** Names the decisions log explicitly. No entry has this title. |
-| `decisions/0085-…` — `§ Don't pay for the same re-baseline twice` | **Rot.** The phrase occurs only in the sentence doing the citing. |
-
-The first is a classifier limitation: a path-less reference into another
-document is shape-identical to a decisions reference. The other three are the
-drift this restructure exists to stop.
