@@ -4881,3 +4881,75 @@ worth carrying forward, and the cheapest close is **not** the playtest: the
 `turn24-*` fixtures already provoke the violation and already exist. Adding a
 `system-rolled-player-action` check to them is a corpus change gradeable
 against frozen artifacts via `eval:rescore`, with no Warden run required.
+
+### S35 — 2026-08-16 · Pointing the check at the reps: `SYSTEM-ROLLED-PLAYER-ACTION` re-scored across five fixtures instead of two
+
+`§ S34`'s carried-forward finding, closed. The three `turn24-*` fixtures now
+carry a `system-rolled-player-action` check (`ADR-0096`), and both frozen runs
+were re-scored against it — corpus `2cfaf351a760` → **`1c2a418cf68c`**, a
+**scoring-only** bump under `§ Two kinds of corpus bump`. No Warden calls. The
+change is three `applicability` blocks, three `fixtureSchemaVersion` bumps, and
+a selection rule; no `seededState`, `playerInput` or `assertion` was touched, so
+every `warden-output.json` on disk remains exactly as valid as it was.
+
+#### The tag, before and after
+
+| Run | Fixtures | As scored | Re-scored |
+|---|---|---|---|
+| `c45a142a` (`§ S34`) | 2 → 5 | 1.00 (20/20) | **0.88 (44/50)** |
+| `ccac7d1c` (M7.6 baseline) | 2 → 5 | 0.90 (18/20) | **0.94 (47/50)** |
+
+Applicability is 1.00 (50/50) on both. The check is fixture-gated, so every rep
+must agree about whether it applies, and every rep does — no
+`fixture-gated-split`, and the new denominator is a real 50 rather than a 50
+with exclusions in it.
+
+**Six failures on `c45a142a`, which is `§ S34`'s hand count exactly.** Two per
+`turn24-*` fixture, every one of them at `sequence 2` with `rollSource:
+system_generated`. Five are a Combat check for the suppressive fire the player
+declared; the sixth is an Intellect check for entering the quarantine-seal
+commands — the other half of the same declared action, and a useful reminder
+that the failure mode is not the word "combat". `§ S34` counted these by
+reading artifacts; the checker now counts them without being asked. That the
+two numbers agree is the only evidence available that the attachment grades the
+thing it was attached for.
+
+#### The number went **up** on the current baseline, and that is the point
+
+M7.6 called `SYSTEM-ROLLED-PLAYER-ACTION` 0.90 a category-3 fall and sent it to
+M8.1, noting that this bullet was what would actually move it. It moved it to
+0.94 — *upward* — because `turn24-*` contributed 29 passes and 1 failure under
+`ccac7d1c` where it contributed 24 and 6 under `c45a142a`.
+
+The correction worth keeping is not the direction. **Widening a check's corpus
+is not a way to make a rate fall; it is a way to make the rate mean the corpus.**
+0.90 was two fixtures agreeing about one turn each. 0.94 is five fixtures over
+three distinct scenarios, and the fall from `c45a142a`'s six occurrences to
+`ccac7d1c`'s one is now a measured movement on shared fixtures rather than a
+hand count in a report footnote. A rate that rises on new coverage is the same
+kind of news as one that falls: it is the first one that was about the corpus.
+
+#### What the re-score also turned up, and what it is not
+
+`turn24-scene-jump / scene-jump` flipped `fail → pass` on `c45a142a`, moving
+`SCENE-JUMP` 0.90 → 1.00 on that run. **This is judge variance, not the corpus
+change** — `scene-jump` is an ungated judged check re-graded by a fresh call
+against a frozen artifact, and nothing about the fixture's edit reaches it.
+`ccac7d1c` re-scored with *no* verdict changed across all 80 rows, judged ones
+included. One flip in 60 judged re-grades is small, and it lands on exactly the
+surface `ADR-0080` is open about; it is recorded here so nobody later reads the
+1.00 as movement.
+
+The structural side reproduced both runs exactly: every pre-existing
+`turn19`/`turn21` row came back identical, which is the property that makes
+this a re-score rather than a new measurement.
+
+#### Still open
+
+The same coverage question applies to `turn19-out-of-order-resolution` and
+`turn21-out-of-order-resolution`, and `§ S34` named the first of them directly —
+four of the baseline's ten occurrences were on it. Those two fixtures are not
+touched here. `out-of-order-resolution` is not tag-independent-eligible on the
+merits of what it reads (it reads no assertion), but attaching
+`system-rolled-player-action` to them is a corpus decision of its own, made on
+the same evidence and worth making explicitly rather than by extension.

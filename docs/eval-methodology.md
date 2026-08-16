@@ -111,7 +111,10 @@ honest about the two fixtures it grades and says nothing about the other thirtee
 is the denominator failure this file already catalogues, displaced one level: not a rate
 over a shrinking denominator, but a rate over a denominator that never covered the
 behaviour. **Before reading a tag as a corpus-level claim, check which fixtures carry
-that check.**
+that check.** **Closed 2026-08-16 for this tag** — the three `turn24-*` fixtures now
+carry a `system-rolled-player-action` check and the re-scored rate is 0.88 (44/50); see
+`§ S35` and `ADR-0096`. The rule above outlives the instance, and a fixture carries a
+check because someone authored it there, so it can go wrong again the same way.
 
 ### The run the baseline actually points at, as of 2026-08-16
 
@@ -120,8 +123,10 @@ M7.6's re-baseline:
 
 - Model: **`claude-sonnet-5`**
 - Prompt hash: **`ccac7d1c`**
-- Corpus version: **`2cfaf351a760`** — an **input-affecting** bump (`§ Two kinds of corpus bump`);
-  every pool key changed format and ten pools appear, so `campaignState` changed for all 15 fixtures
+- Corpus version: **`1c2a418cf68c`** as of 2026-08-16; the run was scored under **`2cfaf351a760`**,
+  an **input-affecting** bump (`§ Two kinds of corpus bump`) — every pool key changed format and ten
+  pools appear, so `campaignState` changed for all 15 fixtures. The bump to `1c2a418cf68c` is
+  **scoring-only** and is graded off this run's frozen artifacts (see the note below)
 - Run directory: **`claude-sonnet-5__ccac7d1c__2026-08-16T12-38-30Z`**
 - Full corpus, 10 reps, zero errors. Closeout and category calls in `docs/roadmap.md § M7.6`
 
@@ -143,6 +148,26 @@ all, the absolute-vs-delta count excepted, and M7.6's two new checks — `CARRYO
 fixtures (`UNAUDITABLE-MAPPING`) contributed zero applicable reps, and `turn16-narrating-past-a-block`
 is a known-defective fixture (`ADR-0082`, addendum 2026-08-16). **Nine of fifteen fixture rows read 1.00 and almost none of them are
 evidence.**
+
+**Corpus version updated 2026-08-16 to `1c2a418cf68c...` — a coverage fix, not a re-run.**
+The three `turn24-*` fixtures gained a fixture-authored `applicability` entry for
+`system-rolled-player-action` (and `fixtureSchemaVersion` 1 → 2), which now attaches that check
+to them — `ADR-0096`. **Scoring-only**: `seededState`, `playerInput` and `assertion` are
+untouched on all 15 fixtures, so every `warden-output.json` on disk was produced under unchanged
+conditions. Re-scored in place rather than re-run, both runs, `--fixtures` scoped to the five
+fixtures now carrying the check:
+
+- `claude-sonnet-5__ccac7d1c__2026-08-16T12-38-30Z` (the current baseline) — `SYSTEM-ROLLED-PLAYER-ACTION`
+  0.90 (18/20) → **0.94 (47/50)**, applicability 1.00 (50/50). No verdict changed across all 80
+  rows; the three new fixture-check pairs are additive.
+- `claude-sonnet-5__c45a142a__2026-08-10T19-45-15Z` (`§ S34`) — 1.00 (20/20) → **0.88 (44/50)**, the
+  six occurrences `§ S34` counted by hand. One judged verdict flipped on this run
+  (`turn24-scene-jump / scene-jump`, `fail → pass`, `SCENE-JUMP` 0.90 → 1.00) — **judge variance on
+  an ungated judged check, not a consequence of the corpus edit**; see `ADR-0080`.
+
+Reports at `<run-dir>-rescore-srpa-turn24.md`, raw rows under each run's `rescore/`. `eval:compare`
+will correctly warn on any pairing against a run scored under `2cfaf351a760...`; re-score rather
+than suppress. Full write-up in `docs/rules-extraction-findings.md § S35`.
 
 **Corpus version updated 2026-07-29 to `4c9f2e73efd7...` — a grader fix, not a re-run.**
 `turn{19,21}-{system-rolled-player-action,out-of-order-resolution}.json` gained a

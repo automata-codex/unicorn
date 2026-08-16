@@ -142,11 +142,108 @@ describe('evalChecks', () => {
 });
 
 describe('selectChecksForFixture', () => {
-  it("returns the one check matching the fixture's tag", () => {
+  it("returns the check matching the fixture's tag", () => {
     const fixture = fakeFixture({ tag: 'OUT-OF-ORDER-RESOLUTION' });
     const checks = selectChecksForFixture(fixture);
     expect(checks).toHaveLength(1);
     expect(checks[0].id).toBe('out-of-order-resolution');
+  });
+
+  it('does not double-count a tag check that also authors its own applicability', () => {
+    // The corpus shape for `turn19-out-of-order-resolution`: the tag check
+    // and the applicability key are the same check.
+    const fixture = fakeFixture({
+      tag: 'OUT-OF-ORDER-RESOLUTION',
+      applicability: {
+        'out-of-order-resolution': {
+          applies: true,
+          playerEntity: 'Alvarez',
+          situation: 'test',
+        },
+      },
+    });
+    expect(selectChecksForFixture(fixture).map((c) => c.id)).toEqual([
+      'out-of-order-resolution',
+    ]);
+  });
+
+  it('attaches a tag-independent check to a fixture tagged something else', () => {
+    // The `turn24-*` shape: a judged fixture that also provokes
+    // SYSTEM-ROLLED-PLAYER-ACTION. Selection follows the fixture's
+    // declaration, not its tag — the coverage hole in
+    // `rules-extraction-findings.md § S34` was the tag deciding alone.
+    const fixture = fakeFixture({
+      tag: 'SCENE-JUMP',
+      assertion: { mode: 'judged', rubric: 'SCENE-JUMP', facts: {} },
+      applicability: {
+        'system-rolled-player-action': {
+          applies: true,
+          playerEntity: 'Alvarez',
+          situation: 'test',
+        },
+      },
+    });
+    expect(selectChecksForFixture(fixture).map((c) => c.id)).toEqual([
+      'scene-jump',
+      'system-rolled-player-action',
+    ]);
+  });
+
+  it('throws when applicability names a check that is not tag-independent', () => {
+    // Silently skipping it would mean a fixture edit made to close a
+    // coverage hole opens no rows and reports nothing — the same failure
+    // shape as the hole.
+    const fixture = fakeFixture({
+      tag: 'SCENE-JUMP',
+      assertion: { mode: 'judged', rubric: 'SCENE-JUMP', facts: {} },
+      applicability: {
+        'missing-canon-capture': {
+          applies: true,
+          playerEntity: 'Alvarez',
+          situation: 'test',
+        },
+      },
+    });
+    expect(() => selectChecksForFixture(fixture)).toThrow(
+      /not tag-independent/,
+    );
+  });
+
+  it('throws when applicability names an unregistered check', () => {
+    const fixture = fakeFixture({
+      applicability: {
+        'system-rolled-playr-action': {
+          applies: true,
+          playerEntity: 'Alvarez',
+          situation: 'test',
+        },
+      },
+    });
+    expect(() => selectChecksForFixture(fixture)).toThrow(
+      /not a registered check/,
+    );
+  });
+});
+
+describe('tagIndependent', () => {
+  it('is declared only on structural checks', () => {
+    // A judged check grades against `assertion.facts`, which exists only for
+    // the fixture's own tag — the registry throws at build time rather than
+    // letting one be listed, and this asserts the built registry agrees.
+    for (const check of Object.values(evalChecks)) {
+      if (check.tagIndependent) expect(check.mode).toBe('structural');
+    }
+  });
+
+  it('covers system-rolled-player-action', () => {
+    // The check whose applicability is already purely fixture-authored, so
+    // it reads nothing from `fixture.assertion` and travels.
+    expect(evalChecks['system-rolled-player-action'].tagIndependent).toBe(true);
+  });
+
+  it('does not cover a check that parses the fixture assertion', () => {
+    // `missing-canon-capture` reads `assertion.check` prose directly.
+    expect(evalChecks['missing-canon-capture'].tagIndependent).toBeUndefined();
   });
 });
 

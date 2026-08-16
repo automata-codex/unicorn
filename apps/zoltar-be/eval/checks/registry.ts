@@ -56,6 +56,35 @@ export interface EvalCheck {
    */
   applicabilitySource: 'fixture' | 'artifact' | 'ungated';
   /**
+   * Whether this check can run against a fixture whose `tag` is something
+   * else, on the strength of a fixture-authored `applicability[checkId]`
+   * entry alone — see `selectChecksForFixture`.
+   *
+   * The load-bearing property is **what the checker reads**, which is a fact
+   * about checker code and derivable from nothing else on this interface:
+   *
+   * - A tag-independent check reads `applicability[checkId]` and the turn
+   *   output, and nothing from `fixture.tag` or `fixture.assertion`.
+   * - Every other check reads the fixture's own assertion, which only exists
+   *   for the fixture's own tag — a judged check needs `assertion.facts`
+   *   (`perceptionBoundary`, `expectedScope`, ...), and
+   *   `missing-canon-capture` parses `assertion.check` prose. Attaching one
+   *   of those to a foreign fixture grades against a boundary text that
+   *   describes a different question, or against no text at all.
+   *
+   * Hand-declared for the same reason `applicabilitySource` is: there is no
+   * property of a tag that implies it, and a default would be a guess at
+   * exactly the thing the field records.
+   *
+   * **Why the corpus needs this at all.** `system-rolled-player-action` read
+   * 1.00 (20/20) on the `c45a142a` re-baseline while the Warden rolled the
+   * player's declared action six times *in that same run* — every occurrence
+   * on a `turn24-*` fixture, none of which the check was pointed at, because
+   * selection was 1:1 with `tag`. The behaviour was in the artifacts and the
+   * checker was not looking. See `docs/rules-extraction-findings.md § S34`.
+   */
+  tagIndependent?: boolean;
+  /**
    * Minimum `fixtureSchemaVersion` this check needs. Nothing declares this
    * today — every check works against v1 fixtures — but the field exists so
    * the first schema-dependent check (anticipated: `rollType` /
@@ -189,6 +218,33 @@ function applicabilitySourceFor(id: string): EvalCheck['applicabilitySource'] {
 }
 
 /**
+ * Check ids that may be attached to a fixture tagged something else — see
+ * `EvalCheck.tagIndependent`.
+ *
+ * One entry today, and it is the check that was *already* re-gated purely
+ * onto fixture-authored `applicability`: everything
+ * `system-rolled-player-action` needs about the scenario (does it apply, and
+ * who is the player) is stated in `applicability['system-rolled-player-
+ * action']`, and everything else it reads comes from the turn output. That
+ * re-gating is what makes it portable; the other structural checks are not
+ * on this list because they are not portable, not because nobody got to them
+ * yet.
+ *
+ * Deliberately not derived from `applicabilitySource === 'fixture'`. The two
+ * coincide today, and they are answering different questions — one is "where
+ * do this check's `not_applicable` verdicts come from", the other is "does
+ * this check read the fixture's assertion". `out-of-order-resolution` is the
+ * case that separates them: it is `'artifact'` because it has an
+ * artifact-dependent branch, yet it reads no assertion at all and would be
+ * portable on the merits. Adding it here is a corpus decision (which
+ * fixtures should carry it) rather than a registry one, and it is not made
+ * here.
+ */
+const TAG_INDEPENDENT_CHECK_IDS: ReadonlySet<string> = new Set([
+  'system-rolled-player-action',
+]);
+
+/**
  * Structural pre-filters for judged checks, by check id — see
  * `EvalCheck.judgeGate`. Optional by design: most judged questions have no
  * structural half worth separating out.
@@ -213,11 +269,22 @@ function buildChecks(): Record<string, EvalCheck> {
       tag,
       mode: 'structural',
       applicabilitySource: applicabilitySourceFor(id),
+      tagIndependent: TAG_INDEPENDENT_CHECK_IDS.has(id) || undefined,
       requiresFixtureSchema: REQUIRES_FIXTURE_SCHEMA[id],
     };
   }
   for (const tag of judgedFailureModeTags) {
     const id = toCheckId(tag);
+    // No `tagIndependent` here, and the guard below says why rather than
+    // leaving the omission to be read as an oversight.
+    if (TAG_INDEPENDENT_CHECK_IDS.has(id)) {
+      throw new Error(
+        `check "${id}" is listed as tag-independent but is a judged check — ` +
+          'a judge call grades against `assertion.facts`, which only exists ' +
+          "for the fixture's own tag, so attaching it to a foreign fixture " +
+          "would grade one question against another question's boundary text",
+      );
+    }
     checks[id] = {
       id,
       tag,
@@ -227,6 +294,16 @@ function buildChecks(): Record<string, EvalCheck> {
       judgeGate: JUDGE_GATES[id],
       judgeContext: JUDGE_CONTEXTS[id],
     };
+  }
+
+  for (const id of TAG_INDEPENDENT_CHECK_IDS) {
+    if (!checks[id]) {
+      throw new Error(
+        `"${id}" is listed in TAG_INDEPENDENT_CHECK_IDS but is not a ` +
+          'registered check — a typo here fails silently at selection time, ' +
+          'which is the coverage hole this list exists to close',
+      );
+    }
   }
 
   return checks;
@@ -240,17 +317,63 @@ function buildChecks(): Record<string, EvalCheck> {
 export const evalChecks: Record<string, EvalCheck> = buildChecks();
 
 /**
- * Today, the one check whose `tag` matches the fixture's — a judged check
- * needs per-fixture `assertion.facts` (`perceptionBoundary`,
- * `expectedScope`, ...) that only exist for the fixture's own tag, so
- * running e.g. `HIDDEN-INFO-LEAK` against a `SCENE-JUMP` fixture has no
- * boundary text to grade against. Returns an array (not a single check) so
- * the row format and every reader are already N-checks-per-fixture-ready;
- * the corpus is what's 1:1 today, not the format.
+ * The check matching the fixture's `tag`, plus every **tag-independent**
+ * check the fixture authors an `applicability` entry for.
+ *
+ * The tag check comes first; the rest follow in check-id order so two runs
+ * of the same corpus emit rows in the same sequence and diff cleanly.
+ *
+ * **Selection is by `applicability`, not by tag, for the second group, and
+ * that is the point.** A fixture's `tag` records the failure mode it was
+ * *captured* to reproduce. It says nothing about which other failure modes
+ * its turn is capable of provoking, and a check pointed only at fixtures
+ * named after it measures its own corpus rather than the Warden — which is
+ * precisely how `system-rolled-player-action` reported 20/20 on a run
+ * containing six violations of it (`docs/rules-extraction-findings.md
+ * § S34`). Attaching a check is therefore a fixture-authoring act: the
+ * author states that the scenario calls for it and names the player entity,
+ * and selection follows that declaration.
+ *
+ * A judged check stays 1:1 with `tag` regardless — it grades against
+ * `assertion.facts` (`perceptionBoundary`, `expectedScope`, ...), which only
+ * exists for the fixture's own tag, so running `HIDDEN-INFO-LEAK` against a
+ * `SCENE-JUMP` fixture has no boundary text to grade against.
+ *
+ * An `applicability` key naming an unregistered or non-tag-independent check
+ * throws rather than being skipped. Silently ignoring it would mean a
+ * fixture edit intended to close a coverage hole opens no rows at all and
+ * reports nothing — the same shape of failure as the hole itself, arriving
+ * through a typo.
  */
 export function selectChecksForFixture(fixture: EvalFixture): EvalCheck[] {
-  const check = evalChecks[toCheckId(fixture.tag)];
-  return check ? [check] : [];
+  const tagCheck = evalChecks[toCheckId(fixture.tag)];
+  const selected = tagCheck ? [tagCheck] : [];
+
+  for (const checkId of Object.keys(fixture.applicability ?? {}).sort()) {
+    if (checkId === tagCheck?.id) continue;
+
+    const check = evalChecks[checkId];
+    if (!check) {
+      throw new Error(
+        `fixture "${fixture.id}" declares applicability for "${checkId}", ` +
+          'which is not a registered check — check the spelling against ' +
+          "`evalChecks`' ids (lower-kebab of the tag)",
+      );
+    }
+    if (!check.tagIndependent) {
+      throw new Error(
+        `fixture "${fixture.id}" (tag ${fixture.tag}) declares applicability ` +
+          `for "${checkId}", which is not tag-independent — that check reads ` +
+          "the fixture's own `assertion`, so it can only run on a fixture " +
+          'tagged for it. Either capture a fixture tagged ' +
+          `${check.tag}, or make the check tag-independent if it genuinely ` +
+          'reads no assertion (see `EvalCheck.tagIndependent`)',
+      );
+    }
+    selected.push(check);
+  }
+
+  return selected;
 }
 
 /**

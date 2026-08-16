@@ -180,9 +180,16 @@ export type Assertion = z.infer<typeof assertionSchema>;
  * selects on the model's own choice, not the situation). Keyed by check id
  * (`eval/checks/registry.ts`'s `toCheckId(tag)`, e.g.
  * `'system-rolled-player-action'`), not nested under `assertion`, because a
- * fixture can in principle carry more than one check with different
- * applicability — `selectChecksForFixture` already returns an array for
- * this reason, even though the corpus is 1:1 with `tag` today.
+ * fixture can carry more than one check with different applicability —
+ * `selectChecksForFixture` returns an array for this reason.
+ *
+ * **This map is now what attaches a tag-independent check to a fixture, not
+ * just what gates one.** A key naming a tag-independent check
+ * (`EvalCheck.tagIndependent`) puts that check on this fixture whatever the
+ * fixture's own `tag` says; the three `turn24-*` fixtures carry
+ * `system-rolled-player-action` this way. Selection throws on a key naming
+ * anything else, so a typo is loud rather than a silently-unclosed coverage
+ * hole. See `eval/checks/registry.ts`.
  *
  * `situation` does double duty: for `applies: true` it documents why the
  * checker should engage (audit trail, not read by any checker); for
