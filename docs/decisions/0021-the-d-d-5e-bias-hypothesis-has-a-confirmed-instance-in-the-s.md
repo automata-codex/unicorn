@@ -63,7 +63,7 @@ from an adjacent model applied to the PC sheet — with a different adjacent mod
   any Mothership artifact authored without the book open, and specifically on the M7.6
   spec, which is being written to correct exactly these fields.
 - It **does not** validate the retrieval-side claim. The vocabulary gap measured in
-  `§ Query preprocessing for rules_lookup promoted from optional to critical path`
+  `ADR-0019`
   (amendment) splits 157 wrong-word / 130 concept-absent out of 344, and *which* lexicon
   those out-of-corpus terms come from is still unmeasured. Confirming the hypothesis in
   one artifact does not confirm it in another, and the mechanical-model primer's design

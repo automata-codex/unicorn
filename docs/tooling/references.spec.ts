@@ -37,6 +37,12 @@ describe('normalize', () => {
     );
   });
 
+  it('strips blockquote markers from a reference that wraps inside a quote', () => {
+    expect(normalize('Rules\n> ingestion pipeline and retrieval quality')).toBe(
+      'rules ingestion pipeline and retrieval quality',
+    );
+  });
+
   it('strips backticks so a code-formatted title matches a plain one', () => {
     expect(normalize('`actingEntityId` must resolve')).toBe(
       'actingentityid must resolve',
@@ -189,5 +195,58 @@ describe('rewriteResolved', () => {
       'first `docs/decisions.md § Entity and resource pool identifiers use underscores only` then `docs/decisions.md § State placement is decided by the lifetime of the referent` done';
     const out = rewriteResolved(text, findReferences(text, titles));
     expect(out).toBe('first `ADR-0031` then `ADR-0028` done');
+  });
+});
+
+describe('code-span detection', () => {
+  it('does not treat a reference inside a fenced block as a code span', () => {
+    // schema.md puts a decisions reference inside a ```sql fence, 21 fences
+    // deep. Counting backticks from the start of the file made every later
+    // reference look like it was inside a code span, so the extractor ran
+    // past the closing paren and swallowed the rest of the SQL comment.
+    const text = [
+      '```sql',
+      "  source text NOT NULL,  -- e.g. 'p.34'",
+      '  section_path text[] NOT NULL, -- (see docs/decisions.md § Rules retrieval mechanism: dense embeddings over FTS or LLM-authored regex); stored for provenance',
+      '```',
+    ].join('\n');
+    const index = text.indexOf('§');
+    expect(extractReferenceText(text, index)).toBe(
+      'Rules retrieval mechanism: dense embeddings over FTS or LLM-authored regex',
+    );
+  });
+
+  it('scopes backtick parity to the paragraph, not the whole file', () => {
+    const text = [
+      'An earlier paragraph with an unbalanced ` backtick.',
+      '',
+      'Later: `docs/decisions.md § State placement is decided by the lifetime of the referent` applies.',
+    ].join('\n');
+    const index = text.indexOf('§');
+    expect(extractReferenceText(text, index)).toBe(
+      'State placement is decided by the lifetime of the referent',
+    );
+  });
+});
+
+describe('intra-document section references', () => {
+  it('treats a bare reference to the document own heading as out of scope', () => {
+    const verdict = classifyReference(
+      'Two kinds of corpus bump',
+      titles,
+      null,
+      ['Two kinds of corpus bump', 'Some other section'],
+    );
+    expect(verdict.classification).toBe('out-of-scope');
+  });
+
+  it('still resolves a decisions title that is not an own heading', () => {
+    const verdict = classifyReference(
+      'State placement is decided by the lifetime of the referent',
+      titles,
+      null,
+      ['Unrelated heading'],
+    );
+    expect(verdict.classification).toBe('resolves');
   });
 });

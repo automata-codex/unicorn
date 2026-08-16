@@ -10,9 +10,17 @@
  * see `classifyReference`.
  */
 
-/** Documents whose references are rewritten. Historical records are frozen. */
+/**
+ * Documents whose references are rewritten. Historical records — everything
+ * under specs/, plans/, and milestones/ — are frozen: they are dated accounts
+ * of what was true when written, and editing them to cite an identifier that
+ * did not exist at the time makes the record less honest, not more.
+ *
+ * `decisions.md` is absent on purpose. It is generated from `docs/decisions/`
+ * after the split, so a rewrite applied to it is discarded by the next build.
+ * The ADR source files are inventoried separately.
+ */
 export const IN_SCOPE_DOCS = [
-  'decisions.md',
   'roadmap.md',
   'rules-extraction-findings.md',
   'eval-methodology.md',
@@ -61,11 +69,17 @@ export function buildTitleIndex(
  *  in this corpus wrap mid-title, and a line-oriented matcher marks every one
  *  of them unresolved. */
 export function normalize(text: string): string {
-  return text
-    .replace(/[`*_"']/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
+  return (
+    text
+      // A reference that wraps inside a blockquote picks up the `> ` marker of
+      // each continuation line. Strip those before collapsing whitespace, or
+      // the marker lands in the middle of the title and nothing matches.
+      .replace(/\n\s*>\s?/g, ' ')
+      .replace(/[`*_"']/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase()
+  );
 }
 
 /** Numeric citations: `§ 24.1`, `§ S8.3`, `§ Part 4`, `§ Step 2`, `§ S4.5`. */
@@ -113,9 +127,27 @@ export function extractReferenceText(text: string, index: number): string {
   return (stop === -1 ? after : after.slice(0, stop)).trim();
 }
 
+/**
+ * Whether `index` sits inside an inline code span.
+ *
+ * Counting backticks from the start of the file is wrong twice over: a fenced
+ * code block contributes three at a time and destroys the parity for
+ * everything after it, and an unbalanced backtick anywhere leaks into every
+ * later reference. `schema.md` puts a decisions reference inside a ```sql
+ * fence 21 fences deep, which is exactly the case that exposed this.
+ *
+ * So: no inline spans inside a fenced block, and parity is counted from the
+ * start of the containing paragraph rather than the file.
+ */
 function isInsideCodeSpan(text: string, index: number): boolean {
   const before = text.slice(0, index);
-  const ticks = (before.match(/`/g) ?? []).length;
+
+  const fences = (before.match(/^```/gm) ?? []).length;
+  if (fences % 2 === 1) return false;
+
+  const paragraphStart = before.lastIndexOf('\n\n');
+  const scope = paragraphStart === -1 ? before : before.slice(paragraphStart);
+  const ticks = (scope.match(/`/g) ?? []).length;
   return ticks % 2 === 1;
 }
 
@@ -128,6 +160,7 @@ export function classifyReference(
   referenceText: string,
   titles: TitleIndex[],
   precedingPath: string | null,
+  ownHeadings: string[] = [],
 ): Pick<Reference, 'classification' | 'id' | 'candidates' | 'reason'> {
   const normalized = normalize(referenceText);
 
@@ -185,6 +218,20 @@ export function classifyReference(
     };
   }
 
+  // A reference with no path that names a heading in its own document is an
+  // intra-document section reference, not a decisions reference — for example
+  // eval-methodology.md's `§ Two kinds of corpus bump`, which is one of its
+  // own `##` headings.
+  if (!precedingPath) {
+    const own = ownHeadings.map(normalize);
+    if (own.some((h) => h === normalized || h.startsWith(normalized))) {
+      return {
+        classification: 'out-of-scope',
+        reason: 'section reference within the same document',
+      };
+    }
+  }
+
   return {
     classification: 'unresolved',
     reason: 'looks like a decisions reference but matches no entry title',
@@ -208,11 +255,17 @@ export function findPrecedingPath(
   return { path: last[0], start: absoluteStart };
 }
 
+/** Markdown headings in a document, for the intra-document reference rule. */
+export function ownHeadings(text: string): string[] {
+  return [...text.matchAll(/^#{1,6} (.+)$/gm)].map((m) => m[1].trim());
+}
+
 export function findReferences(
   text: string,
   titles: TitleIndex[],
 ): Reference[] {
   const out: Reference[] = [];
+  const headings = ownHeadings(text);
   for (const match of text.matchAll(/§/g)) {
     const index = match.index;
     const referenceText = extractReferenceText(text, index);
@@ -221,6 +274,7 @@ export function findReferences(
       referenceText,
       titles,
       preceding?.path ?? null,
+      headings,
     );
 
     // The construct to replace spans the path (when it belongs to this

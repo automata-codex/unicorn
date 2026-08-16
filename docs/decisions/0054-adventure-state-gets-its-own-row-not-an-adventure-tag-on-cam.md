@@ -17,11 +17,9 @@ state row with its own per-system Zod schema, mirroring `campaign_state`.
 the snapshot builder must remember to honour, and the two state defects this project has
 actually hit were both exactly that failure. The `lt_alvarez` / `alvarez` incident was a
 flat map plus a preserve-on-conflict merge, where the safety mechanism is what let the
-duplicate through (`§ Player resource pools are derived at character creation, not at
-synthesis`, amendment). The `<character_attributes>` block sat deferred for two
+duplicate through (`ADR-0036`, amendment). The `<character_attributes>` block sat deferred for two
 milestones past its own stated trigger because nothing structural was watching
-(`§ The <character_attributes> snapshot block is specified but deferred until a data
-source exists`, second amendment). A separate row makes scope structural rather than
+(`ADR-0049`, second amendment). A separate row makes scope structural rather than
 remembered, gives the adventure lifecycle a natural place for cleanup, and bounds a blob
 that is read on every turn and would otherwise grow without limit across a long campaign.
 
@@ -29,7 +27,7 @@ that is read on every turn and would otherwise grow without limit across a long 
 two write paths, and a snapshot builder that merges two sources. That is real, and it is
 the price of not relying on every future caller to remember a tag.
 
-**Not implemented in Phase 1.** See the addendum to `§ One active adventure per campaign`
+**Not implemented in Phase 1.** See the addendum to `ADR-0053`
 above — the single-adventure constraint is what makes deferring the implementation safe
 rather than merely postponing it. This entry records the terminal shape now so that the
 Phase 2 migration is written against a decided target rather than choosing one under
@@ -46,8 +44,7 @@ assumption.
 **The two axes are independent.** `resourcePools` versus `scenarioState` is a distinction
 of *ownership*: per-entity numerics versus non-entity numerics
 (`campaign-state.schema.ts:26`). Campaign versus adventure is a distinction of *scope*, per
-`§ State placement is decided by the lifetime of the referent, not the lifetime of the
-value`. They cross:
+`ADR-0026`. They cross:
 
 | | Entity-owned | Not entity-owned |
 |---|---|---|
@@ -76,7 +73,7 @@ an entity referent after being classified as not having one.
 **A related fact, recorded because it is the mechanism behind the defect this entry
 addresses:** nothing anywhere resets `entities`, `flags`, `scenarioState`, or `worldFacts`
 between adventures (`docs/plans/m7.6-code-inventory.md` @ `e1cdaac`). The single-adventure
-constraint in `§ One active adventure per campaign` (addendum) is what keeps that from
+constraint in `ADR-0053` (addendum) is what keeps that from
 mattering before Phase 2.
 
 **Not settled here.** `entities` mixes recurring NPCs with synthesized threats and needs

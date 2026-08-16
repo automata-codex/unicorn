@@ -46,8 +46,7 @@ is a verification item for M7.6.
 
 Full field-by-field derivation, with rule citations, in the M7.6 PSG inventory. The
 placement rule this addendum is an instance of is
-`§ State placement is decided by the lifetime of the referent, not the lifetime of the
-value`.
+`ADR-0026`.
 
 **Addendum 2 — the code inventory resolves the open verification item, and the schema is
 further from the rules than the first addendum assumed**
@@ -66,8 +65,7 @@ not one:
 
 **A behavioural divergence the spec has to resolve deliberately.** A delta that would take
 a pool below its `min` is **rejected**, not clamped. For HP this never fires — `min` is
-`null`, which is what makes `§ Pool validator applies full delta before threshold
-detection` work as written (the goblin at −2 HP). For stress it fires at zero. If M7.6
+`null`, which is what makes `ADR-0028` work as written (the goblin at −2 HP). For stress it fires at zero. If M7.6
 routes Stats and Saves through pools, each one needs an explicit reject-or-clamp decision
 rather than inheriting whichever behaviour its `min` happens to produce.
 
@@ -78,8 +76,7 @@ addendum lists:**
   `instinct` is a Contractor stat (§40.1) and not a player-character attribute at all.
   `saves` correspondingly lacks Sanity.
 - **Wounds are entirely absent** — no `maxWounds`, no wounds pool. See
-  `§ The D&D-5e-bias hypothesis has a confirmed instance, in the schema rather than in
-  retrieval` for what the code does instead.
+  `ADR-0021` for what the code does instead.
 - **`level` exists, is written by nothing and read by nothing**, in a game with no levels.
 
 **Addendum 3 — considered and rejected: writing state back to the sheet at adventure end**
@@ -102,12 +99,11 @@ Worth stating plainly because the correct carry-forward behaviour was arrived at
 accident rather than by design, and it is easy to mistake for a gap. The defect the code
 inventory found at the adventure boundary was never character carry-forward; it was that
 *scenario* state carries forward too, which
-`§ Adventure state gets its own row, not an adventure tag on campaign state` addresses.
+`ADR-0054` addresses.
 
 **It would also serve no system on the roadmap.** 5e resets at *rests*, Feng Shui 2's
 Fortune per *session*, Infinity 2d20's Momentum per *scene*. None of those is an adventure
-boundary. This is `§ State placement is decided by the lifetime of the referent, not the
-lifetime of the value`'s "reset is a rule, not a lifecycle" applied one level down: a sync
+boundary. This is `ADR-0026`'s "reset is a rule, not a lifecycle" applied one level down: a sync
 mechanism keyed to adventure completion would encode a reset assumption no supported
 system actually has.
 

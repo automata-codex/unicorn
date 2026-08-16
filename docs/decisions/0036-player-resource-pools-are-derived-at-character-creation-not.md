@@ -50,8 +50,7 @@ cause — nothing reconciles sheet and pools after creation:**
 - With no sheet, `getPlayerEntityIds` returns `[]`, and per `session.service.ts:908-912`
   an empty set disables `actingEntityId` validation entirely. So deleting a character
   silently switches off a structural guard that M7.5 landed
-  (`§ actingEntityId must resolve against a declared identifier set, and an unresolvable
-  id is undecided`).
+  (`ADR-0046`).
 - The `assertNoActiveAdventure` guard on update and delete blocks only `synthesizing`,
   `ready`, and `in_progress` — sheets are editable once an adventure is `completed`,
   `aborted`, or `failed`.

@@ -76,7 +76,7 @@ The default is now `voyage-4-lite`, which emits 1024 dimensions by default and l
 
 Two constraints follow, and neither is enforced by the type system: the ingestion model and the runtime `VOYAGE_EMBED_MODEL` must be the *same model*, not merely two models of the same width, or similarity scores are meaningless while looking healthy; and any future model swap must be checked against the column dimension before ingesting rather than after. M7.2's pipeline should validate the returned vector length against `game_system.embedding_dim` before insert — that check is the cheap guard that would have caught this at M7 time.
 
-No eval re-baseline is owed for this change on its own. Both existing baselines ran against an empty index, so no graded turn ever consumed an embedding; the re-baseline that `docs/decisions.md § Warden model upgraded to claude-sonnet-5` anticipates is owed to ingestion itself, not to the model swap.
+No eval re-baseline is owed for this change on its own. Both existing baselines ran against an empty index, so no graded turn ever consumed an embedding; the re-baseline that `ADR-0023` anticipates is owed to ingestion itself, not to the model swap.
 
 ---
 
@@ -92,7 +92,7 @@ M7.2's original spec included post-ingestion validation — an eval re-baseline 
 
 **The completion-criteria split, not just the reasoning, is why they're separate milestones rather than one milestone with a later Part 6.** M7.2's criteria are binary — the CLI runs, rows land, the harness scores. M7.5's is a quality bar — chunking iteration continues until the bar is met or a stopping rule fires. Milestones with quality-bar criteria absorb whatever is adjacent to them; folding the re-baseline into M7.2 would have made M7.2 itself open-ended, defeating the reason for having Done-When criteria at all.
 
-**Consequence:** M7.2 ends with a populated index and a way to measure it — not with evidence the Warden is actually better off. That evidence is M7.5's. The three entries below waiting on a populated-index re-baseline (`§ Warden model upgraded to claude-sonnet-5`, `§ Agentic graph decomposition stays deferred`, `§ rollType / gatedByRollId / actingEntityId on roll_dice stay deferred`) stay open one milestone longer than an M7.2-only plan would have implied.
+**Consequence:** M7.2 ends with a populated index and a way to measure it — not with evidence the Warden is actually better off. That evidence is M7.5's. The three entries below waiting on a populated-index re-baseline (`ADR-0023`, `§ Agentic graph decomposition stays deferred`, `§ rollType / gatedByRollId / actingEntityId on roll_dice stay deferred`) stay open one milestone longer than an M7.2-only plan would have implied.
 
 ### [ADR-0013](decisions/0013-rules-ingestion-is-cli-only-in-phase-1.md) — Rules ingestion is CLI-only in Phase 1
 
@@ -372,7 +372,7 @@ from an adjacent model applied to the PC sheet — with a different adjacent mod
   any Mothership artifact authored without the book open, and specifically on the M7.6
   spec, which is being written to correct exactly these fields.
 - It **does not** validate the retrieval-side claim. The vocabulary gap measured in
-  `§ Query preprocessing for rules_lookup promoted from optional to critical path`
+  `ADR-0019`
   (amendment) splits 157 wrong-word / 130 concept-absent out of 344, and *which* lexicon
   those out-of-corpus terms come from is still unmeasured. Confirming the hypothesis in
   one artifact does not confirm it in another, and the mechanical-model primer's design
@@ -448,7 +448,7 @@ Secondary but not minor: **errors dropped from 18 of 150 rows to 4**, almost all
 
 Two failure modes survive the swap with real denominators behind them: `unauditable-mapping` (2 passes across 45 judged inputs spanning both models) and `turn16-narrating-past-a-block` (0/10 under both). Both are now confirmed genuine rather than checker artifacts, which is the useful outcome — they are prompt work, and they are the two places prompt work should go first.
 
-**What this decision does not claim.** All figures are single-grader. Both baselines executed against an empty `rules_chunk` index, so nothing here accounts for how rules availability changes reach-for-dice behaviour; the M7.5 re-baseline is the real test of these numbers (moved from M7.2 — see § Rules ingestion pipeline and retrieval quality are separate milestones). At N=10 the 95% CI half-width at p=0.5 is ~±31pp, so individual rates near the middle are unsettled even where the direction is not. And a first run against a new model audits the harness as much as the model — the two defects that audit surfaced are recorded in `eval-methodology.md`, and the rates above are the post-correction ones.
+**What this decision does not claim.** All figures are single-grader. Both baselines executed against an empty `rules_chunk` index, so nothing here accounts for how rules availability changes reach-for-dice behaviour; the M7.5 re-baseline is the real test of these numbers (moved from M7.2 — see ADR-0012). At N=10 the 95% CI half-width at p=0.5 is ~±31pp, so individual rates near the middle are unsettled even where the direction is not. And a first run against a new model audits the harness as much as the model — the two defects that audit surfaced are recorded in `eval-methodology.md`, and the rates above are the post-correction ones.
 
 **The M7.5 re-baseline answered that, 2026-08-09, and the decision stands — but one number in the table above has to be retired.** Sonnet 5 against the populated index at prompt `0bdd1306`, both sides re-scored under the corrected checker:
 
@@ -548,7 +548,7 @@ An earlier design gave entities a special `hp` field alongside `resourcePools`. 
 There are three places a piece of state can live — the character sheet, campaign state,
 and adventure state — and until now there was no rule for choosing between them. The
 sheet/campaign line was settled once, for HP and current Stress, in
-`§ Character sheet stores identity and build, not live mutable state`. The
+`ADR-0027`. The
 campaign/adventure line was never stated at all: `adventures` carries `mode`,
 `initiative_order`, `caller_id` and `rolling_summary`, and everything else defaults into
 `campaign_state.data` because that is where the blob is.
@@ -583,7 +583,7 @@ discriminator.
 
 **A cross-check that agrees with the rule.** The writer already correlates with the
 scope. Character creation writes campaign-scoped player pools
-(`§ Player resource pools are derived at character creation, not at synthesis`);
+(`ADR-0036`);
 synthesis writes NPC, threat, and timer pools. If synthesis wrote it, it is adventure
 state.
 
@@ -635,8 +635,7 @@ is a verification item for M7.6.
 
 Full field-by-field derivation, with rule citations, in the M7.6 PSG inventory. The
 placement rule this addendum is an instance of is
-`§ State placement is decided by the lifetime of the referent, not the lifetime of the
-value`.
+`ADR-0026`.
 
 **Addendum 2 — the code inventory resolves the open verification item, and the schema is
 further from the rules than the first addendum assumed**
@@ -655,8 +654,7 @@ not one:
 
 **A behavioural divergence the spec has to resolve deliberately.** A delta that would take
 a pool below its `min` is **rejected**, not clamped. For HP this never fires — `min` is
-`null`, which is what makes `§ Pool validator applies full delta before threshold
-detection` work as written (the goblin at −2 HP). For stress it fires at zero. If M7.6
+`null`, which is what makes `ADR-0028` work as written (the goblin at −2 HP). For stress it fires at zero. If M7.6
 routes Stats and Saves through pools, each one needs an explicit reject-or-clamp decision
 rather than inheriting whichever behaviour its `min` happens to produce.
 
@@ -667,8 +665,7 @@ addendum lists:**
   `instinct` is a Contractor stat (§40.1) and not a player-character attribute at all.
   `saves` correspondingly lacks Sanity.
 - **Wounds are entirely absent** — no `maxWounds`, no wounds pool. See
-  `§ The D&D-5e-bias hypothesis has a confirmed instance, in the schema rather than in
-  retrieval` for what the code does instead.
+  `ADR-0021` for what the code does instead.
 - **`level` exists, is written by nothing and read by nothing**, in a game with no levels.
 
 **Addendum 3 — considered and rejected: writing state back to the sheet at adventure end**
@@ -691,12 +688,11 @@ Worth stating plainly because the correct carry-forward behaviour was arrived at
 accident rather than by design, and it is easy to mistake for a gap. The defect the code
 inventory found at the adventure boundary was never character carry-forward; it was that
 *scenario* state carries forward too, which
-`§ Adventure state gets its own row, not an adventure tag on campaign state` addresses.
+`ADR-0054` addresses.
 
 **It would also serve no system on the roadmap.** 5e resets at *rests*, Feng Shui 2's
 Fortune per *session*, Infinity 2d20's Momentum per *scene*. None of those is an adventure
-boundary. This is `§ State placement is decided by the lifetime of the referent, not the
-lifetime of the value`'s "reset is a rule, not a lifecycle" applied one level down: a sync
+boundary. This is `ADR-0026`'s "reset is a rule, not a lifecycle" applied one level down: a sync
 mechanism keyed to adventure completion would encode a reset assumption no supported
 system actually has.
 
@@ -729,7 +725,7 @@ Explosives, Gore & Massive.
 
 The generic alternative is `properties: Record<string, unknown>`, validated per system.
 **Deferred, for the same reason the synthesis driver registry is deferred**
-(`§ Synthesis prompts are system-specific; no driver registry yet`): until a second system
+(`ADR-0037`): until a second system
 exists, any interface is a guess shaped entirely by Mothership's needs, and the second
 system is likelier to reveal the right abstraction than to conform to a premature one.
 
@@ -740,7 +736,7 @@ shape — it is a prompt instruction and a closed enum the Warden selects from. 
 The first is fine; the second reintroduces `UNAUDITABLE-MAPPING` through a side door.
 Note also that the machinery which would dispatch per-system validation does not exist in
 this path today: pool behaviour is selected by pool key
-(`§ Pool behavior defined in system Zod schema, not hardcoded in validator`), not by
+(`ADR-0029`), not by
 campaign system.
 
 **The trigger to generalize is the second system needing a *different* field, not this
@@ -881,8 +877,7 @@ cause — nothing reconciles sheet and pools after creation:**
 - With no sheet, `getPlayerEntityIds` returns `[]`, and per `session.service.ts:908-912`
   an empty set disables `actingEntityId` validation entirely. So deleting a character
   silently switches off a structural guard that M7.5 landed
-  (`§ actingEntityId must resolve against a declared identifier set, and an unresolvable
-  id is undecided`).
+  (`ADR-0046`).
 - The `assertNoActiveAdventure` guard on update and delete blocks only `synthesizing`,
   `ready`, and `in_progress` — sheets are editable once an adventure is `completed`,
   `aborted`, or `failed`.
@@ -1137,7 +1132,7 @@ M7.5's first integration of `actingEntityId` compared it against `applicability.
 
 Three rules come out of it, and they generalise past this field.
 
-**An identifier comparison must name both namespaces.** The bug was not a typo; it was comparing two things that had never been the same kind of thing, in a codebase whose own convention (`docs/decisions.md § Entity and resource pool identifiers use underscores only`) makes ids and display names visibly distinct. `rollActsFor` now takes an explicit `AttributionContext` carrying `playerEntityIds`, `knownEntityIds`, and the display name for the legacy prose path, so the comparison cannot be written without stating which set is being consulted.
+**An identifier comparison must name both namespaces.** The bug was not a typo; it was comparing two things that had never been the same kind of thing, in a codebase whose own convention (`ADR-0032`) makes ids and display names visibly distinct. `rollActsFor` now takes an explicit `AttributionContext` carrying `playerEntityIds`, `knownEntityIds`, and the display name for the legacy prose path, so the comparison cannot be written without stating which set is being consulted.
 
 **A resolution failure is a third state, not a negative answer.** `rollActsFor` returns `'player' | 'other' | 'unknown'`. An id matching neither the declared player set nor the fixture's seeded entities is `'unknown'` — `NOT_APPLICABLE`, excluded from the denominator, never a pass. This is the same discipline as "Structural checks report undecided rather than guessing" above, applied to structured data rather than prose: the shipped bug's mechanism was a resolution failure silently collapsing into `'other'`. It is load-bearing, not defensive — Sonnet 4.6 emitted resource *pool* names in this field 13 times across one run.
 
@@ -1155,7 +1150,7 @@ This changes the state snapshot and therefore the Warden prompt, so it invalidat
 
 **Two things the original paragraph got wrong, worth separating from what it got right.**
 
-The diagnosis was right: the model had no id to read and inferred one from pool names. But the paragraph attributes the ambiguity it inferred *from* to a `character_sheet` table with zero rows, and that is the eval's condition, not the defect's cause. The duplicate prefixes were minted at synthesis time by a prompt that showed the model a display name and no `entityId` — they would have appeared in a campaign with a perfectly good sheet, because character creation writes `{entityId}_hp` while synthesis independently invents its own prefix. Zero rows explains why `playerEntityIds` was empty; it does not explain why the pools disagreed. That half is closed separately under `§ Player resource pools are derived at character creation, not at synthesis`, and the two fixes are independent: this one stops the Warden inferring an id, that one stops the state offering two to infer from.
+The diagnosis was right: the model had no id to read and inferred one from pool names. But the paragraph attributes the ambiguity it inferred *from* to a `character_sheet` table with zero rows, and that is the eval's condition, not the defect's cause. The duplicate prefixes were minted at synthesis time by a prompt that showed the model a display name and no `entityId` — they would have appeared in a campaign with a perfectly good sheet, because character creation writes `{entityId}_hp` while synthesis independently invents its own prefix. Zero rows explains why `playerEntityIds` was empty; it does not explain why the pools disagreed. That half is closed separately under `ADR-0036`, and the two fixes are independent: this one stops the Warden inferring an id, that one stops the state offering two to infer from.
 
 The claim that seeding fixtures "closes this for the eval" also understates what the harness already does. `seedScratchAdventure` seeds exactly one `character_sheet` row from the *first* declared id, and `SessionService` overwrites the seeded blob's `playerEntityIds` with the repository's answer — so a fixture declaring `['lt_alvarez', 'alvarez']` has always resolved to one id at run time. The two-id declaration is read only by the checker, deliberately, per "the checker tolerates aliases" above. Fixtures therefore need no cleanup for this change to be safe; what they still carry is the duplicate *pools*, which is a separate open question about seeded state.
 
@@ -1197,7 +1192,7 @@ The three doc references stand unchanged — they describe the intended end stat
 
 **Amendment — the deferral scope was too broad; static build data was never blocked**
 
-This entry conflated two different claims under one deferral: the qualitative `characterAttributes` block (armor mode, loadout, conditions), which genuinely lacks a data source, and character-sheet *build* data — stats, saves — which does not. `character_sheets.data` already carries `Strength`/`Speed`/`Intellect`/`Combat` and the saves as structured fields, populated at character creation (see `§ Player resource pools are derived at character creation, not at synthesis`), and rendering them into the snapshot requires no schema addition and no synthesis write path — only a render function and a call site, the same shape already anticipated above for the qualitative block.
+This entry conflated two different claims under one deferral: the qualitative `characterAttributes` block (armor mode, loadout, conditions), which genuinely lacks a data source, and character-sheet *build* data — stats, saves — which does not. `character_sheets.data` already carries `Strength`/`Speed`/`Intellect`/`Combat` and the saves as structured fields, populated at character creation (see `ADR-0036`), and rendering them into the snapshot requires no schema addition and no synthesis write path — only a render function and a call site, the same shape already anticipated above for the qualitative block.
 
 "Reactivate at the milestone that first needs the data" was the intended trigger, and for this narrower slice it already fired: Phase 1 has no rule evaluator, so Claude adjudicates every stat check itself, and without these fields in the snapshot its only source for the check target is the player stating their own stat in the action text — the system asking the player for data the system already has. That gap has existed since M6/M7 started resolving checks, not from some future milestone.
 
@@ -1270,8 +1265,7 @@ Creating a second adventure is permitted, and nothing behind it works:
   subsequent adventures"). Adventure 2 would be synthesized with no knowledge of
   adventure 1.
 - `adventure.rolling_summary` stays null through Phase 1 by
-  `§ Phase 1 continuity is carried by cached GM context and working-memory fields, not a
-  rolling summary`, which defers it to Phase 2 for the same reason — "where the related
+  `ADR-0048`, which defers it to Phase 2 for the same reason — "where the related
   'what persists across adventures' questions already need answering."
 - Adventure-scoped state is not separated from campaign state, so adventure 2 inherits
   adventure 1's synthesized entities, pools, and flags. Overlapping entity ids across
@@ -1324,11 +1318,9 @@ state row with its own per-system Zod schema, mirroring `campaign_state`.
 the snapshot builder must remember to honour, and the two state defects this project has
 actually hit were both exactly that failure. The `lt_alvarez` / `alvarez` incident was a
 flat map plus a preserve-on-conflict merge, where the safety mechanism is what let the
-duplicate through (`§ Player resource pools are derived at character creation, not at
-synthesis`, amendment). The `<character_attributes>` block sat deferred for two
+duplicate through (`ADR-0036`, amendment). The `<character_attributes>` block sat deferred for two
 milestones past its own stated trigger because nothing structural was watching
-(`§ The <character_attributes> snapshot block is specified but deferred until a data
-source exists`, second amendment). A separate row makes scope structural rather than
+(`ADR-0049`, second amendment). A separate row makes scope structural rather than
 remembered, gives the adventure lifecycle a natural place for cleanup, and bounds a blob
 that is read on every turn and would otherwise grow without limit across a long campaign.
 
@@ -1336,7 +1328,7 @@ that is read on every turn and would otherwise grow without limit across a long 
 two write paths, and a snapshot builder that merges two sources. That is real, and it is
 the price of not relying on every future caller to remember a tag.
 
-**Not implemented in Phase 1.** See the addendum to `§ One active adventure per campaign`
+**Not implemented in Phase 1.** See the addendum to `ADR-0053`
 above — the single-adventure constraint is what makes deferring the implementation safe
 rather than merely postponing it. This entry records the terminal shape now so that the
 Phase 2 migration is written against a decided target rather than choosing one under
@@ -1353,8 +1345,7 @@ assumption.
 **The two axes are independent.** `resourcePools` versus `scenarioState` is a distinction
 of *ownership*: per-entity numerics versus non-entity numerics
 (`campaign-state.schema.ts:26`). Campaign versus adventure is a distinction of *scope*, per
-`§ State placement is decided by the lifetime of the referent, not the lifetime of the
-value`. They cross:
+`ADR-0026`. They cross:
 
 | | Entity-owned | Not entity-owned |
 |---|---|---|
@@ -1383,7 +1374,7 @@ an entity referent after being classified as not having one.
 **A related fact, recorded because it is the mechanism behind the defect this entry
 addresses:** nothing anywhere resets `entities`, `flags`, `scenarioState`, or `worldFacts`
 between adventures (`docs/plans/m7.6-code-inventory.md` @ `e1cdaac`). The single-adventure
-constraint in `§ One active adventure per campaign` (addendum) is what keeps that from
+constraint in `ADR-0053` (addendum) is what keeps that from
 mattering before Phase 2.
 
 **Not settled here.** `entities` mixes recurring NPCs with synthesized threats and needs
@@ -1793,11 +1784,11 @@ The flag lives on **both** commands, resolved by one shared `resolveScoring`. A 
 
 ### [ADR-0085](decisions/0085-prompt-work-during-a-re-baseline-is-triggered-by-attribution.md) — Prompt work during a re-baseline is triggered by attribution, not by a number falling
 
-Recorded 2026-08-16, while M7.6's re-baseline was still running and before any of its numbers were readable. That ordering is the point, and it is the same one as `§ The retrieval stopping rule is measured on the metrics with headroom, not on the saturated one`: a trigger written after the results are in is indistinguishable from picking the trigger that licenses what you already wanted to do.
+Recorded 2026-08-16, while M7.6's re-baseline was still running and before any of its numbers were readable. That ordering is the point, and it is the same one as `ADR-0022`: a trigger written after the results are in is indistinguishable from picking the trigger that licenses what you already wanted to do.
 
 **The default is no.** M8.1 is the prompt-iteration milestone, sequenced after M8 so iteration runs against the complete Phase 1 corpus rather than the pre-multiplayer one. A tag reading low on this run and going onto M8.1's list is the expected outcome, not a deferral that needs justifying.
 
-**The default is not the whole rule, because M7.5 already ran this case.** `0bdd1306` surfaced `SYSTEM-ROLLED-PLAYER-ACTION` at 0.45 against 0.90, that got a prompt ownership/voice change, and `c45a142a` re-measured it at 1.00 (`§ Warden model upgraded to claude-sonnet-5`, addendum). The milestone paid for three runs instead of one and that was correct. So the question is never "is the prompt in scope this milestone" — it is which of four things a moved number is:
+**The default is not the whole rule, because M7.5 already ran this case.** `0bdd1306` surfaced `SYSTEM-ROLLED-PLAYER-ACTION` at 0.45 against 0.90, that got a prompt ownership/voice change, and `c45a142a` re-measured it at 1.00 (`ADR-0023`, addendum). The milestone paid for three runs instead of one and that was correct. So the question is never "is the prompt in scope this milestone" — it is which of four things a moved number is:
 
 1. **A check M7.6 introduced, failing.** The wounds chain, `characterState`, `CARRYOVER-ARITHMETIC`. This is not deferred prompt iteration; it is M7.6 not being finished. Fixed in the milestone, by prompt or otherwise. Where a number could be read as both this and (2) — a new mechanic moving an old tag — the check id decides: if M7.6 introduced the check, it is category 1.
 2. **A pre-existing tag regressing, attributable to something M7.6 changed.** The M7.5 precedent. Fix, then re-measure.

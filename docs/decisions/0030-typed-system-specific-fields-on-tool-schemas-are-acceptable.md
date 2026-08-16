@@ -16,7 +16,7 @@ Explosives, Gore & Massive.
 
 The generic alternative is `properties: Record<string, unknown>`, validated per system.
 **Deferred, for the same reason the synthesis driver registry is deferred**
-(`§ Synthesis prompts are system-specific; no driver registry yet`): until a second system
+(`ADR-0037`): until a second system
 exists, any interface is a guess shaped entirely by Mothership's needs, and the second
 system is likelier to reveal the right abstraction than to conform to a premature one.
 
@@ -27,7 +27,7 @@ shape — it is a prompt instruction and a closed enum the Warden selects from. 
 The first is fine; the second reintroduces `UNAUDITABLE-MAPPING` through a side door.
 Note also that the machinery which would dispatch per-system validation does not exist in
 this path today: pool behaviour is selected by pool key
-(`§ Pool behavior defined in system Zod schema, not hardcoded in validator`), not by
+(`ADR-0029`), not by
 campaign system.
 
 **The trigger to generalize is the second system needing a *different* field, not this

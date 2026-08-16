@@ -26,8 +26,7 @@ Creating a second adventure is permitted, and nothing behind it works:
   subsequent adventures"). Adventure 2 would be synthesized with no knowledge of
   adventure 1.
 - `adventure.rolling_summary` stays null through Phase 1 by
-  `§ Phase 1 continuity is carried by cached GM context and working-memory fields, not a
-  rolling summary`, which defers it to Phase 2 for the same reason — "where the related
+  `ADR-0048`, which defers it to Phase 2 for the same reason — "where the related
   'what persists across adventures' questions already need answering."
 - Adventure-scoped state is not separated from campaign state, so adventure 2 inherits
   adventure 1's synthesized entities, pools, and flags. Overlapping entity ids across

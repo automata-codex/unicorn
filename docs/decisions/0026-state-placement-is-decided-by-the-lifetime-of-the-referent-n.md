@@ -11,7 +11,7 @@ summary: null
 There are three places a piece of state can live — the character sheet, campaign state,
 and adventure state — and until now there was no rule for choosing between them. The
 sheet/campaign line was settled once, for HP and current Stress, in
-`§ Character sheet stores identity and build, not live mutable state`. The
+`ADR-0027`. The
 campaign/adventure line was never stated at all: `adventures` carries `mode`,
 `initiative_order`, `caller_id` and `rolling_summary`, and everything else defaults into
 `campaign_state.data` because that is where the blob is.
@@ -46,7 +46,7 @@ discriminator.
 
 **A cross-check that agrees with the rule.** The writer already correlates with the
 scope. Character creation writes campaign-scoped player pools
-(`§ Player resource pools are derived at character creation, not at synthesis`);
+(`ADR-0036`);
 synthesis writes NPC, threat, and timer pools. If synthesis wrote it, it is adventure
 state.
 

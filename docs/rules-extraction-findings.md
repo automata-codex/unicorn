@@ -2801,8 +2801,7 @@ Corrected in the spec before any round ran: the no-progress test is
 evaluated on `recall@3` over the answerable set as a whole and on
 `warden-observed` specifically, with `authored` held as a regression floor.
 Threshold (5 pp) and budget (three rounds) unchanged — only the axis moves.
-Recorded in `docs/decisions.md § The retrieval stopping rule is measured on
-the metrics with headroom, not on the saturated one`.
+Recorded in `ADR-0022`.
 
 #### 16.4 The fixture set is frozen from here
 
