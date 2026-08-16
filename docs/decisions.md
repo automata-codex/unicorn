@@ -1727,6 +1727,42 @@ M7.8 empirically, by constructing an input that should make it. They may be comp
 may make 900 unnecessary for less effort. That question should be answered by re-reading 900
 against M7.8's scope before either is built, not assumed in either direction here.
 
+**Addendum — `turn16` never had a satisfiable block, and the Warden was right every time**
+(2026-08-16, from M7.6's re-baseline `claude-sonnet-5__ccac7d1c__2026-08-16T12-38-30Z`).
+
+This entry opens by naming `turn16-narrating-past-a-block` as a check that could not move, and
+locates the cause at the `dice_request` the fixture seeded with `target: null`. That was right and
+stopped one level short. **`target` is null because the stat the roll names does not belong to the
+character it is attached to.** The fixture's `blockDescription` asks the Warden to stall until it
+learns "Alvarez's Instinct score". The corpus gives Instinct as a *Contractor* stat — "only have
+four Stats: Combat … Instinct: This is a catchall Stat for Fear, Sanity, Body, Speed, Intellect,
+and everything else" — and the primer's own stat line, byte-identical across `c45a142a` and
+`ccac7d1c`, gives player characters Strength / Speed / Intellect / Combat with Sanity / Fear / Body
+saves. Alvarez is the player character. No value the player could supply would unblock the turn, so
+no run can pass it.
+
+**The Warden's rationale is rules-correct and it recorded it in the artifact**: "treated the
+ambiguous 'instinct roll' (62) as governing the contractor's search outcome rather than an Alvarez
+action roll." There is a contractor in the scene, mid-sweep. It attributed the roll to its correct
+owner and was failed for it in 49 of 50 reps, across five runs, two prompts, two grading modes, and
+both an empty and a populated index. The judge is behaving correctly — it grades against a fact the
+fixture asserts and the rulebook denies.
+
+**What this changes about the rule above.** "A pinned rate is a harness suspect" holds, and the tail
+is longer than "the checker cannot move": the checker moved fine, the *fixture* encoded a rules
+error, and no reachability analysis over checker code would have found it.
+`docs/plans/900-fixture-check-reachability-design.md` asks whether a check can emit a fail; here it
+always could. The unasked question is whether the fixture's asserted world is one the rules permit,
+which is answerable only against the corpus. **A pinned fixture warrants a rules-level read of its
+assertion, not only a code-level read of its checker.**
+
+**Cost of not having asked.** `NARRATING-PAST-A-BLOCK` has reported 0.50–0.55 for five runs and both
+halves were misleading: `turn21` is pinned at 1.00 and already listed above as a ceiling suspect,
+`turn16` could never pass. The tag has had no working fail-direction coverage at any point while
+presenting as a stable mid-range rate — the failure this file catalogues as "a tag rate can certify a
+fixture rather than the corpus", arrived from the third direction. Re-authoring or retiring `turn16`
+goes with M7.7's fixture work; the class goes to M7.8.
+
 ### Applicability is reported alongside every rate, and errors are not in its denominator
 
 `eval-methodology.md` already argued that a rate moving because its denominator moved looks identical to a rate moving because behaviour moved, and that reporting applicability is the only thing that separates them. The reports now do: `App` on the per-fixture and per-tag tables, `App A`/`App B`/`ΔApp` on every compare row, and an `Applicability shifts` section peer to Regressions/Improvements.

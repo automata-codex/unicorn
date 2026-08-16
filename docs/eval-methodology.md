@@ -113,6 +113,38 @@ over a shrinking denominator, but a rate over a denominator that never covered t
 behaviour. **Before reading a tag as a corpus-level claim, check which fixtures carry
 that check.**
 
+### The run the baseline actually points at, as of 2026-08-16
+
+**N is still 10 and still has not been re-calibrated.** The standing comparison point moves to
+M7.6's re-baseline:
+
+- Model: **`claude-sonnet-5`**
+- Prompt hash: **`ccac7d1c`**
+- Corpus version: **`2cfaf351a760`** — an **input-affecting** bump (`§ Two kinds of corpus bump`);
+  every pool key changed format and ten pools appear, so `campaignState` changed for all 15 fixtures
+- Run directory: **`claude-sonnet-5__ccac7d1c__2026-08-16T12-38-30Z`**
+- Full corpus, 10 reps, zero errors. Closeout and category calls in `docs/roadmap.md § M7.6`
+
+**Superseded `claude-sonnet-5__c45a142a__2026-08-10T19-45-15Z` (corpus `83fe9ee82341`).** That run
+stays the correct comparison point for anything measured before M7.6's snapshot changes. It is not
+the current baseline.
+
+**`eval:compare` across this boundary is meaningless, and that is not a warning to suppress.** Six
+Warden-visible changes ride the one run — the snapshot's `owner.pool` addressing,
+`<character_attributes>`, the pool-delta array with `reason`/`maxDelta`/`damageType`,
+`characterState`, the wounds chain, and the re-keyed corpus. No per-tag delta against `c45a142a` is
+honest, which is why M7.6's category calls are argued from §6.3 predictions and absolute rates
+instead.
+
+**This baseline certifies less than a full-corpus run normally does.** Read it with the run's own
+"What this run does not measure" section: `characterState`'s five families have no floor from it at
+all, the absolute-vs-delta count excepted, and M7.6's two new checks — `CARRYOVER-ARITHMETIC` and
+`UNEXPLAINED-DELTA` — carry no denominator because no fixture yet exercises them. Three of fifteen
+fixtures (`UNAUDITABLE-MAPPING`) contributed zero applicable reps, and `turn16-narrating-past-a-block`
+is a known-defective fixture (`decisions.md § A rate that never moves is a harness suspect, not a
+finding`, addendum 2026-08-16). **Nine of fifteen fixture rows read 1.00 and almost none of them are
+evidence.**
+
 **Corpus version updated 2026-07-29 to `4c9f2e73efd7...` — a grader fix, not a re-run.**
 `turn{19,21}-{system-rolled-player-action,out-of-order-resolution}.json` gained a
 fixture-authored `applicability` field so those two checks stop inferring applicability from
