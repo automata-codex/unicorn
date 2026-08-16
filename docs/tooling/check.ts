@@ -25,7 +25,19 @@ import { renderIndex } from './render-index';
 const errors: string[] = [];
 const fail = (message: string) => errors.push(message);
 
-const corpus = loadCorpus();
+// A malformed file throws during load — an invalid area, a missing key, an
+// unterminated front matter block. Report it as a check failure rather than
+// letting a Zod stack trace reach the contributor who typo'd the area.
+let corpus: ReturnType<typeof loadCorpus>;
+try {
+  corpus = loadCorpus();
+} catch (error) {
+  const detail = error instanceof Error ? error.message : String(error);
+  console.error('ADR corpus check failed — a file could not be read:\n');
+  console.error(`  - ${detail.replace(/\n/g, '\n    ')}`);
+  process.exit(1);
+}
+
 const knownIds = new Set(corpus.map((a) => a.frontMatter.id));
 
 // Duplicate identifiers.

@@ -5,6 +5,7 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { ZodError } from 'zod';
 
 import { type AdrFile, idToNumber, parseAdrFile } from './adr.core';
 
@@ -13,6 +14,16 @@ export const DOCS_DIR = join(REPO_ROOT, 'docs');
 export const ADR_DIR = join(DOCS_DIR, 'decisions');
 export const INDEX_PATH = join(DOCS_DIR, 'decisions.md');
 export const INDEX_HEADER_PATH = join(ADR_DIR, '_index-header.md');
+
+/** Zod's default message is a JSON dump; reduce it to the failing keys. */
+function describe(error: unknown): string {
+  if (error instanceof ZodError) {
+    return error.issues
+      .map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
+      .join('; ');
+  }
+  return error instanceof Error ? error.message : String(error);
+}
 
 export interface LoadedAdr extends AdrFile {
   filename: string;
@@ -30,8 +41,7 @@ export function loadCorpus(): LoadedAdr[] {
     try {
       return { filename, ...parseAdrFile(text) };
     } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      throw new Error(`${filename}: ${detail}`);
+      throw new Error(`${filename}: ${describe(error)}`);
     }
   });
 
