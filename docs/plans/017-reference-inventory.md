@@ -10,14 +10,14 @@ rewrite there is discarded by the next build. `specs/`, `plans/`, and
 
 ## Totals
 
-242 `§` tokens across 100 files.
+241 `§` tokens across 100 files.
 
 | Class | Count | Disposition |
 |---|---|---|
 | resolves | 0 | Rewritten automatically to a bare `ADR-NNNN` token |
 | ambiguous | 0 | **Left in place. Needs Alex.** |
 | out of scope | 239 | Untouched — numeric citations, other documents, intra-document sections |
-| unresolved | 3 | **Left in place. The rot report.** |
+| unresolved | 2 | **Left in place. The rot report.** |
 
 ## Files with at least one in-scope reference
 
@@ -25,7 +25,6 @@ rewrite there is discarded by the next build. `specs/`, `plans/`, and
 |---|---|---|---|---|
 | `decisions/0085-prompt-work-during-a-re-baseline-is-triggered-by-attribution.md` | 0 | 0 | 3 | 1 |
 | `roadmap.md` | 0 | 0 | 55 | 1 |
-| `api.md` | 0 | 0 | 0 | 1 |
 
 ## Ambiguous — author-truncated titles
 
@@ -45,4 +44,3 @@ The rot report. Do not guess a target for these.
 |---|---|
 | `decisions/0085-prompt-work-during-a-re-baseline-is-triggered-by-attribution.md:26` | Don't pay for the same re-baseline twice |
 | `roadmap.md:286` | Open questions |
-| `api.md:140` | Player-Action Endpoint Shape |

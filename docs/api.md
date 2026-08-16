@@ -137,7 +137,7 @@ Create a new adventure within a campaign. In Phase 1 this is always Solo Blind �
 
 Submit a narrative player action. Triggers the full GM pipeline — state snapshot construction, Claude call (with inner tool loop for `roll_dice` / `rules_lookup`), validator, correction pass if rejected, atomic turn write.
 
-> **Note:** Narrative and dice-result submissions intentionally use separate endpoints (`POST /messages` and `POST /dice-results`) rather than a single `POST /actions` with a discriminated-union body. See `docs/decisions.md § Player-Action Endpoint Shape` for the rationale and the revisit condition.
+> **Note:** Narrative and dice-result submissions intentionally use separate endpoints (`POST /messages` and `POST /dice-results`) rather than a single `POST /actions` with a discriminated-union body. See `ADR-0051` for the rationale and the revisit condition.
 
 **Request:**
 ```json
