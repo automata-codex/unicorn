@@ -8,8 +8,8 @@
   import Input from '../lib/components/Input.svelte';
   import PageLayout from '../lib/components/PageLayout.svelte';
   import SectionLabel from '../lib/components/SectionLabel.svelte';
-  import Select from '../lib/components/Select.svelte';
 
+  import type { MothershipCharacterSheet } from '@uv/game-systems';
   import type { CharacterSheet } from '../lib/types';
 
   let { params }: { params: { campaignId: string } } = $props();
@@ -19,67 +19,40 @@
   let submitting = $state(false);
   let error = $state('');
 
-  // Identity
+  /**
+   * **Only the narrative fields are editable.** The sheet holds immutable
+   * creation data since M7.6: Stats and Saves are pools in campaign state,
+   * `maxHp` and `maxStress` were duplicates of pool ceilings, and skills and
+   * equipment moved to campaign state too.
+   *
+   * `class`, `entityId` and `creationRolls` are shown but not editable, and
+   * that is a correctness matter rather than a simplification.
+   * `mergePlayerResourcePools` preserves on conflict, so re-deriving pools
+   * from an edited sheet is a **no-op for every pool that already exists** —
+   * which after creation is all of them. A class picker here would appear to
+   * re-roll the character and silently change nothing (M7.6 §1.4).
+   */
   let name = $state('');
-  let charClass = $state('teamster');
   let pronouns = $state('');
-  let entityId = $state('');
-
-  // Stats
-  let strength = $state(30);
-  let speed = $state(30);
-  let intellect = $state(30);
-  let combat = $state(30);
-  let instinct = $state(30);
-  let sanity = $state(30);
-
-  // Saves
-  let fear = $state(30);
-  let body = $state(30);
-  let armor = $state(30);
-  let armorMax = $state(30);
-
-  // HP & Stress
-  let maxHp = $state(20);
-  let maxStress = $state(3);
-
-  // Dynamic lists
-  let skills = $state<string[]>([]);
-  let equipment = $state<string[]>([]);
-
-  // Notes
+  let trinket = $state('');
+  let patch = $state('');
+  let traumaResponse = $state('');
   let notes = $state('');
 
-  const classOptions = [
-    { value: 'teamster', label: 'Teamster' },
-    { value: 'marine', label: 'Marine' },
-    { value: 'scientist', label: 'Scientist' },
-    { value: 'android', label: 'Android' },
-  ];
+  /** Carried through the round-trip verbatim; never edited here. */
+  let immutable = $state<MothershipCharacterSheet | null>(null);
 
   onMount(async () => {
     const res = await api(`/api/v1/campaigns/${campaignId}/characters`);
     if (res.ok) {
       const character: CharacterSheet = await res.json();
       const d = character.data;
+      immutable = d;
       name = d.name;
-      charClass = d.class;
       pronouns = d.pronouns ?? '';
-      entityId = d.entityId;
-      strength = d.stats.strength ?? 30;
-      speed = d.stats.speed ?? 30;
-      intellect = d.stats.intellect ?? 30;
-      combat = d.stats.combat ?? 30;
-      instinct = d.stats.instinct ?? 30;
-      sanity = d.stats.sanity ?? 30;
-      fear = d.saves.fear ?? 30;
-      body = d.saves.body ?? 30;
-      armor = d.saves.armor ?? 30;
-      armorMax = d.saves.armorMax ?? 30;
-      maxHp = d.maxHp;
-      maxStress = d.maxStress;
-      skills = [...d.skills];
-      equipment = [...d.equipment];
+      trinket = d.trinket ?? '';
+      patch = d.patch ?? '';
+      traumaResponse = d.traumaResponse ?? '';
       notes = d.notes ?? '';
     } else {
       error = 'Could not load character.';
@@ -87,50 +60,25 @@
     loading = false;
   });
 
-  function addSkill() {
-    skills = [...skills, ''];
-  }
-
-  function removeSkill(index: number) {
-    skills = skills.filter((_, i) => i !== index);
-  }
-
-  function updateSkill(index: number, value: string) {
-    skills = skills.map((s, i) => (i === index ? value : s));
-  }
-
-  function addEquipment() {
-    equipment = [...equipment, ''];
-  }
-
-  function removeEquipment(index: number) {
-    equipment = equipment.filter((_, i) => i !== index);
-  }
-
-  function updateEquipment(index: number, value: string) {
-    equipment = equipment.map((s, i) => (i === index ? value : s));
-  }
-
-  function parseNum(e: Event): number {
-    return Number((e.target as HTMLInputElement).value) || 0;
-  }
-
   async function handleSubmit(e: Event) {
     e.preventDefault();
     submitting = true;
     error = '';
 
-    const payload = {
-      entityId,
+    if (!immutable) return;
+
+    // Spread the loaded sheet first so `creationRolls`, `creationChoices`,
+    // `class` and `entityId` round-trip byte-for-byte. A payload rebuilt from
+    // the form fields alone would drop them, and the backend would reject the
+    // write — or worse, accept a sheet whose creation rolls no longer explain
+    // the character's pools.
+    const payload: MothershipCharacterSheet = {
+      ...immutable,
       name,
       pronouns: pronouns || undefined,
-      class: charClass,
-      stats: { strength, speed, intellect, combat, instinct, sanity },
-      saves: { fear, body, armor, armorMax },
-      maxHp,
-      maxStress,
-      skills: skills.filter((s) => s.trim() !== ''),
-      equipment: equipment.filter((s) => s.trim() !== ''),
+      trinket: trinket || undefined,
+      patch: patch || undefined,
+      traumaResponse: traumaResponse || undefined,
       notes: notes || undefined,
     };
 
@@ -174,14 +122,6 @@
             />
           </div>
           <div class="field">
-            <Select
-              label="CLASS"
-              value={charClass}
-              options={classOptions}
-              onchange={(e) => { charClass = (e.target as HTMLSelectElement).value; }}
-            />
-          </div>
-          <div class="field">
             <Input
               label="PRONOUNS"
               value={pronouns}
@@ -189,101 +129,55 @@
               oninput={(e) => { pronouns = (e.target as HTMLInputElement).value; }}
             />
           </div>
-          <div class="field entity-id-field">
+        </div>
+      </Card>
+
+      <!-- FIXED AT CREATION -->
+      <Card>
+        <SectionLabel>FIXED AT CREATION</SectionLabel>
+        <div class="section-content">
+          <p class="type-meta fixed-note">
+            CLASS, ENTITY ID AND THE CREATION ROLLS CANNOT BE EDITED. THEY
+            DETERMINE THE POOLS THIS CHARACTER ALREADY HAS, AND CHANGING THEM
+            HERE WOULD NOT CHANGE THOSE.
+          </p>
+          <div class="fixed-row">
+            <span class="type-label">CLASS</span>
+            <span class="type-body">{immutable?.class.toUpperCase()}</span>
+          </div>
+          <div class="fixed-row">
+            <span class="type-label">ENTITY ID</span>
+            <span class="type-body">{immutable?.entityId}</span>
+          </div>
+        </div>
+      </Card>
+
+      <!-- TRINKET, PATCH, TRAUMA -->
+      <Card>
+        <SectionLabel>TRINKET &amp; PATCH</SectionLabel>
+        <div class="section-content">
+          <div class="field">
             <Input
-              label="ENTITY ID"
-              value={entityId}
-              oninput={(e) => { entityId = (e.target as HTMLInputElement).value; }}
-              hint="USED INTERNALLY"
+              label="TRINKET"
+              value={trinket}
+              oninput={(e) => { trinket = (e.target as HTMLInputElement).value; }}
             />
           </div>
-        </div>
-      </Card>
-
-      <!-- STATS -->
-      <Card>
-        <SectionLabel>STATS</SectionLabel>
-        <div class="section-content">
-          <div class="stats-grid">
-            <Input label="STRENGTH" type="number" value={strength} oninput={(e) => { strength = parseNum(e); }} />
-            <Input label="SPEED" type="number" value={speed} oninput={(e) => { speed = parseNum(e); }} />
-            <Input label="INTELLECT" type="number" value={intellect} oninput={(e) => { intellect = parseNum(e); }} />
-            <Input label="COMBAT" type="number" value={combat} oninput={(e) => { combat = parseNum(e); }} />
-            <Input label="INSTINCT" type="number" value={instinct} oninput={(e) => { instinct = parseNum(e); }} />
-            <Input label="SANITY" type="number" value={sanity} oninput={(e) => { sanity = parseNum(e); }} />
+          <div class="field">
+            <Input
+              label="PATCH"
+              value={patch}
+              oninput={(e) => { patch = (e.target as HTMLInputElement).value; }}
+            />
           </div>
-        </div>
-      </Card>
-
-      <!-- SAVES -->
-      <Card>
-        <SectionLabel>SAVES</SectionLabel>
-        <div class="section-content">
-          <div class="stats-grid">
-            <Input label="FEAR" type="number" value={fear} oninput={(e) => { fear = parseNum(e); }} />
-            <Input label="BODY" type="number" value={body} oninput={(e) => { body = parseNum(e); }} />
-            <Input label="ARMOR" type="number" value={armor} oninput={(e) => { armor = parseNum(e); }} />
-            <Input label="ARMOR MAX" type="number" value={armorMax} oninput={(e) => { armorMax = parseNum(e); }} />
+          <div class="field">
+            <Input
+              label="TRAUMA RESPONSE"
+              value={traumaResponse}
+              hint="MILITARY TRAINING GRANTS THE MARINE'S TO ANY CLASS"
+              oninput={(e) => { traumaResponse = (e.target as HTMLInputElement).value; }}
+            />
           </div>
-        </div>
-      </Card>
-
-      <!-- HP & STRESS -->
-      <Card>
-        <SectionLabel>HP &amp; STRESS</SectionLabel>
-        <div class="section-content">
-          <div class="stats-grid">
-            <Input label="MAX HP" type="number" value={maxHp} oninput={(e) => { maxHp = parseNum(e); }} />
-            <Input label="MAX STRESS" type="number" value={maxStress} oninput={(e) => { maxStress = parseNum(e); }} />
-          </div>
-        </div>
-      </Card>
-
-      <!-- SKILLS -->
-      <Card>
-        <SectionLabel>SKILLS</SectionLabel>
-        <div class="section-content">
-          <div class="dynamic-list">
-            {#each skills as skill, i (i)}
-              <div class="dynamic-row">
-                <Input
-                  placeholder="Skill name"
-                  value={skill}
-                  oninput={(e) => { updateSkill(i, (e.target as HTMLInputElement).value); }}
-                />
-                <button
-                  type="button"
-                  class="remove-btn"
-                  onclick={() => removeSkill(i)}
-                >×</button>
-              </div>
-            {/each}
-          </div>
-          <Button variant="ghost" type="button" onclick={addSkill}>+ ADD SKILL</Button>
-        </div>
-      </Card>
-
-      <!-- LOADOUT -->
-      <Card>
-        <SectionLabel>LOADOUT</SectionLabel>
-        <div class="section-content">
-          <div class="dynamic-list">
-            {#each equipment as item, i (i)}
-              <div class="dynamic-row">
-                <Input
-                  placeholder="Item name"
-                  value={item}
-                  oninput={(e) => { updateEquipment(i, (e.target as HTMLInputElement).value); }}
-                />
-                <button
-                  type="button"
-                  class="remove-btn"
-                  onclick={() => removeEquipment(i)}
-                >×</button>
-              </div>
-            {/each}
-          </div>
-          <Button variant="ghost" type="button" onclick={addEquipment}>+ ADD ITEM</Button>
         </div>
       </Card>
 
@@ -327,6 +221,18 @@
     margin-bottom: var(--space-5);
   }
 
+  .fixed-note {
+    color: var(--color-text-ghost);
+    margin-bottom: var(--space-4);
+  }
+
+  .fixed-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: var(--space-2) 0;
+  }
+
   .section-content {
     margin-top: var(--space-5);
   }
@@ -339,47 +245,12 @@
     margin-bottom: 0;
   }
 
-  .entity-id-field :global(.input) {
-    font-size: var(--font-size-xs);
-    color: var(--color-text-ghost);
-  }
 
-  .stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-4);
-  }
 
-  .dynamic-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    margin-bottom: var(--space-4);
-  }
 
-  .dynamic-row {
-    display: flex;
-    align-items: flex-end;
-    gap: var(--space-3);
-  }
 
-  .dynamic-row :global(.input-wrapper) {
-    flex: 1;
-  }
 
-  .remove-btn {
-    all: unset;
-    font-family: var(--font-primary);
-    font-size: var(--font-size-lg);
-    color: var(--color-text-ghost);
-    cursor: pointer;
-    padding: var(--space-2);
-    line-height: 1;
-  }
 
-  .remove-btn:hover {
-    color: var(--color-danger);
-  }
 
   .notes-textarea {
     width: 100%;

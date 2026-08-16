@@ -13,4 +13,14 @@ export default defineConfig({
 	optimizeDeps: {
 		include: ['@uv/game-systems'],
 	},
+	// `optimizeDeps` only covers the dev server. `vite build` uses Rollup, whose
+	// commonjs plugin is scoped to `node_modules` by default — and the workspace
+	// package resolves through its symlink to `packages/game-systems/dist`, which
+	// is outside that scope. Without this the production build fails with
+	// "parseDiceNotation is not exported by …/dist/index.js" while dev works.
+	build: {
+		commonjsOptions: {
+			include: [/game-systems/, /node_modules/],
+		},
+	},
 });

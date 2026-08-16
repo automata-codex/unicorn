@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { deriveMothershipCharacterResourcePools } from '@uv/game-systems';
   import { onMount } from 'svelte';
   import { push } from 'svelte-spa-router';
 
@@ -8,6 +9,7 @@
   import PageLayout from '../lib/components/PageLayout.svelte';
   import SectionLabel from '../lib/components/SectionLabel.svelte';
 
+  import type { MothershipCreationRolls } from '@uv/game-systems';
   import type { Adventure, CharacterSheet } from '../lib/types';
 
   let { params }: { params: { campaignId: string } } = $props();
@@ -18,6 +20,72 @@
   let error = $state('');
   let confirmingDelete = $state(false);
   let deleting = $state(false);
+
+  /**
+   * The creation rolls, rendered as the dice fell. Labelled and ordered by
+   * hand rather than by `Object.entries`, which is what the pre-M7.6 view did
+   * — convenient while fields were being dropped, wrong the moment one is
+   * added, since a new key would appear with its raw name as a label.
+   */
+  const ROLL_LABELS: Array<[keyof MothershipCreationRolls, string]> = [
+    ['strength', 'STRENGTH'],
+    ['speed', 'SPEED'],
+    ['intellect', 'INTELLECT'],
+    ['combat', 'COMBAT'],
+    ['sanity', 'SANITY'],
+    ['fear', 'FEAR'],
+    ['body', 'BODY'],
+    ['maxHp', 'MAX HEALTH'],
+    ['credits', 'CREDITS'],
+    ['trinket', 'TRINKET'],
+    ['patch', 'PATCH'],
+  ];
+
+  const rollEntries = $derived.by(() => {
+    const sheet = character;
+    if (!sheet) return [];
+    return ROLL_LABELS.map(([key, label]) => ({
+      key,
+      label,
+      dice: sheet.data.creationRolls[key].join(' + '),
+    }));
+  });
+
+  /**
+   * Starting values, derived from the rolls plus the class adjustments — the
+   * same pure function the backend seeds pools with, so what is shown here
+   * reconciles against the rolls above by construction rather than by a second
+   * copy of the class table.
+   *
+   * These are the values the character *started* with. Current values live in
+   * campaign state and are shown on the play screen; rendering them here would
+   * mean fetching the adventure, and showing a stale number next to a label
+   * that does not say "starting" is how a player reads a wound as a bad roll.
+   */
+  const STARTING_LABELS: Array<[string, string]> = [
+    ['hp', 'HEALTH'],
+    ['wounds', 'MAX WOUNDS'],
+    ['strength', 'STRENGTH'],
+    ['speed', 'SPEED'],
+    ['intellect', 'INTELLECT'],
+    ['combat', 'COMBAT'],
+    ['sanity', 'SANITY'],
+    ['fear', 'FEAR'],
+    ['body', 'BODY'],
+    ['credits', 'CREDITS'],
+  ];
+
+  const startingValues = $derived.by(() => {
+    const sheet = character;
+    if (!sheet) return [];
+    const pools = deriveMothershipCharacterResourcePools(sheet.data)[
+      sheet.data.entityId
+    ];
+    return STARTING_LABELS.map(([key, label]) => ({
+      label,
+      value: key === 'wounds' ? pools[key].max : pools[key].current,
+    }));
+  });
 
   const activeStatuses = ['synthesizing', 'ready', 'in_progress'];
   let hasActiveAdventure = $state(false);
@@ -98,77 +166,67 @@
       </div>
     </Card>
 
-    <!-- Stats -->
+    <!-- Creation rolls -->
     <Card>
-      <SectionLabel>STATS</SectionLabel>
+      <SectionLabel>CREATION ROLLS</SectionLabel>
       <div class="section-content">
+        <p class="type-meta roll-note">
+          THE DICE AS THEY FELL. A RECORD OF THE STARTING POSITION — NOT
+          CURRENT VALUES, WHICH CHANGE IN PLAY.
+        </p>
         <div class="stat-grid">
-          {#each Object.entries(character.data.stats) as [label, value] (label)}
+          {#each rollEntries as entry (entry.key)}
             <div class="stat-item">
-              <span class="type-stat-value">{value}</span>
-              <span class="type-label">{label.toUpperCase()}</span>
+              <span class="type-stat-value">{entry.dice}</span>
+              <span class="type-label">{entry.label}</span>
             </div>
           {/each}
         </div>
       </div>
     </Card>
 
-    <!-- Saves -->
+    <!-- Starting values -->
     <Card>
-      <SectionLabel>SAVES</SectionLabel>
+      <SectionLabel>STARTING VALUES</SectionLabel>
       <div class="section-content">
+        <p class="type-meta roll-note">
+          THE ROLLS ABOVE PLUS THE {character.data.class.toUpperCase()} CLASS
+          ADJUSTMENTS. CURRENT VALUES LIVE IN THE ADVENTURE, NOT HERE.
+        </p>
         <div class="stat-grid">
-          {#each Object.entries(character.data.saves) as [label, value] (label)}
+          {#each startingValues as entry (entry.label)}
             <div class="stat-item">
-              <span class="type-stat-value">{value}</span>
-              <span class="type-label">{label.toUpperCase()}</span>
+              <span class="type-stat-value">{entry.value}</span>
+              <span class="type-label">{entry.label}</span>
             </div>
           {/each}
         </div>
       </div>
     </Card>
 
-    <!-- HP & Stress -->
-    <Card>
-      <SectionLabel>HP &amp; STRESS</SectionLabel>
-      <div class="section-content">
-        <div class="stat-grid">
-          <div class="stat-item">
-            <span class="type-stat-value">{character.data.maxHp}</span>
-            <span class="type-label">MAX HP</span>
-          </div>
-          <div class="stat-item">
-            <span class="type-stat-value">{character.data.maxStress}</span>
-            <span class="type-label">MAX STRESS</span>
-          </div>
-        </div>
-      </div>
-    </Card>
-
-    <!-- Skills -->
-    {#if character.data.skills.length > 0}
+    <!-- Trinket, patch, trauma response -->
+    {#if character.data.trinket || character.data.patch || character.data.traumaResponse}
       <Card>
-        <SectionLabel>SKILLS</SectionLabel>
+        <SectionLabel>LOADOUT &amp; TRAUMA</SectionLabel>
         <div class="section-content">
-          <ul class="item-list">
-            {#each character.data.skills as skill, i (i)}
-              <li class="type-body">{skill}</li>
-            {/each}
-          </ul>
-        </div>
-      </Card>
-    {/if}
-
-    <!-- Equipment -->
-    {#if character.data.equipment.length > 0}
-      <Card>
-        <SectionLabel>LOADOUT</SectionLabel>
-        <div class="section-content">
-          <ul class="item-list">
-            {#each character.data.equipment as item, i (i)}
-              <li class="type-body">{item}</li>
-            {/each}
-          </ul>
+          {#if character.data.trinket}
+            <div class="detail-row">
+              <span class="type-label">TRINKET</span>
+              <span class="type-body">{character.data.trinket}</span>
+            </div>
+          {/if}
+          {#if character.data.patch}
+            <div class="detail-row">
+              <span class="type-label">PATCH</span>
+              <span class="type-body">{character.data.patch}</span>
+            </div>
+          {/if}
+          {#if character.data.traumaResponse}
+            <div class="detail-row">
+              <span class="type-label">TRAUMA RESPONSE</span>
+              <span class="type-body">{character.data.traumaResponse}</span>
+            </div>
+          {/if}
         </div>
       </Card>
     {/if}
@@ -250,6 +308,11 @@
     margin-top: var(--space-5);
   }
 
+  .roll-note {
+    color: var(--color-text-ghost);
+    margin-bottom: var(--space-4);
+  }
+
   .detail-row {
     display: flex;
     justify-content: space-between;
@@ -275,19 +338,7 @@
     align-items: center;
   }
 
-  .item-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
 
-  .item-list li::before {
-    content: "— ";
-    color: var(--color-text-tertiary);
-  }
 
   .actions {
     margin-top: var(--space-7);

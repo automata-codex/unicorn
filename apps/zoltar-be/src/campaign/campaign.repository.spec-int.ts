@@ -282,7 +282,10 @@ describe('CampaignRepository (integration)', () => {
 
   describe('mergePlayerResourcePools', () => {
     async function seedCampaignWithState(
-      initialPools: Record<string, { current: number; max: number | null }>,
+      initialPools: Record<
+        string,
+        Record<string, { current: number; max: number | null }>
+      >,
     ): Promise<string> {
       const systemId = await seedMothershipSystem();
       const campaign = await repo.insertCampaign({
@@ -311,8 +314,10 @@ describe('CampaignRepository (integration)', () => {
       const campaignId = await seedCampaignWithState({});
 
       await repo.mergePlayerResourcePools(campaignId, {
-        vasquez_hp: { current: 15, max: 15 },
-        vasquez_stress: { current: 0, max: 20 },
+        vasquez: {
+          hp: { current: 15, max: 15 },
+          stress: { current: 0, max: 20 },
+        },
       });
 
       const [row] = await db
@@ -322,21 +327,26 @@ describe('CampaignRepository (integration)', () => {
       const pools = (row.data as { resourcePools: Record<string, unknown> })
         .resourcePools;
       expect(pools).toEqual({
-        vasquez_hp: { current: 15, max: 15 },
-        vasquez_stress: { current: 0, max: 20 },
+        vasquez: {
+          hp: { current: 15, max: 15 },
+          stress: { current: 0, max: 20 },
+        },
       });
     });
 
-    it('preserves existing pools on key conflict', async () => {
+    it('preserves existing pools on conflict, per pool rather than per owner', async () => {
       const db = getTestDb();
       const campaignId = await seedCampaignWithState({
-        vasquez_hp: { current: 3, max: 15 }, // live value, must be preserved
-        dr_chen_hp: { current: 10, max: 10 },
+        // Live value, must be preserved.
+        vasquez: { hp: { current: 3, max: 15 } },
+        dr_chen: { hp: { current: 10, max: 10 } },
       });
 
       await repo.mergePlayerResourcePools(campaignId, {
-        vasquez_hp: { current: 15, max: 15 }, // should NOT overwrite
-        vasquez_stress: { current: 0, max: 20 }, // should be added
+        vasquez: {
+          hp: { current: 15, max: 15 }, // should NOT overwrite
+          stress: { current: 0, max: 20 }, // should be added
+        },
       });
 
       const [row] = await db
@@ -345,12 +355,47 @@ describe('CampaignRepository (integration)', () => {
         .where(eq(schema.campaignStates.campaignId, campaignId));
       const pools = (
         row.data as {
-          resourcePools: Record<string, { current: number; max: number }>;
+          resourcePools: Record<
+            string,
+            Record<string, { current: number; max: number }>
+          >;
         }
       ).resourcePools;
-      expect(pools.vasquez_hp).toEqual({ current: 3, max: 15 });
-      expect(pools.dr_chen_hp).toEqual({ current: 10, max: 10 });
-      expect(pools.vasquez_stress).toEqual({ current: 0, max: 20 });
+      expect(pools.vasquez.hp).toEqual({ current: 3, max: 15 });
+      expect(pools.dr_chen.hp).toEqual({ current: 10, max: 10 });
+      expect(pools.vasquez.stress).toEqual({ current: 0, max: 20 });
+    });
+
+    it('seeding one pool does not drop the owner\u2019s existing pools', async () => {
+      // The nesting hazard: a per-owner overwrite would replace vasquez's
+      // whole pool set with just `hp`, deleting nine live values.
+      const db = getTestDb();
+      const campaignId = await seedCampaignWithState({
+        vasquez: {
+          hp: { current: 12, max: 20 },
+          stress: { current: 5, max: null },
+          wounds: { current: 1, max: 2 },
+        },
+      });
+
+      await repo.mergePlayerResourcePools(campaignId, {
+        vasquez: { credits: { current: 90, max: null } },
+      });
+
+      const [row] = await db
+        .select()
+        .from(schema.campaignStates)
+        .where(eq(schema.campaignStates.campaignId, campaignId));
+      const pools = (
+        row.data as { resourcePools: Record<string, Record<string, unknown>> }
+      ).resourcePools;
+      expect(Object.keys(pools.vasquez).sort()).toEqual([
+        'credits',
+        'hp',
+        'stress',
+        'wounds',
+      ]);
+      expect(pools.vasquez.hp).toEqual({ current: 12, max: 20 });
     });
 
     it('throws when no campaign_state row exists for the campaign', async () => {
@@ -363,9 +408,116 @@ describe('CampaignRepository (integration)', () => {
       });
       await expect(
         repo.mergePlayerResourcePools(campaign.id, {
-          x_hp: { current: 1, max: 1 },
+          x: { hp: { current: 1, max: 1 } },
         }),
       ).rejects.toThrow(/campaign_state row missing/);
+    });
+  });
+
+  describe('character state', () => {
+    async function seedCampaign(): Promise<string> {
+      const systemId = await seedMothershipSystem();
+      const campaign = await repo.insertCampaign({
+        systemId,
+        name: 'State test',
+        visibility: 'private',
+        diceMode: 'soft_accountability',
+      });
+      await repo.insertState({
+        campaignId: campaign.id,
+        system: 'mothership',
+        data: {
+          schemaVersion: 1,
+          resourcePools: {},
+          characterState: {},
+          entities: {},
+          flags: {},
+          scenarioState: {},
+          worldFacts: {},
+        },
+      });
+      return campaign.id;
+    }
+
+    async function readCharacterState(
+      campaignId: string,
+    ): Promise<Record<string, Record<string, unknown>>> {
+      const db = getTestDb();
+      const [row] = await db
+        .select()
+        .from(schema.campaignStates)
+        .where(eq(schema.campaignStates.campaignId, campaignId));
+      return (
+        row.data as { characterState: Record<string, Record<string, unknown>> }
+      ).characterState;
+    }
+
+    const fresh = {
+      conditions: [],
+      skills: [],
+      equipment: [],
+      wornArmor: null,
+      minimumStress: 2,
+      bleeding: 0,
+      pendingDeathSave: null,
+    };
+
+    it('seeds a fresh state for an entity that has none', async () => {
+      const campaignId = await seedCampaign();
+
+      await repo.seedCharacterState(campaignId, 'vasquez', fresh);
+
+      expect(await readCharacterState(campaignId)).toEqual({ vasquez: fresh });
+    });
+
+    it('preserves existing state rather than resetting it', async () => {
+      // Same reason `mergePlayerResourcePools` preserves: re-running creation
+      // must not clear a character's conditions any more than their HP.
+      const campaignId = await seedCampaign();
+      await repo.seedCharacterState(campaignId, 'vasquez', {
+        ...fresh,
+        bleeding: 4,
+        conditions: [{ condition: 'doomed' }],
+      });
+
+      await repo.seedCharacterState(campaignId, 'vasquez', fresh);
+
+      const state = await readCharacterState(campaignId);
+      expect(state.vasquez.bleeding).toBe(4);
+      expect(state.vasquez.conditions).toEqual([{ condition: 'doomed' }]);
+    });
+
+    it('leaves other entities alone when seeding one', async () => {
+      const campaignId = await seedCampaign();
+      await repo.seedCharacterState(campaignId, 'vasquez', fresh);
+
+      await repo.seedCharacterState(campaignId, 'dr_chen', fresh);
+
+      expect(Object.keys(await readCharacterState(campaignId)).sort()).toEqual([
+        'dr_chen',
+        'vasquez',
+      ]);
+    });
+
+    it("deletes one entity's state and leaves the rest", async () => {
+      const campaignId = await seedCampaign();
+      await repo.seedCharacterState(campaignId, 'vasquez', fresh);
+      await repo.seedCharacterState(campaignId, 'dr_chen', fresh);
+
+      await repo.deleteCharacterState(campaignId, 'vasquez');
+
+      expect(Object.keys(await readCharacterState(campaignId))).toEqual([
+        'dr_chen',
+      ]);
+    });
+
+    it('is a no-op when deleting state that is not there', async () => {
+      const campaignId = await seedCampaign();
+
+      await expect(
+        repo.deleteCharacterState(campaignId, 'nobody'),
+      ).resolves.toBeUndefined();
+      expect(await readCharacterState(campaignId)).toEqual({});
     });
   });
 });

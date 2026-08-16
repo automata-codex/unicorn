@@ -16,15 +16,19 @@ Two categories of tools exist:
 
 ## Resource Pool Conventions
 
-All trackable numeric resources — HP, stress, ammo, power, sanity, whatever a system uses — are represented as named resource pools. Pool names use underscores and follow the pattern `{entity_id}_{pool_name}`:
+All trackable numeric resources — Health, Stress, Wounds, Stats, Saves, ammo, power, credits, whatever a system uses — are represented as named resource pools, addressed in **two levels**: an owner, then a bare pool name.
 
 ```
-dr_chen_hp
-dr_chen_stress
-vasquez_hp
-vasquez_ammo
-ships_power
+dr_chen.hp
+dr_chen.stress
+vasquez.hp
+vasquez.ammo
+_scenario.reactor_power
 ```
+
+**The outer key is an owner, not necessarily an entity.** Most owners are entity ids; pools belonging to no entity take the reserved owner `_scenario`. Reserved owners begin with `_` and entity ids never do, which is the whole collision rule — a write to an unrecognised `_`-prefixed owner is rejected. Ownership is otherwise unconstrained.
+
+*This replaced the flat `{entity_id}_{pool_name}` composite key in M7.6. The composite key made pool identity a convention enforced by suffix matching, correct only while no entity id ended in a pool name; at eleven pools per character that guarantee thins, and `getMothershipPoolDefinition` now receives the pool name directly instead of parsing it out. Identifiers themselves are unchanged and still underscores-only — `dr_chen` and `hp` are separate keys, so no identifier gains a dot.*
 
 Pool behavior is defined in the system Zod schema, not hardcoded in the validator. Each pool definition carries metadata the validator uses:
 
@@ -39,9 +43,11 @@ const PoolDefinitionSchema = z.object({
 });
 ```
 
-**Validator behavior:** The full delta is always applied first. After application, the validator checks whether the resulting value crossed any thresholds. If a goblin has 7 HP and takes 9 damage, the result is -2 HP — the full 9 is applied, the death threshold is crossed, and Claude is notified of both the final value and which thresholds fired so it can narrate correctly. The delta is never pre-capped.
+**Validator behavior:** a delta whose result falls outside the pool's bounds is **rejected, not clamped** — Claude applies the floor, and the correction loop tells it which entry failed and why. Clamping would silently turn a wrong number into a plausible one.
 
-A pool with `min: null` can go negative (HP in most systems, power grids that can be overloaded). A pool with `min: 0` is floored at zero — spending more than you have is rejected and Claude is notified. `max` works the same way in the positive direction.
+A pool with `min: null` can go negative. A pool with `min: 0` is floored — spending more than you have is rejected. `max` works the same way in the positive direction, and the pool's *instance* `max` (its per-character ceiling, in `campaign_state`) is checked alongside the definition's.
+
+Thresholds still fire on a downward crossing and are reported to Claude, but **no Mothership character pool carries one**. Health's `death_save_required` threshold was removed in M7.6: it was the D&D 5e rule, and Mothership's chain — zero Health, take a Wound, roll the Wounds Table by damage type, reset Health to Maximum minus carryover, Death Save only at Maximum Wounds — is Claude-driven, because a threshold here would announce a Death Save at every Wound rather than the last.
 
 ---
 
@@ -63,15 +69,57 @@ const submitGmResponseSchema = z.object({
   // is notified to re-narrate.
   stateChanges: z.object({
 
-    // Deltas to named resource pools on any entity.
-    // Negative delta = spending/losing. Positive delta = gaining.
-    // All trackable numeric resources live here — HP, stress, ammo, etc.
-    // Pool names use underscores: 'dr_chen_hp', 'vasquez_stress'.
-    // See Resource Pool Conventions above.
-    resourcePools: z.record(
-      z.string(),
-      z.object({ delta: z.number().int() })
-    ).optional(),
+    // Changes to resource pools, as an ORDERED ARRAY. Negative delta =
+    // spending/losing, positive = gaining. All trackable numeric resources
+    // live here — Health, Stress, Wounds, Stats, Saves, credits, ammo.
+    //
+    // An array rather than a map because one pool can change more than once
+    // in a turn — the wounds chain drives hp to zero and then resets it — and
+    // because the entries are folded IN ORDER against a running state, so
+    // their order is information.
+    //
+    // `owner` is the owning entity id, or the reserved owner `_scenario` for
+    // a pool belonging to no entity. `pool` is the bare name. `reason` is
+    // required: a delta without one cannot be audited later.
+    // `maxDelta` moves the ceiling itself and is rejected on an uncapped
+    // pool. `damageType` is required when the change applies a Wound — it
+    // selects the Wounds Table column.
+    resourcePools: z.array(z.object({
+      owner:      z.string(),
+      pool:       z.string(),
+      delta:      z.number().int(),
+      maxDelta:   z.number().int().optional(),
+      reason:     z.string(),
+      damageType: z.enum([
+        'blunt_force', 'bleeding', 'gunshot', 'fire_explosives', 'gore_massive',
+      ]).optional(),
+    })).optional(),
+
+    // Per-character state that is not a pool, as an ordered array of
+    // operations discriminated on `op`. Folded and rejected TOGETHER WITH
+    // `resourcePools` — a turn writes both halves of a wounds chain or
+    // neither.
+    //
+    // No `reason` field, unlike resourcePools: these are deliberately outside
+    // the delta stream, and half an audit mechanism is worse than none.
+    //
+    //   { op: 'condition_add',      entityId, condition, parameter? }
+    //   { op: 'condition_remove',   entityId, condition }
+    //   { op: 'armor_damage',       entityId, apDelta, destroyed: true }
+    //   { op: 'bleeding_set',       entityId, value }
+    //   { op: 'death_save_pending', entityId, roundsRemaining }
+    //   { op: 'minimum_stress_set', entityId, value }
+    //
+    // `condition` is the closed Panic-table set: coward, frightened,
+    // nightmares, loss_of_confidence, deflated, doomed, haunted, spiraling.
+    // `parameter` is required for frightened and loss_of_confidence and
+    // forbidden for the rest; a loss_of_confidence parameter must name a
+    // skill the character actually has.
+    //
+    // `bleeding_set` and `minimum_stress_set` take ABSOLUTE values, not
+    // deltas — the one place this contract is inconsistent with itself.
+    characterState: z.array(/* discriminated union, see session.schema.ts */)
+      .optional(),
 
     // Non-numeric entity state: narrative visibility and status label.
     // HP and other numeric resources belong in resourcePools, not here.
@@ -146,8 +194,13 @@ const submitGmResponseSchema = z.object({
 ```
 
 **Validation behavior:**
-- `resourcePools` deltas are applied in full. The validator checks threshold crossings after application, not before. Claude is notified of the final value and any thresholds crossed.
-- Pools with `min: 0` reject deltas that would go negative. Pools with `min: null` allow negative values. Behavior is defined in the system Zod schema pool definition.
+- `resourcePools` and `characterState` are folded **in order against a running state**, so a later entry sees what an earlier one did.
+- **Rejection is all-or-nothing across both members.** One rejected entry aborts both arrays; nothing is applied, and the correction loop re-prompts against unchanged state. Partial application would leave state no complete delta stream explains, and would ask Claude to fix entry three against a world it cannot see moved.
+- The fold runs on a working copy, so an abort leaves every pool byte-identical to its pre-turn value. The guarantee is **validate-all-then-apply**: `validateStateChanges` accumulates across every member and returns one pass/fail, and the service throws before the applier runs.
+- Pools with `min: 0` reject deltas that would go below it rather than clamping — Claude applies the floor. Behavior is defined in the system Zod schema pool definition.
+- `maxDelta` on a pool with no ceiling is rejected. When a ceiling falls below the current value, both deltas must be sent, and the delta sent is **the change that actually occurred**, not the smallest number that makes the arithmetic legal.
+- `resourcePools` deltas do **not** carry threshold crossings for the Mothership character pools: none of them fires a mechanical event on crossing a number. The 0-Health transition is Claude-driven through the wounds chain.
+- A rejection in `entities`, `flags`, `scenarioState` or `worldFacts` does not abort the pool arrays, and vice versa. That wider atomicity question is open.
 - `entities` visibility and status changes are always accepted.
 - `flags` changes are always accepted.
 - `adventureMode: 'initiative'` requires `initiativeOrder` to be present and non-empty.
@@ -352,6 +405,11 @@ const submitGmContextSchema = z.object({
     // resource pool shape ({ current: number, max: number | null })
     // are written to campaign_state.data.resourcePools. Non-pool
     // entries are silently ignored — use worldFacts for string state.
+    //
+    // Keys are the two-part pool address, "{owner}.{pool_name}":
+    // "crewman_wick.hp", "_scenario.reactor_pressure". A composite
+    // single-part key is discarded rather than guessed at, and so is an
+    // unrecognised `_`-prefixed owner.
     initialState: z.record(z.string(), z.unknown()),
 
     // Non-numeric initial state the Warden needs to remember across

@@ -4,9 +4,11 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
 
+import type { MothershipCharacterState } from '@uv/game-systems';
 import type { Db } from '../db/db.provider';
 
 type ResourcePool = { current: number; max: number | null };
+type OwnedResourcePools = Record<string, Record<string, ResourcePool>>;
 
 @Injectable()
 export class CampaignRepository {
@@ -64,17 +66,23 @@ export class CampaignRepository {
   /**
    * Merges new resource pools into `campaign_state.data.resourcePools` for a
    * campaign, preserving any pools already present. Used at character
-   * creation time to seed player HP / stress. Existing keys always win so
-   * that an in-progress adventure can never have its live state clobbered by
+   * creation time to seed player pools. Existing pools always win so that an
+   * in-progress adventure can never have its live state clobbered by
    * re-running character creation (today that path is blocked upstream, but
    * the merge is cheap insurance).
+   *
+   * The merge goes **one owner deep**. Pools are nested as
+   * `resourcePools[owner][poolName]` since M7.6, so a per-owner overwrite
+   * would drop every pool of that owner the new set does not mention —
+   * seeding hp would silently delete stress. Preserve-on-conflict is
+   * therefore per *pool*, not per owner.
    *
    * Runs inside a transaction so concurrent callers can't race the read and
    * the write.
    */
   async mergePlayerResourcePools(
     campaignId: string,
-    newPools: Record<string, ResourcePool>,
+    newPools: OwnedResourcePools,
   ): Promise<void> {
     await this.db.transaction(async (tx) => {
       const rows = await tx
@@ -89,15 +97,138 @@ export class CampaignRepository {
       }
       const data = (rows[0].data as Record<string, unknown> | null) ?? {};
       const existingPools =
-        (data.resourcePools as Record<string, ResourcePool> | undefined) ?? {};
-      const mergedPools: Record<string, ResourcePool> = { ...newPools };
-      for (const [key, value] of Object.entries(existingPools)) {
-        mergedPools[key] = value;
+        (data.resourcePools as OwnedResourcePools | undefined) ?? {};
+      const mergedPools: OwnedResourcePools = {};
+      for (const [owner, pools] of Object.entries(newPools)) {
+        mergedPools[owner] = { ...pools };
+      }
+      for (const [owner, pools] of Object.entries(existingPools)) {
+        mergedPools[owner] = { ...(mergedPools[owner] ?? {}), ...pools };
       }
       const nextData = { ...data, resourcePools: mergedPools };
       await tx
         .update(schema.campaignStates)
         .set({ data: nextData, updatedAt: sql`now()` })
+        .where(eq(schema.campaignStates.campaignId, campaignId));
+    });
+  }
+
+  /**
+   * Removes every pool belonging to `owner` from a campaign's state.
+   *
+   * Called when a character sheet is deleted. Before M7.6 this meant a prefix
+   * scan over composite keys and was skipped, which is how campaigns ended up
+   * carrying pools for characters that no longer existed — and an orphaned
+   * pool set is how a campaign reaches an empty player-entity set without
+   * anyone noticing.
+   *
+   * A no-op when there is no `campaign_state` row: deleting a sheet from a
+   * campaign that never started an adventure is ordinary, unlike
+   * `mergePlayerResourcePools`, where a missing row means creation ran against
+   * a campaign that was never initialised.
+   */
+  async deleteResourcePoolsForOwner(
+    campaignId: string,
+    owner: string,
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const rows = await tx
+        .select({ data: schema.campaignStates.data })
+        .from(schema.campaignStates)
+        .where(eq(schema.campaignStates.campaignId, campaignId))
+        .limit(1);
+      if (rows.length === 0) return;
+
+      const data = (rows[0].data as Record<string, unknown> | null) ?? {};
+      const existingPools =
+        (data.resourcePools as OwnedResourcePools | undefined) ?? {};
+      if (!(owner in existingPools)) return;
+
+      const { [owner]: _removed, ...remaining } = existingPools;
+      await tx
+        .update(schema.campaignStates)
+        .set({
+          data: { ...data, resourcePools: remaining },
+          updatedAt: sql`now()`,
+        })
+        .where(eq(schema.campaignStates.campaignId, campaignId));
+    });
+  }
+
+  /**
+   * Seeds an entity's per-character state at character creation.
+   *
+   * **Preserve-on-conflict, like `mergePlayerResourcePools`**: an entity that
+   * already has state keeps it. Re-running creation must not reset a
+   * character's conditions or bleeding any more than it may reset their HP.
+   */
+  async seedCharacterState(
+    campaignId: string,
+    entityId: string,
+    state: MothershipCharacterState,
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const rows = await tx
+        .select({ data: schema.campaignStates.data })
+        .from(schema.campaignStates)
+        .where(eq(schema.campaignStates.campaignId, campaignId))
+        .limit(1);
+      if (rows.length === 0) {
+        throw new Error(
+          `campaign_state row missing for campaign ${campaignId}`,
+        );
+      }
+      const data = (rows[0].data as Record<string, unknown> | null) ?? {};
+      const existing =
+        (data.characterState as
+          | Record<string, MothershipCharacterState>
+          | undefined) ?? {};
+      if (entityId in existing) return;
+
+      await tx
+        .update(schema.campaignStates)
+        .set({
+          data: {
+            ...data,
+            characterState: { ...existing, [entityId]: state },
+          },
+          updatedAt: sql`now()`,
+        })
+        .where(eq(schema.campaignStates.campaignId, campaignId));
+    });
+  }
+
+  /**
+   * Removes an entity's per-character state. Called alongside
+   * `deleteResourcePoolsForOwner` when a character sheet is deleted; a no-op
+   * when there is no state row or no entry, for the same reason.
+   */
+  async deleteCharacterState(
+    campaignId: string,
+    entityId: string,
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const rows = await tx
+        .select({ data: schema.campaignStates.data })
+        .from(schema.campaignStates)
+        .where(eq(schema.campaignStates.campaignId, campaignId))
+        .limit(1);
+      if (rows.length === 0) return;
+
+      const data = (rows[0].data as Record<string, unknown> | null) ?? {};
+      const existing =
+        (data.characterState as
+          | Record<string, MothershipCharacterState>
+          | undefined) ?? {};
+      if (!(entityId in existing)) return;
+
+      const { [entityId]: _removed, ...remaining } = existing;
+      await tx
+        .update(schema.campaignStates)
+        .set({
+          data: { ...data, characterState: remaining },
+          updatedAt: sql`now()`,
+        })
         .where(eq(schema.campaignStates.campaignId, campaignId));
     });
   }

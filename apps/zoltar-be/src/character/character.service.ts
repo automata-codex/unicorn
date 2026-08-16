@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import {
   deriveMothershipCharacterResourcePools,
+  emptyMothershipCharacterState,
   type MothershipCharacterSheet,
 } from '@uv/game-systems';
 
@@ -44,9 +45,26 @@ export class CharacterService {
 
     const playerPools = deriveMothershipCharacterResourcePools(data);
     await this.campaignRepo.mergePlayerResourcePools(campaignId, playerPools);
+    await this.campaignRepo.seedCharacterState(
+      campaignId,
+      data.entityId,
+      emptyMothershipCharacterState(),
+    );
 
     return character;
   }
+
+  /**
+   * Re-deriving pools on update is **preserve-on-conflict, which means it is a
+   * no-op for any pool that already exists** — and after creation they all do.
+   * A sheet edit that changes a value the derivation feeds therefore does not
+   * move the corresponding ceiling; the write silently does nothing.
+   *
+   * That is correct for live state (an in-progress adventure must not have its
+   * HP reset by a sheet edit) but it is a trap for any future path that means
+   * to change a ceiling — advancement, a house rule, a correction. Such a path
+   * must write the pool directly. See M7.6 §1.4.
+   */
 
   private async assertNoActiveAdventure(campaignId: string) {
     const active = await this.repo.hasActiveAdventure(campaignId);
@@ -80,9 +98,21 @@ export class CharacterService {
     await this.campaignService.assertMember(campaignId, userId);
     await this.assertNoActiveAdventure(campaignId);
 
+    const existing = await this.repo.findByCampaignId(campaignId);
     const deleted = await this.repo.deleteByCampaignId(campaignId);
     if (!deleted) {
       throw new NotFoundException('No character sheet found for this campaign');
+    }
+
+    // Delete the character's pools with the sheet. Nested, this is one key
+    // rather than the prefix scan that made it not worth doing before, and
+    // leaving them behind is how a campaign accumulates pools for characters
+    // that no longer exist.
+    const entityId = (existing?.data as { entityId?: string } | undefined)
+      ?.entityId;
+    if (entityId) {
+      await this.campaignRepo.deleteResourcePoolsForOwner(campaignId, entityId);
+      await this.campaignRepo.deleteCharacterState(campaignId, entityId);
     }
   }
 }

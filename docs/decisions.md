@@ -784,10 +784,22 @@ spread) both operate at the top level. Nested, a shallow spread at the entity le
 every pool that entity owns when one is written. The pre-existing disagreement between those
 merge points acquires a much larger blast radius per key.
 
-**The tool payload does not nest.** `state_changes.resource_pools` becomes an array of
+**The tool payload does not nest.** `stateChanges.resourcePools` becomes an array of
 self-describing entries — `{ entityId, pool, delta, maxDelta?, reason, damageType? }` —
 rather than a keyed map. Nested state does not require a nested payload, and the array
 avoids string parsing on ingest without asking the Warden to generate nested JSON.
+
+*(Member names corrected from `state_changes.resource_pools` — a transcription slip. The
+five existing `stateChanges` members are camelCase, `session.schema.ts:15-45`, and no
+decision here was choosing a naming convention. Spec §2.1 carries the same slip and is
+amended alongside.)*
+
+**Amendment.** This addendum describes the nesting as keyed "by entity," written before D1
+was settled. D1-A constrains nothing about ownership: `resourcePools` nests by **owner**,
+and pools with no entity owner take the reserved owner `_scenario`
+(`docs/plans/016-m7.6-character-sheet-fidelity-implementation-plan.md` D1-A.1). Entity ids
+may not begin with `_`; reserved owners must. See also
+`§ Adventure state gets its own row…`, addendum, on why owner and scope are orthogonal.
 
 Spec: `docs/specs/zoltar/016-m7.6-character-sheet-fidelity.md` §1.3, §2.1.
 
@@ -864,6 +876,159 @@ cause — nothing reconciles sheet and pools after creation:**
 Each supported game system owns its own synthesis prompt module under `apps/zoltar-be/src/synthesis/<system>/synthesis.prompts.ts` (currently only `mothership/`). System-specific exports — system prompt, character-sheet prose formatter, synthesis user prompt, coherence check prompt, and the canonical oracle-category list — are all prefixed with the system name (`MOTHERSHIP_SYNTHESIS_SYSTEM_PROMPT`, `formatMothershipCharacterProse`, etc.) so names never falsely suggest cross-system generality. Universals — the `submit_gm_context` and `report_coherence` tool definitions and the coherence report Zod schema — live in `src/synthesis/synthesis.tools.ts` and `synthesis.schema.ts` and are imported by every system module.
 
 A generic prompt module was rejected because oracle category counts, character sheet structure, and tonal framing all differ across systems; a single parameterized builder would either be the least common denominator or a tangle of per-system branches. A `synthesisDrivers[systemId]` registry was also considered and deferred: until a second system exists, any interface we define is a guess shaped entirely by Mothership's needs, and the second system is more likely to reveal the right abstraction than to conform to a premature one. When UVG (or the next system) lands, the registry pattern can be introduced at that moment with two concrete implementations to compare against.
+
+---
+
+### M7.6 pool and character-state contract — resolved decisions
+
+*Closing out `docs/plans/016-m7.6-character-sheet-fidelity-implementation-plan.md`,
+whose D1–D4 were open when it was written. The reasoning lives in the plan; what
+follows is what was actually built, plus what was deliberately left out.*
+
+**D1 — `resourcePools` nests by owner, and ownership is unconstrained.**
+`resourcePools[owner][poolName]`. Most owners are entity ids; pools belonging to
+no entity take the reserved owner `_scenario`. No pools move to `scenarioState`,
+which has no producer at all — `submitGmContextSchema.structured` has four
+members and none is `scenarioState`, and play-time writes to undeclared keys are
+rejected, so no key can enter it by any path that exists. Relocating live pools
+into a write-only bucket would also have moved them out of the delta stream this
+milestone exists to build: no `reason`, no `maxDelta`, no `sum(deltas)` audit
+property, no per-pool rejection telemetry.
+
+**D1-A.1 — `_scenario` is reserved by its leading underscore.** Entity ids may
+not begin with `_`; reserved owners must. One narrow assertion enforces it —
+reject an `_`-prefixed owner that is not a known reserved owner — on both write
+paths. **General identifier-format validation is still not built anywhere**, and
+is on the roadmap rather than here: enforcing format across entity creation,
+synthesis and the tool boundary is its own change with its own failure modes,
+and `_scenario` works as a convention whether or not collisions are prevented.
+
+**D2 — `creationChoices.adjustedStat` records the class Stat choice.** The
+Android's −10 and the Scientist's +5 land on a Stat the player picks, so without
+it the acceptance criterion — rolls plus class arithmetic reconcile to each
+starting ceiling — cannot be computed at all. It is the missing *input* to that
+audit, not a second copy of a value living elsewhere, which is the same argument
+that admits `creationRolls`. The schema requires it for those two classes and
+rejects it for the other two.
+
+**D3 — `stateChanges` gains `characterState`, and its five families stay
+outside the delta stream.** Six operations discriminated on `op` — conditions
+add/remove, armor damage, bleeding, pending Death Save, minimum stress — because
+the sheet has no write path from a turn and a Panic result granting a Condition
+would otherwise have nowhere to land.
+
+**The exclusion is the half a later reader will need, and a schema alone does
+not record it.** Bleeding, minimum stress and the pending Death Save are numeric
+counters that change during play; each would fit the pool mechanism and would
+inherit `reason`, in-order folding and rejection telemetry for free. They were
+**identified as candidates and left out, not overlooked**. Nobody has asked to
+audit a bleeding counter, and building an audit path for a hypothesis is the
+thing this project does not do.
+
+Two consequences, which are the price:
+
+- **The M7.6 re-baseline measures nothing about `characterState`.** The
+  rejection telemetry is per-pool. The milestone establishes a floor for
+  pool-delta behaviour and no floor at all for these five families — including
+  whether the Warden writes bleeding reliably. The one exception is the
+  absolute-vs-delta count, in scope precisely because prompt instruction 3 is
+  where the contract is inconsistent with itself.
+- **Reversal trigger, stated because "if interest is expressed" never fires:** a
+  playtest produces a bleeding, minimum-stress, or armor value nobody can
+  explain. That is the same shape as the Strength question that motivated
+  `reason`, and it will arrive in a playtest report rather than as a feature
+  request.
+
+**D4 — rejection is all-or-nothing per turn, and the fold runs on a working
+copy.** `resourcePools` entries are folded in order against a running state, so
+the wounds chain is expressible. A rejected entry aborts the whole array,
+`characterState` aborts with it, and nothing is applied.
+
+**The guarantee is validate-all-then-apply, and it is stronger than the
+transactional one.** `validateStateChanges` accumulates across every
+`stateChanges` member and returns one pass/fail; `SessionService` throws before
+`applyValidatedTurn` runs; and when a correction round succeeds it is the
+correction's applied set that is used, round one's being discarded entirely. So
+nothing reaches the applier on rejection and transaction atomicity never comes
+into it. Recorded rather than left implicit, per
+`roadmap.md § Prerequisite — turn-path lock audit`: a guarantee that holds by
+accident is one refactor away from not holding, and that item exists because
+exactly this went unrecorded once already.
+
+**Still open:** whether a pool rejection should also abort `entities`, `flags`,
+`scenarioState` and `worldFacts`. It does not today, and there is a test
+pinning that so the behaviour is visible rather than assumed.
+
+**Payload field name: `owner`, not `entityId`.** The plan and the spec §2.1 both
+write `entityId` on the pool-change entry. Both predate D1-A's amendment from
+entity-keyed to owner-keyed, and a field named `entityId` that legally holds
+`_scenario` contradicts itself in the document the model reads most carefully.
+`characterState` entries keep `entityId`, where it really is one.
+
+**Deferred and worth naming: `armor_repair`.** A Patch Kit sets a vaccsuit to
+AP 1 and replacement swaps the item — both are equipment operations, and
+equipment has no write path in M7.6. Armor can be damaged and destroyed this
+milestone, never restored.
+
+---
+
+### The M7.6 migration drops and recreates rather than transforming
+
+**Confirmed 2026-08-14, built 2026-08-15.** `V19__character_sheet_m76_reset.sql`
+deletes every `character_sheet` and `campaign_state` row rather than migrating
+them.
+
+Recorded here because **the migration file is disposable and this reasoning is
+not.** The pre-`v0.1.0` Flyway consolidation pass collapses V1–Vn into a single
+baseline and discards the file, taking its comments with it.
+
+Three facts made the call safe: local dev was empty, the eval droplet runs only
+the harness (which seeds its own rows per run), and no eval fixture carries
+sheet data.
+
+**A defensive transform could not have worked in any case.** The reduced sheet
+requires `creationRolls`, and there is no way to recover what the dice showed
+from a stored total — the old sheet held sums and derived values, never the
+rolls. Any transform would have had to invent them.
+
+Both tables, not just `character_sheet`: `campaign_state.data.resourcePools`
+changed shape in the same milestone, and a sheet reset that left the old pools
+behind leaves a campaign whose pools no reader can address.
+
+**`schema_version` deliberately stays at 1.** There is no row to distinguish,
+and a bump would make `synthesis.write.ts`'s parse reject exactly the rows this
+migration removes.
+
+---
+
+### Armor Points are a threshold, not a pool — the M7.6 spec was wrong about this
+
+**Found during implementation, 2026-08-15.** The M7.6 spec §1.3 and the
+reconciled diff §5 both state that "AP is consumed", and the implementation plan
+builds `armor_damage` around AP being ground down hit by hit.
+
+That is not the rule. `docs/rules-extraction-findings.md § S25.6`, recorded from
+reading PSG p.28 directly, states it plainly: a character ignores all Damage
+**less than** their AP, a single hit at or above AP destroys the armor and the
+remainder lands, and **armor is never worn down across several hits.** That
+finding is what corrected the Warden primer in M7.5, and the live prompt has
+said so since.
+
+The primary-source reading beats a derived spec line, so the built behaviour
+follows the finding: `armor_damage` keeps the plan's `{ apDelta, destroyed }`
+shape, but `destroyed` is `literal(true)` and the validator rejects an `apDelta`
+that leaves AP above zero, naming the rule in the rejection. A hit below AP is
+not a state change at all and must not be sent.
+
+**Damage Reduction is the opposite in kind and is a separate field for exactly
+this reason:** it applies first, and survives both armor destruction and
+Anti-Armor. A single number could not express "the armor is gone but the
+reduction is not", which is why `wornArmor` carries `dr` alongside `apCurrent`
+and why `<character_attributes>` renders DR even at zero.
+
+Recorded here because a reader hitting the spec first will find the opposite
+claim, and because "subtract armor from each hit" is named in the S25.6 finding
+as the error a Warden defaults to — the code should not make the same one.
 
 ---
 
@@ -1166,6 +1331,58 @@ above — the single-adventure constraint is what makes deferring the implementa
 rather than merely postponing it. This entry records the terminal shape now so that the
 Phase 2 migration is written against a decided target rather than choosing one under
 pressure.
+
+**Addendum — the Phase 2 relocation spans both state buckets, because ownership and scope
+are orthogonal**
+
+The entry above decides the terminal shape without naming what moves into it. The obvious
+reading — that `scenarioState` is the adventure-scoped bucket and `resourcePools` the
+campaign-scoped one — is wrong, and worth writing down before it becomes a working
+assumption.
+
+**The two axes are independent.** `resourcePools` versus `scenarioState` is a distinction
+of *ownership*: per-entity numerics versus non-entity numerics
+(`campaign-state.schema.ts:26`). Campaign versus adventure is a distinction of *scope*, per
+`§ State placement is decided by the lifetime of the referent, not the lifetime of the
+value`. They cross:
+
+| | Entity-owned | Not entity-owned |
+|---|---|---|
+| **Campaign-scoped** | player character pools | — |
+| **Adventure-scoped** | synthesized threat and NPC pools | station power, countdown timers |
+
+**Both cells of the bottom row sit in campaign state today**, because the adventure row
+does not exist yet. A synthesized threat's HP is in `resourcePools` and a hull-breach timer
+would be in `scenarioState`, and both die with the adventure that produced them. Neither is
+campaign state by the rule; they are there because there is nowhere else.
+
+**So Phase 2 relocates all of `scenarioState` *and* a subset of `resourcePools`** — the
+owners synthesis created — while player-character owners stay. The adventure row will need
+both an owned and an unowned bucket, for the same reason campaign state has both.
+
+**M7.6 leaves a clean handle for that.** Under D1-A, `resourcePools` nests by owner and
+unowned pools take the reserved owner `_scenario`
+(`docs/plans/016-m7.6-character-sheet-fidelity-implementation-plan.md` D1). The Phase 2
+migration then moves whole owner keys rather than classifying individual pools: `_scenario`
+and every synthesis-created owner go to the adventure row, player owners stay. That is a
+bucket move per owner, not an inference per key — which matters, because the inference is
+exactly what the M7.6 verification pass could not do reliably. Of six non-resolving pool
+keys examined, two were ambiguous and one (`android_memory_integrity`) turned out to have
+an entity referent after being classified as not having one.
+
+**A related fact, recorded because it is the mechanism behind the defect this entry
+addresses:** nothing anywhere resets `entities`, `flags`, `scenarioState`, or `worldFacts`
+between adventures (`docs/plans/m7.6-code-inventory.md` @ `e1cdaac`). The single-adventure
+constraint in `§ One active adventure per campaign` (addendum) is what keeps that from
+mattering before Phase 2.
+
+**Not settled here.** `entities` mixes recurring NPCs with synthesized threats and needs
+per-entry classification. `flags` and `worldFacts` are unexamined. And whether
+`scenarioState` should continue to exist at all is open: under D1-A an unowned pool works
+fine in `resourcePools`, and `scenarioState` has no producer at synthesis
+(`submitGmContextSchema.structured` has four members and none is `scenarioState`), so it is
+`{}` in every fixture and every dump. It may be a bucket whose purpose was superseded
+before it was ever filled.
 
 ### `adventure_telemetry` vs session export are distinct artifacts
 
@@ -1510,6 +1727,42 @@ M7.8 empirically, by constructing an input that should make it. They may be comp
 may make 900 unnecessary for less effort. That question should be answered by re-reading 900
 against M7.8's scope before either is built, not assumed in either direction here.
 
+**Addendum — `turn16` never had a satisfiable block, and the Warden was right every time**
+(2026-08-16, from M7.6's re-baseline `claude-sonnet-5__ccac7d1c__2026-08-16T12-38-30Z`).
+
+This entry opens by naming `turn16-narrating-past-a-block` as a check that could not move, and
+locates the cause at the `dice_request` the fixture seeded with `target: null`. That was right and
+stopped one level short. **`target` is null because the stat the roll names does not belong to the
+character it is attached to.** The fixture's `blockDescription` asks the Warden to stall until it
+learns "Alvarez's Instinct score". The corpus gives Instinct as a *Contractor* stat — "only have
+four Stats: Combat … Instinct: This is a catchall Stat for Fear, Sanity, Body, Speed, Intellect,
+and everything else" — and the primer's own stat line, byte-identical across `c45a142a` and
+`ccac7d1c`, gives player characters Strength / Speed / Intellect / Combat with Sanity / Fear / Body
+saves. Alvarez is the player character. No value the player could supply would unblock the turn, so
+no run can pass it.
+
+**The Warden's rationale is rules-correct and it recorded it in the artifact**: "treated the
+ambiguous 'instinct roll' (62) as governing the contractor's search outcome rather than an Alvarez
+action roll." There is a contractor in the scene, mid-sweep. It attributed the roll to its correct
+owner and was failed for it in 49 of 50 reps, across five runs, two prompts, two grading modes, and
+both an empty and a populated index. The judge is behaving correctly — it grades against a fact the
+fixture asserts and the rulebook denies.
+
+**What this changes about the rule above.** "A pinned rate is a harness suspect" holds, and the tail
+is longer than "the checker cannot move": the checker moved fine, the *fixture* encoded a rules
+error, and no reachability analysis over checker code would have found it.
+`docs/plans/900-fixture-check-reachability-design.md` asks whether a check can emit a fail; here it
+always could. The unasked question is whether the fixture's asserted world is one the rules permit,
+which is answerable only against the corpus. **A pinned fixture warrants a rules-level read of its
+assertion, not only a code-level read of its checker.**
+
+**Cost of not having asked.** `NARRATING-PAST-A-BLOCK` has reported 0.50–0.55 for five runs and both
+halves were misleading: `turn21` is pinned at 1.00 and already listed above as a ceiling suspect,
+`turn16` could never pass. The tag has had no working fail-direction coverage at any point while
+presenting as a stable mid-range rate — the failure this file catalogues as "a tag rate can certify a
+fixture rather than the corpus", arrived from the third direction. Re-authoring or retiring `turn16`
+goes with M7.7's fixture work; the class goes to M7.8.
+
 ### Applicability is reported alongside every rate, and errors are not in its denominator
 
 `eval-methodology.md` already argued that a rate moving because its denominator moved looks identical to a rate moving because behaviour moved, and that reporting applicability is the only thing that separates them. The reports now do: `App` on the per-fixture and per-tag tables, `App A`/`App B`/`ΔApp` on every compare row, and an `Applicability shifts` section peer to Regressions/Improvements.
@@ -1527,6 +1780,25 @@ Once `eval:rescore` exists a run directory holds several sets of verdicts over t
 `--scoring run | rescore | rescore=<timestamp>` selects. With no flag the most recent re-score wins, falling back to the run's own scores when there is none: a re-score exists precisely because the run's grades are known stale. That default is only defensible because it is never silent — the resolved grading appears in the report title, in a `- Scoring:` header bullet naming the exact file, and on stderr.
 
 The flag lives on **both** commands, resolved by one shared `resolveScoring`. A default that changed `eval:report` while `eval:compare` kept reading `reps/` would have manufactured the exact cross-grader comparison the flag exists to prevent. `eval:compare` additionally warns when its two sides end up on different gradings — different kinds, or two re-scores under different harness versions — since one `--scoring auto` can still land differently on two runs.
+
+### Prompt work during a re-baseline is triggered by attribution, not by a number falling
+
+Recorded 2026-08-16, while M7.6's re-baseline was still running and before any of its numbers were readable. That ordering is the point, and it is the same one as `§ The retrieval stopping rule is measured on the metrics with headroom, not on the saturated one`: a trigger written after the results are in is indistinguishable from picking the trigger that licenses what you already wanted to do.
+
+**The default is no.** M8.1 is the prompt-iteration milestone, sequenced after M8 so iteration runs against the complete Phase 1 corpus rather than the pre-multiplayer one. A tag reading low on this run and going onto M8.1's list is the expected outcome, not a deferral that needs justifying.
+
+**The default is not the whole rule, because M7.5 already ran this case.** `0bdd1306` surfaced `SYSTEM-ROLLED-PLAYER-ACTION` at 0.45 against 0.90, that got a prompt ownership/voice change, and `c45a142a` re-measured it at 1.00 (`§ Warden model upgraded to claude-sonnet-5`, addendum). The milestone paid for three runs instead of one and that was correct. So the question is never "is the prompt in scope this milestone" — it is which of four things a moved number is:
+
+1. **A check M7.6 introduced, failing.** The wounds chain, `characterState`, `CARRYOVER-ARITHMETIC`. This is not deferred prompt iteration; it is M7.6 not being finished. Fixed in the milestone, by prompt or otherwise. Where a number could be read as both this and (2) — a new mechanic moving an old tag — the check id decides: if M7.6 introduced the check, it is category 1.
+2. **A pre-existing tag regressing, attributable to something M7.6 changed.** The M7.5 precedent. Fix, then re-measure.
+3. **A pre-existing tag low, with no attribution.** M8.1's backlog, unchanged.
+4. **Not a score at all.** `error` verdicts, and specifically D6 — without the PSG ingested on enceladus every Wounds fixture fails for infrastructure reasons indistinguishable from Warden failures. Asked first, before any number is interpreted.
+
+**Category 2 is the hard one, and it is harder here than it was at M7.5.** That run had re-scored `88fa84bd8329` rows to compare against. This one has nothing: six Warden-visible changes plus an input-affecting `corpusVersion` bump ride a single run, `eval:compare` across the boundary is meaningless, and §6.3's predictions are sanity checks read off new numbers rather than a diff. So a regression cannot be argued from a delta, because no honest delta exists. It has to be argued from a violated §6.3 prediction, or from an absolute rate low enough to matter whatever it was before. At N=10 the 95% CI half-width near p=0.5 is ~±31pp, which disqualifies small moves from being either kind of evidence.
+
+**`SYSTEM-ROLLED-PLAYER-ACTION` and `UNSURFACED-CHECK` are read as a pair, per `§ S33`.** They moved in opposite directions on one prompt change, and a fix that trades one for the other reads as progress if either is read alone.
+
+**What this costs when it fires.** A category-2 fix supersedes M7.6's re-baseline number and buys a second graded run — affordable when the regression is real, and exactly the waste `§ Don't pay for the same re-baseline twice` names when it is noise. The categories exist so that call is made against a rule written before the numbers were visible rather than against the numbers themselves.
 
 ---
 

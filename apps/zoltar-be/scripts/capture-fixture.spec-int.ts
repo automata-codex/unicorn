@@ -95,7 +95,7 @@ describe('captureFixture (integration)', () => {
 
     const turn0CampaignState: MothershipCampaignState = {
       ...emptyMothershipState(),
-      resourcePools: { dr_chen_hp: { current: 10, max: 10 } },
+      resourcePools: { dr_chen: { hp: { current: 10, max: 10 } } },
     };
     const turn0GmContextBlob = { openingNarration: 'The airlock cycles.' };
     await synthesisRepo.writeGmContextAtomic({
@@ -124,6 +124,7 @@ describe('captureFixture (integration)', () => {
       } as never,
       applied: {
         resourcePools: {},
+        characterState: {},
         entities: {},
         flags: {},
         scenarioState: {},
@@ -203,6 +204,7 @@ describe('captureFixture (integration)', () => {
       } as never,
       applied: {
         resourcePools: {},
+        characterState: {},
         entities: {},
         flags: {},
         scenarioState: {},

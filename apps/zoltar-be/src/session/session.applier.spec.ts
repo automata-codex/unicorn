@@ -11,6 +11,7 @@ import type { ValidationResult } from './session.validator';
 function emptyApplied(): ValidationResult['applied'] {
   return {
     resourcePools: {},
+    characterState: {},
     entities: {},
     flags: {},
     scenarioState: {},
@@ -23,7 +24,7 @@ describe('applyValidatedTurn', () => {
     it('returns an equivalent state when applied is empty', () => {
       const priorCampaignState: MothershipCampaignState = {
         ...emptyMothershipState(),
-        resourcePools: { dr_chen_hp: { current: 5, max: 10 } },
+        resourcePools: { dr_chen: { hp: { current: 5, max: 10 } } },
         worldFacts: { corridor_smell: 'ozone' },
       };
 
@@ -40,7 +41,7 @@ describe('applyValidatedTurn', () => {
     it('does not mutate the input state', () => {
       const priorCampaignState: MothershipCampaignState = {
         ...emptyMothershipState(),
-        resourcePools: { dr_chen_hp: { current: 5, max: 10 } },
+        resourcePools: { dr_chen: { hp: { current: 5, max: 10 } } },
       };
       const snapshot = structuredClone(priorCampaignState);
 
@@ -49,7 +50,7 @@ describe('applyValidatedTurn', () => {
         priorGmContextBlob: {},
         applied: {
           ...emptyApplied(),
-          resourcePools: { dr_chen_hp: { current: 2, max: 10 } },
+          resourcePools: { dr_chen: { hp: { current: 2, max: 10 } } },
         },
         npcStates: {},
       });
@@ -57,12 +58,12 @@ describe('applyValidatedTurn', () => {
       expect(priorCampaignState).toEqual(snapshot);
     });
 
-    it('shallow-merges resourcePools, preserving keys not mentioned in applied', () => {
+    it('merges resourcePools, preserving owners not mentioned in applied', () => {
       const priorCampaignState: MothershipCampaignState = {
         ...emptyMothershipState(),
         resourcePools: {
-          dr_chen_hp: { current: 5, max: 10 },
-          vasquez_stress: { current: 3, max: null },
+          dr_chen: { hp: { current: 5, max: 10 } },
+          vasquez: { stress: { current: 3, max: null } },
         },
       };
 
@@ -71,14 +72,80 @@ describe('applyValidatedTurn', () => {
         priorGmContextBlob: {},
         applied: {
           ...emptyApplied(),
-          resourcePools: { dr_chen_hp: { current: 2, max: 10 } },
+          resourcePools: { dr_chen: { hp: { current: 2, max: 10 } } },
         },
         npcStates: {},
       });
 
       expect(newCampaignState.resourcePools).toEqual({
-        dr_chen_hp: { current: 2, max: 10 },
-        vasquez_stress: { current: 3, max: null },
+        dr_chen: { hp: { current: 2, max: 10 } },
+        vasquez: { stress: { current: 3, max: null } },
+      });
+    });
+
+    it('writing one pool leaves that owner’s other pools intact', () => {
+      // The deep-merge regression this nesting introduces. A shallow spread
+      // over the owner key replaces the owner's entire pool set with whichever
+      // single pool the turn wrote — ten pools become one, silently.
+      const priorCampaignState: MothershipCampaignState = {
+        ...emptyMothershipState(),
+        resourcePools: {
+          dr_chen: {
+            hp: { current: 18, max: 20 },
+            wounds: { current: 0, max: 2 },
+            stress: { current: 4, max: null },
+            strength: { current: 35, max: 35 },
+            speed: { current: 30, max: 30 },
+            intellect: { current: 45, max: 45 },
+            combat: { current: 33, max: 33 },
+            sanity: { current: 25, max: 25 },
+            fear: { current: 20, max: 20 },
+            body: { current: 28, max: 28 },
+            credits: { current: 120, max: null },
+          },
+        },
+      };
+
+      const { newCampaignState } = applyValidatedTurn({
+        priorCampaignState,
+        priorGmContextBlob: {},
+        applied: {
+          ...emptyApplied(),
+          resourcePools: { dr_chen: { hp: { current: 12, max: 20 } } },
+        },
+        npcStates: {},
+      });
+
+      expect(newCampaignState.resourcePools.dr_chen).toEqual({
+        ...priorCampaignState.resourcePools.dr_chen,
+        hp: { current: 12, max: 20 },
+      });
+      expect(Object.keys(newCampaignState.resourcePools.dr_chen)).toHaveLength(
+        11,
+      );
+    });
+
+    it('adds a pool to an owner that has none yet', () => {
+      const priorCampaignState: MothershipCampaignState = {
+        ...emptyMothershipState(),
+        resourcePools: { dr_chen: { hp: { current: 5, max: 10 } } },
+      };
+
+      const { newCampaignState } = applyValidatedTurn({
+        priorCampaignState,
+        priorGmContextBlob: {},
+        applied: {
+          ...emptyApplied(),
+          resourcePools: {
+            _scenario: { hull_breach_timer: { current: 5, max: 5 } },
+          },
+        },
+        npcStates: {},
+      });
+
+      expect(newCampaignState.resourcePools).toEqual({
+        dr_chen: { hp: { current: 5, max: 10 } },
+        _scenario: { hull_breach_timer: { current: 5, max: 5 } },
       });
     });
 
@@ -107,6 +174,41 @@ describe('applyValidatedTurn', () => {
         dr_chen: { visible: true, status: 'dead', npcState: 'Stressed' },
         corporate_spy_1: { visible: false, status: 'unknown' },
       });
+    });
+
+    it('carries characterState through a turn untouched', () => {
+      // Nothing writes it until Part 4. The requirement on this commit is that
+      // a turn does not silently *lose* it — which is exactly what a fold that
+      // rebuilds the state object from named fields does by omission.
+      const priorCampaignState: MothershipCampaignState = {
+        ...emptyMothershipState(),
+        resourcePools: { dr_chen: { hp: { current: 5, max: 10 } } },
+        characterState: {
+          dr_chen: {
+            conditions: [{ condition: 'frightened', parameter: 'the vent' }],
+            skills: [{ skill: 'Firearms', tier: 'trained' }],
+            equipment: [{ item: 'Revolver', charges: 12 }],
+            wornArmor: null,
+            minimumStress: 3,
+            bleeding: 2,
+            pendingDeathSave: 4,
+          },
+        },
+      };
+
+      const { newCampaignState } = applyValidatedTurn({
+        priorCampaignState,
+        priorGmContextBlob: {},
+        applied: {
+          ...emptyApplied(),
+          resourcePools: { dr_chen: { hp: { current: 2, max: 10 } } },
+        },
+        npcStates: {},
+      });
+
+      expect(newCampaignState.characterState).toEqual(
+        priorCampaignState.characterState,
+      );
     });
 
     it('carries schemaVersion through unchanged', () => {

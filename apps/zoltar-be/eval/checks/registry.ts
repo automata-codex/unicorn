@@ -165,6 +165,15 @@ const APPLICABILITY_SOURCE: Record<string, EvalCheck['applicabilitySource']> = {
   'over-resolution': 'ungated',
   'unsurfaced-check': 'ungated',
   'scene-jump': 'ungated',
+  // Artifact-gated, and the hazard label applies: a turn that changed no
+  // pools has no reason to grade, so the denominator moves with how often
+  // the Warden writes state at all. Read alongside its exclusion count.
+  'unexplained-delta': 'artifact',
+  // Artifact-gated for the same reason and more sharply — a wounds chain is
+  // rare, so most reps will be `not_applicable`. That is the honest shape:
+  // the check exists to catch a specific arithmetic error, not to produce a
+  // rate.
+  'carryover-arithmetic': 'artifact',
 };
 
 function applicabilitySourceFor(id: string): EvalCheck['applicabilitySource'] {

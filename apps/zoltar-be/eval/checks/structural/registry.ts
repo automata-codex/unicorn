@@ -1,3 +1,4 @@
+import { checkCarryoverArithmetic } from './carryover-arithmetic';
 import { checkMissingCanonCapture } from './missing-canon-capture';
 import { checkOutOfOrderResolution } from './out-of-order-resolution';
 import { checkSystemRolledPlayerAction } from './system-rolled-player-action';
@@ -28,4 +29,6 @@ export const structuralCheckers: Record<
     checkSystemRolledPlayerAction(result, fixture),
   'MISSING-CANON-CAPTURE': (result, fixture) =>
     checkMissingCanonCapture(result, fixture),
+  'CARRYOVER-ARITHMETIC': (result, fixture) =>
+    checkCarryoverArithmetic(result, fixture),
 };

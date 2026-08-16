@@ -367,7 +367,10 @@ describe('SessionService.sendMessage', () => {
     const rejectingResponse = toolUseMessage('submit_gm_response', {
       playerText: 'Damage applied.',
       stateChanges: {
-        resourcePools: { xenomorph_hp: { delta: -3 } }, // unknown pool, negative delta → reject
+        // Unknown pool, negative delta → reject.
+        resourcePools: [
+          { owner: 'xenomorph', pool: 'hp', delta: -3, reason: 'clawed' },
+        ],
       },
     });
     callSession.mockResolvedValue(rejectingResponse);

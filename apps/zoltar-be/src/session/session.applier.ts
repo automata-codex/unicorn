@@ -22,9 +22,19 @@ export function applyValidatedTurn(input: {
 
   const newCampaignState: MothershipCampaignState = {
     schemaVersion: priorCampaignState.schemaVersion,
-    resourcePools: {
-      ...priorCampaignState.resourcePools,
-      ...applied.resourcePools,
+    resourcePools: mergeResourcePools(
+      priorCampaignState.resourcePools,
+      applied.resourcePools,
+    ),
+    // Per *entity*, one level rather than two. Unlike `resourcePools`, the
+    // validator's applied value here is the entity's whole new state rather
+    // than a diff — the ops edit nested arrays, and a diff of an array edit is
+    // not something this merge could apply without re-deriving the fold. So an
+    // entity the turn touched is replaced outright, and one it did not is
+    // carried through untouched.
+    characterState: {
+      ...priorCampaignState.characterState,
+      ...applied.characterState,
     },
     entities: { ...priorCampaignState.entities, ...applied.entities },
     flags: { ...priorCampaignState.flags, ...applied.flags },
@@ -49,4 +59,27 @@ export function applyValidatedTurn(input: {
   };
 
   return { newCampaignState, newGmContextBlob };
+}
+
+/**
+ * Merges validated pool writes into prior state **one owner deep**.
+ *
+ * A shallow spread was correct while pools were a flat map keyed by a
+ * composite `{entity}_{pool}` string: every key was a whole pool. Nested,
+ * each key is an owner's *entire* pool set, so a shallow spread replaces all
+ * ten of a character's pools with whichever one the turn happened to write —
+ * `{ hp: … }` clobbering stress, wounds, and every stat and save.
+ *
+ * This is also replay's fold step (`replay/reconstruct-state.ts`), so the bug
+ * would be faithfully reproduced by replay rather than caught by it.
+ */
+function mergeResourcePools(
+  prior: MothershipCampaignState['resourcePools'],
+  applied: MothershipCampaignState['resourcePools'],
+): MothershipCampaignState['resourcePools'] {
+  const merged: MothershipCampaignState['resourcePools'] = { ...prior };
+  for (const [owner, pools] of Object.entries(applied)) {
+    merged[owner] = { ...(merged[owner] ?? {}), ...pools };
+  }
+  return merged;
 }

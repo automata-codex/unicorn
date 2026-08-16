@@ -56,6 +56,7 @@ function stubParsed(overrides?: Partial<SubmitGmResponse>): SubmitGmResponse {
 
 const emptyApplied: ValidationResult['applied'] = {
   resourcePools: {},
+  characterState: {},
   entities: {},
   flags: {},
   scenarioState: {},

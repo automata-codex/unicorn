@@ -287,9 +287,13 @@ function renderRulesLookups(lookups: RulesLookupRecord[]): string {
 
 function renderApplied(applied: ValidationResult['applied']): string {
   const bullets: string[] = [];
-  for (const [name, pool] of Object.entries(applied.resourcePools)) {
-    const maxPart = pool.max !== null ? ` / ${pool.max}` : '';
-    bullets.push(`- pool \`${name}\` → current ${pool.current}${maxPart}`);
+  for (const [owner, pools] of Object.entries(applied.resourcePools)) {
+    for (const [poolName, pool] of Object.entries(pools)) {
+      const maxPart = pool.max !== null ? ` / ${pool.max}` : '';
+      bullets.push(
+        `- pool \`${owner}.${poolName}\` → current ${pool.current}${maxPart}`,
+      );
+    }
   }
   for (const [id, entity] of Object.entries(applied.entities)) {
     const bits: string[] = [];

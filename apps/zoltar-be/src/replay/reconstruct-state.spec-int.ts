@@ -114,6 +114,7 @@ async function applyFakeTurn(args: FakeTurnArgs): Promise<{
   const db = getTestDb();
   const applied = {
     resourcePools: {},
+    characterState: {},
     entities: {},
     flags: {},
     scenarioState: {},
@@ -174,7 +175,7 @@ describe('reconstructStateAsOfTurn (integration)', () => {
 
     const turn0CampaignState: MothershipCampaignState = {
       ...emptyMothershipState(),
-      resourcePools: { dr_chen_hp: { current: 10, max: 10 } },
+      resourcePools: { dr_chen: { hp: { current: 10, max: 10 } } },
     };
     const turn0GmContextBlob = {
       openingNarration: 'The airlock cycles.',
@@ -205,7 +206,7 @@ describe('reconstructStateAsOfTurn (integration)', () => {
       priorCampaignState: turn0CampaignState,
       priorGmContextBlob: turn0GmContextBlob,
       playerMessage: 'I check the airlock seal.',
-      applied: { resourcePools: { dr_chen_hp: { current: 8, max: 10 } } },
+      applied: { resourcePools: { dr_chen: { hp: { current: 8, max: 10 } } } },
     });
 
     // Turn B (seq 4-6): npcStates change + multiple proposed canon entries.
@@ -266,6 +267,7 @@ describe('reconstructStateAsOfTurn (integration)', () => {
     });
     const turnDApplied = {
       resourcePools: {},
+      characterState: {},
       entities: {},
       flags: {},
       scenarioState: {},

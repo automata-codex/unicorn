@@ -32,7 +32,10 @@
   import type { Adventure, CharacterSheet } from '../lib/types';
 
   interface TurnAppliedState {
-    resourcePools?: Record<string, { current: number; max: number | null }>;
+    resourcePools?: Record<
+      string,
+      Record<string, { current: number; max: number | null }>
+    >;
     entities?: Record<
       string,
       { visible: boolean; status: string; npcState?: string }
@@ -126,8 +129,6 @@
       status = deriveCharacterStatus({
         state: stateBody.data,
         playerEntityId: character.data.entityId,
-        fallbackMaxHp: character.data.maxHp,
-        fallbackMaxStress: character.data.maxStress,
       });
       diceMode = campaign.diceMode ?? 'soft_accountability';
 

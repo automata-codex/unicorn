@@ -55,7 +55,7 @@ _(none)_
 _(none)_
 
 **Applied state changes:**
-- pool `dr_chen_hp` → current 8 / 10
+- pool `dr_chen.hp` → current 8 / 10
 - fact `inner_door` → "reinforced composite, not a standard airlock latch"
 
 **Thresholds crossed:**
@@ -93,10 +93,10 @@ _(none)_
 - `"panic table result 6"` — 2 results, top sim 0.890
 
 **Applied state changes:**
-- pool `dr_chen_stress` → current 4 / 20
+- pool `dr_chen.stress` → current 4 / 20
 
 **Thresholds crossed:**
-- `dr_chen_stress` reached 4 — Panic check required — 1d100 vs stress
+- `dr_chen.stress` reached 4 — Panic check required — 1d100 vs stress
 
 **Token usage:** 2,400 prompt / 310 completion — 4 tool loop iterations
 

@@ -358,7 +358,7 @@ describe('SynthesisService.commitGmContext', () => {
         },
       },
       initialState: {
-        dr_chen_hp: { current: 10, max: 10 },
+        'dr_chen.hp': { current: 10, max: 10 },
       },
     },
   };
@@ -369,7 +369,7 @@ describe('SynthesisService.commitGmContext', () => {
       schemaVersion: 1,
       resourcePools: {
         // Pre-seeded player pool — must not be clobbered.
-        vasquez_hp: { current: 15, max: 15 },
+        vasquez: { hp: { current: 15, max: 15 } },
       },
       entities: {},
       flags: {},
@@ -392,8 +392,8 @@ describe('SynthesisService.commitGmContext', () => {
     expect(args.adventureId).toBe(adventureId);
     expect(args.campaignId).toBe(campaignId);
     expect(args.campaignStateData.resourcePools).toEqual({
-      vasquez_hp: { current: 15, max: 15 },
-      dr_chen_hp: { current: 10, max: 10 },
+      vasquez: { hp: { current: 15, max: 15 } },
+      dr_chen: { hp: { current: 10, max: 10 } },
     });
     expect(args.campaignStateData.flags.adventure_complete.trigger).toBe(
       'Escape with the manifest.',
@@ -425,7 +425,7 @@ describe('SynthesisService.commitGmContext', () => {
 
     const [args] = writeGmContextAtomic.mock.calls[0];
     expect(args.campaignStateData.resourcePools).toEqual({
-      dr_chen_hp: { current: 10, max: 10 },
+      dr_chen: { hp: { current: 10, max: 10 } },
     });
   });
 
@@ -505,7 +505,7 @@ describe('SynthesisService.commitGmContext', () => {
 
     const input = structuredClone(validInput);
     (input.structured.initialState as Record<string, unknown>) = {
-      dr_chen_hp: { current: 10, max: 10 },
+      'dr_chen.hp': { current: 10, max: 10 },
       current_deck: 'derelict_lower',
     };
 
@@ -517,7 +517,7 @@ describe('SynthesisService.commitGmContext', () => {
     });
 
     const [args] = writeGmContextAtomic.mock.calls[0];
-    expect(args.campaignStateData.resourcePools.dr_chen_hp).toEqual({
+    expect(args.campaignStateData.resourcePools.dr_chen.hp).toEqual({
       current: 10,
       max: 10,
     });

@@ -10,6 +10,7 @@ import {
   MOTHERSHIP_ORACLE_CATEGORIES,
   MOTHERSHIP_SYNTHESIS_SYSTEM_PROMPT,
   type MothershipOracleCategory,
+  type PlayerPools,
 } from './mothership/synthesis.prompts';
 import { SynthesisRepository } from './synthesis.repository';
 import {
@@ -160,7 +161,21 @@ export class SynthesisService {
     characterSheet: MothershipCharacterSheet;
     selections: MothershipOracleSelections;
     addendum?: string;
+    /**
+     * Campaign whose state carries the player's pools. Optional so callers
+     * that predate it keep working; without it the prompt renders the
+     * character's current values as `—` rather than inventing them from the
+     * creation rolls.
+     */
+    campaignId?: string;
   }): Promise<SubmitGmContext> {
+    const playerPools = args.campaignId
+      ? await this.readPlayerPools(
+          args.campaignId,
+          args.characterSheet.entityId,
+        )
+      : {};
+
     const message = await this.anthropic.callMessages({
       system: MOTHERSHIP_SYNTHESIS_SYSTEM_PROMPT,
       messages: [
@@ -170,6 +185,7 @@ export class SynthesisService {
             args.characterSheet,
             args.selections,
             args.addendum,
+            playerPools,
           ),
         },
       ],
@@ -182,6 +198,18 @@ export class SynthesisService {
       'submit_gm_context',
       submitGmContextSchema,
     );
+  }
+
+  /** The player's own pools, or `{}` when the campaign has no state row yet. */
+  private async readPlayerPools(
+    campaignId: string,
+    entityId: string,
+  ): Promise<PlayerPools> {
+    const data = await this.campaignRepo.getStateData(campaignId);
+    const pools = (
+      data as { resourcePools?: Record<string, PlayerPools> } | null
+    )?.resourcePools;
+    return pools?.[entityId] ?? {};
   }
 
   /**

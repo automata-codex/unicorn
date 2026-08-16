@@ -78,6 +78,10 @@ function stubDeps(
         recorder: undefined,
         close: vi.fn(async () => {}),
       }) satisfies HarnessSession,
+    // These stubs supply no real database, so the rules-index preflight has
+    // nothing to query. Its own behaviour is covered in
+    // `eval/preflight.spec-int.ts`, against a real one.
+    assertPreflight: async () => {},
     clock: () => new Date(),
   };
 }

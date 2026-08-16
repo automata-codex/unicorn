@@ -29,6 +29,9 @@ function mockCampaignService() {
 function mockCampaignRepo() {
   return {
     mergePlayerResourcePools: vi.fn().mockResolvedValue(undefined),
+    deleteResourcePoolsForOwner: vi.fn().mockResolvedValue(undefined),
+    seedCharacterState: vi.fn().mockResolvedValue(undefined),
+    deleteCharacterState: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -36,20 +39,19 @@ const fakeData: MothershipCharacterSheet = {
   entityId: 'vasquez',
   name: 'Vasquez',
   class: 'marine',
-  level: 1,
-  stats: {
-    strength: 40,
-    speed: 35,
-    intellect: 30,
-    combat: 45,
-    instinct: 30,
-    sanity: 30,
+  creationRolls: {
+    strength: [3, 4],
+    speed: [3, 4],
+    intellect: [3, 4],
+    combat: [3, 4],
+    sanity: [3, 4],
+    fear: [3, 4],
+    body: [3, 4],
+    maxHp: [6],
+    credits: [3, 4],
+    trinket: [42],
+    patch: [17],
   },
-  saves: { fear: 30, body: 30, armor: 30, armorMax: 30 },
-  maxHp: 20,
-  maxStress: 3,
-  skills: ['Heavy weapons'],
-  equipment: ['Pulse rifle'],
 };
 
 const fakeCharacter = {
@@ -93,10 +95,36 @@ describe('CharacterService', () => {
         userId: 'u1',
         data: fakeData,
       });
+      // Every roll in `fakeData` is [3, 4]; maxHp is [6]. Stats are +25, Saves
+      // +10, and the Marine adds +10 Combat, +10 Body, +20 Fear.
       expect(campaignRepo.mergePlayerResourcePools).toHaveBeenCalledWith('c1', {
-        vasquez_hp: { current: 20, max: 20 },
-        vasquez_stress: { current: 0, max: 3 },
+        vasquez: {
+          hp: { current: 16, max: 16 },
+          wounds: { current: 0, max: 3 },
+          stress: { current: 2, max: null },
+          strength: { current: 32, max: 32 },
+          speed: { current: 32, max: 32 },
+          intellect: { current: 32, max: 32 },
+          combat: { current: 42, max: 42 },
+          sanity: { current: 17, max: 17 },
+          fear: { current: 37, max: 37 },
+          body: { current: 27, max: 27 },
+          credits: { current: 70, max: null },
+        },
       });
+      expect(campaignRepo.seedCharacterState).toHaveBeenCalledWith(
+        'c1',
+        'vasquez',
+        {
+          conditions: [],
+          skills: [],
+          equipment: [],
+          wornArmor: null,
+          minimumStress: 2,
+          bleeding: 0,
+          pendingDeathSave: null,
+        },
+      );
       expect(result).toEqual(fakeCharacter);
     });
 
@@ -170,6 +198,51 @@ describe('CharacterService', () => {
       expect(campaignSvc.assertMember).toHaveBeenCalledWith('c1', 'u1');
       expect(repo.hasActiveAdventure).toHaveBeenCalledWith('c1');
       expect(repo.deleteByCampaignId).toHaveBeenCalledWith('c1');
+    });
+
+    it("removes the character's pools along with the sheet", async () => {
+      // Before M7.6 this meant a prefix scan over composite keys and was
+      // skipped, which is how campaigns accumulated pools for characters that
+      // no longer existed. Nested it is one key.
+      repo.findByCampaignId.mockResolvedValue({ ...fakeCharacter });
+      repo.deleteByCampaignId.mockResolvedValue(true);
+
+      await service.delete('c1', 'u1');
+
+      expect(campaignRepo.deleteResourcePoolsForOwner).toHaveBeenCalledWith(
+        'c1',
+        'vasquez',
+      );
+      expect(campaignRepo.deleteCharacterState).toHaveBeenCalledWith(
+        'c1',
+        'vasquez',
+      );
+    });
+
+    it('reads the sheet before deleting it, not after', async () => {
+      // The entity id is only recoverable from the row, so a lookup after the
+      // delete would always find nothing and silently orphan the pools.
+      const order: string[] = [];
+      repo.findByCampaignId.mockImplementation(() => {
+        order.push('read');
+        return Promise.resolve({ ...fakeCharacter });
+      });
+      repo.deleteByCampaignId.mockImplementation(() => {
+        order.push('delete');
+        return Promise.resolve(true);
+      });
+
+      await service.delete('c1', 'u1');
+
+      expect(order).toEqual(['read', 'delete']);
+    });
+
+    it('does not touch pools when the delete found no sheet', async () => {
+      repo.findByCampaignId.mockResolvedValue(null);
+      repo.deleteByCampaignId.mockResolvedValue(false);
+
+      await expect(service.delete('c1', 'u1')).rejects.toThrow();
+      expect(campaignRepo.deleteResourcePoolsForOwner).not.toHaveBeenCalled();
     });
 
     it('throws ForbiddenException when not a member', async () => {

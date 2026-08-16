@@ -134,6 +134,10 @@ const loopArgs = {
 const loopArgsWithEntities = {
   ...loopArgs,
   knownEntityIds: ['corporate_spy_1', 'lt_alvarez'],
+  // The check is gated on `playerEntityIds`, not on the union: a campaign with
+  // seeded NPCs but no character sheet cannot have a set that contains the
+  // player, so rejecting against it would reject every player roll (M7.6 §1.3).
+  playerEntityIds: ['lt_alvarez'],
 };
 
 // --- tests ---------------------------------------------------------------
@@ -654,6 +658,61 @@ describe('SessionService.runInnerToolLoop', () => {
     expect(toolResult.content).toMatch(/is not a known entity/);
     // The recovery path is only usable if the message says what to use.
     expect(toolResult.content).toMatch(/corporate_spy_1/);
+  });
+
+  it('skips the check when NPCs are known but the player is not', async () => {
+    // The M7.6 §1.3 fix. Gating on the *union* got this backwards: a campaign
+    // with seeded NPCs and no character sheet has a non-empty union, so the
+    // check ran against a set that could not contain the player and rejected
+    // every one of the player's rolls. The gate is on `playerEntityIds`.
+    callSession
+      .mockResolvedValueOnce(
+        message([
+          toolUse('toolu_1', 'roll_dice', {
+            notation: '1d10',
+            purpose: 'Damage',
+            actingEntityId: 'lt_alvarez',
+            rollType: 'damage',
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(message([submitGmBlock()]));
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop({
+      ...loopArgs,
+      knownEntityIds: ['corporate_spy_1'],
+      playerEntityIds: [],
+    });
+
+    expect(result.executedRolls).toHaveLength(1);
+    expect(result.executedRolls[0].actingEntityId).toBe('lt_alvarez');
+  });
+
+  it('rejects a garbage actingEntityId once the player is known', async () => {
+    // Same knownEntityIds as the skip case above, plus a player id. The set is
+    // complete now, so an id in neither half is genuinely wrong.
+    callSession
+      .mockResolvedValueOnce(
+        message([
+          toolUse('toolu_1', 'roll_dice', {
+            notation: '1d10',
+            purpose: 'Damage',
+            actingEntityId: 'alvarez_armor',
+            rollType: 'damage',
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(message([submitGmBlock()]));
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop({
+      ...loopArgs,
+      knownEntityIds: ['corporate_spy_1', 'lt_alvarez'],
+      playerEntityIds: ['lt_alvarez'],
+    });
+
+    expect(result.executedRolls).toHaveLength(0);
   });
 
   it('accepts an actingEntityId naming a player entity, case-insensitively', async () => {

@@ -1,4 +1,4 @@
-import { and, asc, eq, lt, lte } from 'drizzle-orm';
+import { and, asc, eq, lt, sql } from 'drizzle-orm';
 
 import * as schema from '../db/schema';
 import { applyValidatedTurn } from '../session/session.applier';
@@ -157,13 +157,37 @@ export async function reconstructStateAsOfTurn(
   // before its `player_action` event within the same turn (session.service.ts
   // persists it before opening the atomic turn transaction) — an existing
   // ordering property this milestone doesn't change.
+  //
+  // The bound is compared **in SQL, and strictly**, and both halves are
+  // load-bearing:
+  //
+  // - *Strictly*, because `message.created_at` and `game_event.created_at`
+  //   both default to `now()`, which is transaction *start* time and therefore
+  //   identical for every row a single transaction writes. Turn N's own GM
+  //   message is written inside `applyTurnAtomic`'s transaction alongside the
+  //   `player_action` event (`session.repository.ts`), so the two carry the
+  //   same microsecond timestamp and only `<` excludes it. `<=` would fold the
+  //   GM response this function exists to withhold.
+  // - *In SQL*, because the bound must not round-trip through JavaScript.
+  //   `pg` parses `timestamptz` into a `Date`, which is millisecond-precision,
+  //   so reading the anchor into JS and binding it back silently floors it by
+  //   up to 999µs. Any message written in the same millisecond as the turn
+  //   transaction then falls outside the bound — including, intermittently,
+  //   the player message that opens the turn, whenever it lands close enough
+  //   to the transaction that opened after it. That is a real flake, not a
+  //   theoretical one; it reproduced roughly one run in four.
   const messages = await db
     .select()
     .from(schema.messages)
     .where(
       and(
         eq(schema.messages.adventureId, adventureId),
-        lte(schema.messages.createdAt, turnStartEvent.createdAt),
+        sql`${schema.messages.createdAt} < (
+          select created_at from ${schema.gameEvents}
+          where adventure_id = ${adventureId}
+            and sequence_number = ${targetSequenceNumber}
+            and event_type = 'player_action'
+        )`,
       ),
     )
     .orderBy(asc(schema.messages.createdAt));

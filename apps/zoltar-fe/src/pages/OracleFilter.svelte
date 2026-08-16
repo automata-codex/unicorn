@@ -231,7 +231,7 @@
     </p>
     <Textarea
       value={addendum}
-      placeholder={`e.g. "Make the tone more paranoid" or "The survivor should be hiding something from the crew"`}
+      placeholder='e.g. "Make the tone more paranoid" or "The survivor should be hiding something from the crew"'
       oninput={(e) => { addendum = (e.target as HTMLTextAreaElement).value; }}
     />
   </Card>

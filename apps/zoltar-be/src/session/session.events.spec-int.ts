@@ -72,14 +72,19 @@ async function seedFixture(): Promise<{
 
 const baseGmResponse: SubmitGmResponse = {
   playerText: 'The door groans open.',
-  stateChanges: { resourcePools: { dr_chen_hp: { delta: -1 } } },
+  stateChanges: {
+    resourcePools: [
+      { owner: 'dr_chen', pool: 'hp', delta: -1, reason: 'grazed by debris' },
+    ],
+  },
   gmUpdates: { npcStates: {}, proposedCanon: [] },
   diceRequests: [],
   adventureMode: null,
 };
 
 const emptyApplied: ValidationResult['applied'] = {
-  resourcePools: { dr_chen_hp: { current: 9, max: 10 } },
+  resourcePools: { dr_chen: { hp: { current: 9, max: 10 } } },
+  characterState: {},
   entities: {},
   flags: {},
   scenarioState: {},

@@ -26,36 +26,35 @@ function stateWith(overrides: Partial<CampaignStateData>): CampaignStateData {
 }
 
 describe('deriveCharacterStatus', () => {
-  it('returns pool values when present', () => {
+  it('reads hp, stress and wounds from the nested pools', () => {
     const status = deriveCharacterStatus({
       state: stateWith({
         resourcePools: {
-          dr_chen_hp: { current: 7, max: 10 },
-          dr_chen_stress: { current: 2, max: 20 },
+          dr_chen: {
+            hp: { current: 7, max: 10 },
+            stress: { current: 4, max: null },
+            wounds: { current: 1, max: 3 },
+          },
         },
       }),
       playerEntityId: 'dr_chen',
-      fallbackMaxHp: 10,
-      fallbackMaxStress: 20,
     });
     expect(status.hp).toEqual({ current: 7, max: 10 });
-    expect(status.stress).toEqual({ current: 2, max: 20 });
+    expect(status.stress).toEqual({ current: 4 });
+    expect(status.wounds).toEqual({ current: 1, max: 3 });
     expect(status.conditions).toBe('');
   });
 
-  it('falls back to character-sheet maxes when pool max is null', () => {
+  it('reports a missing pool as missing rather than as a plausible number', () => {
+    // The character-sheet fallbacks are gone with `maxHp` / `maxStress`. They
+    // were a second copy of the pool ceiling, free to disagree with it — and a
+    // stale ceiling shown next to a live current value reads as correct.
     const status = deriveCharacterStatus({
-      state: stateWith({
-        resourcePools: {
-          dr_chen_hp: { current: 9, max: null },
-        },
-      }),
+      state: stateWith({ resourcePools: {} }),
       playerEntityId: 'dr_chen',
-      fallbackMaxHp: 10,
-      fallbackMaxStress: 20,
     });
-    expect(status.hp).toEqual({ current: 9, max: 10 });
-    expect(status.stress).toEqual({ current: 0, max: 20 });
+    expect(status.hp).toEqual({ current: 0, max: null });
+    expect(status.wounds).toEqual({ current: 0, max: null });
   });
 
   it('surfaces npcState as conditions when the entity carries one', () => {
@@ -70,8 +69,6 @@ describe('deriveCharacterStatus', () => {
         },
       }),
       playerEntityId: 'dr_chen',
-      fallbackMaxHp: 10,
-      fallbackMaxStress: 20,
     });
     expect(status.conditions).toBe('Bleeding, panicked');
   });
@@ -80,16 +77,17 @@ describe('deriveCharacterStatus', () => {
 describe('applyStatusDelta', () => {
   const previous: CharacterStatus = {
     hp: { current: 10, max: 10 },
-    stress: { current: 0, max: 20 },
+    stress: { current: 2 },
+    wounds: { current: 0, max: 2 },
     conditions: '',
   };
 
-  it('overwrites HP when applied.resourcePools carries the player HP key', () => {
+  it('overwrites HP when applied.resourcePools carries the player hp pool', () => {
     const next = applyStatusDelta({
       previous,
       playerEntityId: 'dr_chen',
       applied: {
-        resourcePools: { dr_chen_hp: { current: 6, max: 10 } },
+        resourcePools: { dr_chen: { hp: { current: 6, max: 10 } } },
       },
     });
     expect(next.hp).toEqual({ current: 6, max: 10 });
@@ -110,10 +108,42 @@ describe('applyStatusDelta', () => {
       previous,
       playerEntityId: 'dr_chen',
       applied: {
-        resourcePools: { dr_chen_hp: { current: 4, max: null } },
+        resourcePools: { dr_chen: { hp: { current: 4, max: null } } },
       },
     });
     expect(next.hp).toEqual({ current: 4, max: 10 });
+  });
+
+  it('applies a wounds delta and leaves the other pools alone', () => {
+    const next = applyStatusDelta({
+      previous,
+      playerEntityId: 'dr_chen',
+      applied: {
+        resourcePools: { dr_chen: { wounds: { current: 1, max: 2 } } },
+      },
+    });
+    expect(next.wounds).toEqual({ current: 1, max: 2 });
+    expect(next.hp).toEqual(previous.hp);
+    expect(next.stress).toEqual(previous.stress);
+  });
+
+  it('applies a whole wounds chain in one update', () => {
+    // The turn writes hp twice and wounds once; `applied` carries the final
+    // value of each, so the strip shows the reset Health rather than the zero.
+    const next = applyStatusDelta({
+      previous,
+      playerEntityId: 'dr_chen',
+      applied: {
+        resourcePools: {
+          dr_chen: {
+            hp: { current: 6, max: 10 },
+            wounds: { current: 1, max: 2 },
+          },
+        },
+      },
+    });
+    expect(next.hp.current).toBe(6);
+    expect(next.wounds.current).toBe(1);
   });
 
   it('updates conditions when the applied entity carries a new npcState', () => {
@@ -133,7 +163,7 @@ describe('applyStatusDelta', () => {
 describe('formatThresholdLine', () => {
   it('capitalizes the entity id and unsnakes the effect', () => {
     const line = formatThresholdLine({
-      pool: 'dr_chen_hp',
+      pool: 'dr_chen.hp',
       finalValue: 0,
       effect: 'death_save_required',
     });

@@ -306,6 +306,7 @@ export class SessionService {
         ...Object.keys(campaignStateData.entities ?? {}),
         ...playerEntityIds,
       ],
+      playerEntityIds,
     });
     const originalResponse = innerLoop.finalResponse;
     const originalParsed = innerLoop.finalParsed;
@@ -737,6 +738,12 @@ export class SessionService {
      * rather than rejecting everything.
      */
     knownEntityIds?: readonly string[];
+    /**
+     * The player character's ids, as a subset of `knownEntityIds`. Carried
+     * separately because it — not the union — is what decides whether the set
+     * is complete enough to reject against. See `handleRollDice`.
+     */
+    playerEntityIds?: readonly string[];
   }): Promise<InnerToolLoopResult> {
     let request = args.initialRequest;
     let iteration = 0;
@@ -805,6 +812,7 @@ export class SessionService {
               executedRolls,
               args.adventureId,
               args.knownEntityIds ?? [],
+              args.playerEntityIds ?? [],
             ),
           );
           continue;
@@ -885,6 +893,7 @@ export class SessionService {
     executedRolls: PendingSystemRoll[],
     adventureId: string,
     knownEntityIds: readonly string[],
+    playerEntityIds: readonly string[],
   ): Anthropic.ContentBlockParam {
     const parsed = rollDiceInputSchema.safeParse(use.input);
     if (!parsed.success) {
@@ -905,14 +914,24 @@ export class SessionService {
     // only place it sees ids at all, because player entities are absent from
     // `<entities>` (see `docs/rules-extraction-findings.md § S30`).
     //
-    // **Skipped entirely when the set is empty**, which is not a formality:
-    // `getPlayerEntityIds` reads `character_sheet.data.entityId` and there are
-    // campaigns with no character sheet at all. Rejecting against a set that
-    // is missing the player would reject every one of the player's rolls, so
-    // no set means no opinion.
+    // **Skipped entirely when the player's ids are unknown**, which is not a
+    // formality: `getPlayerEntityIds` reads `character_sheet.data.entityId` and
+    // there are campaigns with no character sheet at all. Rejecting against a
+    // set that is missing the player would reject every one of the player's
+    // rolls, so no player set means no opinion.
+    //
+    // The guard is on `playerEntityIds`, **not** on the union, and the
+    // difference is the whole defect (M7.6 §1.3). Gating on the union got both
+    // directions wrong: a campaign with seeded NPCs but no sheet has a
+    // non-empty union, so the check ran and rejected every player roll against
+    // a set that could not contain the player; and a campaign with neither had
+    // an empty union, so the check was skipped for the NPC ids it *could* have
+    // decided. Orphaned pools — left behind because deleting a sheet did not
+    // delete its pools — are how a campaign reached the sheet-less state while
+    // still looking populated, which is why this is fixed alongside that.
     const { actingEntityId } = parsed.data;
     if (
-      knownEntityIds.length > 0 &&
+      playerEntityIds.length > 0 &&
       !knownEntityIds.some(
         (id) => id.toLowerCase() === actingEntityId.toLowerCase(),
       )
