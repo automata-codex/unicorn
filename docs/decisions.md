@@ -1797,7 +1797,23 @@ Recorded 2026-08-16, while M7.6's re-baseline was still running and before any o
 
 **`SYSTEM-ROLLED-PLAYER-ACTION` and `UNSURFACED-CHECK` are read as a pair, per `§ S33`.** They moved in opposite directions on one prompt change, and a fix that trades one for the other reads as progress if either is read alone.
 
-**What this costs when it fires.** A category-2 fix supersedes M7.6's re-baseline number and buys a second graded run — affordable when the regression is real, and exactly the waste `§ Don't pay for the same re-baseline twice` names when it is noise. The categories exist so that call is made against a rule written before the numbers were visible rather than against the numbers themselves.
+**What this costs when it fires.** A category-2 fix supersedes M7.6's re-baseline number and buys a second graded run — affordable when the regression is real, and exactly the waste `ADR-0094` names when it is noise. The categories exist so that call is made against a rule written before the numbers were visible rather than against the numbers themselves.
+
+### [ADR-0094](decisions/0094-don-t-pay-for-the-same-re-baseline-twice.md) — Don't pay for the same re-baseline twice
+
+A graded re-baseline is the expensive instrument in this project — roughly 300 Warden turns plus judge calls (2 models × 15 fixtures × N=10). The rule: a change that will force a re-baseline waits for one that is already being bought, rather than triggering its own.
+
+**This entry records a rule that was already operating, not a new one.** It was cited by name in `ADR-0085` before it existed as an entry, and it is applied, in almost these words, in three others:
+
+- `ADR-0012` defers M7.2's re-baseline to M7.5 because "buying it against an index about to be re-chunked means buying it twice," and identifies the same shape of waste already being guarded against by the `roll_dice` field deferral.
+- `ADR-0045` lands those deferred `roll_dice` fields on a re-baseline that was being bought anyway, "rather than paying for a second one" — the fields ride the baseline the populated index was already forcing.
+- `ADR-0030` records that four pool-delta fields landed simultaneously in M7.6 "to avoid paying for two re-baselines," and that every future change to that object carries the same cost.
+
+**What the rule is not.** It is not a reason to defer a fix worth measuring on its own. A category-2 regression under `ADR-0085` supersedes the current number and buys a second graded run, and that is affordable when the regression is real. The waste named here is narrower: re-measuring the same thing after changing it out from under the measurement. Two things worth measuring separately are worth two runs.
+
+**The practical form.** Schema changes, prompt changes, and index changes that move Warden-visible behaviour are batched onto the next re-baseline already on the calendar. When none is scheduled, the question becomes whether the change alone justifies buying one — usually it does not, and the change waits for company. The corollary, recorded in `ADR-0030`: an object that has already absorbed a batch of changes to amortise one re-baseline makes every later change to it expensive, which is an argument for watching it rather than for filing the concern away.
+
+**Why it took this long to write down.** The rule was legible enough in application that four entries leaned on it without anyone noticing it had no home. It surfaced only when a reference migration found the citation in `ADR-0085` resolving to nothing.
 
 ---
 
@@ -1818,6 +1834,18 @@ Traefik routes for `app.zoltar.local` and `api.zoltar.local` are defined as file
 ### [ADR-0089](decisions/0089-single-main-branch.md) — Single `main` branch
 
 No `main`/`develop` split. The value of a develop branch is protecting a stable branch from in-progress work when there are multiple contributors or a CI/CD pipeline deploying from `main`. Neither applies for solo development at this stage. Tagged releases provide the stable reference point. Revisit when there are collaborators or a deployment pipeline that warrants it.
+
+### [ADR-0095](decisions/0095-plans-and-specs-are-committed-to-the-repo.md) — Plans and specs are committed to the repo
+
+`docs/plans/` and `docs/specs/zoltar/` are tracked in the repository and stay tracked.
+
+**This records current practice, not a fresh decision.** An earlier practice kept plans and specs out of the repo. That reversed at some point without either the original policy or the reversal being written down, and the reasoning behind either is not recoverable — so this entry states what is true rather than reconstructing why it became true.
+
+**What made the gap visible.** A bullet in M9's documentation-reorganization item proposed pruning accumulated `docs/specs/zoltar/` entries on the grounds that they are "ephemeral by policy," citing a policy that exists nowhere in `docs/`. The citation had been dangling since it was written, because the policy it named had been reversed and the reversal never recorded. The clause was removed rather than repointed on 2026-08-16, since with specs committed and kept there is no standing policy that makes them sweepable.
+
+**Why they stay, as observable from how they are used rather than as remembered rationale.** Decisions entries and specs cite plan files by path, so removing them would break references that the validator now enforces. A CC session loads them as working context; they are a substantial part of what makes a fresh thread productive. And a plan's git history is the record of how a milestone was actually sequenced, which the milestone's own commits do not capture.
+
+**What this does not settle.** Whether plans and specs are *public* artifacts is a separate question and stays open in the M9 bullet, which notes that `decisions.md` is arguably the most valuable thing to publish and `docs/plans/` the least. Tracked in the repo and published to a `v0.1.0` audience are different commitments; this entry makes only the first.
 
 ---
 

@@ -23,4 +23,4 @@ Recorded 2026-08-16, while M7.6's re-baseline was still running and before any o
 
 **`SYSTEM-ROLLED-PLAYER-ACTION` and `UNSURFACED-CHECK` are read as a pair, per `§ S33`.** They moved in opposite directions on one prompt change, and a fix that trades one for the other reads as progress if either is read alone.
 
-**What this costs when it fires.** A category-2 fix supersedes M7.6's re-baseline number and buys a second graded run — affordable when the regression is real, and exactly the waste `§ Don't pay for the same re-baseline twice` names when it is noise. The categories exist so that call is made against a rule written before the numbers were visible rather than against the numbers themselves.
+**What this costs when it fires.** A category-2 fix supersedes M7.6's re-baseline number and buys a second graded run — affordable when the regression is real, and exactly the waste `ADR-0094` names when it is noise. The categories exist so that call is made against a rule written before the numbers were visible rather than against the numbers themselves.
