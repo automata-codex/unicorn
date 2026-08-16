@@ -56,6 +56,6 @@ was settled. D1-A constrains nothing about ownership: `resourcePools` nests by *
 and pools with no entity owner take the reserved owner `_scenario`
 (`docs/plans/016-m7.6-character-sheet-fidelity-implementation-plan.md` D1-A.1). Entity ids
 may not begin with `_`; reserved owners must. See also
-`§ Adventure state gets its own row…`, addendum, on why owner and scope are orthogonal.
+`ADR-0054`, addendum, on why owner and scope are orthogonal.
 
 Spec: `docs/specs/zoltar/016-m7.6-character-sheet-fidelity.md` §1.3, §2.1.

@@ -86,20 +86,19 @@ export function normalize(text: string): string {
 const NUMERIC = /^(?:s\d|\d+(?:\.\d+)*\b|part \d|step \d|appendix)/i;
 
 /**
- * Find the reference text that follows a `§`.
+ * The generous span of text following a `§`, used for matching.
  *
- * Bounded on the closing delimiter of the enclosing code span when there is
- * one. Splitting on the *first* backtick instead is wrong: 38 entry titles
- * contain backticks and several begin with one, so the first backtick is
- * frequently part of the title rather than its terminator.
+ * Deliberately not bounded at a comma or a sentence end. Forty-five of the 93
+ * entry titles contain a comma followed by a lowercase word ("A rate that
+ * never moves is a harness suspect, not a finding"), so a comma bound cuts
+ * titles in half — the reference then looks author-truncated, and rewriting it
+ * leaves the tail of the title stranded as prose. Match against the full
+ * window instead and replace only the span the matched title actually covers.
  */
-export function extractReferenceText(text: string, index: number): string {
+export function extractReferenceWindow(text: string, index: number): string {
   const after = text.slice(index + 1);
-  const openedInCodeSpan = isInsideCodeSpan(text, index);
 
-  if (openedInCodeSpan) {
-    // Runs to the backtick that closes the span the `§` sits inside. A title
-    // may contain balanced backtick pairs, so skip those.
+  if (isInsideCodeSpan(text, index)) {
     let out = '';
     let i = 0;
     while (i < after.length) {
@@ -119,19 +118,85 @@ export function extractReferenceText(text: string, index: number): string {
       out += after[i];
       i += 1;
     }
-    return out.trim();
+    return out;
   }
 
-  // Not in a code span: run to the end of the sentence or clause.
-  //
-  // A single newline is not a boundary. A bare reference wraps like any other
-  // prose, and stopping at the line break truncates the title mid-phrase —
-  // which then reads as an author truncation ("§ Warden model upgraded to")
-  // and lands in the ambiguous pile instead of resolving. A blank line does
-  // end it: a reference never spans a paragraph.
-  const stop = after.search(/\n\s*\n|[)]|\. |, (?=[a-z])/);
-  return (stop === -1 ? after : after.slice(0, stop)).trim();
+  // A single newline is not a boundary — a bare reference wraps like any other
+  // prose. A blank line is: a reference never spans a paragraph.
+  const stop = after.search(/\n\s*\n|[)]/);
+  return stop === -1 ? after : after.slice(0, stop);
 }
+
+/**
+ * Tighten a window to one clause, for references that match no title. Only
+ * used to decide truncation and to report unresolved text — never to size a
+ * replacement of a matched title.
+ */
+export function tightenWindow(window: string): string {
+  const stop = window.search(/[)]|\. |, (?=[a-z])/);
+  return (stop === -1 ? window : window.slice(0, stop)).trim();
+}
+
+/** Back-compat shim: the tightened form is what the old extractor returned. */
+export function extractReferenceText(text: string, index: number): string {
+  const window = extractReferenceWindow(text, index);
+  const match = longestTitlePrefix(window, CURRENT_TITLES);
+  return match
+    ? window.slice(0, match.rawLength).trim()
+    : tightenWindow(window);
+}
+
+/**
+ * The number of raw characters of `raw` whose normalized form equals
+ * `target` — i.e. exactly how much text the matched title covers, so a
+ * rewrite replaces the title and nothing after it.
+ */
+export function rawPrefixLength(raw: string, target: string): number | null {
+  for (let i = 1; i <= raw.length; i += 1) {
+    if (normalize(raw.slice(0, i)) !== target) continue;
+    // Extend over trailing characters that normalize away — the closing
+    // backtick of a title that ends in a code span, for instance. Without
+    // this, `§ Warden model upgraded to \`claude-sonnet-5\`` matches up to
+    // the final backtick and leaves it stranded after the identifier.
+    // Whitespace is deliberately not consumed: eating a trailing space would
+    // weld the identifier onto the next word.
+    let end = i;
+    while (end < raw.length && /[`*_"']/.test(raw[end])) end += 1;
+    return end;
+  }
+  return null;
+}
+
+export interface TitleMatch {
+  id: string;
+  title: string;
+  rawLength: number;
+}
+
+/** The longest entry title that `window` begins with, if any. */
+export function longestTitlePrefix(
+  window: string,
+  titles: TitleIndex[],
+): TitleMatch | null {
+  const normalized = normalize(window);
+  const candidates = titles
+    .filter((t) => normalized.startsWith(t.normalized))
+    .sort((a, b) => b.normalized.length - a.normalized.length);
+
+  for (const candidate of candidates) {
+    const rawLength = rawPrefixLength(window, candidate.normalized);
+    if (rawLength !== null) {
+      return { id: candidate.id, title: candidate.title, rawLength };
+    }
+  }
+  return null;
+}
+
+/**
+ * Titles used by the back-compat `extractReferenceText` shim. Set by
+ * `findReferences`; empty otherwise, in which case the shim just tightens.
+ */
+let CURRENT_TITLES: TitleIndex[] = [];
 
 /**
  * Whether `index` sits inside an inline code span.
@@ -270,29 +335,52 @@ export function findReferences(
   text: string,
   titles: TitleIndex[],
 ): Reference[] {
+  CURRENT_TITLES = titles;
   const out: Reference[] = [];
   const headings = ownHeadings(text);
+
   for (const match of text.matchAll(/§/g)) {
     const index = match.index;
-    const referenceText = extractReferenceText(text, index);
+    const window = extractReferenceWindow(text, index);
     const preceding = findPrecedingPath(text, index);
-    const verdict = classifyReference(
-      referenceText,
-      titles,
-      preceding?.path ?? null,
-      headings,
-    );
 
-    // The construct to replace spans the path (when it belongs to this
-    // reference) through the end of the reference text. The path is not kept
+    // A numeric citation is never a title match. Check it before matching so
+    // `§ 24.1` cannot be pulled into a title by a coincidental prefix.
+    const numeric = NUMERIC.test(normalize(window));
+    const hit = numeric ? null : longestTitlePrefix(window, titles);
+
+    // How much text the replacement covers: exactly the matched title when
+    // there is one, otherwise the tightened clause. Getting this wrong is what
+    // strands the tail of a title as prose after a rewrite — 45 of the 93
+    // titles carry a comma followed by a lowercase word.
+    const spanLength = hit
+      ? hit.rawLength
+      : window.indexOf(tightenWindow(window)) + tightenWindow(window).length;
+
+    const verdict = hit
+      ? {
+          classification: 'resolves' as const,
+          id: hit.id,
+          reason: 'exact title match',
+        }
+      : classifyReference(
+          tightenWindow(window),
+          titles,
+          preceding?.path ?? null,
+          headings,
+        );
+
+    // The construct spans the document path — when it belongs to this
+    // reference — through the end of the matched span. The path is not kept
     // alongside the token: decisions.md is a generated index after this
     // migration, so naming it points the reader at the wrong artifact.
     const constructIndex = preceding ? preceding.start : index;
-    const endOfText = text.indexOf(referenceText, index) + referenceText.length;
+    const spanEnd = index + 1 + spanLength;
+
     out.push({
       index,
-      text: referenceText,
-      construct: text.slice(constructIndex, endOfText),
+      text: window.slice(0, spanLength).trim(),
+      construct: text.slice(constructIndex, spanEnd),
       constructIndex,
       ...verdict,
     });
@@ -300,16 +388,49 @@ export function findReferences(
   return out;
 }
 
-/** Rewrites only the `resolves` class, leaving everything else untouched. */
-export function rewriteResolved(text: string, references: Reference[]): string {
-  const resolved = references
-    .filter((r) => r.classification === 'resolves' && r.id)
-    .sort((a, b) => b.constructIndex - a.constructIndex);
+export interface RewriteOptions {
+  /**
+   * Also rewrite author-truncated references whose prefix matches exactly one
+   * entry title. The target is determined rather than guessed, but it is a
+   * judgement that the truncation was sloppiness rather than deliberate
+   * narrowing, so it is opt-in.
+   */
+  includeUniqueAmbiguous?: boolean;
+}
+
+/**
+ * Replace reference constructs with bare identifiers, right to left so that
+ * rewriting one does not shift the offsets of the next.
+ */
+export function rewriteReferences(
+  text: string,
+  references: Reference[],
+  options: RewriteOptions = {},
+): string {
+  const targets = references
+    .map((r) => {
+      if (r.classification === 'resolves' && r.id) return { ref: r, id: r.id };
+      if (
+        options.includeUniqueAmbiguous &&
+        r.classification === 'ambiguous' &&
+        r.candidates?.length === 1
+      ) {
+        return { ref: r, id: r.candidates[0] };
+      }
+      return null;
+    })
+    .filter((t): t is { ref: Reference; id: string } => t !== null)
+    .sort((a, b) => b.ref.constructIndex - a.ref.constructIndex);
 
   let out = text;
-  for (const ref of resolved) {
+  for (const { ref, id } of targets) {
     const end = ref.constructIndex + ref.construct.length;
-    out = `${out.slice(0, ref.constructIndex)}${ref.id}${out.slice(end)}`;
+    out = `${out.slice(0, ref.constructIndex)}${id}${out.slice(end)}`;
   }
   return out;
+}
+
+/** Rewrites only the `resolves` class, leaving everything else untouched. */
+export function rewriteResolved(text: string, references: Reference[]): string {
+  return rewriteReferences(text, references);
 }

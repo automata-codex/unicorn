@@ -311,8 +311,7 @@ turns on a single reachable fixture. Read the per-fixture table, not just the ra
 rounds that fail to move aggregate and `warden-observed` `recall@3` by more than 5 pp
 close the milestone with the bar restated as "not reached." It is deliberately *not*
 measured on `authored`, which is at 100% and cannot move — see
-`docs/decisions.md § The retrieval stopping rule is measured on the metrics with
-headroom`.
+`ADR-0022`.
 
 **Provenance is part of the measurement.** `ingest.py` writes marker version,
 chunking parameters, embed model, and chunk count to `ingestion/.ingest-manifest.json`,

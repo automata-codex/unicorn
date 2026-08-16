@@ -1289,7 +1289,7 @@ call, plus an approximate index would add an accuracy confound.
 Embeddings came from the production `VoyageService`
 (`apps/zoltar-be/src/voyage/voyage.service.ts`), not a reimplementation, so
 `input_type` is production's: `document` for the 38 pages, `query` for each
-query string. Model `voyage-4-lite` per `docs/decisions.md § Embedding model`;
+query string. Model `voyage-4-lite` per `ADR-0011`;
 returned dimension asserted at **1024**, matching the column. Ranking is
 plain cosine distance over the full corpus:
 
@@ -2823,8 +2823,7 @@ Nothing spent but 49 query embeddings. Index unchanged: 66 chunks, marker
 ### S17 — 2026-08-07 · Round 1: the character-creation exclusion, implemented at last
 
 **Round 1 of 3** in M7.5's chunking iteration. Not a lever so much as a
-settled decision finally applied: `docs/decisions.md § Character-creation
-content is excluded from the rules index` decided this in M7.2, and
+settled decision finally applied: `ADR-0016` decided this in M7.2, and
 `chunk_blocks`' own docstring records that it was left unimplemented on
 purpose, so as not to move the index before the baseline M7.5 iterates
 against existed. It exists now ([S16](#s16--2026-08-07--baseline-confirmed-and-the-m75-quality-bar-set)).
@@ -3012,8 +3011,7 @@ in different clothes. **Read the per-fixture table.**
 #### 18.5 Conclusion, and what page 3 turned out to be
 
 Excluded. `ingestion/mothership/system.json` carries `drop_pages: [3, 4,
-41, 42]`; `docs/decisions.md § Character-creation content is excluded from
-the rules index` is updated to close its page-3 caveat.
+41, 42]`; `ADR-0016` is updated to close its page-3 caveat.
 
 **But not for the reason the caveat guessed.** It read page 3 as "probably
 the same unreachable category" as 4/41/42. That is not what the evidence
@@ -3308,7 +3306,7 @@ after the next chunking change.
 **No floor.** `RulesLookupService.lookup()` is unchanged and still returns
 whatever `findByCosineSimilarity` gives back; `docs/tools.md` needs no
 update because `rules_lookup`'s observable behaviour is unchanged.
-Recorded in `docs/decisions.md § No similarity floor for rules_lookup`.
+Recorded in `ADR-0020`.
 
 This also removes one intended variable from the M7.5 re-baseline: it
 carries four deliberate changes, not five.
@@ -3327,8 +3325,7 @@ the instrument that can, and takes the before-reading.
 queries carrying at least one term absent from the corpus.
 
 The queries did not need a new run to collect. `warden-output.json` is the
-full serialized `TurnExecutionResult` (`docs/decisions.md § warden-output.json
-is the full serialized TurnExecutionResult`), its `telemetry` field is the
+full serialized `TurnExecutionResult` (`ADR-0065`), its `telemetry` field is the
 `adventure_telemetry` row, and `payload.rulesLookups` records the query text
 of every `rules_lookup` call in that turn. **Every eval run ever completed
 already contains its own query corpus.**
@@ -4673,7 +4670,7 @@ to check and reports no invariant violations:
   "call for a FEAR Save" names *which* roll happens and never *who* executes
   it.
 - **A closing `WHOSE ROLL IS IT` block.** This is what
-  `docs/decisions.md § Agentic graph decomposition` actually asked for — the
+  `ADR-0044` actually asked for — the
   rule stated unambiguously *and* positioned where it governs the primer. It
   closes on § S31's split: *knowing a roll is warranted is not permission to
   make it.*
@@ -4762,7 +4759,7 @@ comparison"* — then returns `fail`. The check is `ungated`, so it has no
 resolve collapsed into its PASS condition; here, a judged check with nothing
 to grade collapses into FAIL. Same root shape — a check that cannot decide
 must report undecided — applied to judged rather than structural checks, where
-`docs/decisions.md § Structural checks report undecided rather than guessing`
+`ADR-0078`
 has never been extended.
 
 There is a plausible mechanism worth naming before it is investigated: if the

@@ -48,7 +48,7 @@ The upgrade rationale is unaffected — every one of these is Sonnet 5 against S
 
 What must be retired is the reading that `SYSTEM-ROLLED-PLAYER-ACTION` at 0.90 was "the model's ceiling." It halved once the index was populated and the primer taught when a check is warranted, and the two moves are one behaviour: `UNSURFACED-CHECK` reached 1.00 in the same run. The Warden learned to recognise that a roll is called for and then rolls it itself. That is a prompt target, and it is now the largest one in the corpus.
 
-Also retired: 0.90 was measured with a checker that could not see the failure. The M7.5 `actingEntityId` integration shipped a false pass that graded ten violations clean (§ `actingEntityId` must resolve against a declared identifier set, below). The July figure is unaffected — those artifacts predate the field and take the prose path, verified bit-identical on re-score — but every figure produced between 2026-08-07 and 2026-08-09 on this tag was wrong.
+Also retired: 0.90 was measured with a checker that could not see the failure. The M7.5 `actingEntityId` integration shipped a false pass that graded ten violations clean (ADR-0046, below). The July figure is unaffected — those artifacts predate the field and take the prose path, verified bit-identical on re-score — but every figure produced between 2026-08-07 and 2026-08-09 on this tag was wrong.
 
 **The judged half of that table is now self-graded, and was already half-way there.** `JUDGE_MODEL` has been `claude-sonnet-5` since the judged checks were built — deliberately above the Warden's 4.6, so a more capable grader sat over the model under test. This decision closes that gap: the Warden and its judge are now the same model. The consequence is retroactive as well as forward-looking, and it is a real confound in the comparison above: on the 4.6 side a Sonnet 5 judge graded a 4.6 generator, while on the Sonnet 5 side it graded itself. Every judged row in the table therefore has an asymmetry the structural rows don't.
 
@@ -80,7 +80,7 @@ July; 0.94 now) and `turn28-hidden-info-leak` (1.00, 10/10) pin at the top, and 
 rule is that a rate sitting at either extreme across every rep is a harness suspect rather than a
 finding — with the ceiling case exactly as suspect as the floor and materially less likely to be
 investigated, because a pinned 1.00 presents with full applicability and a healthy denominator
-(§ A rate that never moves is a harness suspect, not a finding; that entry's instance list is
+(ADR-0082; that entry's instance list is
 amended to include `turn28-hidden-info-leak`). A weaker model failing those checks is the only
 evidence currently available that they can reach a `fail` verdict at all. Drop both arms and that
 guard goes with them, silently.

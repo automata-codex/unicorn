@@ -7,6 +7,7 @@ import {
   findPrecedingPath,
   findReferences,
   normalize,
+  rewriteReferences,
   rewriteResolved,
 } from './references.core';
 
@@ -265,5 +266,66 @@ describe('intra-document section references', () => {
       ['Unrelated heading'],
     );
     expect(verdict.classification).toBe('resolves');
+  });
+});
+
+describe('titles containing a comma', () => {
+  const commaTitles = buildTitleIndex([
+    {
+      id: 'ADR-0082',
+      title: 'A rate that never moves is a harness suspect, not a finding',
+    },
+    {
+      id: 'ADR-0054',
+      title:
+        'Adventure state gets its own row, not an adventure tag on campaign state',
+    },
+  ]);
+
+  it('matches the whole title rather than stopping at the comma', () => {
+    // Bounding the reference at ", " + lowercase cut this title in half. The
+    // half-title then looked author-truncated, and rewriting it left ", not a
+    // finding" stranded in the prose as if it were the author's own words.
+    const text =
+      "(§ A rate that never moves is a harness suspect, not a finding; that entry's list is longer)";
+    const refs = findReferences(text, commaTitles);
+    expect(refs[0].classification).toBe('resolves');
+    expect(refs[0].id).toBe('ADR-0082');
+    expect(rewriteResolved(text, refs)).toBe(
+      "(ADR-0082; that entry's list is longer)",
+    );
+  });
+
+  it('replaces only the title, leaving the trailing clause intact', () => {
+    const text =
+      '`§ Adventure state gets its own row, not an adventure tag on campaign state`, addendum, on why owner and scope are orthogonal.';
+    const refs = findReferences(text, commaTitles);
+    expect(rewriteResolved(text, refs)).toBe(
+      '`ADR-0054`, addendum, on why owner and scope are orthogonal.',
+    );
+  });
+});
+
+describe('rewriteReferences with includeUniqueAmbiguous', () => {
+  it('rewrites an author-truncated title that matches exactly one entry', () => {
+    const text = 'see `docs/decisions.md § Rules retrieval mechanism`, above';
+    const refs = findReferences(text, titles);
+    expect(
+      rewriteReferences(text, refs, { includeUniqueAmbiguous: true }),
+    ).toBe('see `ADR-0044`, above');
+  });
+
+  it('still leaves it alone when the option is off', () => {
+    const text = 'see `docs/decisions.md § Rules retrieval mechanism`, above';
+    expect(rewriteReferences(text, findReferences(text, titles))).toBe(text);
+  });
+
+  it('rewrites several truncations in one construct without shifting offsets', () => {
+    const text =
+      'waiting on (`§ Rules retrieval mechanism`, `§ State placement is decided by the lifetime of the referent`) here';
+    const refs = findReferences(text, titles);
+    expect(
+      rewriteReferences(text, refs, { includeUniqueAmbiguous: true }),
+    ).toBe('waiting on (`ADR-0044`, `ADR-0028`) here');
   });
 });

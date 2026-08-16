@@ -92,7 +92,7 @@ M7.2's original spec included post-ingestion validation — an eval re-baseline 
 
 **The completion-criteria split, not just the reasoning, is why they're separate milestones rather than one milestone with a later Part 6.** M7.2's criteria are binary — the CLI runs, rows land, the harness scores. M7.5's is a quality bar — chunking iteration continues until the bar is met or a stopping rule fires. Milestones with quality-bar criteria absorb whatever is adjacent to them; folding the re-baseline into M7.2 would have made M7.2 itself open-ended, defeating the reason for having Done-When criteria at all.
 
-**Consequence:** M7.2 ends with a populated index and a way to measure it — not with evidence the Warden is actually better off. That evidence is M7.5's. The three entries below waiting on a populated-index re-baseline (`ADR-0023`, `§ Agentic graph decomposition stays deferred`, `§ rollType / gatedByRollId / actingEntityId on roll_dice stay deferred`) stay open one milestone longer than an M7.2-only plan would have implied.
+**Consequence:** M7.2 ends with a populated index and a way to measure it — not with evidence the Warden is actually better off. That evidence is M7.5's. The three entries below waiting on a populated-index re-baseline (`ADR-0023`, `ADR-0044`, `ADR-0045`) stay open one milestone longer than an M7.2-only plan would have implied.
 
 ### [ADR-0013](decisions/0013-rules-ingestion-is-cli-only-in-phase-1.md) — Rules ingestion is CLI-only in Phase 1
 
@@ -216,8 +216,7 @@ correct page at rank 1 on *both* FTS and dense retrieval, for all three real
 recorded queries — including the one query no other configuration on either
 backend ever retrieved (`docs/rules-extraction-findings.md § S4`, `§ S5.3`).
 This is the single largest effect measured across the whole retrieval
-investigation, larger than the FTS-vs-embeddings choice itself (`docs/decisions.md
-§ Rules retrieval mechanism`, above).
+investigation, larger than the FTS-vs-embeddings choice itself (`ADR-0018`, above).
 
 Two separable fixes, with different costs:
 
@@ -465,7 +464,7 @@ The upgrade rationale is unaffected — every one of these is Sonnet 5 against S
 
 What must be retired is the reading that `SYSTEM-ROLLED-PLAYER-ACTION` at 0.90 was "the model's ceiling." It halved once the index was populated and the primer taught when a check is warranted, and the two moves are one behaviour: `UNSURFACED-CHECK` reached 1.00 in the same run. The Warden learned to recognise that a roll is called for and then rolls it itself. That is a prompt target, and it is now the largest one in the corpus.
 
-Also retired: 0.90 was measured with a checker that could not see the failure. The M7.5 `actingEntityId` integration shipped a false pass that graded ten violations clean (§ `actingEntityId` must resolve against a declared identifier set, below). The July figure is unaffected — those artifacts predate the field and take the prose path, verified bit-identical on re-score — but every figure produced between 2026-08-07 and 2026-08-09 on this tag was wrong.
+Also retired: 0.90 was measured with a checker that could not see the failure. The M7.5 `actingEntityId` integration shipped a false pass that graded ten violations clean (ADR-0046, below). The July figure is unaffected — those artifacts predate the field and take the prose path, verified bit-identical on re-score — but every figure produced between 2026-08-07 and 2026-08-09 on this tag was wrong.
 
 **The judged half of that table is now self-graded, and was already half-way there.** `JUDGE_MODEL` has been `claude-sonnet-5` since the judged checks were built — deliberately above the Warden's 4.6, so a more capable grader sat over the model under test. This decision closes that gap: the Warden and its judge are now the same model. The consequence is retroactive as well as forward-looking, and it is a real confound in the comparison above: on the 4.6 side a Sonnet 5 judge graded a 4.6 generator, while on the Sonnet 5 side it graded itself. Every judged row in the table therefore has an asymmetry the structural rows don't.
 
@@ -497,7 +496,7 @@ July; 0.94 now) and `turn28-hidden-info-leak` (1.00, 10/10) pin at the top, and 
 rule is that a rate sitting at either extreme across every rep is a harness suspect rather than a
 finding — with the ceiling case exactly as suspect as the floor and materially less likely to be
 investigated, because a pinned 1.00 presents with full applicability and a healthy denominator
-(§ A rate that never moves is a harness suspect, not a finding; that entry's instance list is
+(ADR-0082; that entry's instance list is
 amended to include `turn28-hidden-info-leak`). A weaker model failing those checks is the only
 evidence currently available that they can reach a `fail` verdict at all. Drop both arms and that
 guard goes with them, silently.
@@ -811,7 +810,7 @@ was settled. D1-A constrains nothing about ownership: `resourcePools` nests by *
 and pools with no entity owner take the reserved owner `_scenario`
 (`docs/plans/016-m7.6-character-sheet-fidelity-implementation-plan.md` D1-A.1). Entity ids
 may not begin with `_`; reserved owners must. See also
-`§ Adventure state gets its own row…`, addendum, on why owner and scope are orthogonal.
+`ADR-0054`, addendum, on why owner and scope are orthogonal.
 
 Spec: `docs/specs/zoltar/016-m7.6-character-sheet-fidelity.md` §1.3, §2.1.
 
@@ -851,7 +850,7 @@ Three changes close it, and the split between them is deliberate:
 - **The synthesis write path drops impersonating keys and logs them.** A key naming a pool of a kind the player already owns, under a prefix resolving to neither the player's id nor an entity the payload declares, is dropped. It is redundant by construction, so dropping loses nothing — but it is logged, because a drop means the model re-spelled the id after being handed it, which is worth seeing before a playtest rather than after.
 - **The play-time validator rejects rather than drops.** `applyResourcePool`'s bootstrap branch applies the same rule and pushes a rejection naming the valid id, so the model corrects inside the tool loop. Rejection is right here and wrong at synthesis: mid-turn there is a loop to correct in, and failing an expensive synthesis over a naming quirk is not.
 
-**The rule is suffix-collision, not prefix-must-resolve.** A stricter "every pool prefix must name a declared entity" would reject `station_power_reserve` and `contamination_spread_timer` — legitimate scenario-level pools that attach to no entity and never will. Only a pool that duplicates a kind the player already owns is refused, which is exactly the observed defect and nothing else. The check is disabled entirely when no player ids are declared, mirroring `roll_dice`'s empty-known-set behaviour under `§ actingEntityId must resolve against a declared identifier set` — a campaign with no character sheet must not have every pool bootstrap rejected.
+**The rule is suffix-collision, not prefix-must-resolve.** A stricter "every pool prefix must name a declared entity" would reject `station_power_reserve` and `contamination_spread_timer` — legitimate scenario-level pools that attach to no entity and never will. Only a pool that duplicates a kind the player already owns is refused, which is exactly the observed defect and nothing else. The check is disabled entirely when no player ids are declared, mirroring `roll_dice`'s empty-known-set behaviour under `ADR-0046` — a campaign with no character sheet must not have every pool bootstrap rejected.
 
 The entry's main claim is unaffected: derivation still happens at character creation, and synthesis still does not re-derive.
 
@@ -1118,7 +1117,7 @@ So the fields are not only a possible fix; they are the precondition for knowing
 
 What they bought, on the two checks that were waiting:
 
-- `gatedByRollId` — `out-of-order-resolution` now decides the in-turn case by comparing a named gate's sequence number against the roll naming it. See `§ out-of-order-resolution reads the deferred gate` above for the three sub-cases and for the deferred-gate residual this does *not* close.
+- `gatedByRollId` — `out-of-order-resolution` now decides the in-turn case by comparing a named gate's sequence number against the roll naming it. See `ADR-0079` above for the three sub-cases and for the deferred-gate residual this does *not* close.
 - `actingEntityId` — `system-rolled-player-action` attributes without reading `purpose`. This was the last prose dependency in the structural checks; on post-M7.5 output there is none left. **The first integration of this field was defective and shipped a false pass — see the entry immediately below, which is a correction to this bullet, not a footnote on it.**
 - `rollType` — **no measurement role, and none was invented for it.** The entry above claims all three were "the precondition for knowing whether a fix is needed"; that was true of the other two and never of this one. Checked during M7.5 planning: it appears in `docs/specs/zoltar/011-eval-harness-multi-run.md § Part 6` only as a *hypothetical example* of a field some future check might need, is absent from the M7.4 spec entirely, and the two bullets above give it no job. It ships as a descriptive enum (`check` / `save` / `damage` / `panic_check` / `table` / `other`) read by no checker — telemetry and a reporting axis. The justification is this entry's own economics rather than a requirement: the re-baseline was being bought anyway, and discovering a use for it later would have meant buying another.
 
@@ -1660,7 +1659,7 @@ A known false FAIL is accepted and pinned by a `[known limitation]` test rather 
 
 The entry above governs *structural* checks. Judged checks were never brought under it, and one rep of the `c45a142a` re-baseline shows the gap. `turn24-over-resolution` is declared `applicabilitySource: 'ungated'` — it has no `not_applicable` path at all — and the judge's own rationale reports that the tool calls do not contain the Delta-vs-UNIT-7 off-screen encounter the rubric asks about, calling the comparison *"a mismatched comparison"*. It then returned `fail`.
 
-**This is `§ actingEntityId must resolve against a declared identifier set` inverted.** There, a structural check that could not resolve its subject collapsed into its PASS condition and graded ten violations clean. Here, a judged check that cannot find its subject collapses into FAIL. The shared root is the one that entry already names — *a check that cannot decide must report undecided* — and the fact that it inverts in the other direction on the judged side is not reassuring. A false FAIL is more diagnosable than a false PASS, but it still poisons a rate, and nothing currently stops it.
+**This is `ADR-0046` inverted.** There, a structural check that could not resolve its subject collapsed into its PASS condition and graded ten violations clean. Here, a judged check that cannot find its subject collapses into FAIL. The shared root is the one that entry already names — *a check that cannot decide must report undecided* — and the fact that it inverts in the other direction on the judged side is not reassuring. A false FAIL is more diagnosable than a false PASS, but it still poisons a rate, and nothing currently stops it.
 
 Three things to settle, and deliberately not settled here:
 

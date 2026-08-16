@@ -13,8 +13,7 @@ correct page at rank 1 on *both* FTS and dense retrieval, for all three real
 recorded queries — including the one query no other configuration on either
 backend ever retrieved (`docs/rules-extraction-findings.md § S4`, `§ S5.3`).
 This is the single largest effect measured across the whole retrieval
-investigation, larger than the FTS-vs-embeddings choice itself (`docs/decisions.md
-§ Rules retrieval mechanism`, above).
+investigation, larger than the FTS-vs-embeddings choice itself (`ADR-0018`, above).
 
 Two separable fixes, with different costs:
 
