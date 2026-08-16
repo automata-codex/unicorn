@@ -4,7 +4,7 @@ title: Prompt work during a re-baseline is triggered by attribution, not by a nu
 area: eval-harness
 status: accepted
 superseded_by: null
-milestone: unknown
+milestone: M7.6
 summary: null
 ---
 

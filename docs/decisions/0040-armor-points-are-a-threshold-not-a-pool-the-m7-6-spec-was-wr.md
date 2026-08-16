@@ -4,7 +4,7 @@ title: Armor Points are a threshold, not a pool — the M7.6 spec was wrong abou
 area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
-milestone: unknown
+milestone: M7.6
 summary: null
 ---
 

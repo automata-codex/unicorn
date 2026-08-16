@@ -4,7 +4,7 @@ title: Typed system-specific fields on tool schemas are acceptable while one sys
 area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
-milestone: unknown
+milestone: M7.6
 summary: null
 ---
 

@@ -4,7 +4,7 @@ title: The D&D-5e-bias hypothesis has a confirmed instance, in the schema rather
 area: rules-retrieval
 status: accepted
 superseded_by: null
-milestone: unknown
+milestone: M7.6
 summary: null
 ---
 

@@ -4,7 +4,7 @@ title: No similarity floor for `rules_lookup` — the distributions overlap, and
 area: rules-retrieval
 status: accepted
 superseded_by: null
-milestone: unknown
+milestone: M7.5
 summary: null
 ---
 

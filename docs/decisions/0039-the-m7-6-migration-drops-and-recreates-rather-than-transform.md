@@ -4,7 +4,7 @@ title: The M7.6 migration drops and recreates rather than transforming
 area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
-milestone: unknown
+milestone: M7.6
 summary: null
 ---
 

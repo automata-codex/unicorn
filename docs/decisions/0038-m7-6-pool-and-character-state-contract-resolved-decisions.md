@@ -4,7 +4,7 @@ title: M7.6 pool and character-state contract — resolved decisions
 area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
-milestone: unknown
+milestone: M7.6
 summary: null
 ---
 

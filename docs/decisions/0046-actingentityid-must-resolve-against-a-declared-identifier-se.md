@@ -4,7 +4,7 @@ title: "`actingEntityId` must resolve against a declared identifier set, and an 
 area: claude-turn-loop-correction
 status: accepted
 superseded_by: null
-milestone: unknown
+milestone: M7.5
 summary: null
 ---
 

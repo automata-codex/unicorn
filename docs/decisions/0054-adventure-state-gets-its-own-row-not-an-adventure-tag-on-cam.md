@@ -4,7 +4,7 @@ title: Adventure state gets its own row, not an adventure tag on campaign state
 area: api-data-model
 status: accepted
 superseded_by: null
-milestone: unknown
+milestone: M7.6
 summary: null
 ---
 

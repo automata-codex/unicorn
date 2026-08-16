@@ -4,7 +4,7 @@ title: The retrieval stopping rule is measured on the metrics with headroom, not
 area: rules-retrieval
 status: accepted
 superseded_by: null
-milestone: unknown
+milestone: M7.5
 summary: null
 ---
 

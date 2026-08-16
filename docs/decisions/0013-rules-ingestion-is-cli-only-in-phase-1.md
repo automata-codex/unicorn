@@ -4,7 +4,7 @@ title: Rules ingestion is CLI-only in Phase 1
 area: rules-ingestion
 status: accepted
 superseded_by: null
-milestone: unknown
+milestone: M7.2
 summary: null
 ---
 

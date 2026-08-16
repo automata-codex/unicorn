@@ -4,7 +4,7 @@ title: State placement is decided by the lifetime of the referent, not the lifet
 area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
-milestone: unknown
+milestone: M7.6
 summary: null
 ---
 

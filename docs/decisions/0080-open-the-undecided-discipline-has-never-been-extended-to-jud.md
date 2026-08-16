@@ -4,7 +4,7 @@ title: OPEN — the undecided discipline has never been extended to judged check
 area: eval-harness
 status: open
 superseded_by: null
-milestone: unknown
+milestone: M7.5
 summary: null
 ---
 
