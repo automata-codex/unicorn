@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { universalCheckIds } from '../eval/checks/registry';
 import { fakeTurnExecutionResult } from '../eval/checks/structural/test-helpers';
 import { readManifest } from '../eval/runs/manifest';
 import { listRepDirsOnDisk, repDir, scoresPath } from '../eval/runs/paths';
@@ -153,8 +154,10 @@ describe('runEval', () => {
 
     const { rows, exclusions } = readVouchedRows(summary.runDir);
     expect(exclusions).toEqual([]);
-    // 3 reps × 2 fixtures × 1 check each (one check per fixture today).
-    expect(rows).toHaveLength(6);
+    // 3 reps × 2 fixtures × the checks each fixture carries. Derived rather
+    // than hardcoded: every fixture now also carries the universal checks,
+    // and a literal here would have to be re-counted each time one is added.
+    expect(rows).toHaveLength(3 * 2 * (1 + universalCheckIds.length));
   });
 
   it('appending 2 more reps to the same --run-dir continues at index 4 and leaves plannedReps untouched', async () => {
@@ -212,7 +215,7 @@ describe('runEval', () => {
     const summary = await runEval(baseArgs({ reps: 1 }), deps);
 
     const { rows } = readVouchedRows(summary.runDir);
-    expect(rows).toHaveLength(1);
+    expect(rows).toHaveLength(1 + universalCheckIds.length);
     expect(rows[0].verdict).toBe('error');
     expect(rows[0].errorMessage).toBe('boom');
 
@@ -313,8 +316,12 @@ describe('runEval', () => {
     const summary = await runEval(baseArgs({ reps: 3 }), stubDeps());
 
     const { rows } = readVouchedRows(summary.runDir);
-    expect(rows.filter((r) => r.fixtureId === 'fixture-a')).toHaveLength(1);
-    expect(rows.filter((r) => r.fixtureId === 'fixture-b')).toHaveLength(3);
+    expect(rows.filter((r) => r.fixtureId === 'fixture-a')).toHaveLength(
+      1 + universalCheckIds.length,
+    );
+    expect(rows.filter((r) => r.fixtureId === 'fixture-b')).toHaveLength(
+      3 * (1 + universalCheckIds.length),
+    );
   });
 
   it('warns but completes when appending reps beyond plannedReps', async () => {
@@ -428,7 +435,11 @@ describe('runEval', () => {
       deps,
     );
 
-    expect(doneEvents).toEqual([{ verdicts: ['error'] }]);
+    // Every check on the fixture errors, the universal ones included —
+    // a turn that threw produced no artifact for any of them to read.
+    expect(doneEvents).toEqual([
+      { verdicts: Array(1 + universalCheckIds.length).fill('error') },
+    ]);
   });
 });
 

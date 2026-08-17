@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { universalCheckIds } from '../eval/checks/registry';
 import {
   fakeDiceRoll,
   fakeFixture,
@@ -194,7 +195,9 @@ describe('runRescore', () => {
       join(rescoreDir(runDir), '2026-07-30T09-00-00Z.jsonl'),
     );
     expect(existsSync(summary.outputPath)).toBe(true);
-    expect(readRescoreRows(summary.outputPath)).toHaveLength(1);
+    expect(readRescoreRows(summary.outputPath)).toHaveLength(
+      1 + universalCheckIds.length,
+    );
     // The source of truth for the run's own rates is untouched — the whole
     // reason this writes beside `reps/` rather than into it.
     expect(readFileSync(scoresPath(runDir, 1), 'utf-8')).toBe(scoresBefore);
@@ -266,6 +269,8 @@ describe('runRescore', () => {
     const summary = await runRescore({ runDir, fixturesDir }, deps());
 
     expect(summary.carriedForward).toBe(1);
+    // One row in, one row out: rescore regrades the rows a frozen run
+    // recorded, and never invents rows for checks that run did not have.
     expect(summary.rows).toHaveLength(1);
     const row = summary.rows[0];
     expect(row.carriedForward).toBe(true);
@@ -297,7 +302,7 @@ describe('runRescore', () => {
 
     const summary = await runRescore({ runDir, fixturesDir }, deps(anthropic));
 
-    expect(summary.rows).toHaveLength(1);
+    expect(summary.rows).toHaveLength(1 + universalCheckIds.length);
     expect(summary.rows[0].verdict).toBe('fail');
     expect(anthropic.callMessages).not.toHaveBeenCalled();
   });

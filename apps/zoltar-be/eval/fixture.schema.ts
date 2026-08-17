@@ -23,6 +23,12 @@ export const failureModeTagSchema = z.enum([
   // stated reason and whose damage can run a multi-step chain.
   'UNEXPLAINED-DELTA',
   'CARRYOVER-ARITHMETIC',
+  // Added by M7.7. Unlike every tag above it, no fixture is ever *tagged*
+  // this — its check is universal and attaches to all of them (see
+  // `universalCheckIds` in `eval/checks/registry.ts`). The tag exists
+  // because `buildChecks` derives the registry from these lists, and a
+  // check outside them would be a second way to register one.
+  'TOOL-SYNTAX-LEAK',
 ]);
 
 export type FailureModeTag = z.infer<typeof failureModeTagSchema>;
@@ -36,6 +42,7 @@ export const structuralFailureModeTags = [
   // classification is needed — `decisions.md § A structural check may read
   // event and state structure; it may not classify prose`.
   'CARRYOVER-ARITHMETIC',
+  'TOOL-SYNTAX-LEAK',
 ] as const satisfies readonly FailureModeTag[];
 
 /**

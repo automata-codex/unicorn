@@ -11,6 +11,7 @@ import {
   rubricHashFor,
   rubricTextFor,
   selectChecksForFixture,
+  universalCheckIds,
 } from './registry';
 import { fakeFixture } from './structural/test-helpers';
 
@@ -142,11 +143,38 @@ describe('evalChecks', () => {
 });
 
 describe('selectChecksForFixture', () => {
-  it("returns the check matching the fixture's tag", () => {
+  it("returns the check matching the fixture's tag, plus the universal ones", () => {
     const fixture = fakeFixture({ tag: 'OUT-OF-ORDER-RESOLUTION' });
     const checks = selectChecksForFixture(fixture);
-    expect(checks).toHaveLength(1);
-    expect(checks[0].id).toBe('out-of-order-resolution');
+    expect(checks.map((c) => c.id)).toEqual([
+      'out-of-order-resolution',
+      'tool-syntax-leak',
+    ]);
+  });
+
+  it('attaches every universal check to a fixture that authors no applicability at all', () => {
+    // The property that separates universal from tag-independent: no
+    // authoring act stands between the check and the fixture, so a capture
+    // that forgets everything still carries it.
+    const fixture = fakeFixture({ tag: 'MISSING-CANON-CAPTURE' });
+    for (const id of universalCheckIds) {
+      expect(selectChecksForFixture(fixture).map((c) => c.id)).toContain(id);
+    }
+  });
+
+  it('throws when a fixture authors applicability for a universal check', () => {
+    // The entry would be read by nothing, so an author who wrote
+    // `applies: false` would believe they had opted out and would be wrong.
+    const fixture = fakeFixture({
+      tag: 'SCENE-JUMP',
+      assertion: { mode: 'judged', rubric: 'SCENE-JUMP', facts: {} },
+      applicability: {
+        'tool-syntax-leak': { applies: false, situation: 'test' },
+      },
+    });
+    expect(() => selectChecksForFixture(fixture)).toThrow(
+      /universal check|silently ignored/,
+    );
   });
 
   it('does not double-count a tag check that also authors its own applicability', () => {
@@ -164,6 +192,8 @@ describe('selectChecksForFixture', () => {
     });
     expect(selectChecksForFixture(fixture).map((c) => c.id)).toEqual([
       'out-of-order-resolution',
+      // Universal, appended to every fixture — see `universalCheckIds`.
+      'tool-syntax-leak',
     ]);
   });
 
@@ -186,6 +216,7 @@ describe('selectChecksForFixture', () => {
     expect(selectChecksForFixture(fixture).map((c) => c.id)).toEqual([
       'scene-jump',
       'system-rolled-player-action',
+      'tool-syntax-leak',
     ]);
   });
 

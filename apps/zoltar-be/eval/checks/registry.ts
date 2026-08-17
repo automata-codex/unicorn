@@ -85,6 +85,35 @@ export interface EvalCheck {
    */
   tagIndependent?: boolean;
   /**
+   * Whether this check runs on **every** fixture, with no `applicability`
+   * entry authored or consulted.
+   *
+   * Distinct from `tagIndependent`, and the difference is whether the
+   * check's subject is conditional. A tag-independent check is portable but
+   * still scenario-conditional — `system-rolled-player-action` only means
+   * something where the scenario has the player declare an action, so an
+   * author must say it applies and name the player entity. A universal
+   * check has no precondition to author: every turn has narration, and that
+   * narration either contains tool-call markup or it does not.
+   *
+   * Routing a universal check through `applicability` was the obvious move
+   * and is wrong in three ways. `applicabilityEntrySchema`'s `applies: true`
+   * branch **requires `playerEntity`**, which a check about narration has no
+   * use for and would have to fabricate. `capture-fixture` stubs every
+   * attachable check **fail-closed** (`applies: false`), so a check that
+   * should always run would arrive switched off on every new capture and
+   * stay off until someone remembered. And an `applies: false` entry would
+   * let a single fixture opt out of a correctness check that has no
+   * scenario-shaped reason to be opted out of.
+   *
+   * The cost is that a universal check cannot be scoped to part of the
+   * corpus. That is the intended trade: it is the property that makes the
+   * check meaningful — a leak rate is a claim about every turn, and a
+   * corpus-scoped denominator would understate it exactly where coverage
+   * was never authored.
+   */
+  universal?: boolean;
+  /**
    * Minimum `fixtureSchemaVersion` this check needs. Nothing declares this
    * today — every check works against v1 fixtures — but the field exists so
    * the first schema-dependent check (anticipated: `rollType` /
@@ -203,6 +232,14 @@ const APPLICABILITY_SOURCE: Record<string, EvalCheck['applicabilitySource']> = {
   // the check exists to catch a specific arithmetic error, not to produce a
   // rate.
   'carryover-arithmetic': 'artifact',
+  // Universal, and `'artifact'` rather than `'ungated'` by the same
+  // weakest-link rule `out-of-order-resolution` is declared under: the one
+  // branch that reports `not_applicable` is a turn that produced no
+  // gm_response at all (a `diceResult` without auto-advance). The selection
+  // hazard the label warns about is weak here — that branch means the turn
+  // did not happen, not that the Warden chose something — but declaring
+  // `'ungated'` would assert a `not_applicable` is impossible, and it is not.
+  'tool-syntax-leak': 'artifact',
 };
 
 function applicabilitySourceFor(id: string): EvalCheck['applicabilitySource'] {
@@ -245,6 +282,16 @@ const TAG_INDEPENDENT_CHECK_IDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Check ids that run on every fixture with no `applicability` entry — see
+ * `EvalCheck.universal`.
+ *
+ * One entry today. `tool-syntax-leak` grades whether the narration the
+ * player was shown contains raw tool-call markup, which is a property every
+ * turn has and no scenario can excuse.
+ */
+const UNIVERSAL_CHECK_IDS: ReadonlySet<string> = new Set(['tool-syntax-leak']);
+
+/**
  * Structural pre-filters for judged checks, by check id — see
  * `EvalCheck.judgeGate`. Optional by design: most judged questions have no
  * structural half worth separating out.
@@ -270,6 +317,7 @@ function buildChecks(): Record<string, EvalCheck> {
       mode: 'structural',
       applicabilitySource: applicabilitySourceFor(id),
       tagIndependent: TAG_INDEPENDENT_CHECK_IDS.has(id) || undefined,
+      universal: UNIVERSAL_CHECK_IDS.has(id) || undefined,
       requiresFixtureSchema: REQUIRES_FIXTURE_SCHEMA[id],
     };
   }
@@ -306,6 +354,31 @@ function buildChecks(): Record<string, EvalCheck> {
     }
   }
 
+  for (const id of UNIVERSAL_CHECK_IDS) {
+    if (!checks[id]) {
+      throw new Error(
+        `"${id}" is listed in UNIVERSAL_CHECK_IDS but is not a registered ` +
+          'check — a typo here silently drops the check from every fixture, ' +
+          'which is worse than the hole it was added to close',
+      );
+    }
+    if (checks[id].mode !== 'structural') {
+      throw new Error(
+        `check "${id}" is listed as universal but is a judged check — a ` +
+          'judge call grades against `assertion.facts`, which exists only ' +
+          "for the fixture's own tag, so it cannot run on every fixture",
+      );
+    }
+    if (TAG_INDEPENDENT_CHECK_IDS.has(id)) {
+      throw new Error(
+        `check "${id}" is listed as both universal and tag-independent — ` +
+          'the two are alternatives, not a spectrum: universal attaches to ' +
+          'every fixture unconditionally, tag-independent attaches only ' +
+          'where a fixture authors an applicability entry',
+      );
+    }
+  }
+
   return checks;
 }
 
@@ -332,6 +405,21 @@ export const tagIndependentCheckIds: readonly string[] = Object.values(
   evalChecks,
 )
   .filter((check) => check.tagIndependent)
+  .map((check) => check.id)
+  .sort();
+
+/**
+ * Check ids attached to every fixture unconditionally — see
+ * `EvalCheck.universal`.
+ *
+ * Derived from the built registry for the same reason
+ * `tagIndependentCheckIds` is. Deliberately **not** consumed by
+ * `capture-fixture`: a universal check needs no authored entry, and stubbing
+ * one would invite an author to switch off a check that has no
+ * scenario-shaped reason to be switched off.
+ */
+export const universalCheckIds: readonly string[] = Object.values(evalChecks)
+  .filter((check) => check.universal)
   .map((check) => check.id)
   .sort();
 
@@ -372,6 +460,15 @@ export function selectChecksForFixture(fixture: EvalFixture): EvalCheck[] {
     if (checkId === tagCheck?.id) continue;
 
     const check = evalChecks[checkId];
+    if (check?.universal) {
+      throw new Error(
+        `fixture "${fixture.id}" declares applicability for "${checkId}", ` +
+          'which is a universal check — it runs on every fixture and reads ' +
+          'no applicability entry, so this entry would be silently ignored. ' +
+          'Delete it; a universal check has no scenario precondition to ' +
+          'author and cannot be opted out of per-fixture',
+      );
+    }
     if (!check) {
       throw new Error(
         `fixture "${fixture.id}" declares applicability for "${checkId}", ` +
@@ -390,6 +487,11 @@ export function selectChecksForFixture(fixture: EvalFixture): EvalCheck[] {
       );
     }
     selected.push(check);
+  }
+
+  for (const id of [...universalCheckIds].sort()) {
+    if (id === tagCheck?.id) continue;
+    selected.push(evalChecks[id]);
   }
 
   return selected;

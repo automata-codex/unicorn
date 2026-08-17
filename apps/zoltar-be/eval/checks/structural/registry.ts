@@ -2,6 +2,7 @@ import { checkCarryoverArithmetic } from './carryover-arithmetic';
 import { checkMissingCanonCapture } from './missing-canon-capture';
 import { checkOutOfOrderResolution } from './out-of-order-resolution';
 import { checkSystemRolledPlayerAction } from './system-rolled-player-action';
+import { checkToolSyntaxLeak } from './tool-syntax-leak';
 
 import type {
   EvalFixture,
@@ -31,4 +32,7 @@ export const structuralCheckers: Record<
     checkMissingCanonCapture(result, fixture),
   'CARRYOVER-ARITHMETIC': (result, fixture) =>
     checkCarryoverArithmetic(result, fixture),
+  // Takes no fixture: its subject is the narration alone, which is what
+  // makes it universal rather than tag-independent.
+  'TOOL-SYNTAX-LEAK': (result) => checkToolSyntaxLeak(result),
 };

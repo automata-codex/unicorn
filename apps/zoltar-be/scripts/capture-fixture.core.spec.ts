@@ -4,6 +4,7 @@ import {
   evalChecks,
   selectChecksForFixture,
   tagIndependentCheckIds,
+  universalCheckIds,
 } from '../eval/checks/registry';
 import { evalFixtureSchema } from '../eval/fixture.schema';
 
@@ -101,7 +102,22 @@ describe('placeholderApplicability', () => {
     expect(selectChecksForFixture(fixture).map((c) => c.id)).toEqual([
       'scene-jump',
       ...tagIndependentCheckIds,
+      // Universal checks attach with no stub — deliberately absent from
+      // `placeholderApplicability`, since a fail-closed stub would let a
+      // capture switch off a check with no scenario reason to be off.
+      ...universalCheckIds,
     ]);
+  });
+});
+
+describe('placeholderApplicability and universal checks', () => {
+  it('stubs no entry for a universal check', () => {
+    // A stub would be read by nothing and would invite an author to set
+    // `applies: false` believing it opted the check out.
+    const stub = placeholderApplicability('SCENE-JUMP');
+    for (const id of universalCheckIds) {
+      expect(stub).not.toHaveProperty(id);
+    }
   });
 });
 
