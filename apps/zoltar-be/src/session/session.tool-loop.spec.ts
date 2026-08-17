@@ -805,4 +805,83 @@ describe('SessionService.runInnerToolLoop', () => {
     );
     expect(callSession).toHaveBeenCalledTimes(INNER_TOOL_LOOP_CAP);
   });
+
+  // A payload that serialized its own parameters into `playerText` is
+  // schema-valid — `playerText` is the only required field — so before this
+  // guard it terminated the loop, shipped the markup to the player, and
+  // dropped every state change without a log line.
+  const LEAKED_PAYLOAD = {
+    playerText:
+      'The lever refuses to move.</playerText>\n' +
+      '<parameter name="stateChanges">{"resourcePools":[{"owner":"dr_kennedy","pool":"hp","delta":-12}]}</parameter>',
+  };
+
+  it('rejects a leaked payload and recovers on the retry', async () => {
+    callSession
+      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(
+        message([submitGmBlock({ playerText: 'The lever refuses to move.' })]),
+      );
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(result.iterations).toBe(2);
+    expect(result.finalParsed.playerText).toBe('The lever refuses to move.');
+  });
+
+  it('tells Claude to resend the parameters as parameters', async () => {
+    callSession
+      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(
+        message([submitGmBlock({ playerText: 'The lever holds.' })]),
+      );
+    const { service } = makeService(callSession);
+
+    await service.runInnerToolLoop(loopArgs);
+
+    const secondCall = callSession.mock.calls[1][0] as CallSessionParams;
+    const toolResult = (
+      secondCall.messages[secondCall.messages.length - 1] as {
+        content: Anthropic.ContentBlockParam[];
+      }
+    ).content[0] as Anthropic.ToolResultBlockParam;
+    expect(toolResult.is_error).toBe(true);
+    expect(toolResult.content).toMatch(/raw tool-call syntax/);
+    expect(toolResult.content).toMatch(/separate tool parameters/);
+  });
+
+  it('fails loud rather than silently when the leak never clears', async () => {
+    callSession.mockResolvedValue(message([submitGmBlock(LEAKED_PAYLOAD)]));
+    const { service } = makeService(callSession);
+
+    await expect(service.runInnerToolLoop(loopArgs)).rejects.toBeInstanceOf(
+      SessionToolLoopError,
+    );
+    expect(callSession).toHaveBeenCalledTimes(INNER_TOOL_LOOP_CAP);
+  });
+
+  it('distinguishes a tool-syntax leak from a schema failure in the exhaustion summary', async () => {
+    callSession.mockResolvedValue(message([submitGmBlock(LEAKED_PAYLOAD)]));
+    const { service } = makeService(callSession);
+
+    await expect(service.runInnerToolLoop(loopArgs)).rejects.toThrow(
+      /submit_gm_response\(invalid: playerText:tool-syntax\)/,
+    );
+  });
+
+  it('does not trip on narration that merely contains an angle bracket', async () => {
+    callSession.mockResolvedValueOnce(
+      message([
+        submitGmBlock({
+          playerText: 'Her pulse is < 40. The stencil reads <MANUAL OVERRIDE>.',
+        }),
+      ]),
+    );
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(result.iterations).toBe(1);
+  });
 });

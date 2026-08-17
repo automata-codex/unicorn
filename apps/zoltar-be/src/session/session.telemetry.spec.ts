@@ -88,6 +88,7 @@ describe('buildAdventureTelemetryPayload', () => {
         'notes',
         'originalRequest',
         'originalResponse',
+        'originalResponseShape',
         'playerMessage',
         'rulesLookups',
         'snapshotSent',
@@ -369,5 +370,93 @@ describe('buildAdventureTelemetryPayload', () => {
       wardenPrompt: stubWardenPrompt,
     });
     expect(payload.rulesLookups).toEqual([]);
+  });
+});
+
+describe('buildAdventureTelemetryPayload — response shape', () => {
+  // The parsed payload cannot distinguish "Claude returned a clean tool_use
+  // block" from "Claude returned prose" from "the tool call stopped early".
+  // Recording the envelope is what makes a bad turn diagnosable from the
+  // archive instead of only from a live repro.
+  const toolUseBlock = {
+    type: 'tool_use',
+    id: 'toolu_1',
+    name: 'submit_gm_response',
+    input: {},
+  } as unknown as Anthropic.ContentBlock;
+  const textBlock = {
+    type: 'text',
+    text: 'thinking out loud',
+  } as unknown as Anthropic.ContentBlock;
+
+  it('records stop_reason, block types in wire order, and tool names', () => {
+    const payload = buildAdventureTelemetryPayload({
+      playerMessage: 'Open the hatch.',
+      snapshotSent: '<state_snapshot/>',
+      originalRequest: stubRequest(),
+      originalResponse: stubResponse({
+        stop_reason: 'tool_use',
+        content: [textBlock, toolUseBlock],
+      }),
+      originalParsed: stubParsed(),
+      applied: emptyApplied,
+      thresholds: [],
+      wardenPrompt: { filename: 'mothership-m7.txt', hash: 'ccac7d1c' },
+    });
+
+    expect(payload.originalResponseShape).toEqual({
+      stopReason: 'tool_use',
+      contentBlockTypes: ['text', 'tool_use'],
+      toolNames: ['submit_gm_response'],
+    });
+  });
+
+  it('normalizes a missing stop_reason to null rather than dropping the field', () => {
+    const payload = buildAdventureTelemetryPayload({
+      playerMessage: 'Wait.',
+      snapshotSent: '<state_snapshot/>',
+      originalRequest: stubRequest(),
+      originalResponse: stubResponse({
+        stop_reason: null,
+        content: [toolUseBlock],
+      }),
+      originalParsed: stubParsed(),
+      applied: emptyApplied,
+      thresholds: [],
+      wardenPrompt: { filename: 'mothership-m7.txt', hash: 'ccac7d1c' },
+    });
+
+    expect(payload.originalResponseShape?.stopReason).toBeNull();
+  });
+
+  it('records the correction round separately from the original', () => {
+    const payload = buildAdventureTelemetryPayload({
+      playerMessage: 'Shoot.',
+      snapshotSent: '<state_snapshot/>',
+      originalRequest: stubRequest(),
+      originalResponse: stubResponse({
+        stop_reason: 'tool_use',
+        content: [toolUseBlock],
+      }),
+      originalParsed: stubParsed(),
+      correction: {
+        rejections: [],
+        response: stubResponse({
+          stop_reason: 'max_tokens',
+          content: [textBlock],
+        }),
+        parsed: stubParsed(),
+      },
+      applied: emptyApplied,
+      thresholds: [],
+      wardenPrompt: { filename: 'mothership-m7.txt', hash: 'ccac7d1c' },
+    });
+
+    expect(payload.originalResponseShape?.stopReason).toBe('tool_use');
+    expect(payload.correction?.correctionResponseShape).toEqual({
+      stopReason: 'max_tokens',
+      contentBlockTypes: ['text'],
+      toolNames: [],
+    });
   });
 });

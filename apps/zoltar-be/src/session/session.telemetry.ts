@@ -77,6 +77,39 @@ export interface WardenPromptRef {
 }
 
 /**
+ * The raw Anthropic response envelope, recorded alongside the parsed payload.
+ *
+ * Without this, a turn that went wrong cannot be diagnosed from the archive
+ * at all: the parsed `SubmitGmResponse` looks identical whether Claude
+ * returned a clean `tool_use` block, returned prose we mishandled, or
+ * returned a tool call that stopped early. The 2026-08-16 playtest
+ * investigation had to infer the answer indirectly because these three
+ * fields were the ones not being kept.
+ *
+ * Deliberately shape-only — block *types* and tool *names*, never block
+ * content. The parsed payload already carries the content, and duplicating
+ * it would multiply payload size for nothing.
+ */
+export interface ResponseShapeRecord {
+  /** `end_turn`, `tool_use`, `max_tokens`, `stop_sequence`, … */
+  stopReason: string | null;
+  /** Content-block types in wire order, e.g. `['text', 'tool_use']`. */
+  contentBlockTypes: string[];
+  /** Names on `tool_use` blocks, in wire order. */
+  toolNames: string[];
+}
+
+function buildResponseShape(response: Anthropic.Message): ResponseShapeRecord {
+  return {
+    stopReason: response.stop_reason ?? null,
+    contentBlockTypes: response.content.map((b) => b.type),
+    toolNames: response.content
+      .filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
+      .map((b) => b.name),
+  };
+}
+
+/**
  * One row per turn in `adventure_telemetry`, keyed to the `gm_response`
  * event's sequence number. Captures everything playtest review (M7.1) needs
  * to replay a turn: the prompt the snapshot carried, the Claude request/
@@ -108,6 +141,12 @@ export interface AdventureTelemetryPayload {
     completionTokens: number | null;
   };
   originalResponse: SubmitGmResponse;
+  /**
+   * Optional only because rows written before this field existed do not
+   * carry it — every new row does. Readers must tolerate its absence on
+   * historical turns rather than assume it.
+   */
+  originalResponseShape?: ResponseShapeRecord;
   notes: {
     original: string | null;
     correction: string | null;
@@ -119,6 +158,8 @@ export interface AdventureTelemetryPayload {
       completionTokens: number | null;
     };
     correctionResponse: SubmitGmResponse;
+    /** Absent on rows predating `originalResponseShape`; see above. */
+    correctionResponseShape?: ResponseShapeRecord;
   };
   applied: ValidationResult['applied'];
   thresholds: ThresholdCrossing[];
@@ -178,6 +219,7 @@ export function buildAdventureTelemetryPayload(input: {
       completionTokens: originalUsage?.output_tokens ?? null,
     },
     originalResponse: input.originalParsed,
+    originalResponseShape: buildResponseShape(input.originalResponse),
     notes: {
       original: input.originalParsed.gmUpdates?.notes ?? null,
       correction: input.correction?.parsed.gmUpdates?.notes ?? null,
@@ -199,6 +241,7 @@ export function buildAdventureTelemetryPayload(input: {
         completionTokens: correctionUsage?.output_tokens ?? null,
       },
       correctionResponse: input.correction.parsed,
+      correctionResponseShape: buildResponseShape(input.correction.response),
     };
   }
 

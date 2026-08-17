@@ -117,3 +117,31 @@ fails for the right reason, and a checker that fails weak output for the wrong r
 identical from here. That gap is exactly what M7.8 closes and why the arm is transitional rather than
 permanent. The arm also says nothing about the judge, which is probabilistic by construction and
 characterised through `eval:judge-variance` against frozen input, not through a second generator.
+
+**Addendum — a Sonnet 5 behavioural regression this entry did not measure, and the reason the
+`max_tokens` instruction above was unfollowable.** Recorded 2026-08-17; see `ADR-0097` for the
+defect and the guard.
+
+Sonnet 5 intermittently terminates the `playerText` parameter with a fabricated closing tag and
+serializes the remaining parameters as text inside it, producing a schema-valid `submit_gm_response`
+that silently discards every state change. Across every eval run on disk the split is clean and
+tracks the model rather than the prompt: **4.6 leaked 0 of 245 outputs, Sonnet 5 48 of 916 (~5%)**,
+spanning all four prompt hashes since the earliest Sonnet 5 run on 2026-07-29. Prompt `0bdd1306`
+gives a same-fixture head-to-head at 0/106 against 12/150. Under a 5% rate, 0-of-245 has probability
+~2×10⁻⁶.
+
+This does not reopen the upgrade. Every gain in the tables above is real and none of it is an
+artifact of the defect — the leak suppresses `stateChanges`, and the structural checks that carried
+the largest gains read event structure that a leaked turn simply does not produce, so its effect on
+those rates is to *withhold* observations rather than to inflate them. It is recorded here because
+this is the entry that decided the model, the defect is a property of that model, and it went
+unnoticed through four baselines including M7.6's.
+
+**It also went unnoticed for a reason this entry is directly responsible for.** The closing paragraph
+above asks a reader to "watch for `stop_reason: 'max_tokens'` on long combat turns." That instruction
+was unfollowable from the day it was written: `adventure_telemetry` recorded only the *parsed*
+`SubmitGmResponse`, never the response envelope, so `stop_reason` existed nowhere in the archive.
+The M7.7 investigation could not settle whether the API had returned a malformed tool call or a text
+block from stored data at all, and had to answer it indirectly. `stop_reason`, content-block types
+and tool names are now recorded per turn for both the original and correction rounds. Watch
+instructions that name a field the telemetry does not keep are not watch instructions.

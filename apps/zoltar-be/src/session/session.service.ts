@@ -24,6 +24,11 @@ import {
   submitGmResponseSchema,
 } from './session.schema';
 import { buildStateSnapshot } from './session.snapshot';
+import {
+  describeToolCallSyntax,
+  detectToolCallSyntax,
+  toolCallSyntaxRetryInstruction,
+} from './session.tool-syntax';
 import { SESSION_TOOLS } from './session.tools';
 import { validateStateChanges } from './session.validator';
 import { buildMessageWindow } from './session.window';
@@ -706,6 +711,16 @@ export class SessionService {
         `submit_gm_response failed validation for adventure=${adventureId}: ${parsed.error.message}`,
       );
     }
+    // Schema-valid is not the same as well-formed — see the leak check in
+    // `runInnerToolLoop`. The correction pass is single-shot by design
+    // (docs/turn-path.md), so there is nowhere to retry to: fail loud rather
+    // than apply a response whose state changes were serialized into prose.
+    const leaked = detectToolCallSyntax(parsed.data);
+    if (leaked) {
+      throw new SessionOutputError(
+        `submit_gm_response leaked tool-call syntax for adventure=${adventureId}: ${describeToolCallSyntax(leaked)}`,
+      );
+    }
     return { response, parsed: parsed.data };
   }
 
@@ -770,30 +785,49 @@ export class SessionService {
       );
       let submitGmError: string | undefined;
       let submitGmErrorPaths: string | undefined;
+      let submitGmRetryInstruction: string | undefined;
       if (submitGmCall) {
         const parsed = submitGmResponseSchema.safeParse(submitGmCall.input);
         if (parsed.success) {
-          return {
-            finalRequest: request,
-            finalResponse: response,
-            finalParsed: parsed.data,
-            executedRolls,
-            rulesLookups,
-            iterations: iteration + 1,
-          };
+          // Schema-valid is not the same as well-formed. `playerText` is the
+          // only required field, so a response that serialized its remaining
+          // parameters into the narration validates perfectly and then loses
+          // every state change it computed — silently, which is how the
+          // 2026-08-16 playtest lost 39 of 58 turns. Reject it before the
+          // markup reaches the player, and retry through the same machinery
+          // a malformed payload already uses.
+          const leaked = detectToolCallSyntax(parsed.data);
+          if (!leaked) {
+            return {
+              finalRequest: request,
+              finalResponse: response,
+              finalParsed: parsed.data,
+              executedRolls,
+              rulesLookups,
+              iterations: iteration + 1,
+            };
+          }
+          submitGmError = describeToolCallSyntax(leaked);
+          submitGmErrorPaths = `${leaked.field}:tool-syntax`;
+          submitGmRetryInstruction = toolCallSyntaxRetryInstruction(leaked);
+          // error, not warn: this is data loss that used to be invisible.
+          this.logger.error(
+            `submit_gm_response leaked tool-call syntax for adventure=${args.adventureId}, retrying: ${submitGmError}`,
+          );
+        } else {
+          // Malformed payload — e.g. gmUpdates sent as a string instead of an
+          // object, which tends to happen right after a dice roll. Treat it
+          // like any other malformed tool call below and retry, bounded by
+          // the same INNER_TOOL_LOOP_CAP as every other iteration, rather
+          // than failing the whole turn on the first bad response.
+          submitGmError = parsed.error.message;
+          submitGmErrorPaths = parsed.error.issues
+            .map((i) => i.path.join('.') || '(root)')
+            .join(',');
+          this.logger.warn(
+            `submit_gm_response failed schema validation for adventure=${args.adventureId}, retrying: ${submitGmError}`,
+          );
         }
-        // Malformed payload — e.g. gmUpdates sent as a string instead of an
-        // object, which tends to happen right after a dice roll. Treat it
-        // like any other malformed tool call below and retry, bounded by
-        // the same INNER_TOOL_LOOP_CAP as every other iteration, rather
-        // than failing the whole turn on the first bad response.
-        submitGmError = parsed.error.message;
-        submitGmErrorPaths = parsed.error.issues
-          .map((i) => i.path.join('.') || '(root)')
-          .join(',');
-        this.logger.warn(
-          `submit_gm_response failed schema validation for adventure=${args.adventureId}, retrying: ${submitGmError}`,
-        );
       }
 
       if (toolUses.length === 0) {
@@ -833,7 +867,9 @@ export class SessionService {
             type: 'tool_result',
             tool_use_id: use.id,
             is_error: true,
-            content: `Invalid submit_gm_response input: ${submitGmError}. Call submit_gm_response again with a valid payload matching the tool schema.`,
+            content:
+              submitGmRetryInstruction ??
+              `Invalid submit_gm_response input: ${submitGmError}. Call submit_gm_response again with a valid payload matching the tool schema.`,
           });
           continue;
         }
