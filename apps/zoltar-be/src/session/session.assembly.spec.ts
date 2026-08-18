@@ -1,0 +1,139 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+import {
+  ASSEMBLY_GOLDEN_DIR,
+  ASSEMBLY_GOLDEN_FILES,
+  ASSEMBLY_PROBE,
+  computeAssemblyHash,
+  renderAssemblySurfaces,
+  serializeAssemblySurfaces,
+} from './session.assembly';
+
+import type { AssemblySurfaces } from './session.assembly';
+
+/**
+ * Set `UPDATE_ASSEMBLY_GOLDENS=1` to rewrite the goldens from the current
+ * render:
+ *
+ *     UPDATE_ASSEMBLY_GOLDENS=1 npx vitest run src/session/session.assembly.spec.ts
+ *
+ * Deliberately an env var rather than something the suite does on its own.
+ * A golden that self-heals asserts nothing — the point is that changing what
+ * the Warden sees costs one explicit step and lands in review as a diff of
+ * the text itself.
+ */
+const UPDATE = process.env.UPDATE_ASSEMBLY_GOLDENS === '1';
+
+const surfaces = renderAssemblySurfaces();
+
+describe('assembly goldens', () => {
+  for (const [key, filename] of Object.entries(ASSEMBLY_GOLDEN_FILES)) {
+    it(`${filename} matches what the code renders today`, () => {
+      const rendered = surfaces[key as keyof AssemblySurfaces];
+      const path = join(ASSEMBLY_GOLDEN_DIR, filename);
+
+      if (UPDATE) {
+        writeFileSync(path, rendered);
+        return;
+      }
+
+      // Byte-for-byte: `renderAssemblySurfaces` already normalizes the
+      // trailing newline, so there is nothing to trim on either side.
+      expect(rendered).toBe(readFileSync(path, 'utf8'));
+    });
+  }
+});
+
+describe('the probe exercises every section', () => {
+  // A section the probe never populates is a section whose shape the hash
+  // cannot see, so these assertions are load-bearing rather than decorative:
+  // they fail when a formatter gains a block the probe doesn't reach.
+  it.each([
+    ['<narrative>'],
+    ['<entities>'],
+    ['<flags>'],
+  ])('gm context renders %s', (tag) => {
+    expect(surfaces.gmContext).toContain(tag);
+  });
+
+  it.each([
+    ['<resource_pools>'],
+    ['<character_attributes>'],
+    ['<entities>'],
+    ['<flags>'],
+    ['<scenario_state>'],
+    ['<world_facts>'],
+  ])('state snapshot renders %s', (tag) => {
+    expect(surfaces.stateSnapshot).toContain(tag);
+  });
+
+  it('withholds openingNarration from the gm context', () => {
+    // The probe supplies it precisely so its absence is asserted; a change
+    // that started emitting it would move the hash, which is the point.
+    expect(ASSEMBLY_PROBE.gmContextBlob.openingNarration).toBeTruthy();
+    expect(surfaces.gmContext).not.toContain(
+      ASSEMBLY_PROBE.gmContextBlob.openingNarration as string,
+    );
+  });
+
+  it('withholds an invisible entity from the snapshot entities block', () => {
+    // probe_threat is `visible: false` — spatial secrets are structurally
+    // absent from the snapshot rather than withheld behaviourally.
+    expect(surfaces.gmContext).toContain('probe_threat');
+
+    const entitiesBlock = surfaces.stateSnapshot.match(
+      /<entities>[\s\S]*?<\/entities>/,
+    )?.[0];
+    expect(entitiesBlock).toBeDefined();
+    expect(entitiesBlock).not.toContain('probe_threat');
+
+    // Scoped to the entities block on purpose, not asserted over the whole
+    // snapshot: the probe's `frightened` condition names probe_threat as its
+    // parameter, so the id *does* reach the snapshot by that route. That is
+    // a real property of the current renderers rather than a flaw in this
+    // test — worth knowing, and out of scope to change here.
+    expect(surfaces.stateSnapshot).toContain('frightened (probe_threat)');
+  });
+
+  it('describes every top-level submit_gm_response property', () => {
+    // The gap this whole mechanism was built after: `stateChanges` carried
+    // fourteen nested descriptions while the five properties above it
+    // carried none, and nothing was looking at the assembled tool schema.
+    const tools = JSON.parse(surfaces.tools) as {
+      name: string;
+      input_schema: { properties: Record<string, { description?: string }> };
+    }[];
+    const submit = tools.find((t) => t.name === 'submit_gm_response');
+    expect(submit).toBeDefined();
+    for (const [name, prop] of Object.entries(
+      submit?.input_schema.properties ?? {},
+    )) {
+      expect(prop.description, `${name} has no description`).toBeTruthy();
+    }
+  });
+});
+
+describe('computeAssemblyHash', () => {
+  it('is stable across calls', () => {
+    expect(computeAssemblyHash()).toBe(computeAssemblyHash());
+  });
+
+  it('is 8 hex chars, matching the promptHash convention', () => {
+    expect(computeAssemblyHash()).toMatch(/^[0-9a-f]{8}$/);
+  });
+
+  it('moves when any one surface changes', () => {
+    // Labelled joins are why: without them, text moving between two
+    // surfaces would cancel out and the hash would miss the change.
+    const base = serializeAssemblySurfaces(surfaces);
+    for (const key of Object.keys(ASSEMBLY_GOLDEN_FILES)) {
+      const mutated = serializeAssemblySurfaces({
+        ...surfaces,
+        [key]: `${surfaces[key as keyof AssemblySurfaces]}changed`,
+      });
+      expect(mutated, `${key} did not affect the serialization`).not.toBe(base);
+    }
+  });
+});

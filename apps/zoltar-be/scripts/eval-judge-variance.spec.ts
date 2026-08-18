@@ -101,6 +101,7 @@ async function buildFabricatedRun(evalRoot: string): Promise<string> {
     promptText: 'prompt',
     temperature: 1.0,
     corpusVersion: 'abc',
+    assemblyHash: 'a55e3b19',
     plannedReps: 1,
     createdAt: new Date('2026-07-26T14:32:10.000Z'),
   });

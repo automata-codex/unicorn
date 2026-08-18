@@ -176,7 +176,18 @@ export type CharacterStateChange = z.infer<typeof characterStateChangeSchema>;
  * to state — M6 owns validation and write).
  */
 export const submitGmResponseSchema = z.object({
-  playerText: z.string(),
+  playerText: z
+    .string()
+    .describe(
+      'The narration the player reads this turn, and nothing else: prose, ' +
+        'ending where the narration ends. Never write a closing tag, a ' +
+        'parameter tag, or any other tool-call markup inside this string — ' +
+        'that markup is how a call is transmitted, not something you author, ' +
+        'and a turn that appends it here loses everything after the ' +
+        'narration. Every other part of the response — state changes, ' +
+        'private notes, dice the player must roll — is a sibling parameter ' +
+        'on this tool, sent alongside this one rather than written into it.',
+    ),
 
   stateChanges: z
     .object({
@@ -230,6 +241,14 @@ export const submitGmResponseSchema = z.object({
 
       worldFacts: z.record(z.string(), z.string()).optional(),
     })
+    .describe(
+      'Everything this turn changed about the world, as a proposal the ' +
+        'backend validates before applying: pool deltas, character state, ' +
+        'entity visibility and status, flags, scenario counters, world ' +
+        'facts. Send it on any turn that moved state, however small the ' +
+        'move; omit it entirely on a turn that moved none. A change ' +
+        'described only in the narration is a change that did not happen.',
+    )
     .optional(),
 
   gmUpdates: z
@@ -245,6 +264,12 @@ export const submitGmResponseSchema = z.object({
         )
         .optional(),
     })
+    .describe(
+      "Warden-private updates the player never sees: how an NPC's agenda " +
+        'shifted, notes for the reviewer reading this turn later, and canon ' +
+        'proposals. Use notes for a ruling you are unsure about or a gap you ' +
+        'had to work around — it is the only channel that reaches a human.',
+    )
     .optional(),
 
   // Player-facing dice prompts. Backend assigns IDs on receipt.
@@ -256,9 +281,24 @@ export const submitGmResponseSchema = z.object({
         target: z.number().int().nullable().optional(),
       }),
     )
+    .describe(
+      'Rolls the player makes themselves, one entry per roll, issued when ' +
+        'their own declared action needs resolving. The backend assigns ids ' +
+        'and the results arrive on a later turn. For a roll the world makes ' +
+        'rather than the player, call roll_dice instead and narrate the ' +
+        'result you get back.',
+    )
     .optional(),
 
-  adventureMode: z.enum(['freeform', 'initiative']).nullable().optional(),
+  adventureMode: z
+    .enum(['freeform', 'initiative'])
+    .nullable()
+    .optional()
+    .describe(
+      'The turn structure the adventure is running under. Send it only on a ' +
+        'turn that actually changes the structure — combat starting or ' +
+        'ending. Omit it on every other turn; it is not a field to restate.',
+    ),
 });
 
 export type SubmitGmResponse = z.infer<typeof submitGmResponseSchema>;

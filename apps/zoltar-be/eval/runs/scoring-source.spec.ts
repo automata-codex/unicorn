@@ -62,6 +62,7 @@ describe('scoring-source', () => {
       promptHash: 'ab12cd34',
       temperature: 1,
       corpusVersion: 'abc',
+      assemblyHash: 'a55e3b19',
       createdAt: CREATED_AT,
       plannedReps: 1,
       promptText: 'you are the warden',

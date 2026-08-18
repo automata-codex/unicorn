@@ -210,6 +210,7 @@ function renderRunHeader(label: string, side: CompareSideInput): string[] {
   lines.push(`- Prompt hash: ${manifest.promptHash}`);
   lines.push(`- Temperature: ${manifest.temperature}`);
   lines.push(`- Corpus version: ${shortCorpusVersion(manifest.corpusVersion)}`);
+  lines.push(`- Assembly hash: ${manifest.assemblyHash ?? '(not recorded)'}`);
   lines.push(`- Decision rule: ${manifest.decisionRule ?? '(none recorded)'}`);
   lines.push(...renderScoringProvenance(side.scoring));
   lines.push('');
@@ -260,6 +261,48 @@ function scoringMismatchWarnings(
 }
 
 /**
+ * Warns when the two sides saw a different **code-built** prompt surface —
+ * the tool definitions, the GM context block, or the state snapshot
+ * (`src/session/session.assembly.ts`).
+ *
+ * `promptHash` does not cover any of those: it hashes `mothership-m7.txt`
+ * and nothing else, so a rewritten tool description or an added snapshot
+ * section leaves it untouched while changing what the Warden reads. Neither
+ * does `corpusVersion`, which hashes fixture bytes. Without this check the
+ * two runs pair cleanly on every field the report prints and the difference
+ * shows up only in the rates, attributed to the model.
+ *
+ * A missing hash on either side is reported separately and never as a
+ * match: runs predating the field carry no assembly identity at all, and
+ * "unknown" quietly rendered as "same" is the failure this exists to stop.
+ */
+function assemblyMismatchWarnings(a: Manifest, b: Manifest): string[] {
+  if (a.assemblyHash === undefined || b.assemblyHash === undefined) {
+    const missing =
+      a.assemblyHash === undefined && b.assemblyHash === undefined
+        ? 'Neither run records'
+        : `Run ${a.assemblyHash === undefined ? 'A' : 'B'} does not record`;
+    return [
+      `${missing} an assemblyHash — that run predates the field, so whether ` +
+        'the two sides saw the same tool definitions, GM context and state ' +
+        'snapshot is unknown rather than confirmed. Check it by hand before ' +
+        'reading any Δ as a model effect.',
+    ];
+  }
+  if (a.assemblyHash !== b.assemblyHash) {
+    return [
+      `Assembly hashes differ between run A and run B (${a.assemblyHash} vs ` +
+        `${b.assemblyHash}) — the tool definitions, GM context block or ` +
+        'state snapshot changed between them, so the Warden was reading a ' +
+        'different prompt on each side. `promptHash` does not cover those ' +
+        'surfaces and will look identical; this comparison is not ' +
+        'like-for-like.',
+    ];
+  }
+  return [];
+}
+
+/**
  * Renders a paired comparison as markdown. `pairs` is expected already
  * ordered by `orderForDisplay` (regressions first) — this function doesn't
  * re-sort, so the caller's ordering choice is exactly what's rendered.
@@ -294,6 +337,7 @@ export function renderCompareReport(
         'this comparison mixes prompt/model effect with fixture-corpus differences.',
     );
   }
+  warnings.push(...assemblyMismatchWarnings(a.manifest, b.manifest));
   for (const p of findApplicabilitySourceMismatches(pairs)) {
     warnings.push(
       `Check \`${p.checkId}\` (fixture ${p.fixtureId}) gates applicability on ` +

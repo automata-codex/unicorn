@@ -30,6 +30,7 @@ import {
   wardenRequestPath,
 } from '../eval/runs/paths';
 import { ScoreWriter } from '../eval/runs/scores';
+import { computeAssemblyHash } from '../src/session/session.assembly';
 import { hashPromptText, promptsDir } from '../src/wardens/prompt-paths';
 
 import { getHarnessVersion } from './harness-version';
@@ -205,6 +206,7 @@ export async function runEval(
   // each row carries the corpus as it stood for *that* rep, since reps may
   // be appended weeks apart against a changed fixture corpus.
   const corpusVersion = await computeCorpusVersion(args.fixturesDir);
+  const assemblyHash = computeAssemblyHash();
 
   let runDir: string;
   if (args.runDir) {
@@ -214,6 +216,7 @@ export async function runEval(
       model: args.model,
       promptHash: prompt.hash,
       temperature: args.temperature,
+      assemblyHash,
     });
   } else {
     runDir = createRunDirectory({
@@ -223,6 +226,7 @@ export async function runEval(
       promptText: prompt.text,
       temperature: args.temperature,
       corpusVersion,
+      assemblyHash,
       plannedReps: args.reps,
       decisionRule: args.decisionRule,
       createdAt: deps.clock(),

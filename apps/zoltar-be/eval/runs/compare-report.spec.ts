@@ -36,6 +36,7 @@ function baseManifest(overrides: Partial<Manifest> = {}): Manifest {
     promptHash: 'aaaaaaaa',
     temperature: 1,
     corpusVersion: 'deadbeef'.repeat(8),
+    assemblyHash: '0bb41002',
     createdAt: '2026-07-26T14:32:10.000Z',
     plannedReps: 10,
     completedReps: [],
@@ -98,6 +99,31 @@ describe('renderCompareReport', () => {
     expect(report).toContain('Corpus versions differ between run A and run B');
     expect(report).toContain('aaaaaaaaaaaa'); // shortCorpusVersion(A)
     expect(report).toContain('bbbbbbbbbbbb'); // shortCorpusVersion(B)
+  });
+
+  it('warns when the two sides have different assemblyHash', () => {
+    // promptHash is identical on both sides here on purpose: that is exactly
+    // the case this warning exists for, since promptHash covers only the
+    // prompt file and cannot see a tool or formatter change.
+    const report = renderCompareReport(
+      side(baseManifest({ assemblyHash: '0bb41002' })),
+      side(baseManifest({ assemblyHash: 'ffffffff' })),
+      [],
+    );
+    expect(report).toContain('Assembly hashes differ');
+    expect(report).toContain('0bb41002');
+    expect(report).toContain('ffffffff');
+  });
+
+  it('reports a missing assemblyHash as unknown rather than matching', () => {
+    const { assemblyHash: _omitted, ...withoutHash } = baseManifest({});
+    const report = renderCompareReport(
+      side(withoutHash),
+      side(baseManifest({ assemblyHash: '0bb41002' })),
+      [],
+    );
+    expect(report).toContain('does not record');
+    expect(report).not.toContain('Assembly hashes differ');
   });
 
   it('does not warn when both sides share the same corpusVersion', () => {

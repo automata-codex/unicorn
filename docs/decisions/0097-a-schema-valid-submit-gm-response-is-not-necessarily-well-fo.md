@@ -57,3 +57,23 @@ The guard is unchanged and stays. Prompt work reduces a rate; it does not make a
 On the eval side, `TOOL-SYNTAX-LEAK` is registered as a **universal** check rather than the tag-independent one anticipated when this work was scoped: `applicability`'s `applies: true` branch requires a `playerEntity` the check has no use for, and `capture-fixture`'s fail-closed stub would ship it switched off on every new capture. See `ADR-0098`. The check imports this entry's detector rather than restating its token set.
 
 **The number to expect.** Re-scoring the frozen `ccac7d1c` baseline would put `TOOL-SYNTAX-LEAK` at 4 failures in 150 (~2.7%) — the four occurrences already identified in that run's artifacts, every one of which the existing checks scored `pass` or `not_applicable`. That is the pre-mitigation figure for the tag, available without a Warden run, though not without judge spend: `eval:rescore` re-grades every check on every row, judged ones included.
+
+**Addendum 2 — the prompt block did not work and has been removed; the mitigation moved to the tool schema.** Recorded 2026-08-18. Supersedes the paragraph in Addendum 1 describing the `WHAT GOES IN playerText` block and the `d8791e8d` prompt hash.
+
+The block shipped on 2026-08-17 and did not reduce the emission rate. It is deleted, and `mothership-m7.txt` is back to **`ccac7d1c`** byte-for-byte — the same prompt the last baseline ran, which makes the tool schema the only Warden-visible change going into the next run.
+
+**Adding a fourth statement to the prompt would have been volume, not signal.** `mothership-m7.txt` is ~19 KB and already forbade this in three places; stacking emphasis is the pattern that produces over-application rather than compliance. What the investigation had not checked was whether the model was being told anything *at the point where it generates the parameter* — and it was not. Dumping the generated `input_schema` showed all five top-level properties of `submit_gm_response` carrying **no description at all**:
+
+```
+playerText       *** NO DESCRIPTION ***
+stateChanges     *** NO DESCRIPTION ***
+gmUpdates        *** NO DESCRIPTION ***
+diceRequests     *** NO DESCRIPTION ***
+adventureMode    *** NO DESCRIPTION ***
+```
+
+All fourteen descriptions in the 6.4 KB schema were nested under `stateChanges` — the `resourcePools` and `characterState` fields M7.6 added. The model's entire view of the field it was leaking into was `"playerText": { "type": "string" }`. That is a gap, not a volume problem, which is why the same instruction is expected to behave differently here than it did in the prompt.
+
+The five properties now carry descriptions (via `.describe()` in `session.schema.ts`, which `zodToJsonSchema` carries into the tool definition; schema 6,402 → 8,126 bytes, 14 → 19 descriptions). **The boundary statement appears once**, in `playerText`'s own description, rather than repeated on all five — four copies of one prohibition is the repetition-as-reinforcement pattern that the prompt block already failed with. The other four state their content plainly and let the contrast carry it; `stateChanges` closes with "a change described only in the narration is a change that did not happen."
+
+**Two costs worth knowing.** Tool definitions render at position 0 of the cached prefix, ahead of both system blocks, so editing them invalidates every breakpoint — where a prompt edit keeps the tools cache. One extra prefix write per conversation, which for a fresh playtest adventure is nothing. And a tool-schema change is Warden-visible while leaving `promptHash` untouched, so two runs with materially different tool definitions would carry identical run identities. That gap is what `ADR-0099` closes.

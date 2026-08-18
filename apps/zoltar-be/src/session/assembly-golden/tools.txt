@@ -1,0 +1,478 @@
+[
+  {
+    "name": "submit_gm_response",
+    "description": "Submit the GM response for this turn. Call this exactly once to complete every turn. The narrative for the player goes in playerText; state changes are proposals the backend will validate. Use roll_dice for any roll the GM makes on the world's behalf; use diceRequests for player-facing rolls. Call rules_lookup before adjudicating any mechanic you are not certain about.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "playerText": {
+          "type": "string",
+          "description": "The narration the player reads this turn, and nothing else: prose, ending where the narration ends. Never write a closing tag, a parameter tag, or any other tool-call markup inside this string — that markup is how a call is transmitted, not something you author, and a turn that appends it here loses everything after the narration. Every other part of the response — state changes, private notes, dice the player must roll — is a sibling parameter on this tool, sent alongside this one rather than written into it."
+        },
+        "stateChanges": {
+          "type": "object",
+          "properties": {
+            "resourcePools": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "owner": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The owning entity id exactly as the state snapshot spells it, or the reserved owner \"_scenario\" for a pool belonging to no entity — a countdown, a station subsystem."
+                  },
+                  "pool": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The bare pool name: \"hp\", \"stress\", \"combat\". Never a prefix."
+                  },
+                  "delta": {
+                    "type": "integer",
+                    "description": "Signed change to the pool's current value."
+                  },
+                  "maxDelta": {
+                    "type": "integer",
+                    "description": "Signed change to the pool's ceiling. Only for effects that move the ceiling itself — Maximum Health lost on the Death table, Maximum Wounds lost to Panic 19. Omit it for ordinary damage and healing."
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Why this change happened, in a few words: \"gunshot from contractor Alpha\", \"stress from witnessing UNIT-7 shut down\". This is the record of what a number means; a delta without one cannot be audited later."
+                  },
+                  "damageType": {
+                    "type": "string",
+                    "enum": [
+                      "blunt_force",
+                      "bleeding",
+                      "gunshot",
+                      "fire_explosives",
+                      "gore_massive"
+                    ],
+                    "description": "Required when this change applies a Wound — it selects the Wounds Table column."
+                  }
+                },
+                "required": [
+                  "owner",
+                  "pool",
+                  "delta",
+                  "reason"
+                ],
+                "additionalProperties": false
+              },
+              "description": "Resource pool changes, in the order they occur. An array rather than a map because one pool can change more than once in a turn — the wounds chain drives hp to zero and then resets it — and because the entries are applied in order against a running state, so their order is information."
+            },
+            "characterState": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "condition_add"
+                      },
+                      "entityId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "condition": {
+                        "type": "string",
+                        "enum": [
+                          "coward",
+                          "frightened",
+                          "nightmares",
+                          "loss_of_confidence",
+                          "deflated",
+                          "doomed",
+                          "haunted",
+                          "spiraling"
+                        ]
+                      },
+                      "parameter": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Required for exactly two Conditions and forbidden for the rest. \"frightened\" stores what frightened the character, in a few words. \"loss_of_confidence\" stores which skill loses its bonus, and must name a skill the character actually has."
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "entityId",
+                      "condition"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "condition_remove"
+                      },
+                      "entityId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "condition": {
+                        "type": "string",
+                        "enum": [
+                          "coward",
+                          "frightened",
+                          "nightmares",
+                          "loss_of_confidence",
+                          "deflated",
+                          "doomed",
+                          "haunted",
+                          "spiraling"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "entityId",
+                      "condition"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "armor_damage"
+                      },
+                      "entityId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "apDelta": {
+                        "type": "integer",
+                        "description": "Negative, and large enough to take the armor to 0 AP. Armor Points are a threshold, not a pool: a hit below AP is ignored entirely and wears nothing down, so the only AP change damage produces is to zero. Send this only when one hit met or exceeded AP."
+                      },
+                      "destroyed": {
+                        "type": "boolean",
+                        "const": true,
+                        "description": "Always true. A hit that reaches AP destroys the armor (PSG §28.3), and a hit that does not reach it is not a change at all. Damage Reduction is unaffected and still applies."
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "entityId",
+                      "apDelta",
+                      "destroyed"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "bleeding_set"
+                      },
+                      "entityId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "value": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "The total, not a delta — sum the Wounds Table grants yourself. 0 clears it."
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "entityId",
+                      "value"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "death_save_pending"
+                      },
+                      "entityId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "roundsRemaining": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Rounds until the Death Save the Lethal Injury row sets in motion. null clears it. Nothing counts down for you."
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "entityId",
+                      "roundsRemaining"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "minimum_stress_set"
+                      },
+                      "entityId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "value": {
+                        "type": "integer",
+                        "minimum": 2,
+                        "description": "The new floor, as an absolute value. Raising it above current Stress also requires a resourcePools delta in the same turn."
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "entityId",
+                      "value"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "description": "Changes to per-character state that is not a pool: conditions, armor, bleeding, minimum stress, and a pending Death Save. Applied in order, like resourcePools, and rejected together with it — a turn writes both halves of a wounds chain or neither."
+            },
+            "entities": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "visible": {
+                    "type": "boolean"
+                  },
+                  "status": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "flags": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "value"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "boolean"
+                      },
+                      "trigger": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "value",
+                      "trigger"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "scenarioState": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "current": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "current"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "worldFacts": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "description": "Everything this turn changed about the world, as a proposal the backend validates before applying: pool deltas, character state, entity visibility and status, flags, scenario counters, world facts. Send it on any turn that moved state, however small the move; omit it entirely on a turn that moved none. A change described only in the narration is a change that did not happen."
+        },
+        "gmUpdates": {
+          "type": "object",
+          "properties": {
+            "npcStates": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "notes": {
+              "type": "string"
+            },
+            "proposedCanon": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "summary": {
+                    "type": "string"
+                  },
+                  "context": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "summary",
+                  "context"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false,
+          "description": "Warden-private updates the player never sees: how an NPC's agenda shifted, notes for the reviewer reading this turn later, and canon proposals. Use notes for a ruling you are unsure about or a gap you had to work around — it is the only channel that reaches a human."
+        },
+        "diceRequests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "notation": {
+                "type": "string"
+              },
+              "purpose": {
+                "type": "string"
+              },
+              "target": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "notation",
+              "purpose"
+            ],
+            "additionalProperties": false
+          },
+          "description": "Rolls the player makes themselves, one entry per roll, issued when their own declared action needs resolving. The backend assigns ids and the results arrive on a later turn. For a roll the world makes rather than the player, call roll_dice instead and narrate the result you get back."
+        },
+        "adventureMode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "freeform",
+                "initiative"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The turn structure the adventure is running under. Send it only on a turn that actually changes the structure — combat starting or ending. Omit it on every other turn; it is not a field to restate."
+        }
+      },
+      "required": [
+        "playerText"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "roll_dice",
+    "description": "Execute a dice roll server-side. Use for system-generated rolls — NPC actions, GM saves, panic checks, random resolutions. The result is computed by the backend, logged to the audit trail, and returned to you before you narrate. For player-facing rolls where the player interacts with the dice, use diceRequests in submit_gm_response instead.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "notation": {
+          "type": "string"
+        },
+        "purpose": {
+          "type": "string"
+        },
+        "actingEntityId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rollType": {
+          "type": "string",
+          "enum": [
+            "check",
+            "save",
+            "damage",
+            "panic_check",
+            "table",
+            "other"
+          ]
+        },
+        "gatedByRollId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "notation",
+        "purpose",
+        "actingEntityId",
+        "rollType"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "rules_lookup",
+    "description": "Semantic search against the rules index for the active game system. Call this instead of inferring mechanics from memory. Query with natural language. Returns the top matching rules chunks with source citations. May return an empty result set if the system's index has not been populated; proceed with a best-effort ruling and note the gap in gmUpdates.notes so reviewers can catch divergence.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "default": 3
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  }
+]

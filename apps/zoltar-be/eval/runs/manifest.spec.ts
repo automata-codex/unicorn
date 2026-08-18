@@ -25,6 +25,7 @@ function baseOptions(root: string) {
     promptText: 'You are the Warden...',
     temperature: 1.0,
     corpusVersion: 'deadbeef'.repeat(8),
+    assemblyHash: 'a55e3b19',
     plannedReps: 3,
     createdAt: CREATED_AT,
   };
@@ -107,17 +108,19 @@ describe('assertManifestMatches', () => {
     promptHash: 'ab12cd34',
     temperature: 1.0,
     corpusVersion: 'abc',
+    assemblyHash: 'a55e3b19',
     createdAt: CREATED_AT.toISOString(),
     plannedReps: 3,
     completedReps: [],
   };
 
-  it('passes when model, promptHash, and temperature all match', () => {
+  it('passes when model, promptHash, temperature and assemblyHash all match', () => {
     expect(() =>
       assertManifestMatches(manifest, {
         model: 'claude-sonnet-4-6',
         promptHash: 'ab12cd34',
         temperature: 1.0,
+        assemblyHash: 'a55e3b19',
       }),
     ).not.toThrow();
   });
@@ -128,6 +131,7 @@ describe('assertManifestMatches', () => {
         model: 'claude-opus-5',
         promptHash: 'ab12cd34',
         temperature: 1.0,
+        assemblyHash: 'a55e3b19',
       }),
     ).toThrow(/model:/);
   });
@@ -138,6 +142,7 @@ describe('assertManifestMatches', () => {
         model: 'claude-sonnet-4-6',
         promptHash: 'zzzzzzzz',
         temperature: 1.0,
+        assemblyHash: 'a55e3b19',
       }),
     ).toThrow(/promptHash:/);
   });
@@ -148,17 +153,55 @@ describe('assertManifestMatches', () => {
         model: 'claude-sonnet-4-6',
         promptHash: 'ab12cd34',
         temperature: 0.5,
+        assemblyHash: 'a55e3b19',
       }),
     ).toThrow(/temperature:/);
   });
 
+  it('rejects a changed assemblyHash', () => {
+    // Appending reps after the tool schema or a formatter changed would
+    // put two different prompts under one run id.
+    expect(() =>
+      assertManifestMatches(
+        { ...manifest, assemblyHash: 'a55e3b19' },
+        {
+          model: 'claude-sonnet-4-6',
+          promptHash: 'ab12cd34',
+          temperature: 1.0,
+          assemblyHash: '0bb41002',
+        },
+      ),
+    ).toThrow(/assemblyHash:/);
+  });
+
+  it('accepts a manifest predating assemblyHash rather than blocking on it', () => {
+    // Absent means "unknown", not "unchanged" — refusing to append would be
+    // asserting a mismatch that cannot be observed.
+    const { assemblyHash: _omitted, ...withoutHash } = {
+      ...manifest,
+      assemblyHash: 'a55e3b19',
+    };
+    expect(() =>
+      assertManifestMatches(withoutHash, {
+        model: 'claude-sonnet-4-6',
+        promptHash: 'ab12cd34',
+        temperature: 1.0,
+        assemblyHash: '0bb41002',
+      }),
+    ).not.toThrow();
+  });
+
   it('reports every mismatch at once', () => {
     try {
-      assertManifestMatches(manifest, {
-        model: 'claude-opus-5',
-        promptHash: 'zzzzzzzz',
-        temperature: 0.5,
-      });
+      assertManifestMatches(
+        { ...manifest, assemblyHash: 'a55e3b19' },
+        {
+          model: 'claude-opus-5',
+          promptHash: 'zzzzzzzz',
+          temperature: 0.5,
+          assemblyHash: '0bb41002',
+        },
+      );
       throw new Error('expected assertManifestMatches to throw');
     } catch (err) {
       const message = (err as Error).message;
@@ -223,6 +266,7 @@ describe('nextRepIndex', () => {
     promptHash: 'ab12cd34',
     temperature: 1.0,
     corpusVersion: 'abc',
+    assemblyHash: 'a55e3b19',
     createdAt: CREATED_AT.toISOString(),
     plannedReps: 5,
     completedReps,

@@ -1,0 +1,32 @@
+<state_snapshot>
+
+<resource_pools>
+_scenario.probe_timer: 5
+probe_player.hp: 8/12
+probe_player.stress: 3/20
+</resource_pools>
+
+<character_attributes>
+probe_player:
+  armor: Standard Crew Attire — AP 1/3 — DR 0 — sealed
+  conditions: frightened (probe_threat)
+</character_attributes>
+
+<entities>
+probe_player: visible, status=unknown, player_character
+probe_npc_one: visible, status=alive
+</entities>
+
+<flags>
+probe_flag_set: true
+</flags>
+
+<scenario_state>
+probe_counter: 2/6
+</scenario_state>
+
+<world_facts>
+probe_fact: The aft airlock has been welded shut.
+</world_facts>
+
+</state_snapshot>
