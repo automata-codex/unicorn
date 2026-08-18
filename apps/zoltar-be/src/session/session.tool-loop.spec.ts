@@ -6,6 +6,8 @@ import {
   SessionOutputError,
   SessionService,
   SessionToolLoopError,
+  SessionToolSyntaxError,
+  TOOL_SYNTAX_RETRY_BUDGET,
 } from './session.service';
 
 import type Anthropic from '@anthropic-ai/sdk';
@@ -851,23 +853,73 @@ describe('SessionService.runInnerToolLoop', () => {
     expect(toolResult.content).toMatch(/separate tool parameters/);
   });
 
-  it('fails loud rather than silently when the leak never clears', async () => {
+  it('abandons the turn after one retry rather than spending the whole loop', async () => {
+    // The 2026-08-18 re-baseline produced ten consecutive leaked payloads on
+    // one turn and no recovery, so the retry budget is one — the number
+    // `ADR-0041` argues for everywhere else in the turn path.
     callSession.mockResolvedValue(message([submitGmBlock(LEAKED_PAYLOAD)]));
     const { service } = makeService(callSession);
 
     await expect(service.runInnerToolLoop(loopArgs)).rejects.toBeInstanceOf(
-      SessionToolLoopError,
+      SessionToolSyntaxError,
     );
-    expect(callSession).toHaveBeenCalledTimes(INNER_TOOL_LOOP_CAP);
+    expect(callSession).toHaveBeenCalledTimes(TOOL_SYNTAX_RETRY_BUDGET + 1);
   });
 
-  it('distinguishes a tool-syntax leak from a schema failure in the exhaustion summary', async () => {
+  it('names the leak in the error rather than reporting cap exhaustion', async () => {
+    // The two 502s mean opposite things: one is "still working", this one is
+    // "finished the same wrong way twice".
     callSession.mockResolvedValue(message([submitGmBlock(LEAKED_PAYLOAD)]));
     const { service } = makeService(callSession);
 
     await expect(service.runInnerToolLoop(loopArgs)).rejects.toThrow(
-      /submit_gm_response\(invalid: playerText:tool-syntax\)/,
+      /leaked tool-call syntax 2 times in a row/,
     );
+  });
+
+  it('does not spend the budget on a busy turn that leaks only once', async () => {
+    // Decoupling the two caps is half the point: a turn that has already
+    // spent iterations on legitimate rolls must not get fewer retries.
+    callSession
+      .mockResolvedValueOnce(
+        message([
+          toolUse('toolu_r1', 'roll_dice', {
+            notation: '1d100',
+            purpose: 'probe',
+            actingEntityId: 'alvarez',
+            rollType: 'check',
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(
+        message([submitGmBlock({ playerText: 'The lever holds.' })]),
+      );
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(result.finalParsed.playerText).toBe('The lever holds.');
+    expect(result.iterations).toBe(3);
+  });
+
+  it('gives a fresh budget when the failures alternate mode', async () => {
+    // leak → schema-invalid → leak is not the stuck shape, so the counter
+    // resets and the turn still gets its retry.
+    callSession
+      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(
+        message([submitGmBlock({ playerText: 1 as unknown as string })]),
+      )
+      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(
+        message([submitGmBlock({ playerText: 'Recovered.' })]),
+      );
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(result.finalParsed.playerText).toBe('Recovered.');
   });
 
   it('does not trip on narration that merely contains an angle bracket', async () => {

@@ -1259,6 +1259,22 @@ The five properties now carry descriptions (via `.describe()` in `session.schema
 
 **Two costs worth knowing.** Tool definitions render at position 0 of the cached prefix, ahead of both system blocks, so editing them invalidates every breakpoint — where a prompt edit keeps the tools cache. One extra prefix write per conversation, which for a fresh playtest adventure is nothing. And a tool-schema change is Warden-visible while leaving `promptHash` untouched, so two runs with materially different tool definitions would carry identical run identities. That gap is what `ADR-0099` closes.
 
+**Addendum 3 — the retry does not work, and the turn is now abandoned after one.** Recorded 2026-08-18 on the evidence of the re-baseline run `claude-sonnet-5__ccac7d1c__2026-08-18T11-48-47Z`. Supersedes the retry reasoning in the body of this entry.
+
+The body argued for handing the rejection back and re-entering the loop, on the grounds that Claude recovers from a malformed payload that way (the 2026-07-14 precedent) and that recovering a turn beats failing it. The first half of that is now falsified for this failure mode. On `turn24-scene-jump` rep 9 the same leaked payload came back **ten consecutive times** — the whole remaining loop budget — and the turn died on cap exhaustion regardless. Ten model calls at 13k+ prompt tokens each to reach the outcome the second call already predicted. Once Claude enters this mode within a turn, it stays there.
+
+So `TOOL_SYNTAX_RETRY_BUDGET` is **1**: one rejection is handed back, a second consecutive leak throws `SessionToolSyntaxError` (502 `gm_tool_syntax_unrecoverable`). That is the number `ADR-0041` already argues for on the correction loop, and the argument transfers intact — more attempts hide the failure rather than fixing it.
+
+**A separate error class rather than reusing `SessionToolLoopError`.** Both end at 502, and they mean opposite things: the loop error means Claude was still working and ran out of room, this one means it finished the same wrong way twice. Under one code, a genuinely stuck combat turn and an unrecoverable formatting failure are indistinguishable in the logs, and the operator response to each differs.
+
+**Failing here also decouples the two budgets, which matters more than it looks.** Riding `INNER_TOOL_LOOP_CAP` meant the retries available depended on how much legitimate work the turn had already done — the rep-9 turn had spent ten iterations on rolls and lookups before the first leak, so it got ten retries where a quiet turn would have got nineteen. A busy turn getting *fewer* attempts to recover is backwards, and the count is now independent of what came before it.
+
+The counter is consecutive rather than cumulative, resetting on a submit that fails some other way, so a turn alternating between a malformed payload and a leaked one still gets a fresh budget for each mode.
+
+**What the run says about the emission itself, stated carefully.** `TOOL-SYNTAX-LEAK` read 1.00 across 149 graded turns, and an independent scan of every `warden-output.json` with the original oracle regex found zero markup in 149 outputs — the guard did its job completely, and nothing reached a player or committed silently. But the check reads 1.00 partly *because* the one occurrence became an `error` row: a turn that never produces a `gm_response` leaves the denominator, so the rate is computed over the turns that survived the behaviour being measured. The honest figure is **emission 4/150 → 1/150**, suggestive at p≈0.09 rather than the clean sweep that would have settled it. The property descriptions look like a real improvement; they are not shown to have eliminated the emission, and this tag now belongs on `ADR-0082`'s list of rates to distrust at 1.00 for a reason of its own.
+
+This fix changes recovery, not what the Warden reads: `promptHash` stays `ccac7d1c` and `assemblyHash` stays `0bb41002`, so the run's numbers remain valid and the next run is comparable to it.
+
 ---
 
 ## Claude Integration — Continuity & Spatial

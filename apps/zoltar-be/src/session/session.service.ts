@@ -90,6 +90,25 @@ export class SessionCorrectionError extends Error {
 }
 
 /**
+ * Thrown when Claude re-emits a payload carrying leaked tool-call syntax
+ * after being told once not to (`session.tool-syntax.ts`). Translated to 502
+ * with body error code `gm_tool_syntax_unrecoverable`.
+ *
+ * Distinct from `SessionToolLoopError` on purpose. Both end the turn at 502,
+ * but they mean opposite things: the loop error means Claude was working and
+ * did not finish, while this one means it finished the same wrong way twice
+ * and more attempts will not help. Collapsing them would put a genuinely
+ * stuck combat turn and an unrecoverable formatting failure under one error
+ * code, and the operator response to each is different.
+ */
+export class SessionToolSyntaxError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SessionToolSyntaxError';
+  }
+}
+
+/**
  * Thrown when the inner tool-use loop hits its iteration cap without
  * receiving a `submit_gm_response` tool call. Indicates Claude is stuck —
  * either looping on rules_lookup or issuing rolls indefinitely. Translated
@@ -172,6 +191,26 @@ export interface SendMessageResult {
  * runaway Claude cost.
  */
 export const INNER_TOOL_LOOP_CAP = 20;
+
+/**
+ * How many times a `submit_gm_response` carrying leaked tool-call syntax is
+ * handed back before the turn is abandoned. One, per the same reasoning
+ * `ADR-0041` applies to the correction loop: more retries hide the failure
+ * rather than fixing it.
+ *
+ * `ADR-0097` originally let this ride the shared `INNER_TOOL_LOOP_CAP` on the
+ * assumption that Claude would recover the way it does from a malformed
+ * payload. The 2026-08-18 re-baseline falsified that: on
+ * `turn24-scene-jump` rep 9 the same leaked payload came back **ten**
+ * consecutive times and the turn died on cap exhaustion anyway — ten model
+ * calls at 13k+ prompt tokens each, to reach the outcome the second call
+ * already predicted. Once Claude enters this mode it stays there.
+ *
+ * Failing here rather than at the cap also decouples the two: a busy turn
+ * that has already spent fifteen iterations on legitimate rolls would
+ * otherwise get fewer retries than a quiet one, which is backwards.
+ */
+export const TOOL_SYNTAX_RETRY_BUDGET = 1;
 
 interface InnerToolLoopResult {
   finalRequest: CallSessionParams;
@@ -769,6 +808,11 @@ export class SessionService {
     // distinguishes a dice-heavy turn from a genuinely stuck retry loop,
     // without having to correlate scattered per-iteration warn logs.
     const iterationLog: string[] = [];
+    // Reset by a submit that fails for some *other* reason, so a turn that
+    // alternates between a malformed payload and a leaked one still gets a
+    // fresh budget for each mode. Only back-to-back leaks — the shape the
+    // 2026-08-18 run produced ten of — burn it.
+    let consecutiveToolSyntaxRejections = 0;
 
     while (iteration < INNER_TOOL_LOOP_CAP) {
       const response = await this.anthropic.callSession(request);
@@ -807,14 +851,26 @@ export class SessionService {
               iterations: iteration + 1,
             };
           }
+          consecutiveToolSyntaxRejections += 1;
           submitGmError = describeToolCallSyntax(leaked);
           submitGmErrorPaths = `${leaked.field}:tool-syntax`;
           submitGmRetryInstruction = toolCallSyntaxRetryInstruction(leaked);
+
+          if (consecutiveToolSyntaxRejections > TOOL_SYNTAX_RETRY_BUDGET) {
+            throw new SessionToolSyntaxError(
+              `submit_gm_response leaked tool-call syntax ` +
+                `${consecutiveToolSyntaxRejections} times in a row for ` +
+                `adventure=${args.adventureId}; abandoning the turn rather ` +
+                `than spending the rest of the loop on it. ${submitGmError}`,
+            );
+          }
+
           // error, not warn: this is data loss that used to be invisible.
           this.logger.error(
             `submit_gm_response leaked tool-call syntax for adventure=${args.adventureId}, retrying: ${submitGmError}`,
           );
         } else {
+          consecutiveToolSyntaxRejections = 0;
           // Malformed payload — e.g. gmUpdates sent as a string instead of an
           // object, which tends to happen right after a dice roll. Treat it
           // like any other malformed tool call below and retry, bounded by
