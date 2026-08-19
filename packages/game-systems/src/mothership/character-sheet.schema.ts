@@ -76,7 +76,8 @@ export type MothershipCreationRolls = z.infer<
 >;
 
 /**
- * The class adjustments that are a player *choice* rather than a constant.
+ * The creation-time decisions that are a player *choice* rather than a
+ * constant, and that later arithmetic reads as an input.
  *
  * The Android takes −10 to one Stat and the Scientist +5 to one Stat (PSG
  * "Step 3"). Without recording which, the reconciliation the milestone's
@@ -85,10 +86,26 @@ export type MothershipCreationRolls = z.infer<
  * audit, not a second copy of a value that lives elsewhere, which is the same
  * argument that admits `creationRolls`.
  *
- * Absent for Marine and Teamster, whose adjustments are entirely fixed.
+ * `adjustedStat` is absent for Marine and Teamster, whose class adjustments
+ * are entirely fixed. `forgoLoadout` is class-independent and may appear on
+ * any sheet.
  */
 export const MothershipCreationChoicesSchema = z.object({
   adjustedStat: MothershipStatEnum.optional(),
+
+  /**
+   * The player traded the starting loadout for cash, so starting credits are
+   * `2d10 × 100` rather than `2d10 × 10` (PSG §6.1).
+   *
+   * On the sheet by the same argument as `adjustedStat`: it is an input to the
+   * credits arithmetic, not a copy of its result. It lived as a
+   * `deriveMothershipCharacterResourcePools` *option* until it was found that
+   * nothing on the write path passed one — the creation form fed it to the
+   * preview and omitted it from the payload, so checking the box showed ×100
+   * and seeded ×10. An option a caller can forget is a divergence waiting to
+   * happen; read from the sheet it cannot be forgotten.
+   */
+  forgoLoadout: z.boolean().optional(),
 });
 
 export type MothershipCreationChoices = z.infer<

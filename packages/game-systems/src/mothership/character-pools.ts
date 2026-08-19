@@ -94,8 +94,11 @@ const sum = (dice: readonly number[]): number =>
  * Minimum Stress, and has no ceiling), `wounds` (starts at zero and counts up),
  * and `credits` (a balance, not a ceiling).
  *
- * `forgoLoadout` multiplies starting credits by 100 instead of 10 (PSG §6.1) —
- * a character who takes cash instead of gear.
+ * `creationChoices.forgoLoadout` multiplies starting credits by 100 instead of
+ * 10 (PSG §6.1) — a character who takes cash instead of gear. Read from the
+ * sheet rather than taken as a caller option: as an option it was passed by the
+ * creation form's preview and by nothing on the write path, so the box showed
+ * ×100 and seeded ×10.
  *
  * Returned nested under the character's entity id, matching
  * `campaign_state.data.resourcePools`. Called at character creation so the
@@ -104,7 +107,6 @@ const sum = (dice: readonly number[]): number =>
  */
 export function deriveMothershipCharacterResourcePools(
   sheet: MothershipCharacterSheet,
-  options: { forgoLoadout?: boolean } = {},
 ): OwnedResourcePools {
   const rolls = sheet.creationRolls;
   const adjustment = CLASS_ADJUSTMENTS[sheet.class];
@@ -135,7 +137,8 @@ export function deriveMothershipCharacterResourcePools(
     pools[save] = { current: value, max: value };
   }
 
-  const credits = sum(rolls.credits) * (options.forgoLoadout ? 100 : 10);
+  const credits =
+    sum(rolls.credits) * (sheet.creationChoices?.forgoLoadout ? 100 : 10);
   pools.credits = { current: credits, max: null };
 
   return { [sheet.entityId]: pools };

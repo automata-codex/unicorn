@@ -101,12 +101,36 @@ describe('deriveMothershipCharacterResourcePools', () => {
     expect(pools.vasquez.credits).toEqual({ current: 70, max: null });
   });
 
-  it('multiplies credits by 100 when forgoing a loadout', () => {
-    const pools = deriveMothershipCharacterResourcePools(
-      sheetFor('teamster'),
-      { forgoLoadout: true },
-    );
+  it('multiplies credits by 100 when the sheet forgoes a loadout', () => {
+    const sheet = sheetFor('teamster');
+    const pools = deriveMothershipCharacterResourcePools({
+      ...sheet,
+      creationChoices: { ...sheet.creationChoices, forgoLoadout: true },
+    });
     expect(pools.vasquez.credits).toEqual({ current: 700, max: null });
+  });
+
+  /**
+   * The regression this field exists for: `forgoLoadout` used to be a caller
+   * option, the creation form passed it to the preview and omitted it from the
+   * POST payload, and the backend derived with no options at all — so the
+   * player was shown ×100 and seeded ×10. Read off the sheet there is one
+   * source, and a sheet that records the choice cannot derive the other value.
+   */
+  it('keeps credits at x10 when the choice is absent or false', () => {
+    const sheet = sheetFor('teamster');
+    expect(
+      deriveMothershipCharacterResourcePools({
+        ...sheet,
+        creationChoices: { forgoLoadout: false },
+      }).vasquez.credits,
+    ).toEqual({ current: 70, max: null });
+    expect(
+      deriveMothershipCharacterResourcePools({
+        ...sheet,
+        creationChoices: {},
+      }).vasquez.credits,
+    ).toEqual({ current: 70, max: null });
   });
 });
 

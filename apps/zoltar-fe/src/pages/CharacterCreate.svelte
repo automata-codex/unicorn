@@ -129,18 +129,24 @@
     name: name || 'Unnamed',
     class: charClass,
     creationRolls,
-    ...(choosesStat ? { creationChoices: { adjustedStat } } : {}),
+    creationChoices: {
+      ...(choosesStat ? { adjustedStat } : {}),
+      forgoLoadout,
+    },
   });
 
   /**
    * Live preview of what creation will actually seed, from the same pure
    * function the backend uses. Not a second copy of the class table — that is
    * exactly the duplication this milestone removed everywhere else.
+   *
+   * Derived from `sheet`, which is also what gets POSTed, so the preview cannot
+   * be computed from inputs the payload does not carry. It could before:
+   * `forgoLoadout` was passed here as an option and left out of the payload, so
+   * the box showed ×100 credits and seeded ×10.
    */
   const preview = $derived(
-    deriveMothershipCharacterResourcePools(sheet, { forgoLoadout })[
-      sheet.entityId
-    ],
+    deriveMothershipCharacterResourcePools(sheet)[sheet.entityId],
   );
 
   const PREVIEW_ORDER: Array<[string, string]> = [
