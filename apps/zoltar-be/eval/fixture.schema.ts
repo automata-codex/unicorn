@@ -30,15 +30,16 @@ export const failureModeTagSchema = z.enum([
   // check outside them would be a second way to register one.
   'TOOL-SYNTAX-LEAK',
   // Added by M7.7's second playtest (adventure `5c34991b`), which surfaced
-  // both. **Both ship with a stub checker** (`eval/checks/structural/`) that
-  // reports `NOT_APPLICABLE` on every rep and grades nothing — the tags exist
-  // so the turns that provoke them can be captured as fixtures now, against
-  // the live adventure, rather than after the checkers are designed and the
-  // DB has moved on. This is a deliberate, temporary exception to the rule
-  // stated at the top of this enum; the fixtures carrying them author
-  // `applies: false`, so every report renders them as
-  // `fixture-gated-never-applies` ("correct, but this pair contributes no
-  // regression coverage") until a real checker lands.
+  // both. **Both ship with a stub checker** (`eval/checks/structural/
+  // unimplemented.ts`) that grades nothing — the tags exist so the turns
+  // that provoke them could be captured as fixtures against the live
+  // adventure, rather than after the checkers are designed and the DB has
+  // moved on. This is a deliberate, temporary exception to the rule stated
+  // at the top of this enum, and it is enforced rather than trusted:
+  // `assertNoStubCheckers` (`eval/preflight.ts`) refuses to start any run
+  // whose selected fixtures carry a stub, so a stubbed tag cannot reach a
+  // score row. That refusal is not skippable and is currently in force for
+  // the whole corpus — see its doc comment before reaching for `--fixtures`.
   'MISSING-DELTA',
   'ROLL-RESULT-INVERSION',
 ]);

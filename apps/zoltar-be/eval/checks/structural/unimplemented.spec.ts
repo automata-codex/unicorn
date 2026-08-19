@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { evalChecks } from '../registry';
+import { evalChecks, stubCheckIds } from '../registry';
 
 import { structuralCheckers } from './registry';
 import { checkUnimplemented } from './unimplemented';
@@ -58,5 +58,21 @@ describe('stub tag registration', () => {
     // fixture and grade nothing anywhere.
     expect(check.tagIndependent).toBeUndefined();
     expect(check.universal).toBeUndefined();
+  });
+});
+
+describe('stub registration is what the run-refusal reads', () => {
+  it.each(STUB_TAGS)('%s is flagged `stub` on the registry', (tag) => {
+    expect(evalChecks[tag.toLowerCase()].stub).toBe(true);
+    expect(stubCheckIds).toContain(tag.toLowerCase());
+  });
+
+  it('flags nothing else', () => {
+    // `stubCheckIds` is what `assertNoStubCheckers` refuses runs on, so a
+    // stray entry here takes the whole harness offline.
+    expect([...stubCheckIds].sort()).toEqual([
+      'missing-delta',
+      'roll-result-inversion',
+    ]);
   });
 });

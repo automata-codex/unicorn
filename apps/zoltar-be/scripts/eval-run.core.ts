@@ -5,7 +5,10 @@ import { rubricTextFor, selectChecksForFixture } from '../eval/checks/registry';
 import { runCheck } from '../eval/checks/run-check';
 import { computeCorpusVersion } from '../eval/corpus-version';
 import { loadFixtures } from '../eval/fixture-loader';
-import { assertRulesIndexPopulated } from '../eval/preflight';
+import {
+  assertNoStubCheckers,
+  assertRulesIndexPopulated,
+} from '../eval/preflight';
 import {
   relativeArtifactPath,
   writeFixtureArtifacts,
@@ -252,6 +255,11 @@ export async function runEval(
   if (selectedFixtures.length === 0) {
     throw new Error('no fixtures selected to run');
   }
+
+  // Before the harness session exists, so a corpus carrying a stub checker
+  // costs nothing to reject. Not routed through `deps.assertPreflight` and
+  // not covered by `--skip-preflight`: see `assertNoStubCheckers`.
+  assertNoStubCheckers(selectedFixtures);
 
   // Per-fixture rep count, resolved once before rep 1 — nothing writes to
   // this map afterward. This is what makes "no adaptive mode" a structural

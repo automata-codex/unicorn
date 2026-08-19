@@ -114,6 +114,23 @@ export interface EvalCheck {
    */
   universal?: boolean;
   /**
+   * Whether this check is a **stub** — registered so its tag exists, grading
+   * nothing (`eval/checks/structural/unimplemented.ts`).
+   *
+   * Declared here rather than inferred from which function the structural
+   * registry happens to wire, because it is load-bearing: `eval:run` refuses
+   * to start when any selected fixture carries a stub check
+   * (`assertNoStubCheckers`), and a property that quiet must be stated where
+   * someone adding a check will see it, not discovered by reading a
+   * dispatch table.
+   *
+   * A stub is unreachable in a run by construction, so `checkUnimplemented`'s
+   * `NOT_APPLICABLE` is defense in depth rather than the operative behaviour.
+   * Clearing this flag is the last step of implementing the real checker, and
+   * the run-refusal is what makes forgetting it impossible to ship.
+   */
+  stub?: boolean;
+  /**
    * Minimum `fixtureSchemaVersion` this check needs. Nothing declares this
    * today — every check works against v1 fixtures — but the field exists so
    * the first schema-dependent check (anticipated: `rollType` /
@@ -304,6 +321,20 @@ const TAG_INDEPENDENT_CHECK_IDS: ReadonlySet<string> = new Set([
 const UNIVERSAL_CHECK_IDS: ReadonlySet<string> = new Set(['tool-syntax-leak']);
 
 /**
+ * Check ids whose checker is a stub — see `EvalCheck.stub`.
+ *
+ * Both arrived with the 2026-08-16 playtest (adventure `5c34991b`), whose
+ * turns were captured as fixtures while that adventure was still seedable.
+ * Emptying this set is the goal; until then `assertNoStubCheckers` stops a
+ * run that would otherwise pay for Warden turns and report a tag as measured
+ * when nothing measured it.
+ */
+const STUB_CHECK_IDS: ReadonlySet<string> = new Set([
+  'missing-delta',
+  'roll-result-inversion',
+]);
+
+/**
  * Structural pre-filters for judged checks, by check id — see
  * `EvalCheck.judgeGate`. Optional by design: most judged questions have no
  * structural half worth separating out.
@@ -330,6 +361,7 @@ function buildChecks(): Record<string, EvalCheck> {
       applicabilitySource: applicabilitySourceFor(id),
       tagIndependent: TAG_INDEPENDENT_CHECK_IDS.has(id) || undefined,
       universal: UNIVERSAL_CHECK_IDS.has(id) || undefined,
+      stub: STUB_CHECK_IDS.has(id) || undefined,
       requiresFixtureSchema: REQUIRES_FIXTURE_SCHEMA[id],
     };
   }
@@ -362,6 +394,23 @@ function buildChecks(): Record<string, EvalCheck> {
         `"${id}" is listed in TAG_INDEPENDENT_CHECK_IDS but is not a ` +
           'registered check — a typo here fails silently at selection time, ' +
           'which is the coverage hole this list exists to close',
+      );
+    }
+  }
+
+  for (const id of STUB_CHECK_IDS) {
+    if (!checks[id]) {
+      throw new Error(
+        `"${id}" is listed in STUB_CHECK_IDS but is not a registered check — ` +
+          'a typo here means the stub is never recognised as one, so ' +
+          '`eval:run` would happily grade a tag nothing implements',
+      );
+    }
+    if (UNIVERSAL_CHECK_IDS.has(id)) {
+      throw new Error(
+        `check "${id}" is listed as both universal and a stub — a universal ` +
+          'check attaches to every fixture, so stubbing one would refuse ' +
+          'every run rather than the runs that opted into the stubbed tag',
       );
     }
   }
@@ -417,6 +466,18 @@ export const tagIndependentCheckIds: readonly string[] = Object.values(
   evalChecks,
 )
   .filter((check) => check.tagIndependent)
+  .map((check) => check.id)
+  .sort();
+
+/**
+ * Check ids whose checker grades nothing — see `EvalCheck.stub`.
+ *
+ * Derived from the built registry for the same reason
+ * `tagIndependentCheckIds` is: the flag the refusal reads and the list it is
+ * declared in cannot drift apart. Consumed by `assertNoStubCheckers`.
+ */
+export const stubCheckIds: readonly string[] = Object.values(evalChecks)
+  .filter((check) => check.stub)
   .map((check) => check.id)
   .sort();
 
