@@ -3,6 +3,7 @@ import { checkMissingCanonCapture } from './missing-canon-capture';
 import { checkOutOfOrderResolution } from './out-of-order-resolution';
 import { checkSystemRolledPlayerAction } from './system-rolled-player-action';
 import { checkToolSyntaxLeak } from './tool-syntax-leak';
+import { checkUnimplemented } from './unimplemented';
 
 import type {
   EvalFixture,
@@ -35,4 +36,12 @@ export const structuralCheckers: Record<
   // Takes no fixture: its subject is the narration alone, which is what
   // makes it universal rather than tag-independent.
   'TOOL-SYNTAX-LEAK': (result) => checkToolSyntaxLeak(result),
+  // Stubs. They grade nothing and report `NOT_APPLICABLE` on every rep —
+  // see `checkUnimplemented` for why that, and not `PASSED`. Wired here
+  // rather than left out because this record is total over
+  // `structuralFailureModeTags`, so a tag with no entry is a type error;
+  // that totality is what will make the real checkers unmissable when they
+  // land.
+  'MISSING-DELTA': () => checkUnimplemented('MISSING-DELTA'),
+  'ROLL-RESULT-INVERSION': () => checkUnimplemented('ROLL-RESULT-INVERSION'),
 };

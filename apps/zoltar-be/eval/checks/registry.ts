@@ -240,6 +240,18 @@ const APPLICABILITY_SOURCE: Record<string, EvalCheck['applicabilitySource']> = {
   // did not happen, not that the Warden chose something — but declaring
   // `'ungated'` would assert a `not_applicable` is impossible, and it is not.
   'tool-syntax-leak': 'artifact',
+  // Stub checkers (`eval/checks/structural/unimplemented.ts`). `'fixture'`
+  // is the accurate declaration on both halves of what it asserts: the
+  // verdict is decided before the model runs (a stub reads neither the turn
+  // nor the fixture), and it is unanimous across reps, so the 0.00/1.00 rule
+  // `fixture-gated-split` enforces cannot be violated. It also routes them
+  // to the reading that says the useful thing —
+  // `fixture-gated-never-applies`, "correct, but this pair contributes no
+  // regression coverage" — rather than `indeterminate-source`. Revisit
+  // alongside the real checkers, not before: a checker that reads the turn
+  // output is likely `'artifact'`.
+  'missing-delta': 'fixture',
+  'roll-result-inversion': 'fixture',
 };
 
 function applicabilitySourceFor(id: string): EvalCheck['applicabilitySource'] {

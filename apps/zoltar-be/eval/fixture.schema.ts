@@ -29,6 +29,18 @@ export const failureModeTagSchema = z.enum([
   // because `buildChecks` derives the registry from these lists, and a
   // check outside them would be a second way to register one.
   'TOOL-SYNTAX-LEAK',
+  // Added by M7.7's second playtest (adventure `5c34991b`), which surfaced
+  // both. **Both ship with a stub checker** (`eval/checks/structural/`) that
+  // reports `NOT_APPLICABLE` on every rep and grades nothing — the tags exist
+  // so the turns that provoke them can be captured as fixtures now, against
+  // the live adventure, rather than after the checkers are designed and the
+  // DB has moved on. This is a deliberate, temporary exception to the rule
+  // stated at the top of this enum; the fixtures carrying them author
+  // `applies: false`, so every report renders them as
+  // `fixture-gated-never-applies` ("correct, but this pair contributes no
+  // regression coverage") until a real checker lands.
+  'MISSING-DELTA',
+  'ROLL-RESULT-INVERSION',
 ]);
 
 export type FailureModeTag = z.infer<typeof failureModeTagSchema>;
@@ -43,6 +55,17 @@ export const structuralFailureModeTags = [
   // event and state structure; it may not classify prose`.
   'CARRYOVER-ARITHMETIC',
   'TOOL-SYNTAX-LEAK',
+  // Stubs — see the note in `failureModeTagSchema`. Listed structural rather
+  // than judged because a stub must cost nothing and assert nothing: the
+  // judged path would send a real, paid judge call against a placeholder
+  // rubric and record a genuine pass/fail from it, which is worse than no
+  // coverage. Whether the eventual checkers are structural is an open
+  // question — both questions ("did the Warden claim a change it never
+  // made", "did it read a roll-under result backwards") have a prose half —
+  // and moving one across later is a supported migration
+  // (`UNSURFACED-CHECK` has already made it once).
+  'MISSING-DELTA',
+  'ROLL-RESULT-INVERSION',
 ] as const satisfies readonly FailureModeTag[];
 
 /**

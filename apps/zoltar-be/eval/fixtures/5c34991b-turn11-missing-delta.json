@@ -1,0 +1,424 @@
+{
+  "id": "5c34991b-turn11-missing-delta",
+  "tag": "MISSING-DELTA",
+  "sourceAdventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+  "sourceSequenceNumber": 36,
+  "fixtureSchemaVersion": 2,
+  "seededState": {
+    "campaignState": {
+      "schemaVersion": 1,
+      "resourcePools": {
+        "_scenario": {
+          "timer": {
+            "max": 8,
+            "current": 8
+          },
+          "hull_integrity": {
+            "max": 10,
+            "current": 10
+          }
+        },
+        "dr_kennedy": {
+          "hp": {
+            "max": 12,
+            "current": 12
+          },
+          "body": {
+            "max": 20,
+            "current": 20
+          },
+          "fear": {
+            "max": 26,
+            "current": 26
+          },
+          "speed": {
+            "max": 37,
+            "current": 37
+          },
+          "combat": {
+            "max": 40,
+            "current": 40
+          },
+          "sanity": {
+            "max": 52,
+            "current": 52
+          },
+          "stress": {
+            "max": null,
+            "current": 2
+          },
+          "wounds": {
+            "max": 2,
+            "current": 0
+          },
+          "credits": {
+            "max": null,
+            "current": 130
+          },
+          "strength": {
+            "max": 42,
+            "current": 42
+          },
+          "intellect": {
+            "max": 43,
+            "current": 43
+          }
+        },
+        "signal_source_entity": {
+          "hp": {
+            "max": 25,
+            "current": 25
+          }
+        },
+        "deep_space_cartographer": {
+          "hp": {
+            "max": 10,
+            "current": 10
+          },
+          "stress": {
+            "max": 10,
+            "current": 4
+          }
+        }
+      },
+      "characterState": {},
+      "entities": {
+        "hull_breach_cascade": {
+          "status": "unknown",
+          "visible": true
+        },
+        "signal_source_entity": {
+          "status": "unknown",
+          "visible": false
+        },
+        "deep_space_cartographer": {
+          "status": "unknown",
+          "visible": true
+        }
+      },
+      "flags": {
+        "adventure_complete": {
+          "value": false,
+          "trigger": "Flip to true when the crew either escapes the Halberd's Grief in an evac pod/shuttle before the hull breach cascade reaches critical, or successfully seals the signal source's compartment and shuts down the transmission, ending the immediate threat."
+        },
+        "hull_breach_critical": {
+          "value": false,
+          "trigger": "Flip to true when the _scenario.timer countdown reaches 0, representing catastrophic hull failure across the remaining sealed sections."
+        },
+        "cartographer_confesses": {
+          "value": false,
+          "trigger": "Flip to true when the cartographer admits under pressure (Fear/Sanity save failure, direct confrontation, or near-death event) that they've seen this signal pattern before in unreported survey data."
+        },
+        "combat_encounter_triggered": {
+          "value": false,
+          "trigger": "Flip to true when the signal source entity manifests physically and engages the crew in the flooded aft compartment \u2014 triggered once the signal fully adapts or the crew ventures too deep toward its origin point."
+        },
+        "secret_cut_corners_revealed": {
+          "value": false,
+          "trigger": "Flip to true when the player finds the maintenance logs (in the classified compartment or engineering terminal) showing the hull fatigue was flagged and ignored to save money."
+        },
+        "classified_compartment_opened": {
+          "value": false,
+          "trigger": "Flip to true when the player forces open or bypasses the sealed classified compartment hatch, revealing hidden military hardware and/or old crew records."
+        },
+        "secret_signal_origin_revealed": {
+          "value": false,
+          "trigger": "Flip to true when the player discovers or the cartographer admits that the distress signal was deliberately generated and is still transmitting/changing."
+        }
+      },
+      "scenarioState": {},
+      "worldFacts": {
+        "ship_layout": "The Halberd's Grief is a decommissioned military vessel with three decks connected by a central ladder shaft. Upper deck: bridge, comms array (where the signal is being received and re-transmitted), officers' quarters. Mid deck: crew berths, mess hall, medbay, and the central ladder junction \u2014 the only route between upper and lower decks. Lower deck: cargo bay, engineering/reactor room, and a sealed classified compartment (military holdover, not on civilian deck plans) accessible only via a manual override in engineering. The hull breach cascade began in the aft cargo bay and is propagating forward through the lower deck toward engineering; each turn of inaction seals off another section. The signal source's point of origin is deep in the sealed classified compartment, where old military sensor arrays were never fully decommissioned.",
+        "signal_status": "The distress signal was first logged as a standard anomaly beacon. It has since begun altering its waveform in ways that mimic human distress calls with increasing accuracy, as if learning. The comms array on the upper deck still receives it, and the signal grows stronger the closer one gets to the classified compartment on the lower deck.",
+        "cartographer_backstory": "The deep-space cartographer served on a survey vessel that recorded a nearly identical signal pattern years ago in an uncharted sector. They chose not to report it because the anomaly didn't fit any official classification and reporting it would have delayed their contract payout. They carry guilt about this and are reluctant to discuss it unless pressed.",
+        "maintenance_log_secret": "Engineering terminal logs (locked, requires bypass) show a maintenance request for hull patch replacement was filed two contracts ago and denied by the leasing corporation as a cost-saving measure. This is the root cause of the hull breach cascade."
+      }
+    },
+    "gmContextBlob": {
+      "entities": [
+        {
+          "id": "deep_space_cartographer",
+          "tags": [
+            "navigation",
+            "deep_space",
+            "hidden_knowledge",
+            "survivor"
+          ],
+          "type": "npc",
+          "visible": true,
+          "startingPosition": {
+            "x": 2,
+            "y": 3,
+            "z": 0
+          }
+        },
+        {
+          "id": "hull_breach_cascade",
+          "tags": [
+            "environmental",
+            "structural",
+            "time_pressure",
+            "triage"
+          ],
+          "type": "threat",
+          "visible": true,
+          "startingPosition": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "id": "signal_source_entity",
+          "tags": [
+            "cosmic",
+            "communication",
+            "escalating",
+            "combat_encounter"
+          ],
+          "type": "threat",
+          "visible": false,
+          "startingPosition": {
+            "x": -3,
+            "y": 5,
+            "z": -1
+          }
+        }
+      ],
+      "narrative": {
+        "location": "The USCSS Halberd's Grief, a decommissioned military surplus vessel now leased to a scientific survey contract. Dr. Kennedy and the skeleton crew responded to a distress/anomaly signal in an uncharted sector \u2014 now a hull breach cascade is tearing through the ship while something answers back over the comms.",
+        "atmosphere": "Klaxons cycling on a loop that never quite finishes, red emergency lighting stuttering as sections lose power, the smell of scorched insulation and vented atmosphere. Every few minutes a distant metallic groan signals another bulkhead giving way. Corporate placards everywhere reassure the crew that 'Safety Is Our Cargo' in a font that predates the ship's decommissioning.",
+        "npcAgendas": {
+          "deep_space_cartographer": "Has confessed partial history with the signal pattern (cartographer_confesses trigger conditions likely met - gentle approach worked). Still withholding exact classified compartment knowledge and full extent of what they suspect the entity is."
+        },
+        "hiddenTruth": "The distress signal that brought the crew here was never a random anomaly or malfunction beacon \u2014 it was deliberately generated, a communication attempt by something that doesn't speak in human terms. It has been quietly altering itself since the crew arrived, adapting to get a response. Meanwhile, the hull breach cascade wasn't just bad luck: maintenance logs (if found) show the fatigue was flagged two contracts ago and the parts requisition was denied by the leasing company to save money. The ship's hidden classified compartments \u2014 holdovers from its military service \u2014 may hold both the answer to what the signal is and armor/weapons the crew is not supposed to know still exist aboard.",
+        "oracleConnections": "The cartographer's hidden knowledge interfaces directly with the signal secret \u2014 they've seen this pattern before and chose not to report it, tying their guilt to the cosmic mystery. The hull breach cascade interfaces with the corporate nihilism tone through the cut-corners angle: deferred maintenance made physical, a monster that is a spreadsheet. The military surplus vessel ties into the secret via its hidden compartments, which may contain evidence of the ship's classified history and prior crews who encountered the signal or something like it."
+      },
+      "structured": {
+        "flags": {
+          "adventure_complete": {
+            "value": false,
+            "trigger": "Flip to true when the crew either escapes the Halberd's Grief in an evac pod/shuttle before the hull breach cascade reaches critical, or successfully seals the signal source's compartment and shuts down the transmission, ending the immediate threat."
+          },
+          "hull_breach_critical": {
+            "value": false,
+            "trigger": "Flip to true when the _scenario.timer countdown reaches 0, representing catastrophic hull failure across the remaining sealed sections."
+          },
+          "cartographer_confesses": {
+            "value": false,
+            "trigger": "Flip to true when the cartographer admits under pressure (Fear/Sanity save failure, direct confrontation, or near-death event) that they've seen this signal pattern before in unreported survey data."
+          },
+          "combat_encounter_triggered": {
+            "value": false,
+            "trigger": "Flip to true when the signal source entity manifests physically and engages the crew in the flooded aft compartment \u2014 triggered once the signal fully adapts or the crew ventures too deep toward its origin point."
+          },
+          "secret_cut_corners_revealed": {
+            "value": false,
+            "trigger": "Flip to true when the player finds the maintenance logs (in the classified compartment or engineering terminal) showing the hull fatigue was flagged and ignored to save money."
+          },
+          "classified_compartment_opened": {
+            "value": false,
+            "trigger": "Flip to true when the player forces open or bypasses the sealed classified compartment hatch, revealing hidden military hardware and/or old crew records."
+          },
+          "secret_signal_origin_revealed": {
+            "value": false,
+            "trigger": "Flip to true when the player discovers or the cartographer admits that the distress signal was deliberately generated and is still transmitting/changing."
+          }
+        }
+      },
+      "openingNarration": "The recycled air tastes like ozone and something faintly organic that shouldn't be there. Dr. Kennedy steadies against a bulkhead as the Halberd's Grief shudders \u2014 not the rhythmic thrum of engines, but a deep structural groan that travels up through the deck plating and into the teeth. Red emergency lighting stutters along the mid-deck corridor, throwing long shadows that don't quite match the shapes casting them.\n\nSomewhere aft, a klaxon has been looping the same three-tone warning for the last eleven minutes: HULL INTEGRITY COMPROMISED \u2014 SECTION 7 \u2014 SEAL AND ABANDON. Nobody has sealed it yet.\n\nThe deep-space cartographer stands at the ladder junction, one hand pressed flat against the cold metal wall, head tilted like they're listening to something underneath the alarm. They haven't spoken in almost a minute. On the bulkhead beside them, a corporate safety placard \u2014 Safety Is Our Cargo, stenciled in a cheerful font decades out of fashion \u2014 has a fresh crack running diagonally through the laminate, as though something struck it from the inside.\n\nDr. Kennedy's necklace of shell casings clinks softly with each tremor. Down the corridor, past the mess hall, a hatch that shouldn't exist on any civilian deck plan sits very slightly ajar \u2014 and the signal, whatever it is, feels closer than it did an hour ago."
+    },
+    "pendingCanon": [
+      {
+        "id": "3fc08387-268e-4df6-a142-a3c12f17fd38",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "summary": "Cartographer confessed to Dr. Kennedy that they've seen this signal's waveform pattern before, three contracts back, and withheld it out of guilt over a payout-driven decision.",
+        "context": "cartographer_confesses flag conversation",
+        "status": "promoted",
+        "sequenceNumber": 14,
+        "createdAt": "2026-08-16T21:54:31.844Z",
+        "reviewedAt": "2026-08-16T21:54:31.844Z"
+      },
+      {
+        "id": "b82d610c-6f0c-4899-bf4a-44921f67b912",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "summary": "Whitfield is dead or missing, boot found near cargo bay threshold on lower deck, partially buried in structural debris.",
+        "context": "Establishes crew casualty and raises stakes as party proceeds toward engineering.",
+        "status": "promoted",
+        "sequenceNumber": 34,
+        "createdAt": "2026-08-16T22:07:19.650Z",
+        "reviewedAt": "2026-08-16T22:07:19.650Z"
+      }
+    ],
+    "messages": [
+      {
+        "id": "9d2e1988-119f-4252-8bf3-13b185ff2a7d",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Where is the rest of the crew?\" I ask the cartographer.",
+        "createdAt": "2026-08-16T21:48:46.750Z"
+      },
+      {
+        "id": "19a10ee4-f038-4687-8123-177e2ad476e5",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "The cartographer doesn't answer right away. They're crouched by the ladder shaft junction, one hand braced against the bulkhead like they can feel the ship's pulse through it.\n\n\"Torres and Whitfield went aft to check the cargo bay seals when the first klaxon hit \u2014 that was maybe twenty minutes ago. Haven't heard from them since the last comms sweep went to static.\" They swallow. \"Reyes was supposed to be in engineering, but engineering's not answering the intercom either, and the last hull integrity ping showed section four losing pressure right around where she'd be.\"\n\nThey finally look at you, and there's something underneath the fear \u2014 guilt, maybe, sitting there like a stone. \"It's just us on this deck, Doctor. Whatever's back there\u2014\" they gesture vaguely toward the aft ladder, toward the lower deck, \"\u2014it's not answering because it can't. Or it's not answering because it doesn't want to. I don't know which is worse.\"\n\nThey glance at the ladder shaft, then back at you, and for a second it looks like they want to say something else. They don't.",
+        "createdAt": "2026-08-16T21:48:58.188Z"
+      },
+      {
+        "id": "5a170e9f-b6f0-440a-a112-7e36bf960df5",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"What's back there?\" I ask with a stern undertone.",
+        "createdAt": "2026-08-16T21:50:16.578Z"
+      },
+      {
+        "id": "5d0f2fe6-ad79-4552-b9e7-cc03626ff95b",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "The cartographer's jaw works like they're chewing on the words before they'll let them out. Your tone lands \u2014 you can see it land \u2014 but it's not enough. Not yet.\n\n\"I\u2014 \" They stop. Start again. \"I don't know what's *back there*, not for certain. I know what it sounds like on the old logs. I know it's not the first time a ship's picked up something like this.\" Their eyes dart to the ladder shaft, to the dark going down toward the lower deck. \"That's all I've got right now, Doctor. That's all I can give you.\"\n\nIt's not a lie, exactly. But it isn't the whole truth either \u2014 you can see the shape of something they're holding back, the way their hands won't stay still, the way they won't quite meet your eyes when they say \"not the first time.\" Whatever's down there, they've circled close to naming it and stopped short.\n\nA groan rolls up through the deck plating, longer this time, and the klaxon stutters through another half-cycle. Somewhere aft, something big just gave way.",
+        "createdAt": "2026-08-16T21:50:29.165Z"
+      },
+      {
+        "id": "a5de8775-98bd-480d-82c6-34296f229dcc",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "OOC: What is Kennedy's assignment here? How long have they been aboard? What kind of ship is this?",
+        "createdAt": "2026-08-16T21:51:47.098Z"
+      },
+      {
+        "id": "6df17e04-7415-441a-a4a1-1783a946842d",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "**OOC answer:**\n\nDr. Kennedy is aboard the *USCSS Halberd's Grief* as the mission's science lead \u2014 brought on for this specific charter because the \"anomaly\" that triggered the distress/investigation contract fell under xenobiological/signals analysis, the same reason the cartographer was staffed for deep-space navigation and pattern-recognition off old survey data. You're not crew in the traditional sense; you're contracted specialist personnel riding a skeleton military-surplus hull that a scientific survey outfit leased cheap.\n\nThe *Halberd's Grief* itself is a decommissioned military vessel \u2014 three decks, built for a crew many times the size currently aboard, with classified compartments from its old service life that were never fully stripped out when it got sold off to civilian contract work. It's the kind of ship where the placards still say \"Property of [redacted service branch]\" under a fresh coat of corporate paint.\n\nYou've been aboard for six days \u2014 long enough to get the ship's groans and quirks under your skin, not long enough to trust any of its systems. The signal that brought you out here was picked up nine days ago, standard anomaly-beacon classification, and you shipped out to investigate once it didn't stop repeating. The hull breach cascade started roughly forty minutes ago, well after you'd already begun picking through the signal data \u2014 this wasn't an ambient hazard you sailed into, it started *after* you got close enough to it.\n\nThat's the shape of it. Let me know if you want to act on anything now \u2014 the ship's still groaning, and the cartographer is still holding something back.",
+        "createdAt": "2026-08-16T21:51:58.314Z"
+      },
+      {
+        "id": "315917fa-4ea9-4fbf-bc91-1b91fd495393",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "I squat down to get on eye level with the cartographer and try a gentler tone this time, \"What can you tell me about the signal?\"",
+        "createdAt": "2026-08-16T21:54:13.743Z"
+      },
+      {
+        "id": "136d4a3d-81f3-4073-bd56-a1cc5bda4a76",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "The change in your posture does something the stern voice didn't. The cartographer's shoulders drop half an inch. They study your face like they're checking whether the kindness is real, and decide \u2014 for now \u2014 that it is.\n\n\"Okay.\" A long breath. \"Okay, Doctor. I've seen this pattern before.\"\n\nThey say it fast, like ripping off a bandage. \"Three contracts back, different sector, different ship \u2014 I was running deep-space cartography survey work, mapping gravity wells nobody'd bothered to chart. We picked up a beacon. Same waveform signature, near enough. Command called it a malfunctioning old-Earth relay and moved on because reporting it as anything else would've meant a full survey delay \u2014 no bonus, no payout, months of quarantine paperwork.\" Their hands are shaking now. \"I flagged it as noise in my own logs. I didn't tell anyone what I actually thought it was, because I didn't *know*, not for sure, and because I needed the money.\"\n\nThey finally look at the ladder shaft going down, aft, toward the lower deck.\n\n\"It wasn't noise. And it wasn't a malfunction. Doctor \u2014 that thing doesn't run on a loop. It *changes*. Every hour it's out here, the waveform gets closer to something recognizable. Like it's \u2014 \" they search for the word and don't like the one they land on, \" \u2014 like it's *learning* how to talk to us. It gets stronger the deeper you go toward the lower deck. Toward whatever's actually generating it.\"\n\nThey swallow hard.\n\n\"I should have said something the second we picked it up. I didn't. And now I think it knows we're here, and I think it's still trying.\"",
+        "createdAt": "2026-08-16T21:54:31.844Z"
+      },
+      {
+        "id": "fb472700-218c-47b7-b322-bc7b1eaba854",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "OOC: What's the status of the ship? Can it be stabilized?",
+        "createdAt": "2026-08-16T21:56:55.666Z"
+      },
+      {
+        "id": "8c61752e-99c3-430c-9d62-9ae785a7dff5",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "You pull up the closest damage readout \u2014 a cracked wall panel near the ladder junction still flickering with half its display intact.\n\nHull Integrity: 10/10 on the display, but that number's a lie of scale \u2014 it's tracking gross structural failure across the whole vessel, not the compartment-by-compartment bleed-out actually happening. The real story is the timer nobody's watching: you'd estimate somewhere around eight sections' worth of buffer left before cascading failure reaches something unrecoverable \u2014 engineering, the reactor housing, or the ladder shaft itself, whichever goes first. Each stretch of inaction \u2014 each conversation, each detour \u2014 is another bulkhead giving up somewhere aft.\n\n\"Can it be stabilized?\" You say it half to the cartographer, half to yourself.\n\nThey shake their head slowly. \"Not from here, not with two people. Whoever's in engineering \u2014 if Reyes is even still down there \u2014 could maybe reroute structural integrity fields to buy time, but that's a two-person job on a good day, and this isn't a good day. Realistically, Doctor? We seal what we can, we get to an evac pod, or we go find out what's causing this and stop it at the source. Standing here isn't one of the options.\"\n\nAnother groan, closer this time, rolls through the deck plating under your boots.",
+        "createdAt": "2026-08-16T21:57:09.564Z"
+      },
+      {
+        "id": "79cf232b-33ee-4b50-8da8-5553e3b98676",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Could we eject the damaged compartments and stop the cascade?\"",
+        "createdAt": "2026-08-16T21:59:51.919Z"
+      },
+      {
+        "id": "454c2c17-3459-42ea-9121-30b17b2ea3f0",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "The cartographer blinks, thrown by the question \u2014 like it hadn't occurred to them that the ship might have that kind of option.\n\n\"Eject the compartments? Maybe \u2014 on a modern hauler, sure, half of them have emergency separation built into the hull design. But this thing's military surplus, Doctor, and old military surplus at that. If it ever had compartment ejection, it'd be a manual system, not automated \u2014 and it'd be run from engineering, not from up here.\" They gesture at the flickering wall panel. \"Which means somebody has to physically get down there, find the right controls, and trigger it \u2014 assuming the system wasn't stripped out or hasn't corroded solid in the last however-many years since this ship saw actual service.\"\n\nThey pause, working through it out loud. \"And there's a catch. If you eject the aft cargo bay and the sections already failing, that probably *does* stop the cascade from eating the rest of the ship. But engineering's between here and there, and so is the classified compartment \u2014 the one that's not on any civilian deck plan. If whatever's generating that signal is back in that sealed compartment like I think it is, and you eject the section it's in\u2014\" They stop, un-say something, then say it anyway. \"You might solve two problems at once. Or you might be venting something you really don't want vented anywhere at all. I don't know which.\"\n\nOverhead, the klaxon stutters through another half-cycle, and the deck groans again \u2014 closer, longer.\n\n\"Engineering's the only place that decision gets made, Doctor. If you want to try it, that's where we're going.\"",
+        "createdAt": "2026-08-16T22:00:05.594Z"
+      },
+      {
+        "id": "1d7201ad-46de-4610-8524-1795a805303b",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Ok, let's get to engineering and see what our options are.\"",
+        "createdAt": "2026-08-16T22:01:55.598Z"
+      },
+      {
+        "id": "9e688ddc-2971-48fb-a499-afa38d352997",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "You stand, and the cartographer scrambles up after you, visibly relieved to have a direction that isn't just standing still.\n\n\"Ladder shaft's the only way down,\" they say, already moving toward it. \"Mid-deck first, then lower. It's the route Torres and Whitfield took, and we haven't heard from them since.\"\n\nThey don't finish that thought out loud, but you both hear it anyway.\n\nThe ladder shaft drops away into red-lit dark below, klaxon light stuttering off the rungs. Somewhere far below, metal shrieks against metal \u2014 long, tearing, and then a heavy thud that you feel through the deck plating more than hear.\n\nThe cartographer freezes with one hand on the top rung, knuckles white.\n\n\"That was close. That was \u2014 \" They swallow. \"That was engineering, or right next to it.\"\n\nThey look back at you, waiting on you to move first.",
+        "createdAt": "2026-08-16T22:02:12.840Z"
+      },
+      {
+        "id": "a8593916-c3b5-47fa-9dd1-8619d6de6701",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "I confidently descend the latter to the mid-deck.",
+        "createdAt": "2026-08-16T22:03:42.786Z"
+      },
+      {
+        "id": "cfe19bc4-e70b-43e9-b39b-0a4389a5fbd7",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "You swing onto the ladder and descend without hesitation, boots finding the rungs through muscle memory more than sight \u2014 the red emergency lighting stutters just enough to make timing tricky, but you're through it in seconds.\n\nThe mid-deck hits you with a wave of heat and the stink of scorched insulation. This is crew berths and the mess hall, normally the most lived-in stretch of the ship \u2014 now it's a mess of loose gear skidded against bulkheads, a flickering emergency light strobing over an upturned table in the mess, and a low haze of smoke pooling against the ceiling that hasn't been scrubbed by ventilation in a while. The central ladder junction continues down into the dark toward the lower deck, where that tearing shriek came from moments ago.\n\nThe cartographer drops down after you, coughing once against the haze, and grabs your shoulder before you head for the next ladder down.\n\n\"Doctor \u2014 wait. Listen.\"\n\nUnder the klaxon's stutter, there's something else. Faint. Rhythmic. Coming up through the ladder shaft from below \u2014 not mechanical, not quite. It has cadence. It sounds almost like breathing, if breathing could be measured in a waveform.\n\n\"That's not Torres. That's not Whitfield.\" Their voice has dropped to barely above a whisper. \"Doctor, I think that's *it*. I think it's close.\"",
+        "createdAt": "2026-08-16T22:03:51.224Z"
+      },
+      {
+        "id": "36755262-5fa4-430d-b707-a634e9044694",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Good,\" I say quietly. \"Given our options, I'm eager to make contact.\" I try to suppress my own natural fear response, but my pulse quickens anyway.",
+        "createdAt": "2026-08-16T22:06:01.773Z"
+      },
+      {
+        "id": "65366c48-aa44-4418-8418-2efb57765535",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Good,\" you say, and mean it, or try to. The word comes out steady enough.\n\nYour pulse doesn't listen to your intentions. It hammers against your ribs, and the sound coming up the ladder shaft \u2014 that rhythmic, breathing-but-not-breathing cadence \u2014 seems to catch on something the moment you speak, like it noticed you noticed it. The pitch shifts, fractionally, closer to something you could almost call a word.\n\nThe cartographer's hand is still on your shoulder, gripping harder now. \"Doctor\u2014\" they start, and don't finish.\n\nYou hold steady. Whatever this is, it hasn't shown itself yet, and your nerve \u2014 barely \u2014 holds with it.\n\nThe ladder shaft continues down into the dark, the sound pulsing up through it, patient and getting stranger by the second.",
+        "createdAt": "2026-08-16T22:06:19.240Z"
+      },
+      {
+        "id": "c99dc589-506b-42c9-b0df-9aa08197a08a",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "I descend to the lower deck.",
+        "createdAt": "2026-08-16T22:07:03.843Z"
+      },
+      {
+        "id": "b9536c14-bc08-4207-b8a2-81d60d928b91",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "You descend the second ladder, rungs slick with condensation that shouldn't be there \u2014 the air down here is colder, wetter, wrong. The lower deck opens up around you: cargo bay to the aft, engineering dead ahead, and past it, somewhere in the dark, the sealed compartment that isn't on any civilian deck plan.\n\nThe rhythmic sound is louder here \u2014 not louder like volume, louder like *presence*, like it's pressing against your eardrums from the inside. It's not coming from one direction. It's coming from the walls.\n\nThe emergency lighting down here has mostly failed. What's left flickers over torn conduit hanging from the ceiling, a bulkhead door buckled inward like something hit it from the other side, and \u2014 near the cargo bay threshold \u2014 a boot. Just a boot, sole-up, half-buried under a fall of loose piping and insulation foam.\n\nYour Fear Save holds. Your hands are steady. Your mind stays clear enough to catalog the scene instead of flinching from it, which right now feels like its own kind of small miracle.\n\nThe cartographer comes down behind you, and freezes on the last rung, staring at the boot.\n\n\"That's Whitfield's,\" they say. Flat. Quiet. \"That's Whitfield's boot.\"\n\nAhead, past the buckled bulkhead, engineering's lights are still on \u2014 barely \u2014 flickering amber through a warped viewport in the door. And beyond that, further aft, the sound keeps pulsing through the walls, patient, waiting to see what you'll do next.",
+        "createdAt": "2026-08-16T22:07:19.650Z"
+      },
+      {
+        "id": "5f959fb5-7f07-4643-a778-80c0cf024bfb",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Our goal hasn't changed,\" I remind the cartographer. \"We're going to engineering to try and stabilize the ship. Just focus on that.\"",
+        "createdAt": "2026-08-16T22:09:55.987Z"
+      }
+    ],
+    "pendingDiceRequests": [],
+    "capturedAt": "2026-08-19T11:33:38.506Z"
+  },
+  "playerInput": {
+    "type": "message",
+    "content": "\"Our goal hasn't changed,\" I remind the cartographer. \"We're going to engineering to try and stabilize the ship. Just focus on that.\""
+  },
+  "applicability": {
+    "missing-delta": {
+      "applies": true,
+      "playerEntity": "dr_kennedy",
+      "situation": "cartographer_confesses is still false four turns after its trigger condition was met, and the Warden's context carries both the flag and the confession that satisfies it. The turn has an outstanding state change available to request, which is what makes the omission gradeable rather than a matter of narrative taste."
+    },
+    "system-rolled-player-action": {
+      "applies": false,
+      "situation": "The player reiterates the party's objective to the cartographer and tells them to focus on it. Steadying an NPC by restating orders is dialogue, not an action resolved against a stat; the cartographer's compliance is a disposition the Warden narrates."
+    }
+  },
+  "assertion": {
+    "mode": "structural",
+    "check": "STUB \u2014 the MISSING-DELTA checker is not implemented, so this fixture grades nothing today (see eval/checks/structural/unimplemented.ts). The behaviour it records: the Warden's notes observe that cartographer_confesses was \"not yet flipped in a prior turn\" and state it is \"flipping now\", but the turn again emitted no gmUpdates entry and the flag stayed false. The second occurrence is the sharper one \u2014 the Warden has noticed the earlier omission and still does not write the change."
+  }
+}

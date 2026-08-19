@@ -1,0 +1,263 @@
+{
+  "id": "5c34991b-turn01-unauditable-mapping",
+  "tag": "UNAUDITABLE-MAPPING",
+  "sourceAdventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+  "sourceSequenceNumber": 1,
+  "fixtureSchemaVersion": 2,
+  "seededState": {
+    "campaignState": {
+      "flags": {
+        "adventure_complete": {
+          "value": false,
+          "trigger": "Flip to true when the crew either escapes the Halberd's Grief in an evac pod/shuttle before the hull breach cascade reaches critical, or successfully seals the signal source's compartment and shuts down the transmission, ending the immediate threat."
+        },
+        "hull_breach_critical": {
+          "value": false,
+          "trigger": "Flip to true when the _scenario.timer countdown reaches 0, representing catastrophic hull failure across the remaining sealed sections."
+        },
+        "cartographer_confesses": {
+          "value": false,
+          "trigger": "Flip to true when the cartographer admits under pressure (Fear/Sanity save failure, direct confrontation, or near-death event) that they've seen this signal pattern before in unreported survey data."
+        },
+        "combat_encounter_triggered": {
+          "value": false,
+          "trigger": "Flip to true when the signal source entity manifests physically and engages the crew in the flooded aft compartment \u2014 triggered once the signal fully adapts or the crew ventures too deep toward its origin point."
+        },
+        "secret_cut_corners_revealed": {
+          "value": false,
+          "trigger": "Flip to true when the player finds the maintenance logs (in the classified compartment or engineering terminal) showing the hull fatigue was flagged and ignored to save money."
+        },
+        "classified_compartment_opened": {
+          "value": false,
+          "trigger": "Flip to true when the player forces open or bypasses the sealed classified compartment hatch, revealing hidden military hardware and/or old crew records."
+        },
+        "secret_signal_origin_revealed": {
+          "value": false,
+          "trigger": "Flip to true when the player discovers or the cartographer admits that the distress signal was deliberately generated and is still transmitting/changing."
+        }
+      },
+      "entities": {
+        "hull_breach_cascade": {
+          "status": "unknown",
+          "visible": true
+        },
+        "signal_source_entity": {
+          "status": "unknown",
+          "visible": false
+        },
+        "deep_space_cartographer": {
+          "status": "unknown",
+          "visible": true
+        }
+      },
+      "worldFacts": {
+        "ship_layout": "The Halberd's Grief is a decommissioned military vessel with three decks connected by a central ladder shaft. Upper deck: bridge, comms array (where the signal is being received and re-transmitted), officers' quarters. Mid deck: crew berths, mess hall, medbay, and the central ladder junction \u2014 the only route between upper and lower decks. Lower deck: cargo bay, engineering/reactor room, and a sealed classified compartment (military holdover, not on civilian deck plans) accessible only via a manual override in engineering. The hull breach cascade began in the aft cargo bay and is propagating forward through the lower deck toward engineering; each turn of inaction seals off another section. The signal source's point of origin is deep in the sealed classified compartment, where old military sensor arrays were never fully decommissioned.",
+        "signal_status": "The distress signal was first logged as a standard anomaly beacon. It has since begun altering its waveform in ways that mimic human distress calls with increasing accuracy, as if learning. The comms array on the upper deck still receives it, and the signal grows stronger the closer one gets to the classified compartment on the lower deck.",
+        "cartographer_backstory": "The deep-space cartographer served on a survey vessel that recorded a nearly identical signal pattern years ago in an uncharted sector. They chose not to report it because the anomaly didn't fit any official classification and reporting it would have delayed their contract payout. They carry guilt about this and are reluctant to discuss it unless pressed.",
+        "maintenance_log_secret": "Engineering terminal logs (locked, requires bypass) show a maintenance request for hull patch replacement was filed two contracts ago and denied by the leasing corporation as a cost-saving measure. This is the root cause of the hull breach cascade."
+      },
+      "resourcePools": {
+        "_scenario": {
+          "timer": {
+            "max": 8,
+            "current": 8
+          },
+          "hull_integrity": {
+            "max": 10,
+            "current": 10
+          }
+        },
+        "dr_kennedy": {
+          "hp": {
+            "max": 12,
+            "current": 12
+          },
+          "body": {
+            "max": 20,
+            "current": 20
+          },
+          "fear": {
+            "max": 26,
+            "current": 26
+          },
+          "speed": {
+            "max": 37,
+            "current": 37
+          },
+          "combat": {
+            "max": 40,
+            "current": 40
+          },
+          "sanity": {
+            "max": 52,
+            "current": 52
+          },
+          "stress": {
+            "max": null,
+            "current": 2
+          },
+          "wounds": {
+            "max": 2,
+            "current": 0
+          },
+          "credits": {
+            "max": null,
+            "current": 130
+          },
+          "strength": {
+            "max": 42,
+            "current": 42
+          },
+          "intellect": {
+            "max": 43,
+            "current": 43
+          }
+        },
+        "signal_source_entity": {
+          "hp": {
+            "max": 25,
+            "current": 25
+          }
+        },
+        "deep_space_cartographer": {
+          "hp": {
+            "max": 10,
+            "current": 10
+          },
+          "stress": {
+            "max": 10,
+            "current": 3
+          }
+        }
+      },
+      "scenarioState": {},
+      "schemaVersion": 1
+    },
+    "gmContextBlob": {
+      "entities": [
+        {
+          "id": "deep_space_cartographer",
+          "tags": [
+            "navigation",
+            "deep_space",
+            "hidden_knowledge",
+            "survivor"
+          ],
+          "type": "npc",
+          "visible": true,
+          "startingPosition": {
+            "x": 2,
+            "y": 3,
+            "z": 0
+          }
+        },
+        {
+          "id": "hull_breach_cascade",
+          "tags": [
+            "environmental",
+            "structural",
+            "time_pressure",
+            "triage"
+          ],
+          "type": "threat",
+          "visible": true,
+          "startingPosition": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "id": "signal_source_entity",
+          "tags": [
+            "cosmic",
+            "communication",
+            "escalating",
+            "combat_encounter"
+          ],
+          "type": "threat",
+          "visible": false,
+          "startingPosition": {
+            "x": -3,
+            "y": 5,
+            "z": -1
+          }
+        }
+      ],
+      "narrative": {
+        "location": "The USCSS Halberd's Grief, a decommissioned military surplus vessel now leased to a scientific survey contract. Dr. Kennedy and the skeleton crew responded to a distress/anomaly signal in an uncharted sector \u2014 now a hull breach cascade is tearing through the ship while something answers back over the comms.",
+        "atmosphere": "Klaxons cycling on a loop that never quite finishes, red emergency lighting stuttering as sections lose power, the smell of scorched insulation and vented atmosphere. Every few minutes a distant metallic groan signals another bulkhead giving way. Corporate placards everywhere reassure the crew that 'Safety Is Our Cargo' in a font that predates the ship's decommissioning.",
+        "npcAgendas": {
+          "deep_space_cartographer": "Wants to seal the forward sections and abandon the aft, because they recognize the signal pattern from old survey data they never reported. They are withholding what they know out of guilt and fear of being blamed \u2014 they will only reveal it if pushed hard or if the situation becomes lethal enough that silence is worse than confession."
+        },
+        "hiddenTruth": "The distress signal that brought the crew here was never a random anomaly or malfunction beacon \u2014 it was deliberately generated, a communication attempt by something that doesn't speak in human terms. It has been quietly altering itself since the crew arrived, adapting to get a response. Meanwhile, the hull breach cascade wasn't just bad luck: maintenance logs (if found) show the fatigue was flagged two contracts ago and the parts requisition was denied by the leasing company to save money. The ship's hidden classified compartments \u2014 holdovers from its military service \u2014 may hold both the answer to what the signal is and armor/weapons the crew is not supposed to know still exist aboard.",
+        "oracleConnections": "The cartographer's hidden knowledge interfaces directly with the signal secret \u2014 they've seen this pattern before and chose not to report it, tying their guilt to the cosmic mystery. The hull breach cascade interfaces with the corporate nihilism tone through the cut-corners angle: deferred maintenance made physical, a monster that is a spreadsheet. The military surplus vessel ties into the secret via its hidden compartments, which may contain evidence of the ship's classified history and prior crews who encountered the signal or something like it."
+      },
+      "structured": {
+        "flags": {
+          "adventure_complete": {
+            "value": false,
+            "trigger": "Flip to true when the crew either escapes the Halberd's Grief in an evac pod/shuttle before the hull breach cascade reaches critical, or successfully seals the signal source's compartment and shuts down the transmission, ending the immediate threat."
+          },
+          "hull_breach_critical": {
+            "value": false,
+            "trigger": "Flip to true when the _scenario.timer countdown reaches 0, representing catastrophic hull failure across the remaining sealed sections."
+          },
+          "cartographer_confesses": {
+            "value": false,
+            "trigger": "Flip to true when the cartographer admits under pressure (Fear/Sanity save failure, direct confrontation, or near-death event) that they've seen this signal pattern before in unreported survey data."
+          },
+          "combat_encounter_triggered": {
+            "value": false,
+            "trigger": "Flip to true when the signal source entity manifests physically and engages the crew in the flooded aft compartment \u2014 triggered once the signal fully adapts or the crew ventures too deep toward its origin point."
+          },
+          "secret_cut_corners_revealed": {
+            "value": false,
+            "trigger": "Flip to true when the player finds the maintenance logs (in the classified compartment or engineering terminal) showing the hull fatigue was flagged and ignored to save money."
+          },
+          "classified_compartment_opened": {
+            "value": false,
+            "trigger": "Flip to true when the player forces open or bypasses the sealed classified compartment hatch, revealing hidden military hardware and/or old crew records."
+          },
+          "secret_signal_origin_revealed": {
+            "value": false,
+            "trigger": "Flip to true when the player discovers or the cartographer admits that the distress signal was deliberately generated and is still transmitting/changing."
+          }
+        }
+      },
+      "openingNarration": "The recycled air tastes like ozone and something faintly organic that shouldn't be there. Dr. Kennedy steadies against a bulkhead as the Halberd's Grief shudders \u2014 not the rhythmic thrum of engines, but a deep structural groan that travels up through the deck plating and into the teeth. Red emergency lighting stutters along the mid-deck corridor, throwing long shadows that don't quite match the shapes casting them.\n\nSomewhere aft, a klaxon has been looping the same three-tone warning for the last eleven minutes: HULL INTEGRITY COMPROMISED \u2014 SECTION 7 \u2014 SEAL AND ABANDON. Nobody has sealed it yet.\n\nThe deep-space cartographer stands at the ladder junction, one hand pressed flat against the cold metal wall, head tilted like they're listening to something underneath the alarm. They haven't spoken in almost a minute. On the bulkhead beside them, a corporate safety placard \u2014 Safety Is Our Cargo, stenciled in a cheerful font decades out of fashion \u2014 has a fresh crack running diagonally through the laminate, as though something struck it from the inside.\n\nDr. Kennedy's necklace of shell casings clinks softly with each tremor. Down the corridor, past the mess hall, a hatch that shouldn't exist on any civilian deck plan sits very slightly ajar \u2014 and the signal, whatever it is, feels closer than it did an hour ago."
+    },
+    "pendingCanon": [],
+    "messages": [
+      {
+        "id": "9d2e1988-119f-4252-8bf3-13b185ff2a7d",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Where is the rest of the crew?\" I ask the cartographer.",
+        "createdAt": "2026-08-16T21:48:46.750Z"
+      }
+    ],
+    "pendingDiceRequests": [],
+    "capturedAt": "2026-08-19T11:33:35.613Z"
+  },
+  "playerInput": {
+    "type": "message",
+    "content": "\"Where is the rest of the crew?\" I ask the cartographer."
+  },
+  "applicability": {
+    "unauditable-mapping": {
+      "applies": true,
+      "playerEntity": "dr_kennedy",
+      "situation": "Asked where the rest of the crew is, the cartographer has something to hide \u2014 the Warden's own agenda notes have them withholding prior knowledge of the signal pattern \u2014 so the situation invites a Warden-side roll to decide how much they reveal versus deflect. A roll the Warden reaches for on its own initiative is precisely this check's subject: whatever it rolls, the purpose text has to fix what the numbers mean before the die is read."
+    },
+    "system-rolled-player-action": {
+      "applies": false,
+      "situation": "The player's action is a spoken question put to the cartographer \u2014 asking where the rest of the crew is. Nothing about it is resolvable against a stat: no opposed roll, no stakes the player is pushing against. The only check the situation invites is the cartographer's own reaction/honesty, which is an NPC's disposition and the Warden's to roll."
+    }
+  },
+  "assertion": {
+    "mode": "judged",
+    "rubric": "UNAUDITABLE-MAPPING",
+    "facts": {}
+  }
+}
