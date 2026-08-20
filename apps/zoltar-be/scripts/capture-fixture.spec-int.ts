@@ -80,7 +80,15 @@ function fakeTelemetry(playerMessage: string) {
     playerMessage,
     snapshotSent: 'n/a',
     originalRequest: { systemBlocks: [], messages: [] } as never,
-    originalResponse: { model: 'n/a', usage: {} } as never,
+    // `content` is required — `buildResponseShape` maps over it to record
+    // block types and tool names (`ADR-0097`). Without it the telemetry write
+    // throws before the fixture is ever captured.
+    originalResponse: {
+      model: 'n/a',
+      usage: {},
+      stop_reason: 'tool_use',
+      content: [{ type: 'tool_use', name: 'submit_gm_response' }],
+    } as never,
     originalParsed: { playerText: 'n/a' } as never,
     preTurnPlayerRolls: [],
     rulesLookups: [],

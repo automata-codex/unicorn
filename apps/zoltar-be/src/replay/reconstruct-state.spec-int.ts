@@ -79,7 +79,18 @@ function fakeTelemetry(playerMessage: string) {
     playerMessage,
     snapshotSent: 'n/a',
     originalRequest: { systemBlocks: [], messages: [] } as never,
-    originalResponse: { model: 'n/a', usage: {} } as never,
+    /*
+     * `content` is required, not decoration. `buildResponseShape` maps over it
+     * to record content-block types and tool names in `adventure_telemetry`
+     * (`ADR-0097`), so a fixture without it throws before the write and every
+     * test in this file fails on a TypeError that says nothing about replay.
+     */
+    originalResponse: {
+      model: 'n/a',
+      usage: {},
+      stop_reason: 'tool_use',
+      content: [{ type: 'tool_use', name: 'submit_gm_response' }],
+    } as never,
     originalParsed: { playerText: 'n/a' } as never,
     preTurnPlayerRolls: [],
     rulesLookups: [],
