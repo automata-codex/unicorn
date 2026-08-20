@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { mothershipCategoryToSelectionKey as categoryToSelectionKey } from '@uv/game-systems';
   import { push } from 'svelte-spa-router';
 
   import { api } from '../lib/api';
@@ -19,14 +20,6 @@
 
   import type { OracleEntry } from '../lib/data/oracle/types';
   import type { CoherenceConflict } from '../lib/types';
-
-  const categoryToSelectionKey: Record<string, string> = {
-    survivors: 'survivor',
-    threats: 'threat',
-    secrets: 'secret',
-    vessel_type: 'vessel_type',
-    tone: 'tone',
-  };
 
   let { params }: { params: { campaignId: string } } = $props();
   const campaignId = $derived(params.campaignId);
@@ -57,6 +50,28 @@
 
   function handleToggleExpand(categoryId: string) {
     expanded[categoryId] = !expanded[categoryId];
+  }
+
+  /**
+   * The ids the player left enabled, keyed the same way `oracleSelections` is.
+   *
+   * The backend cannot honour a filter it was never sent. Until this existed it
+   * rebuilt the reroll pool from every entry the game system ships, so a
+   * coherence reroll could substitute an option that had been switched off —
+   * which the 2026-08-16 playtest logged as
+   * `Coherence reroll: tone body_horror -> corporate_nihilism`.
+   */
+  function activeEntryIdsBySelectionKey(): Record<string, string[]> {
+    const active: Record<string, string[]> = {};
+    for (const cat of categories) {
+      const activeIds = filterState.active[cat.id];
+      if (!activeIds || activeIds.size === 0) continue;
+      const selectionKey = categoryToSelectionKey[cat.id] ?? cat.id;
+      active[selectionKey] = cat.entries
+        .filter((e) => activeIds.has(e.id))
+        .map((e) => e.id);
+    }
+    return active;
   }
 
   function drawRandomSelections(): Record<string, OracleEntry> {
@@ -98,6 +113,7 @@
           method: 'POST',
           body: JSON.stringify({
             oracleSelections,
+            activeEntryIds: activeEntryIdsBySelectionKey(),
             addendum: addendum.trim() || undefined,
           }),
         },
