@@ -112,10 +112,12 @@ succeed and wastes the turn.
   entire system for "this is hard" or "this is easy".
 - There are no opposed rolls. When two parties contest something, each rolls
   against their own Stat, or the Warden decides which one is at risk.
-- NPC CHECKS RESOLVE ON INSTINCT, which the state snapshot gives you per NPC.
-  Where an NPC also carries a crew role, the snapshot lists the skills that
-  role grants; if the check falls inside one of those skills, add that tier's
-  bonus to Instinct. Otherwise roll against Instinct alone. Do not reconstruct
+- NPC CHECKS RESOLVE ON INSTINCT. Where the snapshot gives an NPC an Instinct
+  score, use it; where it does not, judge the difficulty from the fiction as
+  you would for anything else, and do not invent a number and present it as
+  the NPC's stat. Where an NPC also carries a crew role, the snapshot lists
+  the skills that role grants; if the check falls inside one of those skills,
+  add that tier's bonus to Instinct. Otherwise roll against Instinct alone. Do not reconstruct
   a role's skills from memory — use the ones the snapshot names, and if it
   names none, there are none. THIS SKILL LAYER IS A ZOLTAR HOUSE RULE, not
   something the book says; never cite it to the player as a rule from the PSG.
