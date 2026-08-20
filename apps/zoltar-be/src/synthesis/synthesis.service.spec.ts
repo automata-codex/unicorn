@@ -398,7 +398,9 @@ describe('SynthesisService.commitGmContext', () => {
     expect(args.campaignStateData.flags.adventure_complete.trigger).toBe(
       'Escape with the manifest.',
     );
-    expect(args.campaignStateData.entities.dr_chen).toEqual({
+    // `instinctRoll` is real dice — the backend rolls it for every npc — so it
+    // is matched by shape rather than by value.
+    expect(args.campaignStateData.entities.dr_chen).toMatchObject({
       visible: true,
       status: 'unknown',
     });

@@ -217,12 +217,37 @@ describe('buildResourcePools', () => {
 });
 
 describe('buildEntityMap', () => {
-  it('keys by entity id with visible/status only', () => {
-    const map = buildEntityMap(makeInput().structured.entities);
+  it('keys by entity id, rolling Instinct for npcs and not for threats', () => {
+    const map = buildEntityMap(makeInput().structured.entities, () => [6, 3]);
     expect(map).toEqual({
-      dr_chen: { visible: true, status: 'unknown' },
+      dr_chen: { visible: true, status: 'unknown', instinctRoll: [6, 3] },
       shadow_threat: { visible: false, status: 'unknown' },
     });
+  });
+
+  /**
+   * `SYNTHESIS_TOOLS` carries no `roll_dice`, so a number the model supplied
+   * would be a fabrication rather than a roll. The tool schema omits the field
+   * so Zod strips it — asserted here rather than trusted to the prompt, which
+   * is the lesson `ADR-0097` records.
+   */
+  it('discards an instinctRoll the model tried to supply', () => {
+    const input = makeInput();
+    (input.structured.entities[0] as Record<string, unknown>).instinctRoll = [
+      10, 10,
+    ];
+
+    const map = buildEntityMap(input.structured.entities, () => [1, 1]);
+    expect(map.dr_chen.instinctRoll).toEqual([1, 1]);
+  });
+
+  it('carries a crewRole through, which the old field list would have dropped', () => {
+    const input = makeInput();
+    (input.structured.entities[0] as Record<string, unknown>).crewRole =
+      'chief_engineer';
+
+    const map = buildEntityMap(input.structured.entities, () => [6, 3]);
+    expect(map.dr_chen.crewRole).toBe('chief_engineer');
   });
 });
 

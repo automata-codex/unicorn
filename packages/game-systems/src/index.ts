@@ -23,6 +23,7 @@ export * from './mothership/character-pools';
 export * from './mothership/character-sheet.schema';
 export * from './mothership/character-skills';
 export * from './mothership/character-state.schema';
+export * from './mothership/crew-roles';
 export * from './mothership/oracle.schema';
 export * from './mothership/oracle-data';
 export * from './mothership/pool-definitions';

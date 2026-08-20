@@ -1,5 +1,10 @@
 import { join } from 'node:path';
-import { MothershipCampaignStateSchema } from '@uv/game-systems';
+import {
+  CREW_ROLE_SKILLS,
+  crewRoleInstinctAdjustment,
+  MothershipCampaignStateSchema,
+  MothershipCrewRoleEnum,
+} from '@uv/game-systems';
 
 import { hashPromptText } from '../wardens/prompt-paths';
 
@@ -71,7 +76,14 @@ export const ASSEMBLY_PROBE: {
       oracleConnections: 'Signal ↔ the sealed compartment on Deck 0.',
     },
     entities: [
-      { id: 'probe_npc_one', type: 'npc', visible: true, tags: ['crew'] },
+      {
+        id: 'probe_npc_one',
+        type: 'npc',
+        visible: true,
+        tags: ['crew'],
+        // A Contractor with a role, so the derivation is in the golden at all.
+        crewRole: 'chief_engineer',
+      },
       {
         id: 'probe_threat',
         type: 'threat',
@@ -143,7 +155,12 @@ export const ASSEMBLY_PROBE: {
       },
     },
     entities: {
-      probe_npc_one: { visible: true, status: 'alive' },
+      probe_npc_one: {
+        visible: true,
+        status: 'alive',
+        crewRole: 'chief_engineer',
+        instinctRoll: [6, 3],
+      },
       probe_threat: { visible: false, status: 'unknown' },
     },
     flags: {
@@ -154,11 +171,12 @@ export const ASSEMBLY_PROBE: {
   }),
 };
 
-/** The three code-built surfaces, rendered from the frozen probe. */
+/** The code-built surfaces, rendered from the frozen probe. */
 export interface AssemblySurfaces {
   gmContext: string;
   stateSnapshot: string;
   tools: string;
+  crewRoles: string;
 }
 
 /**
@@ -179,7 +197,32 @@ export function renderAssemblySurfaces(): AssemblySurfaces {
     // Pretty-printed rather than minified so a golden diff reads as one
     // changed line, not one changed 18KB line.
     tools: withTrailingNewline(JSON.stringify(SESSION_TOOLS, null, 2)),
+    crewRoles: withTrailingNewline(renderCrewRoleTable()),
   };
+}
+
+/**
+ * Every row of `CREW_ROLE_SKILLS`, rendered.
+ *
+ * **The probe alone cannot guard this table.** A Contractor's skills are
+ * derived at read time rather than stored, so editing the table changes what
+ * the Warden sees for frozen eval fixtures whose files did not change —
+ * `corpusVersion` hashes fixture files and will not move. `assemblyHash` is the
+ * only thing that can see it, and `probe_npc_one` holds one role: with a
+ * `chief_engineer` in the probe, editing `xenobiologist` would move nothing.
+ *
+ * Rendering all twenty closes that, and doubles as a readable diff of a table
+ * edit in review.
+ */
+function renderCrewRoleTable(): string {
+  return MothershipCrewRoleEnum.options
+    .map((role) => {
+      const chain = CREW_ROLE_SKILLS[role]
+        .map((entry) => `${entry.skill} ${entry.tier}`)
+        .join(', ');
+      return `${role} (+${crewRoleInstinctAdjustment(role)}): ${chain}`;
+    })
+    .join('\n');
 }
 
 /**
@@ -192,6 +235,7 @@ export const ASSEMBLY_GOLDEN_FILES: Record<keyof AssemblySurfaces, string> = {
   gmContext: 'gm-context.txt',
   stateSnapshot: 'state-snapshot.txt',
   tools: 'tools.txt',
+  crewRoles: 'crew-roles.txt',
 };
 
 /**
@@ -210,7 +254,8 @@ export function serializeAssemblySurfaces(s: AssemblySurfaces): string {
   return (
     `# gmContext\n${s.gmContext}\n` +
     `# stateSnapshot\n${s.stateSnapshot}\n` +
-    `# tools\n${s.tools}`
+    `# tools\n${s.tools}\n` +
+    `# crewRoles\n${s.crewRoles}`
   );
 }
 

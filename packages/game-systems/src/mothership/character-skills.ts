@@ -2,8 +2,10 @@ import {
   MOTHERSHIP_SKILL_BONUS,
   suppressedSkills,
   type MothershipCharacterState,
+  type MothershipSkillEntry,
   type MothershipSkillTier,
 } from './character-state.schema';
+import { CREW_ROLE_SKILLS, type MothershipCrewRole } from './crew-roles';
 
 /**
  * A skill as it applies right now: the tier the character holds, and the bonus
@@ -43,13 +45,34 @@ export interface ResolvedMothershipSkill {
  */
 export function resolveMothershipSkills(args: {
   characterState?: Pick<MothershipCharacterState, 'skills' | 'conditions'>;
+  /** A Contractor's role. Its chain is derived here, never stored. */
+  entity?: { crewRole?: MothershipCrewRole };
 }): ResolvedMothershipSkill[] {
   const state = args.characterState;
-  if (!state || state.skills.length === 0) return [];
 
-  const suppressed = suppressedSkills(state);
+  /*
+   * A player's skills are stored because a player *chose* them and nothing can
+   * recompute a choice; a Contractor's are arithmetic over `crewRole`. Two
+   * different kinds of fact, one reader — so `MOTHERSHIP_SKILL_BONUS`, the
+   * render and `loss_of_confidence` each keep a single implementation, and
+   * suppression works on a Contractor for free.
+   *
+   * Stored skills win where an entity somehow has both: a written record beats
+   * a derivation, and an NPC with stored skills has had them written
+   * deliberately.
+   */
+  const held: MothershipSkillEntry[] =
+    state && state.skills.length > 0
+      ? state.skills
+      : args.entity?.crewRole
+        ? CREW_ROLE_SKILLS[args.entity.crewRole]
+        : [];
 
-  return state.skills.map((entry) => {
+  if (held.length === 0) return [];
+
+  const suppressed = suppressedSkills(state ?? { conditions: [] });
+
+  return held.map((entry) => {
     const isSuppressed = suppressed.has(entry.skill);
     return {
       skill: entry.skill,

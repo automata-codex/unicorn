@@ -1,0 +1,20 @@
+captain (+15): Zero-G trained, Piloting expert, Command master
+executive_officer (+15): Zero-G trained, Piloting expert, Command master
+pilot (+10): Zero-G trained, Piloting expert
+navigator (+10): Zero-G trained, Piloting expert, Hyperspace master
+chief_engineer (+15): Industrial Equipment trained, Mechanical Repair expert, Engineering master, Jury-Rigging trained
+engineer (+10): Industrial Equipment trained, Mechanical Repair expert
+machinist_mechanic (+10): Jury-Rigging trained, Mechanical Repair expert
+life_support_tech (+10): Industrial Equipment trained, Botany trained, Ecology expert
+doctor (+15): Zoology trained, Field Medicine expert, Surgery master
+medic (+10): Zoology trained, Field Medicine expert
+scientist (+10): Mathematics trained, Physics expert
+geologist (+10): Geology trained, Asteroid Mining expert
+miner (+5): Geology trained, Asteroid Mining expert, Zero-G trained
+xenobiologist (+10): Zoology trained, Pathology expert, Exobiology master
+comms_officer (+10): Computers trained, Hacking expert
+corporate_liaison (+10): Linguistics trained, Psychology expert, Computers trained
+counselor (+10): Linguistics trained, Psychology expert
+security_chief (+15): Military Training trained, Firearms expert, Command master
+security_officer (+10): Military Training trained, Firearms expert
+cargo_handler (+5): Zero-G trained, Athletics trained

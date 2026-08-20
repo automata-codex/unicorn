@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { MothershipCrewRoleEnum } from './mothership/crew-roles';
+
 export const ResourcePoolSchema = z.object({
   current: z.number().int(),
   max: z.number().int().nullable(),
@@ -11,6 +13,17 @@ export const EntitySchema = z.object({
   visible: z.boolean(),
   status: EntityStatusSchema.default('unknown'),
   npcState: z.string().optional(),
+
+  /**
+   * The Contractor's crew role, and the dice behind their Instinct
+   * (`ADR-0100`). Both optional: `threat` and `feature` entities have neither,
+   * and an NPC written before this existed has neither.
+   *
+   * The roll is stored because nothing can recompute it; the Instinct total and
+   * the role's skill chain are derived and stored nowhere.
+   */
+  crewRole: MothershipCrewRoleEnum.optional(),
+  instinctRoll: z.array(z.number().int().min(1)).max(2).optional(),
   // npcState: update whenever NPC disposition or knowledge changes.
   // e.g. "Hostile — witnessed player kill the guard" or "Frightened — cornered, low ammo"
 });

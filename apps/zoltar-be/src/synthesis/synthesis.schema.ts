@@ -1,8 +1,20 @@
+import { MothershipCrewRoleEnum } from '@uv/game-systems';
 import { z } from 'zod';
 
 const entitySchema = z.object({
   id: z.string().min(1),
   type: z.enum(['npc', 'threat', 'feature']),
+  /**
+   * The Contractor's crew role (`ADR-0100`). `npc` only.
+   *
+   * **`instinctRoll` is deliberately absent from this schema.** The backend
+   * rolls Instinct; synthesis has no `roll_dice`, so a number the model
+   * supplied would be a fabrication rather than a roll. Leaving the field out
+   * means `.strip()` drops it rather than trusting a prompt instruction not to
+   * send one — `ADR-0097` is the precedent for not relying on the prompt where
+   * a schema can enforce it.
+   */
+  crewRole: MothershipCrewRoleEnum.optional(),
   startingPosition: z
     .object({
       x: z.number().int(),

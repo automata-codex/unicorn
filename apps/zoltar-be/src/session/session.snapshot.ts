@@ -1,9 +1,13 @@
 import {
+  deriveMothershipInstinct,
   emptyMothershipCharacterState,
   resolveMothershipSkills,
 } from '@uv/game-systems';
 
-import type { MothershipCampaignState } from '@uv/game-systems';
+import type {
+  MothershipCampaignState,
+  MothershipCrewRole,
+} from '@uv/game-systems';
 
 /**
  * Shape of the `gm_context.blob` payload as the session module reads it. The
@@ -36,6 +40,7 @@ export interface GmContextBlob {
     type: 'npc' | 'threat' | 'feature';
     visible: boolean;
     tags: string[];
+    crewRole?: MothershipCrewRole;
   }>;
   structured?: {
     flags?: Record<string, { value: boolean; trigger: string }>;
@@ -289,10 +294,35 @@ function renderEntities(
     return `${id}: ${visibility}, status=${entity.status}, player_character`;
   });
 
+  /*
+   * A visible NPC renders its Instinct and, where it has a role, the skills
+   * that role derives (`ADR-0100`). Both are Warden-facing target numbers: an
+   * NPC's check resolves as Instinct, plus a mapped skill's tier bonus where
+   * one applies, and the Warden cannot apply a bonus from a 20-row table it was
+   * never given — the same argument the Wounds Table instructions make.
+   *
+   * Entities with neither — threats, features, NPCs written before this — render
+   * exactly as they did.
+   */
   const otherLines = Object.keys(entities)
     .sort()
     .filter((id) => !playerEntityIds.has(id) && entities[id].visible)
-    .map((id) => `${id}: visible, status=${entities[id].status}`);
+    .map((id) => {
+      const entity = entities[id];
+      const bits = [`${id}: visible, status=${entity.status}`];
+
+      const instinct = deriveMothershipInstinct(entity);
+      if (instinct !== null) bits.push(`instinct ${instinct}`);
+
+      if (entity.crewRole) {
+        const skills = resolveMothershipSkills({ entity })
+          .map((skill) => `${skill.skill} ${skill.tier} (+${skill.bonus})`)
+          .join(', ');
+        bits.push(`role ${entity.crewRole}`, `skills ${skills}`);
+      }
+
+      return bits.join(', ');
+    });
 
   const lines = [...playerLines, ...otherLines];
   if (lines.length === 0) return null;
