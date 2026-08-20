@@ -1,3 +1,4 @@
+import { MOTHERSHIP_CHARACTER_POOL_NAMES } from '@uv/game-systems';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,6 +8,21 @@ import {
   rulesLookupOutputSchema,
   submitGmResponseSchema,
 } from './session.schema';
+
+/**
+ * Reads a `resourcePools` field's `.describe()` text off the schema — which is
+ * what actually reaches the model as the tool's `input_schema`, and therefore
+ * the only place these assertions mean anything.
+ */
+function describeField(field: string): string {
+  const shape = (submitGmResponseSchema._def.schema ??
+    submitGmResponseSchema) as never;
+  const stateChanges = (shape as any).shape.stateChanges;
+  const inner = stateChanges._def.innerType ?? stateChanges;
+  const pools = inner.shape.resourcePools;
+  const element = (pools._def.innerType ?? pools)._def.type;
+  return element.shape[field]._def.description ?? '';
+}
 
 describe('submitGmResponseSchema', () => {
   it('accepts a minimal payload with only playerText', () => {
@@ -370,5 +386,37 @@ describe('rulesLookupOutputSchema', () => {
       results: [{ text: 'x', similarity: 0.5 }],
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('the pool field names what a character can carry', () => {
+  /**
+   * The 2026-08-16 playtest, turn 52: the Warden ran the whole wounds chain
+   * correctly, then recorded in its own notes that it could find no way to
+   * increment `dr_kennedy.wounds` through `resourcePools`, and inferred the
+   * Wound from `characterState.death_save_pending` instead.
+   *
+   * The state was never missing — the fixtures from that playtest carry all
+   * eleven pools, `wounds` among them, and the snapshot filters nothing. What
+   * the model read was a description whose entire content was three examples,
+   * `"hp", "stress", "combat"`, with `wounds` appearing nowhere in the tool
+   * schema except under `maxDelta` — the field that moves a *ceiling*. Same
+   * defect class as `ADR-0097` addendum 2: an open string whose examples were
+   * read as the domain.
+   */
+  it('lists every pool a player character carries', () => {
+    const description = describeField('pool');
+    for (const name of MOTHERSHIP_CHARACTER_POOL_NAMES) {
+      expect(description, name).toContain(name);
+    }
+  });
+
+  it('says the set is not closed, so NPC and scenario pools stay legal', () => {
+    expect(describeField('pool')).toMatch(/other owners may carry/i);
+  });
+
+  it('points taking a Wound at delta, and away from maxDelta', () => {
+    expect(describeField('delta')).toContain('"wounds", delta: 1');
+    expect(describeField('maxDelta')).toMatch(/not a change to its maximum/i);
   });
 });

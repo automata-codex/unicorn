@@ -1,4 +1,7 @@
-import { MothershipConditionEnum } from '@uv/game-systems';
+import {
+  MOTHERSHIP_CHARACTER_POOL_NAMES,
+  MothershipConditionEnum,
+} from '@uv/game-systems';
 import { z } from 'zod';
 
 /**
@@ -42,11 +45,21 @@ const resourcePoolChangeSchema = z.object({
   pool: z
     .string()
     .min(1)
-    .describe('The bare pool name: "hp", "stress", "combat". Never a prefix.'),
+    .describe(
+      'The bare pool name, never a prefix. A player character carries ' +
+        `exactly these: ${MOTHERSHIP_CHARACTER_POOL_NAMES.join(', ')}. ` +
+        'Other owners may carry pools outside that set — NPC timers, station ' +
+        'subsystems, anything synthesis created.',
+    ),
   delta: z
     .number()
     .int()
-    .describe("Signed change to the pool's current value."),
+    .describe(
+      "Signed change to the pool's current value. Taking a Wound is " +
+        '`{ pool: "wounds", delta: 1 }` — the wounds pool counts up from ' +
+        'zero toward its maximum, and this is how a Wound is recorded. Do ' +
+        'not use `maxDelta` for it.',
+    ),
   maxDelta: z
     .number()
     .int()
@@ -54,7 +67,9 @@ const resourcePoolChangeSchema = z.object({
     .describe(
       "Signed change to the pool's ceiling. Only for effects that move the " +
         'ceiling itself — Maximum Health lost on the Death table, Maximum ' +
-        'Wounds lost to Panic 19. Omit it for ordinary damage and healing.',
+        'Wounds lost to Panic 19, which removes a Wound *slot*. Omit it for ' +
+        'ordinary damage and healing, and for taking a Wound: that is a ' +
+        '`delta` against the wounds pool, not a change to its maximum.',
     ),
   reason: z
     .string()

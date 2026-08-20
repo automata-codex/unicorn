@@ -25,15 +25,15 @@
                   "pool": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "The bare pool name: \"hp\", \"stress\", \"combat\". Never a prefix."
+                    "description": "The bare pool name, never a prefix. A player character carries exactly these: hp, wounds, stress, strength, speed, intellect, combat, sanity, fear, body, credits. Other owners may carry pools outside that set — NPC timers, station subsystems, anything synthesis created."
                   },
                   "delta": {
                     "type": "integer",
-                    "description": "Signed change to the pool's current value."
+                    "description": "Signed change to the pool's current value. Taking a Wound is `{ pool: \"wounds\", delta: 1 }` — the wounds pool counts up from zero toward its maximum, and this is how a Wound is recorded. Do not use `maxDelta` for it."
                   },
                   "maxDelta": {
                     "type": "integer",
-                    "description": "Signed change to the pool's ceiling. Only for effects that move the ceiling itself — Maximum Health lost on the Death table, Maximum Wounds lost to Panic 19. Omit it for ordinary damage and healing."
+                    "description": "Signed change to the pool's ceiling. Only for effects that move the ceiling itself — Maximum Health lost on the Death table, Maximum Wounds lost to Panic 19, which removes a Wound *slot*. Omit it for ordinary damage and healing, and for taking a Wound: that is a `delta` against the wounds pool, not a change to its maximum."
                   },
                   "reason": {
                     "type": "string",
