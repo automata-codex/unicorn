@@ -19,6 +19,7 @@
     MothershipCharacterSheet,
     MothershipClass,
     MothershipCreationRolls,
+    MothershipSkillEntry,
     MothershipStat,
     PoolTerm,
     PoolTermKind,
@@ -128,6 +129,51 @@
   /** Trade the starting loadout for cash: 2d10x100 instead of 2d10x10 (§6.1). */
   let forgoLoadout = $state(false);
 
+  /**
+   * Starting skills. Free text plus a tier, because the skill list and its
+   * prerequisite graph are TKG content and do not ship — the player reads them
+   * from their own book, exactly as they do the loadout tables.
+   */
+  const TIER_OPTIONS = [
+    { value: 'trained', label: 'Trained (+10)' },
+    { value: 'expert', label: 'Expert (+15)' },
+    { value: 'master', label: 'Master (+20)' },
+  ];
+
+  let startingSkills = $state<MothershipSkillEntry[]>([]);
+
+  function addSkill() {
+    startingSkills = [...startingSkills, { skill: '', tier: 'trained' }];
+  }
+
+  function removeSkill(index: number) {
+    startingSkills = startingSkills.filter((_, i) => i !== index);
+  }
+
+  function setSkill(index: number, patch: Partial<MothershipSkillEntry>) {
+    startingSkills = startingSkills.map((entry, i) =>
+      i === index ? { ...entry, ...patch } : entry,
+    );
+  }
+
+  /** Named skills only — a blank row is an unfinished edit, not a skill. */
+  const skillsForSubmit = $derived(
+    startingSkills
+      .map((entry) => ({ ...entry, skill: entry.skill.trim() }))
+      .filter((entry) => entry.skill.length > 0),
+  );
+
+  /*
+   * Plain array scan rather than a Set: `svelte/prefer-svelte-reactivity`
+   * rejects a mutable built-in Set inside reactive code, and a skill list is
+   * short enough that the quadratic scan is free.
+   */
+  const duplicateSkill = $derived.by(() => {
+    const keys = skillsForSubmit.map((entry) => entry.skill.toLowerCase());
+    const index = keys.findIndex((key, i) => keys.indexOf(key) !== i);
+    return index === -1 ? null : skillsForSubmit[index].skill;
+  });
+
   let trinket = $state('');
   let patch = $state('');
   let traumaResponse = $state('');
@@ -236,7 +282,7 @@
 
     const res = await api(`/api/v1/campaigns/${campaignId}/characters`, {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ sheet: payload, startingSkills: skillsForSubmit }),
     });
 
     if (res.ok) {
@@ -365,6 +411,54 @@
       </div>
     </Card>
 
+    <!-- SKILLS -->
+    <Card>
+      <SectionLabel>SKILLS</SectionLabel>
+      <div class="section-content">
+        <p class="type-meta hint-note">
+          FROM YOUR OWN COPY OF THE RULES — THE SKILL LIST AND ITS PREREQUISITE
+          CHAIN ARE NOT SHIPPED WITH ZOLTAR. A HIGHER TIER IMPLIES THE ONES
+          BELOW IT.
+        </p>
+        {#each startingSkills as entry, i (i)}
+          <div class="skill-row">
+            <Input
+              label="SKILL"
+              value={entry.skill}
+              placeholder="Zero-G"
+              oninput={(e) => {
+                setSkill(i, { skill: (e.target as HTMLInputElement).value });
+              }}
+            />
+            <Select
+              label="TIER"
+              value={entry.tier}
+              options={TIER_OPTIONS}
+              onchange={(e) => {
+                setSkill(i, {
+                  tier: (e.target as HTMLSelectElement)
+                    .value as MothershipSkillEntry['tier'],
+                });
+              }}
+            />
+            <button
+              type="button"
+              class="reroll-btn"
+              onclick={() => removeSkill(i)}>REMOVE</button
+            >
+          </div>
+        {/each}
+        {#if duplicateSkill}
+          <p class="error-text">
+            "{duplicateSkill}" IS LISTED TWICE. A SKILL IS HELD AT ONE TIER.
+          </p>
+        {/if}
+        <Button variant="ghost" type="button" onclick={addSkill}>
+          ADD A SKILL
+        </Button>
+      </div>
+    </Card>
+
     <!-- STARTING VALUES -->
     <Card>
       <SectionLabel>STARTING VALUES</SectionLabel>
@@ -454,7 +548,7 @@
     </Card>
 
     <div class="submit-area">
-      <Button fullWidth type="submit" disabled={submitting}>
+      <Button fullWidth type="submit" disabled={submitting || !!duplicateSkill}>
         {submitting ? 'SUBMITTING...' : 'CONFIRM CREW'}
       </Button>
     </div>
@@ -558,6 +652,13 @@
   .stat-term-kind {
     color: var(--color-text-ghost);
     letter-spacing: var(--tracking-wide);
+  }
+
+  .skill-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr auto;
+    gap: var(--space-3);
+    align-items: end;
   }
 
   .loadout-toggle {

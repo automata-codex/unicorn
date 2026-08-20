@@ -82,6 +82,45 @@ describe('CharacterService', () => {
   });
 
   describe('create', () => {
+    it('seeds the starting skills alongside the empty character state', async () => {
+      repo.existsForCampaign.mockResolvedValue(false);
+      repo.insert.mockResolvedValue(fakeCharacter);
+
+      await service.create('c1', 'u1', fakeData, {
+        startingSkills: [
+          { skill: 'Zero-G', tier: 'trained' },
+          { skill: 'Piloting', tier: 'expert' },
+        ],
+      });
+
+      expect(campaignRepo.seedCharacterState).toHaveBeenCalledWith(
+        'c1',
+        fakeData.entityId,
+        expect.objectContaining({
+          skills: [
+            { skill: 'Zero-G', tier: 'trained' },
+            { skill: 'Piloting', tier: 'expert' },
+          ],
+          conditions: [],
+          equipment: [],
+          minimumStress: 2,
+        }),
+      );
+    });
+
+    it('seeds an empty skill list when none are supplied', async () => {
+      repo.existsForCampaign.mockResolvedValue(false);
+      repo.insert.mockResolvedValue(fakeCharacter);
+
+      await service.create('c1', 'u1', fakeData);
+
+      expect(campaignRepo.seedCharacterState).toHaveBeenCalledWith(
+        'c1',
+        fakeData.entityId,
+        expect.objectContaining({ skills: [] }),
+      );
+    });
+
     it('checks membership, creates a character, and seeds player resource pools', async () => {
       repo.existsForCampaign.mockResolvedValue(false);
       repo.insert.mockResolvedValue(fakeCharacter);
