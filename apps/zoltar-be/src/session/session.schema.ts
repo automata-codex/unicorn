@@ -143,6 +143,46 @@ const characterStateChangeSchema = z.discriminatedUnion('op', [
       ),
   }),
   z.object({
+    op: z.literal('roll_modifier_add'),
+    entityId: z.string().min(1),
+    effect: z
+      .enum(['advantage', 'disadvantage'])
+      .describe(
+        'Mothership has no additive roll bonus. A durable penalty is ' +
+          'Disadvantage — roll twice, take the worse — and a durable boon is ' +
+          'Advantage. Never a number.',
+      ),
+    scope: z
+      .enum(['all_rolls', 'stat', 'save', 'skill'])
+      .describe(
+        'Use "all_rolls" for the Wounds Table\'s "[-] on all rolls". The ' +
+          'other three name what they apply to in `target`.',
+      ),
+    target: z
+      .string()
+      .max(100)
+      .optional()
+      .describe(
+        'The Stat, Save or skill this applies to. Omit for "all_rolls".',
+      ),
+    source: z
+      .string()
+      .min(1)
+      .max(200)
+      .describe(
+        'Where it came from: "Wounds Table: skull fracture". This is the key ' +
+          'a later roll_modifier_remove names, so make it specific.',
+      ),
+  }),
+  z.object({
+    op: z.literal('roll_modifier_remove'),
+    entityId: z.string().min(1),
+    source: z
+      .string()
+      .min(1)
+      .describe('The `source` of the modifier to clear, exactly as written.'),
+  }),
+  z.object({
     op: z.literal('bleeding_set'),
     entityId: z.string().min(1),
     value: z

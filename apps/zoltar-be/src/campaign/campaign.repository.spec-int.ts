@@ -454,6 +454,7 @@ describe('CampaignRepository (integration)', () => {
 
     const fresh = {
       conditions: [],
+      rollModifiers: [],
       skills: [],
       equipment: [],
       wornArmor: null,

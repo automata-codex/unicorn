@@ -169,6 +169,80 @@
                     "properties": {
                       "op": {
                         "type": "string",
+                        "const": "roll_modifier_add"
+                      },
+                      "entityId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "effect": {
+                        "type": "string",
+                        "enum": [
+                          "advantage",
+                          "disadvantage"
+                        ],
+                        "description": "Mothership has no additive roll bonus. A durable penalty is Disadvantage — roll twice, take the worse — and a durable boon is Advantage. Never a number."
+                      },
+                      "scope": {
+                        "type": "string",
+                        "enum": [
+                          "all_rolls",
+                          "stat",
+                          "save",
+                          "skill"
+                        ],
+                        "description": "Use \"all_rolls\" for the Wounds Table's \"[-] on all rolls\". The other three name what they apply to in `target`."
+                      },
+                      "target": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "description": "The Stat, Save or skill this applies to. Omit for \"all_rolls\"."
+                      },
+                      "source": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "description": "Where it came from: \"Wounds Table: skull fracture\". This is the key a later roll_modifier_remove names, so make it specific."
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "entityId",
+                      "effect",
+                      "scope",
+                      "source"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "roll_modifier_remove"
+                      },
+                      "entityId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "source": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The `source` of the modifier to clear, exactly as written."
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "entityId",
+                      "source"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
                         "const": "bleeding_set"
                       },
                       "entityId": {

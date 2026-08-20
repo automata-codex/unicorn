@@ -383,8 +383,12 @@ function foldCharacterState(
       const existing = currentData.characterState?.[entityId];
       // Bootstrap for an entity with none. NPCs get no state at creation —
       // only player characters do — and an NPC can bleed.
+      // Spread over the empty state rather than cloning raw: `campaign_state`
+      // is JSONB read without re-parsing, so a row written before a field
+      // existed simply lacks the key and Zod's default never runs. Backfilling
+      // here covers `rollModifiers` and anything added after it.
       working[entityId] = existing
-        ? structuredClone(existing)
+        ? { ...emptyMothershipCharacterState(), ...structuredClone(existing) }
         : emptyMothershipCharacterState();
     }
     return working[entityId];
@@ -446,6 +450,52 @@ function foldCharacterState(
             ? { condition: change.condition }
             : { condition: change.condition, parameter: change.parameter },
         ];
+        break;
+      }
+
+      case 'roll_modifier_add': {
+        if (change.scope === 'all_rolls' && change.target !== undefined) {
+          return reject(
+            '"all_rolls" applies to everything, so it takes no target. ' +
+              `Received "${change.target}".`,
+          );
+        }
+        if (change.scope !== 'all_rolls' && !change.target) {
+          return reject(
+            `Scope "${change.scope}" names what it applies to, so target is ` +
+              'required.',
+          );
+        }
+        // `source` is the key a removal names, so two modifiers may not share
+        // one — otherwise a remove would clear an effect nobody asked to clear.
+        if (state.rollModifiers.some((m) => m.source === change.source)) {
+          return reject(
+            `A modifier from "${change.source}" already exists. Sources are ` +
+              'the key a removal names and must be distinct.',
+          );
+        }
+        state.rollModifiers = [
+          ...state.rollModifiers,
+          {
+            effect: change.effect,
+            scope: change.scope,
+            ...(change.target !== undefined ? { target: change.target } : {}),
+            source: change.source,
+          },
+        ];
+        break;
+      }
+
+      case 'roll_modifier_remove': {
+        if (!state.rollModifiers.some((m) => m.source === change.source)) {
+          return reject(
+            `No modifier from "${change.source}", so there is nothing to ` +
+              'remove.',
+          );
+        }
+        state.rollModifiers = state.rollModifiers.filter(
+          (m) => m.source !== change.source,
+        );
         break;
       }
 

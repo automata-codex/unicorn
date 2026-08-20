@@ -1,4 +1,7 @@
-import { resolveMothershipSkills } from '@uv/game-systems';
+import {
+  emptyMothershipCharacterState,
+  resolveMothershipSkills,
+} from '@uv/game-systems';
 
 import type { MothershipCampaignState } from '@uv/game-systems';
 
@@ -145,7 +148,19 @@ function renderCharacterAttributes(
   const blocks: string[] = [];
 
   for (const entityId of Object.keys(characterState).sort()) {
-    const state = characterState[entityId];
+    /*
+     * Backfilled against the empty state, not read raw. `campaign_state.data`
+     * is JSONB and is read without re-parsing through the schema, so Zod's
+     * `.default([])` never runs for a row written before a field existed —
+     * a character created before `rollModifiers` was added has no such key,
+     * and `.length` on it takes down the whole turn. Merging with the empty
+     * state makes every field present for this render and for every field
+     * added after it.
+     */
+    const state = {
+      ...emptyMothershipCharacterState(),
+      ...characterState[entityId],
+    };
     const lines: string[] = [];
 
     const armor = state.wornArmor;
@@ -203,6 +218,22 @@ function renderCharacterAttributes(
           : entry.condition,
       );
       lines.push(`  conditions: ${rendered.join(', ')}`);
+    }
+
+    // Durable Advantage/Disadvantage that is not a Condition — today the
+    // Wounds Table's Fatal Injury row. Rendered with its source, because the
+    // source is what a removal names and what tells two of the same shape
+    // apart.
+    if (state.rollModifiers.length > 0) {
+      const rendered = state.rollModifiers.map((mod) => {
+        const mark = mod.effect === 'advantage' ? '[+]' : '[-]';
+        const where =
+          mod.scope === 'all_rolls'
+            ? 'all rolls'
+            : `${mod.scope} ${mod.target}`;
+        return `${mark} on ${where} (${mod.source})`;
+      });
+      lines.push(`  roll modifiers: ${rendered.join('; ')}`);
     }
 
     // The three that change how a roll resolves, stated only when they are

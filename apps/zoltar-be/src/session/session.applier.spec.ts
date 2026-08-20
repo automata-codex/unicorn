@@ -186,6 +186,7 @@ describe('applyValidatedTurn', () => {
         characterState: {
           dr_chen: {
             conditions: [{ condition: 'frightened', parameter: 'the vent' }],
+            rollModifiers: [],
             skills: [{ skill: 'Firearms', tier: 'trained' }],
             equipment: [{ item: 'Revolver', charges: 12 }],
             wornArmor: null,

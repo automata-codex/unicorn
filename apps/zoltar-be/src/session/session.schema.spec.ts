@@ -15,13 +15,19 @@ import {
  * the only place these assertions mean anything.
  */
 function describeField(field: string): string {
-  const shape = (submitGmResponseSchema._def.schema ??
-    submitGmResponseSchema) as never;
-  const stateChanges = (shape as any).shape.stateChanges;
+  // Walked with `any` deliberately: this reaches into Zod's internal `_def` to
+  // read the text that actually reaches the model as `input_schema`, which is
+  // the only place these assertions mean anything. Typing the walk would be
+  // asserting a private shape.
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const root = submitGmResponseSchema as any;
+  const shape = (root._def.schema ?? root).shape;
+  const stateChanges = shape.stateChanges;
   const inner = stateChanges._def.innerType ?? stateChanges;
   const pools = inner.shape.resourcePools;
   const element = (pools._def.innerType ?? pools)._def.type;
   return element.shape[field]._def.description ?? '';
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 }
 
 describe('submitGmResponseSchema', () => {

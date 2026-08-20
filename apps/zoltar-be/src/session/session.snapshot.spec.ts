@@ -87,6 +87,7 @@ describe('buildStateSnapshot', () => {
   describe('<character_attributes>', () => {
     const armored = {
       conditions: [],
+      rollModifiers: [],
       skills: [],
       equipment: [],
       wornArmor: {
@@ -205,6 +206,7 @@ describe('buildStateSnapshot', () => {
         dr_chen: armored,
         xenomorph: {
           conditions: [],
+          rollModifiers: [],
           skills: [],
           equipment: [],
           wornArmor: null,
@@ -434,6 +436,7 @@ describe('buildStateSnapshot', () => {
         characterState: {
           dr_chen: {
             conditions: [{ condition: 'doomed' }],
+            rollModifiers: [],
             skills: [],
             equipment: [],
             wornArmor: null,

@@ -231,6 +231,7 @@ describe('CharacterService.create (integration) — starting ceilings reconcile'
       .characterState;
     expect(state.vasquez).toEqual({
       conditions: [],
+      rollModifiers: [],
       skills: [],
       equipment: [],
       wornArmor: null,
@@ -279,6 +280,7 @@ describe('CharacterService.create (integration) — starting ceilings reconcile'
 
     await campaignRepo.seedCharacterState(campaignId, 'vasquez', {
       conditions: [],
+      rollModifiers: [],
       skills: [{ skill: 'Hacking', tier: 'master' }],
       equipment: [],
       wornArmor: null,

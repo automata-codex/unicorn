@@ -448,6 +448,109 @@ describe('validateStateChanges — characterState', () => {
     });
   }
 
+  describe('roll modifiers', () => {
+    const skullFracture = {
+      op: 'roll_modifier_add' as const,
+      entityId: 'dr_chen',
+      effect: 'disadvantage' as const,
+      scope: 'all_rolls' as const,
+      source: 'Wounds Table: skull fracture',
+    };
+
+    const run = (changes: unknown[], current = stateWithCharacter()) =>
+      validateStateChanges({
+        proposed: { characterState: changes as never },
+        currentData: current,
+        poolDef,
+      });
+
+    /**
+     * The 2026-08-16 playtest lost exactly this. The Warden read "Skull
+     * fracture. [-] on all rolls" off the Wounds Table, found no match among
+     * the eight Panic Conditions, correctly declined to invent one, and
+     * recorded it in notes where nothing downstream could apply it.
+     */
+    it('records a lasting [-] on all rolls', () => {
+      const result = run([skullFracture]);
+      expect(result.rejections).toEqual([]);
+      expect(result.applied.characterState.dr_chen.rollModifiers).toEqual([
+        {
+          effect: 'disadvantage',
+          scope: 'all_rolls',
+          source: 'Wounds Table: skull fracture',
+        },
+      ]);
+    });
+
+    it('records a scoped modifier with its target', () => {
+      const result = run([
+        {
+          op: 'roll_modifier_add',
+          entityId: 'dr_chen',
+          effect: 'advantage',
+          scope: 'save',
+          target: 'body',
+          source: 'Automed',
+        },
+      ]);
+      expect(result.rejections).toEqual([]);
+      expect(
+        result.applied.characterState.dr_chen.rollModifiers[0],
+      ).toMatchObject({ scope: 'save', target: 'body' });
+    });
+
+    it('rejects all_rolls carrying a target', () => {
+      const result = run([{ ...skullFracture, target: 'combat' }]);
+      expect(result.rejections).toHaveLength(1);
+    });
+
+    it('rejects a scoped modifier with no target', () => {
+      const result = run([{ ...skullFracture, scope: 'stat' }]);
+      expect(result.rejections).toHaveLength(1);
+    });
+
+    /** `source` is the key a removal names, so it has to be unique. */
+    it('rejects a second modifier from the same source', () => {
+      const result = run([skullFracture, skullFracture]);
+      expect(result.rejections).toHaveLength(1);
+    });
+
+    it('removes a modifier by source', () => {
+      const current = stateWithCharacter({
+        rollModifiers: [
+          {
+            effect: 'disadvantage',
+            scope: 'all_rolls',
+            source: 'Wounds Table: skull fracture',
+          },
+        ],
+      });
+      const result = run(
+        [
+          {
+            op: 'roll_modifier_remove',
+            entityId: 'dr_chen',
+            source: 'Wounds Table: skull fracture',
+          },
+        ],
+        current,
+      );
+      expect(result.rejections).toEqual([]);
+      expect(result.applied.characterState.dr_chen.rollModifiers).toEqual([]);
+    });
+
+    it('rejects removing a modifier that is not there', () => {
+      const result = run([
+        {
+          op: 'roll_modifier_remove',
+          entityId: 'dr_chen',
+          source: 'Wounds Table: broken jaw',
+        },
+      ]);
+      expect(result.rejections).toHaveLength(1);
+    });
+  });
+
   describe('conditions', () => {
     it('adds a condition that takes no parameter', () => {
       const result = validateStateChanges({

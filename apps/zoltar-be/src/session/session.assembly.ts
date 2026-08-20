@@ -115,6 +115,20 @@ export const ASSEMBLY_PROBE: {
           { condition: 'frightened', parameter: 'probe_threat' },
           { condition: 'loss_of_confidence', parameter: 'Piloting' },
         ],
+        // Both scopes: one that takes a target and one that does not.
+        rollModifiers: [
+          {
+            effect: 'disadvantage',
+            scope: 'all_rolls',
+            source: 'Wounds Table: skull fracture',
+          },
+          {
+            effect: 'advantage',
+            scope: 'save',
+            target: 'body',
+            source: 'Automed',
+          },
+        ],
         wornArmor: {
           item: 'Standard Crew Attire',
           apBase: 3,

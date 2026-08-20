@@ -11,6 +11,7 @@ probe_player:
   armor: Standard Crew Attire — AP 1/3 — DR 0 — sealed
   skills: Zero-G trained (+10), Piloting expert (suppressed)
   conditions: frightened (probe_threat), loss_of_confidence (Piloting)
+  roll modifiers: [-] on all rolls (Wounds Table: skull fracture); [+] on save body (Automed)
 </character_attributes>
 
 <entities>

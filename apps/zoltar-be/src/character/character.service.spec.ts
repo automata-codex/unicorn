@@ -102,6 +102,7 @@ describe('CharacterService', () => {
             { skill: 'Piloting', tier: 'expert' },
           ],
           conditions: [],
+          rollModifiers: [],
           equipment: [],
           minimumStress: 2,
         }),
@@ -192,6 +193,7 @@ describe('CharacterService', () => {
         'vasquez',
         {
           conditions: [],
+          rollModifiers: [],
           skills: [],
           equipment: [],
           wornArmor: null,
