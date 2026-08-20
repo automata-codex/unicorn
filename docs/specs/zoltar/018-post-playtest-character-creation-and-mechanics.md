@@ -232,6 +232,75 @@ Suggested commit order: 1, 3, then the stub checkers, then 6, 2, 4, 5, then the 
 
 ---
 
+## Predictions, pre-registered before the re-baseline
+
+Written 2026-08-20, **before any Warden call**, because five Warden-visible
+changes ride one run and no honest per-tag delta will exist (`ADR-0085`). The
+`--decision-rule` string points here; this is the reasoning it compresses.
+
+Identities: `promptHash` `ccac7d1c` → `fa4e6e2f`, `assemblyHash` `0bb41002` →
+`3d8df5f3`, `corpusVersion` `1c2a418cf68c` → `cbc840d21158` (scoring-only).
+Baseline for every number below is
+`claude-sonnet-5__ccac7d1c__2026-08-18T11-48-47Z`, 10 reps.
+
+### What this corpus actually sees
+
+Checked against the 22 fixtures rather than assumed, and it is narrower than
+"five changes":
+
+- **15 of 22 fixtures carry `characterState.skills`** — `Military Training`
+  trained, `Firearms` expert — captured at M7.6 and never rendered until Part 4.
+  Those fixtures now hand the Warden **+10 and +15 it has never seen**.
+- **The tool schema changed**: `pool` enumerates the eleven character pool
+  names, `delta`/`maxDelta` disambiguate taking a Wound, and two
+  `roll_modifier` ops are new.
+- **The prompt changed**: a wounds-chain line routing a lasting `[-]` to
+  `roll_modifier_add`, and a conditional NPC-Instinct line.
+- **Inert on this corpus**: no fixture carries `crewRole`, `instinctRoll` or
+  `rollModifiers`, so the `<entities>` and roll-modifier renders emit nothing
+  and cannot explain any movement. No fixture carries `loss_of_confidence`, so
+  skill suppression never fires either.
+
+### Primary — and it is a new measurement, not a delta
+
+`MISSING-DELTA` and `ROLL-RESULT-INVERSION` get a denominator for the first
+time, across three fixtures **captured precisely because the Warden failed
+them**. A low rate is the expected and correct result.
+
+**Read ≥0.90 on either tag as a rubric that cannot see its failure mode, not as
+a clean Warden** — investigate the judge transcript before recording it
+(`ADR-0082`). `ROLL-RESULT-INVERSION` is artifact-gated: applicability 0 means
+it measured nothing and says nothing.
+
+### The tag most exposed, and why
+
+`SYSTEM-ROLLED-PLAYER-ACTION`, baseline **0.92 (45/49)**. Handing the Warden two
+skill bonuses invites it to resolve the player's own check rather than defer it
+— the exact pressure point `§ S32` repaired. **Predict ≥0.85.** A fall past that
+is attributable to the skills render rather than to noise, and the fix is a
+prompt line stating that a skill bonus does not license rolling for the player.
+
+### Guardrails
+
+- `TOOL-SYNTAX-LEAK` ≥ 0.99 (baseline 149/149 graded, 1 error)
+- `UNSURFACED-CHECK` ≥ 0.95 (baseline 1.00)
+- `HIDDEN-INFO-LEAK` holds 1.00 — the NPC render sits inside the visible-only
+  branch and must not widen the leak in `hidden-information-findings.md`
+- No other tag drops > 0.15 at unchanged applicability
+- Zero errors before any number is read (`ADR-0085` category 4)
+
+### Recorded, gated on nothing
+
+- `NARRATING-PAST-A-BLOCK` 0.55 is `turn16` at ~0.10, a known-defective fixture
+  (`ADR-0082` addendum). Not evidence about the Warden; re-authoring is not in
+  this run.
+- `UNAUDITABLE-MAPPING` 0/30 and `MISSING-CANON-CAPTURE` 0/10 applicability.
+- `UNEXPLAINED-DELTA` and `CARRYOVER-ARITHMETIC` remain registered with no
+  fixture carrying either, so this run measures neither — again.
+- Any tag reading exactly 1.00 is a suspect to investigate, not a pass.
+
+---
+
 ## Done when
 
 - [ ] Every derived value on both character screens shows its terms (Part 1)
