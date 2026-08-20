@@ -430,6 +430,41 @@ edit in review.
 
 ---
 
+## Execution status — 2026-08-20
+
+Parts 1–10 are built and committed, repo green at each commit (`npm run build`,
+`npm test`, `npm run lint`, plus `npm run test:integration` on the parts that
+touch the database). Parts 11 and 12 are not started; Part 11 is blocked on a
+design decision, Part 12 on spend.
+
+**Three things the plan did not predict, all recorded in their commits.**
+
+1. **`npm run test:integration` was red on `main`** — four tests failing on a
+   `TypeError` in `buildResponseShape`, from two fixtures that build a fake
+   `originalResponse` without `content`. `ADR-0097` added content-block types to
+   telemetry and those fixtures were never updated. Fixed in its own commit
+   (`214828b`) since it blocks verifying any database-touching part.
+2. **Adding an array field to `characterState` crashed the turn for every
+   pre-existing character.** `campaign_state.data` is JSONB read without
+   re-parsing, so Zod's `.default([])` never runs and a row written before a
+   field existed simply lacks the key. Both read paths now backfill against
+   `emptyMothershipCharacterState()`. This was latent before 018 and would have
+   fired for any future field.
+3. **Parts 9 and 10 landed as one commit.** Splitting them would have left a
+   window in which `CREW_ROLE_SKILLS` was derived at read time with no
+   `assemblyHash` coverage — a table edit changing Warden input while every run
+   identity stayed put. The guard cannot lag the thing it guards.
+
+**Two plan items turned out to be unnecessary rather than deferred.** NPC
+`characterState` seeding is not needed at all: Contractor skills are derived, and
+the validator already bootstraps empty state for an entity that has none. And
+Part 5's content decision was already recorded in
+`character-state.schema.ts:62-66` — the skill list and its prerequisite graph are
+TKG content that does not ship, which is why `skill` is a free string. The
+implementation follows that rather than re-deciding it.
+
+---
+
 ## Part 11 — The two stub checkers
 
 *Prerequisite for Part 12. Eval only, no product code.*
@@ -438,7 +473,47 @@ edit in review.
 (`eval/checks/registry.ts:332-335`), and `assertNoStubCheckers` refuses a run
 before any spend when a selected fixture carries one. Seven of the 22 fixtures do.
 
+**Blocked on a design decision — see `§ Blocker` below. Not started.**
+
 **Work.** Implement both; empty `STUB_CHECK_IDS`.
+
+### Blocker: neither tag is structurally checkable as the turn is recorded today
+
+Established 2026-08-20 by reading the fixtures and the event payloads rather
+than by assuming.
+
+**`ROLL-RESULT-INVERSION`.** `5c34991b-turn10` records the Warden rolling 33
+against Kennedy's Fear of 26 and narrating a success; Mothership Saves are
+roll-under, so 33 over 26 is a failure. Detecting that needs the roll's *target*
+and the Warden's *adjudication*, and `DiceRollEventPayload`
+(`session.events.ts:226-237`) carries neither — it has `notation`, `purpose`,
+`results`, `total`, `rollType` and `actingEntityId`. The target appears only
+inside `purpose` as free text ("target: under 30") and the adjudication only in
+`playerText`. So the options are:
+
+- **Judge it.** Prose classification, which is what the judge is for.
+- **Parse `purpose` for a target.** Pattern-matching, and this file has a
+  recorded burn from exactly that: an earlier `system-rolled-player-action`
+  matched a damage-conditional pattern and missed a system-rolled to-hit roll
+  entirely, reading as a false PASS.
+- **Record the target and outcome on the roll event.** The only option that makes
+  it genuinely structural — and a turn-schema change, therefore Warden-visible,
+  therefore a widening of this milestone.
+
+**`MISSING-DELTA`.** `5c34991b-turn11` records the Warden's notes observing that
+a flag was "not yet flipped in a prior turn" and "flipping now", with no
+`gmUpdates` entry and the flag still false. Comparing narrated intent against
+emitted changes is judged by nature. A narrower structural core exists — scan
+`notes`/`playerText` for a *known flag id* and check whether that flag appears in
+the turn's `flagTriggers` — but it would catch only the flag case, and naming it
+`MISSING-DELTA` would promise coverage of pool and character-state omissions it
+does not have. That is the `ADR-0096` shape: a tag reading 1.00 on a failure mode
+nothing is looking for.
+
+**Why this is not a judgement to make quietly.** A checker that cannot see its
+failure mode is worse than the stub, because the stub is honest —
+`assertNoStubCheckers` refuses the run rather than reporting a rate. `ADR-0082`
+already records "pinned at 1.00 is a harness suspect".
 
 **`missing-delta` is Part 7's own checker.** It is the failure mode the playtest
 produced — a mechanic narrated with no corresponding pool delta — so Part 7's fix
