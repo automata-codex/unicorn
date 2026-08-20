@@ -45,6 +45,7 @@
     ['body', 'BODY'],
     ['maxHp', 'MAX HEALTH'],
     ['credits', 'CREDITS'],
+    ['loadout', 'LOADOUT'],
     ['trinket', 'TRINKET'],
     ['patch', 'PATCH'],
   ];
@@ -55,7 +56,12 @@
     return ROLL_LABELS.map(([key, label]) => ({
       key,
       label,
-      dice: sheet.data.creationRolls[key].join(' + '),
+      /*
+       * `loadout` arrived in 018 and is optional, so a sheet created before it
+       * has no roll here. Show that it is absent rather than inventing one —
+       * the whole point of storing dice is that they record what was rolled.
+       */
+      dice: sheet.data.creationRolls[key]?.join(' + ') ?? '\u2014',
     }));
   });
 

@@ -56,6 +56,7 @@
     { key: 'body', label: 'BODY', notation: '2d10' },
     { key: 'maxHp', label: 'MAX HEALTH', notation: '1d10' },
     { key: 'credits', label: 'CREDITS', notation: '2d10' },
+    { key: 'loadout', label: 'LOADOUT', notation: '1d10' },
     { key: 'trinket', label: 'TRINKET', notation: '1d100' },
     { key: 'patch', label: 'PATCH', notation: '1d100' },
   ] as const satisfies ReadonlyArray<{
@@ -64,32 +65,36 @@
     notation: string;
   }>;
 
-  function rollAll(): MothershipCreationRolls {
-    const rolled = {} as MothershipCreationRolls;
+  /**
+   * The form always rolls every entry in `ROLL_SPECS`, so its working copy has
+   * no optional members. `loadout` is optional on the *schema* only because
+   * sheets written before it existed cannot acquire a roll nobody made — a
+   * character created here always has one.
+   */
+  type FormRolls = Required<MothershipCreationRolls>;
+
+  function rollAll(): FormRolls {
+    const rolled = {} as FormRolls;
     for (const spec of ROLL_SPECS) {
       rolled[spec.key] = executeDiceRoll(spec.notation).results;
     }
     return rolled;
   }
 
-  let creationRolls = $state<MothershipCreationRolls>(rollAll());
+  let creationRolls = $state<FormRolls>(rollAll());
 
   function rerollAll() {
     creationRolls = rollAll();
   }
 
-  function rerollOne(key: keyof MothershipCreationRolls, notation: string) {
+  function rerollOne(key: keyof FormRolls, notation: string) {
     creationRolls = {
       ...creationRolls,
       [key]: executeDiceRoll(notation).results,
     };
   }
 
-  function setDie(
-    key: keyof MothershipCreationRolls,
-    index: number,
-    value: number,
-  ) {
+  function setDie(key: keyof FormRolls, index: number, value: number) {
     creationRolls = {
       ...creationRolls,
       [key]: creationRolls[key].map((die, i) => (i === index ? value : die)),

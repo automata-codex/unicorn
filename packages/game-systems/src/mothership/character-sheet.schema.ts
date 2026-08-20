@@ -66,6 +66,23 @@ export const MothershipCreationRollsSchema = z.object({
   // 2d10; ×10, or ×100 when forgoing a loadout (PSG §6.1).
   credits: DiceRollSchema,
 
+  /**
+   * `1d10` against the character's own class loadout table (PSG "Step 8").
+   *
+   * **Optional, and it is the one roll here that is.** Step 8 rolls Loadout,
+   * Trinket and Patch together, and this field was simply missing until 018 —
+   * two thirds of one creation step was recorded and the third was not, so a
+   * character's loadout was not reconstructable from their sheet even in
+   * principle. Sheets written before it existed cannot retroactively acquire a
+   * roll nobody made, and inventing one to satisfy a required field is exactly
+   * what this schema's own doc comment forbids. Same shape, and the same
+   * reason, as `creationChoices`.
+   *
+   * The table is indexed `00`–`09` and this stores the die as it fell — see
+   * `tableIndexForRoll`.
+   */
+  loadout: DiceRollSchema.optional(),
+
   // d100 each, against the trinket and patch tables.
   trinket: DiceRollSchema,
   patch: DiceRollSchema,
