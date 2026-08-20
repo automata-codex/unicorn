@@ -123,6 +123,24 @@ export const MothershipCreationChoicesSchema = z.object({
    * happen; read from the sheet it cannot be forgotten.
    */
   forgoLoadout: z.boolean().optional(),
+
+  /**
+   * Credits spent on gear at creation, beyond whatever the loadout supplied.
+   *
+   * **An input to the credits arithmetic, not a second copy of the balance.**
+   * The alternative — seeding the credits pool from the roll and then writing a
+   * lower number over it — would make `deriveMothershipCharacterResourcePools`
+   * disagree with the pool it seeded, which is the divergence this schema keeps
+   * being redesigned to prevent (`maxHp`, and `forgoLoadout` before it was moved
+   * here). Recording the spend lets the derivation stay the only authority:
+   * credits are `2d10 × rate − gearSpend`, and every term of that is visible on
+   * the creation screen.
+   *
+   * The item costs themselves are PSG content and do not ship, so this is the
+   * total the player arrived at from their own book — the same arrangement as
+   * the loadout tables.
+   */
+  gearSpend: z.number().int().min(0).optional(),
 });
 
 export type MothershipCreationChoices = z.infer<
@@ -199,6 +217,29 @@ export const MothershipCharacterSheetSchema =
           `A ${sheet.class}'s adjustments are entirely fixed, so no Stat is ` +
           'chosen at creation.',
       });
+    }
+
+    /*
+     * Gear cannot be bought on credit. The credits pool floors at zero
+     * (`pool-definitions.ts`), so an overspend would not produce a debt — it
+     * would be rejected at seed time, or clamped, long after the player chose
+     * the gear. Catching it on the sheet keeps the failure next to the
+     * decision that caused it.
+     */
+    const spend = sheet.creationChoices?.gearSpend ?? 0;
+    if (spend > 0) {
+      const rate = sheet.creationChoices?.forgoLoadout ? 100 : 10;
+      const available =
+        sheet.creationRolls.credits.reduce((a, b) => a + b, 0) * rate;
+      if (spend > available) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['creationChoices', 'gearSpend'],
+          message:
+            `Gear costing ${spend}cr against ${available}cr of starting ` +
+            'credits. A character cannot start in debt.',
+        });
+      }
     }
   });
 

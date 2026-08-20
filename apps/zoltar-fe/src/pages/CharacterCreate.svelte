@@ -19,8 +19,10 @@
     MothershipCharacterSheet,
     MothershipClass,
     MothershipCreationRolls,
+    MothershipEquipmentEntry,
     MothershipSkillEntry,
     MothershipStat,
+    MothershipWornArmor,
     PoolTerm,
     PoolTermKind,
   } from '@uv/game-systems';
@@ -174,6 +176,56 @@
     return index === -1 ? null : skillsForSubmit[index].skill;
   });
 
+  /**
+   * The loadout: carried items and worn armor, transcribed from the player's
+   * own book. The tables are PSG content and do not ship, and the creation form
+   * has no Warden in it, so there is nothing to look them up against.
+   */
+  let equipment = $state<MothershipEquipmentEntry[]>([]);
+
+  function addItem() {
+    equipment = [...equipment, { item: '' }];
+  }
+
+  function removeItem(index: number) {
+    equipment = equipment.filter((_, i) => i !== index);
+  }
+
+  function setItem(index: number, patch: Partial<MothershipEquipmentEntry>) {
+    equipment = equipment.map((entry, i) =>
+      i === index ? { ...entry, ...patch } : entry,
+    );
+  }
+
+  const equipmentForSubmit = $derived(
+    equipment
+      .map((entry) => ({ ...entry, item: entry.item.trim() }))
+      .filter((entry) => entry.item.length > 0),
+  );
+
+  let wearsArmor = $state(false);
+  let armorItem = $state('');
+  let armorAp = $state(0);
+  let armorDr = $state(0);
+  let armorO2 = $state<number | null>(null);
+
+  const wornArmor = $derived<MothershipWornArmor | null>(
+    wearsArmor && armorItem.trim()
+      ? {
+          item: armorItem.trim(),
+          apBase: armorAp,
+          apCurrent: armorAp,
+          destroyed: false,
+          dr: armorDr,
+          o2Remaining: armorO2,
+          features: [],
+        }
+      : null,
+  );
+
+  /** Credits spent on gear beyond the loadout. An input to the derivation. */
+  let gearSpend = $state(0);
+
   let trinket = $state('');
   let patch = $state('');
   let traumaResponse = $state('');
@@ -187,6 +239,7 @@
     creationChoices: {
       ...(choosesStat ? { adjustedStat } : {}),
       forgoLoadout,
+      gearSpend,
     },
   });
 
@@ -214,6 +267,13 @@
    */
   const breakdowns = $derived(explainMothershipCharacterPools(sheet));
 
+  /*
+   * Mirrors the sheet schema's own guard so the failure lands next to the
+   * decision rather than on submit. The preview already shows the subtraction
+   * as a term, so this only has to say why the button is off.
+   */
+  const overspent = $derived(preview.credits.current < 0);
+
   const TERM_LABELS: Record<PoolTermKind, string> = {
     dice: 'ROLL',
     base: 'BASE',
@@ -221,6 +281,7 @@
     choice: 'CHOICE',
     seed: 'START',
     multiplier: 'RATE',
+    spend: 'GEAR',
   };
 
   /** `+7`, `−10`, `x100` — signed so the arithmetic reads left to right. */
@@ -282,7 +343,12 @@
 
     const res = await api(`/api/v1/campaigns/${campaignId}/characters`, {
       method: 'POST',
-      body: JSON.stringify({ sheet: payload, startingSkills: skillsForSubmit }),
+      body: JSON.stringify({
+        sheet: payload,
+        startingSkills: skillsForSubmit,
+        startingEquipment: equipmentForSubmit,
+        wornArmor,
+      }),
     });
 
     if (res.ok) {
@@ -459,6 +525,127 @@
       </div>
     </Card>
 
+    <!-- LOADOUT -->
+    <Card>
+      <SectionLabel>LOADOUT &amp; GEAR</SectionLabel>
+      <div class="section-content">
+        <p class="type-meta hint-note">
+          ROLL {creationRolls.loadout[0]} ON YOUR CLASS LOADOUT TABLE — ROW
+          {String(creationRolls.loadout[0] - 1).padStart(2, '0')}. THE TABLES ARE
+          NOT SHIPPED WITH ZOLTAR; TRANSCRIBE FROM YOUR OWN COPY.
+        </p>
+
+        {#if forgoLoadout}
+          <p class="type-meta hint-note">
+            YOU TRADED THE LOADOUT FOR CASH. CARRY ONLY WHAT YOU BUY.
+          </p>
+        {/if}
+
+        <label class="loadout-toggle">
+          <input
+            type="checkbox"
+            checked={wearsArmor}
+            onchange={(e) => {
+              wearsArmor = (e.target as HTMLInputElement).checked;
+            }}
+          />
+          <span class="type-body">WEARING ARMOR</span>
+        </label>
+
+        {#if wearsArmor}
+          <div class="armor-row">
+            <Input
+              label="ARMOR"
+              value={armorItem}
+              placeholder="Vaccsuit"
+              oninput={(e) => { armorItem = (e.target as HTMLInputElement).value; }}
+            />
+            <Input
+              label="AP"
+              type="number"
+              value={armorAp}
+              oninput={(e) => {
+                armorAp = Number((e.target as HTMLInputElement).value) || 0;
+              }}
+            />
+            <Input
+              label="DR"
+              type="number"
+              value={armorDr}
+              oninput={(e) => {
+                armorDr = Number((e.target as HTMLInputElement).value) || 0;
+              }}
+            />
+            <Input
+              label="O2 (MIN)"
+              type="number"
+              value={armorO2 ?? ''}
+              hint="BLANK IF UNSEALED"
+              oninput={(e) => {
+                const raw = (e.target as HTMLInputElement).value;
+                armorO2 = raw === '' ? null : Number(raw) || 0;
+              }}
+            />
+          </div>
+        {/if}
+
+        {#each equipment as entry, i (i)}
+          <div class="item-row">
+            <Input
+              label="ITEM"
+              value={entry.item}
+              placeholder="Patch Kit"
+              oninput={(e) => {
+                setItem(i, { item: (e.target as HTMLInputElement).value });
+              }}
+            />
+            <Input
+              label="QTY"
+              type="number"
+              value={entry.quantity ?? ''}
+              oninput={(e) => {
+                const raw = (e.target as HTMLInputElement).value;
+                setItem(i, { quantity: raw === '' ? undefined : Number(raw) });
+              }}
+            />
+            <Input
+              label="CHARGES"
+              type="number"
+              value={entry.charges ?? ''}
+              oninput={(e) => {
+                const raw = (e.target as HTMLInputElement).value;
+                setItem(i, { charges: raw === '' ? undefined : Number(raw) });
+              }}
+            />
+            <button
+              type="button"
+              class="reroll-btn"
+              onclick={() => removeItem(i)}>REMOVE</button
+            >
+          </div>
+        {/each}
+
+        <Button variant="ghost" type="button" onclick={addItem}>ADD AN ITEM</Button>
+
+        <div class="field">
+          <Input
+            label="CREDITS SPENT ON GEAR"
+            type="number"
+            value={gearSpend}
+            hint="SUBTRACTED FROM STARTING CREDITS"
+            oninput={(e) => {
+              gearSpend = Number((e.target as HTMLInputElement).value) || 0;
+            }}
+          />
+        </div>
+        {#if overspent}
+          <p class="error-text">
+            GEAR COSTS MORE THAN YOU HAVE. A CHARACTER CANNOT START IN DEBT.
+          </p>
+        {/if}
+      </div>
+    </Card>
+
     <!-- STARTING VALUES -->
     <Card>
       <SectionLabel>STARTING VALUES</SectionLabel>
@@ -548,7 +735,7 @@
     </Card>
 
     <div class="submit-area">
-      <Button fullWidth type="submit" disabled={submitting || !!duplicateSkill}>
+      <Button fullWidth type="submit" disabled={submitting || !!duplicateSkill || overspent}>
         {submitting ? 'SUBMITTING...' : 'CONFIRM CREW'}
       </Button>
     </div>
@@ -652,6 +839,20 @@
   .stat-term-kind {
     color: var(--color-text-ghost);
     letter-spacing: var(--tracking-wide);
+  }
+
+  .armor-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: var(--space-3);
+    align-items: end;
+  }
+
+  .item-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr auto;
+    gap: var(--space-3);
+    align-items: end;
   }
 
   .skill-row {

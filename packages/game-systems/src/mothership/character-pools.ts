@@ -147,7 +147,8 @@ export type PoolTermKind =
   | 'class'
   | 'choice'
   | 'seed'
-  | 'multiplier';
+  | 'multiplier'
+  | 'spend';
 
 export interface PoolTerm {
   kind: PoolTermKind;
@@ -224,6 +225,25 @@ export function explainMothershipCharacterPools(
     return breakdown(terms);
   };
 
+  /**
+   * `2d10 × rate − gearSpend`. The spend is a term rather than a later write
+   * over the seeded pool, so the derivation stays the only authority on what a
+   * character starts with.
+   */
+  const creditsTerms = (): PoolTerm[] => {
+    const terms: PoolTerm[] = [
+      add('dice', sum(rolls.credits)),
+      {
+        kind: 'multiplier',
+        value: sheet.creationChoices?.forgoLoadout ? 100 : 10,
+        op: 'multiply',
+      },
+    ];
+    const spend = sheet.creationChoices?.gearSpend ?? 0;
+    if (spend !== 0) terms.push(add('spend', -spend));
+    return terms;
+  };
+
   const woundsTerms = [add('base', BASE_MAX_WOUNDS)];
   if (adjustment.maxWoundsBonus !== 0) {
     woundsTerms.push(add('class', adjustment.maxWoundsBonus));
@@ -240,13 +260,6 @@ export function explainMothershipCharacterPools(
     sanity: saveBreakdown('sanity'),
     fear: saveBreakdown('fear'),
     body: saveBreakdown('body'),
-    credits: breakdown([
-      add('dice', sum(rolls.credits)),
-      {
-        kind: 'multiplier',
-        value: sheet.creationChoices?.forgoLoadout ? 100 : 10,
-        op: 'multiply',
-      },
-    ]),
+    credits: breakdown(creditsTerms()),
   };
 }

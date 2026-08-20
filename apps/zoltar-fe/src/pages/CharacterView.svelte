@@ -96,6 +96,7 @@
     choice: 'CHOICE',
     seed: 'START',
     multiplier: 'RATE',
+    spend: 'GEAR',
   };
 
   /** `+7`, `\u221210`, `x100` — signed so the arithmetic reads left to right. */

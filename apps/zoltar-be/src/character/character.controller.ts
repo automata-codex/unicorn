@@ -48,7 +48,11 @@ export class CharacterController {
       campaignId,
       user.id,
       body.sheet,
-      { startingSkills: body.startingSkills },
+      {
+        startingSkills: body.startingSkills,
+        startingEquipment: body.startingEquipment,
+        wornArmor: body.wornArmor,
+      },
     );
     return {
       id: character.id,

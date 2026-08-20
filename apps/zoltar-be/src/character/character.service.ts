@@ -7,7 +7,9 @@ import {
   deriveMothershipCharacterResourcePools,
   emptyMothershipCharacterState,
   type MothershipCharacterSheet,
+  type MothershipEquipmentEntry,
   type MothershipSkillEntry,
+  type MothershipWornArmor,
 } from '@uv/game-systems';
 
 import { CampaignRepository } from '../campaign/campaign.repository';
@@ -32,7 +34,11 @@ export class CharacterService {
     campaignId: string,
     userId: string,
     data: MothershipCharacterSheet,
-    options: { startingSkills?: MothershipSkillEntry[] } = {},
+    options: {
+      startingSkills?: MothershipSkillEntry[];
+      startingEquipment?: MothershipEquipmentEntry[];
+      wornArmor?: MothershipWornArmor | null;
+    } = {},
   ) {
     await this.campaignService.assertMember(campaignId, userId);
 
@@ -50,6 +56,8 @@ export class CharacterService {
     await this.campaignRepo.seedCharacterState(campaignId, data.entityId, {
       ...emptyMothershipCharacterState(),
       skills: options.startingSkills ?? [],
+      equipment: options.startingEquipment ?? [],
+      wornArmor: options.wornArmor ?? null,
     });
 
     return character;

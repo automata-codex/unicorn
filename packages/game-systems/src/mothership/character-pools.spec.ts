@@ -366,3 +366,34 @@ describe('explainMothershipCharacterPools', () => {
     ).toEqual({ kind: 'multiplier', value: 100, op: 'multiply' });
   });
 });
+
+describe('gear spend', () => {
+  it('subtracts the spend from starting credits as a visible term', () => {
+    const sheet = sheetFor('teamster');
+    const withSpend = { ...sheet, creationChoices: { gearSpend: 25 } };
+
+    expect(
+      deriveMothershipCharacterResourcePools(withSpend).vasquez.credits,
+    ).toEqual({ current: 45, max: null });
+
+    expect(explainMothershipCharacterPools(withSpend).credits.terms).toEqual([
+      { kind: 'dice', value: 7, op: 'add' },
+      { kind: 'multiplier', value: 10, op: 'multiply' },
+      { kind: 'spend', value: -25, op: 'add' },
+    ]);
+  });
+
+  it('applies the spend after the forgo-loadout multiplier, not before', () => {
+    const pools = deriveMothershipCharacterResourcePools({
+      ...sheetFor('teamster'),
+      creationChoices: { forgoLoadout: true, gearSpend: 100 },
+    });
+    // 7 x 100 = 700, minus 100. Multiplying the net would give 60000.
+    expect(pools.vasquez.credits.current).toBe(600);
+  });
+
+  it('omits the term entirely when nothing was spent', () => {
+    const explained = explainMothershipCharacterPools(sheetFor('teamster'));
+    expect(explained.credits.terms.some((t) => t.kind === 'spend')).toBe(false);
+  });
+});

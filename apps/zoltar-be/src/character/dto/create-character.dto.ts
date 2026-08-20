@@ -1,6 +1,8 @@
 import {
   MothershipCharacterSheetSchema,
+  MothershipEquipmentEntrySchema,
   MothershipSkillEntrySchema,
+  MothershipWornArmorSchema,
 } from '@uv/game-systems';
 import { z } from 'zod';
 
@@ -46,6 +48,25 @@ export const CreateCharacterRequestSchema = z.object({
         seen.add(key);
       }
     }),
+
+  /**
+   * The loadout: what the character is carrying and what they are wearing.
+   *
+   * Transcribed by the player rather than looked up. The loadout tables are PSG
+   * content and do not ship — the ingestion templates directory is gitignored — and
+   * `rules_lookup` runs in the turn path — a creation form has no Warden in it,
+   * so it could not read the corpus even where one is ingested.
+   *
+   * Both land in `campaign_state.characterState` next to the skills, because
+   * both change during play: `charges` decrement, armor takes AP damage.
+   */
+  startingEquipment: z
+    .array(MothershipEquipmentEntrySchema)
+    .max(40)
+    .default([]),
+
+  /** `null` for a character wearing nothing the rules would call armor. */
+  wornArmor: MothershipWornArmorSchema.nullable().default(null),
 });
 
 export type CreateCharacterRequestDto = z.infer<
