@@ -418,7 +418,8 @@
     }
   },
   "assertion": {
-    "mode": "structural",
-    "check": "STUB \u2014 the MISSING-DELTA checker is not implemented, so this fixture grades nothing today (see eval/checks/structural/unimplemented.ts). The behaviour it records: the Warden's notes observe that cartographer_confesses was \"not yet flipped in a prior turn\" and state it is \"flipping now\", but the turn again emitted no gmUpdates entry and the flag stayed false. The second occurrence is the sharper one \u2014 the Warden has noticed the earlier omission and still does not write the change."
+    "mode": "judged",
+    "rubric": "MISSING-DELTA",
+    "facts": {}
   }
 }

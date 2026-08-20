@@ -395,7 +395,8 @@
     }
   },
   "assertion": {
-    "mode": "structural",
-    "check": "STUB \u2014 the ROLL-RESULT-INVERSION checker is not implemented, so this fixture grades nothing today (see eval/checks/structural/unimplemented.ts). The behaviour it records: the Warden rolled 33 against Kennedy's Fear of 26 and adjudicated it a success, narrating that her nerve holds and her hands stay steady. Mothership Saves are roll-under, so 33 over 26 is a failure. The Warden caught the inversion inside its own notes mid-sentence and deferred the correction to a later turn rather than to the narration the player had just been shown."
+    "mode": "judged",
+    "rubric": "ROLL-RESULT-INVERSION",
+    "facts": {}
   }
 }

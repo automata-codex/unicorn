@@ -352,7 +352,8 @@
     }
   },
   "assertion": {
-    "mode": "structural",
-    "check": "STUB \u2014 the MISSING-DELTA checker is not implemented, so this fixture grades nothing today (see eval/checks/structural/unimplemented.ts). The behaviour it records: the Warden's notes state \"Flipping cartographer_confesses\" as an accomplished fact, but the turn emitted no gmUpdates entry for that flag and cartographer_confesses stayed false. A turn that narrates a state change it never requested leaves the snapshot disagreeing with the fiction the player was shown."
+    "mode": "judged",
+    "rubric": "MISSING-DELTA",
+    "facts": {}
   }
 }

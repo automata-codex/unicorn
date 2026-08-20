@@ -2,16 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import { evalChecks, stubCheckIds } from '../registry';
 
-import { structuralCheckers } from './registry';
 import { checkUnimplemented } from './unimplemented';
 
 /**
- * The stub checkers behind `MISSING-DELTA` and `ROLL-RESULT-INVERSION`. The
- * only behaviour worth pinning is the one that makes a stub safe: it must
- * never report `PASSED`, and it must stay wired so the real checker replaces
- * something rather than being added next to it.
+ * Two tags that were once stubbed, used here only as sample arguments — the
+ * behaviour under test is `checkUnimplemented` itself, which reads nothing
+ * about the tag beyond its name.
  */
-const STUB_TAGS = ['MISSING-DELTA', 'ROLL-RESULT-INVERSION'] as const;
+const SAMPLE_TAGS = ['MISSING-DELTA', 'ROLL-RESULT-INVERSION'] as const;
 
 describe('checkUnimplemented', () => {
   it('reports NOT_APPLICABLE, never PASSED', () => {
@@ -31,48 +29,46 @@ describe('checkUnimplemented', () => {
     // Per-rep exclusion aggregation groups on `actualCode`; a shared code
     // keeps "these checks are stubs" one line in the report rather than one
     // per tag per fixture.
-    const codes = STUB_TAGS.map((tag) => checkUnimplemented(tag).actualCode);
+    const codes = SAMPLE_TAGS.map((tag) => checkUnimplemented(tag).actualCode);
     expect(new Set(codes)).toEqual(new Set(['checker-unimplemented']));
   });
 });
 
-describe('stub tag registration', () => {
-  it.each(STUB_TAGS)('%s dispatches to the stub', (tag) => {
-    const verdict = structuralCheckers[tag](
-      // The stub reads neither argument, which is what lets this assertion
-      // be made without building a turn result or a fixture.
-      undefined as never,
-      undefined as never,
-    );
-    expect(verdict).toEqual(checkUnimplemented(tag));
+describe('the stub mechanism after STUB_CHECK_IDS was emptied', () => {
+  /**
+   * `MISSING-DELTA` and `ROLL-RESULT-INVERSION` were the only stubs, and both
+   * became judged checks on 2026-08-20. Nothing is stubbed now.
+   *
+   * `checkUnimplemented` and `stubCheckIds` stay because the mechanism is the
+   * right answer the next time a playtest surfaces a tag before its checker
+   * exists — capture while the adventure is still seedable, stub the tag, let
+   * the preflight refuse the run. These assertions keep the mechanism honest
+   * in the meantime: an empty set, and a stray entry caught immediately,
+   * because `assertNoStubCheckers` refuses on exactly this list and one wrong
+   * name takes the whole harness offline.
+   */
+  it('has no stubbed checks', () => {
+    expect([...stubCheckIds]).toEqual([]);
   });
 
-  it.each(STUB_TAGS)('%s is registered structural and fixture-gated', (tag) => {
-    const check = evalChecks[tag.toLowerCase()];
-    expect(check.mode).toBe('structural');
-    // Honest for a stub on both halves of what `'fixture'` asserts: decided
-    // before the model runs, and unanimous across reps — see registry.ts.
-    expect(check.applicabilitySource).toBe('fixture');
-    // Neither may travel onto a fixture tagged something else: a stub
-    // attached corpus-wide would spray never-applies findings across every
-    // fixture and grade nothing anywhere.
-    expect(check.tagIndependent).toBeUndefined();
-    expect(check.universal).toBeUndefined();
-  });
-});
-
-describe('stub registration is what the run-refusal reads', () => {
-  it.each(STUB_TAGS)('%s is flagged `stub` on the registry', (tag) => {
-    expect(evalChecks[tag.toLowerCase()].stub).toBe(true);
-    expect(stubCheckIds).toContain(tag.toLowerCase());
+  it('leaves the two former stubs registered as judged checks', () => {
+    for (const id of ['missing-delta', 'roll-result-inversion']) {
+      const check = evalChecks[id];
+      expect(check, id).toBeDefined();
+      expect(check.mode, id).toBe('judged');
+      expect(check.stub, id).toBeUndefined();
+    }
   });
 
-  it('flags nothing else', () => {
-    // `stubCheckIds` is what `assertNoStubCheckers` refuses runs on, so a
-    // stray entry here takes the whole harness offline.
-    expect([...stubCheckIds].sort()).toEqual([
-      'missing-delta',
-      'roll-result-inversion',
-    ]);
+  /**
+   * Neither may travel onto a fixture tagged something else. A check attached
+   * corpus-wide would grade every fixture against a rubric written for one
+   * failure mode.
+   */
+  it('keeps both attached by tag only', () => {
+    for (const id of ['missing-delta', 'roll-result-inversion']) {
+      expect(evalChecks[id].tagIndependent, id).toBeUndefined();
+      expect(evalChecks[id].universal, id).toBeUndefined();
+    }
   });
 });

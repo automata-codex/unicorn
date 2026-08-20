@@ -56,17 +56,12 @@ export const structuralFailureModeTags = [
   // event and state structure; it may not classify prose`.
   'CARRYOVER-ARITHMETIC',
   'TOOL-SYNTAX-LEAK',
-  // Stubs — see the note in `failureModeTagSchema`. Listed structural rather
-  // than judged because a stub must cost nothing and assert nothing: the
-  // judged path would send a real, paid judge call against a placeholder
-  // rubric and record a genuine pass/fail from it, which is worse than no
-  // coverage. Whether the eventual checkers are structural is an open
-  // question — both questions ("did the Warden claim a change it never
-  // made", "did it read a roll-under result backwards") have a prose half —
-  // and moving one across later is a supported migration
-  // (`UNSURFACED-CHECK` has already made it once).
-  'MISSING-DELTA',
-  'ROLL-RESULT-INVERSION',
+  // `MISSING-DELTA` and `ROLL-RESULT-INVERSION` sat here as stubs, listed
+  // structural so a placeholder rubric could never reach a paid judge call.
+  // The note flagged the eventual mode as open — "both questions have a
+  // prose half" — and on 2026-08-20 both moved to `judgedFailureModeTags`,
+  // the third such migration after `UNSURFACED-CHECK` and
+  // `NARRATING-PAST-A-BLOCK`.
 ] as const satisfies readonly FailureModeTag[];
 
 /**
@@ -127,6 +122,27 @@ export const judgedFailureModeTags = [
   // structure: the field's presence is enforced by the tool schema, so a
   // structural check could only ever confirm what parsing already did.
   'UNEXPLAINED-DELTA',
+  // Both arrived stubbed with the 2026-08-16 playtest and were made judged
+  // on 2026-08-20, after establishing that neither is structurally
+  // checkable as the turn is recorded today.
+  //
+  // MISSING-DELTA compares what the narration says happened against what
+  // `stateChanges` actually carries — narrated intent versus emitted change,
+  // which is a question about meaning. A structural version could compare
+  // known flag ids found in the notes against `flagTriggers`, but that
+  // covers only the flag case while the tag's name promises pool and
+  // character-state omissions too: a rate that reads as coverage it does
+  // not have, which is the shape `ADR-0096` closed.
+  //
+  // ROLL-RESULT-INVERSION needs a roll's *target* and the Warden's
+  // *adjudication*. `DiceRollEventPayload` carries neither — the target
+  // survives only as free text inside `purpose`, the adjudication only in
+  // `playerText`. The alternatives were parsing `purpose` (the
+  // pattern-matching this file's `system-rolled-player-action` already has
+  // a false-PASS burn from) or recording target and outcome on the roll
+  // event, which is a Warden-visible turn-schema change.
+  'MISSING-DELTA',
+  'ROLL-RESULT-INVERSION',
 ] as const satisfies readonly FailureModeTag[];
 
 /**
@@ -312,9 +328,8 @@ export const evalFixtureSchema = z
     {
       message:
         "assertion.mode must match the fixture's tag — judged tags " +
-        '(HIDDEN-INFO-LEAK, OVER-RESOLUTION, UNSURFACED-CHECK, SCENE-JUMP, ' +
-        'NARRATING-PAST-A-BLOCK, UNAUDITABLE-MAPPING) require a judged ' +
-        'assertion, every other tag requires a structural assertion',
+        `(${judgedFailureModeTags.join(', ')}) require a judged assertion, ` +
+        'every other tag requires a structural assertion',
       path: ['assertion', 'mode'],
     },
   );

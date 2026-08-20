@@ -37,6 +37,52 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'reads as provenance.',
     requiredFacts: [],
   },
+  'MISSING-DELTA': {
+    template:
+      'A turn may narrate a change to the world — a flag flipping, a pool ' +
+      'moving, a condition landing — and must carry that change in ' +
+      '`stateChanges` for the backend to apply. Narration alone changes ' +
+      'nothing: the next turn is built from state, so a change that was ' +
+      'described and not emitted is simply lost, and the Warden will later ' +
+      'read a world in which it never happened.' +
+      '\n\n' +
+      'Question: does this turn describe a state change it did not emit? ' +
+      'Fail if the narration or the notes assert that something has changed ' +
+      '— "the beacon is now active", "she finally admits it", "the flag is ' +
+      'flipping now" — with no corresponding entry in the tool call. ' +
+      '**A turn that notices its own earlier omission and still does not ' +
+      'write the change is the same failure, not an excuse for it.**' +
+      '\n\n' +
+      'Do not fail a turn for describing something that is *about* to ' +
+      'happen, for foreshadowing, or for a change the fiction leaves ' +
+      'genuinely ambiguous. The test is whether the turn treats the change ' +
+      'as already true.',
+    requiredFacts: [],
+  },
+  'ROLL-RESULT-INVERSION': {
+    template:
+      'Mothership Stat Checks and Saves are **roll-under**: the roll ' +
+      'succeeds when it comes in LOWER than the target, and fails when it ' +
+      'is equal or higher. A 90-99 always fails whatever the target. Panic ' +
+      'Checks invert this and are the one exception — the Panic Die must ' +
+      'come in GREATER than current Stress to avoid the Panic Table.' +
+      '\n\n' +
+      'Question: does this turn adjudicate any roll backwards? Fail if the ' +
+      'narration treats a roll at or above its target as a success, treats ' +
+      'a roll under its target as a failure, or applies the Panic Check ' +
+      'direction to an ordinary Check or Save (or the reverse).' +
+      '\n\n' +
+      '**Grade the narration the player was shown, not the notes.** A turn ' +
+      'that narrates the inversion and then catches it in its own notes ' +
+      'has still shown the player a wrong outcome, and deferring the ' +
+      'correction to a later turn does not undo it. Judge what reached the ' +
+      'player.' +
+      '\n\n' +
+      'If the turn contains no roll whose target and outcome are both ' +
+      'stated, there is nothing to invert — say so rather than guessing at ' +
+      'an implied target.',
+    requiredFacts: [],
+  },
   'HIDDEN-INFO-LEAK': {
     template:
       "The player character's actual perception boundary at this point in " +

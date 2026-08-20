@@ -257,18 +257,16 @@ const APPLICABILITY_SOURCE: Record<string, EvalCheck['applicabilitySource']> = {
   // did not happen, not that the Warden chose something — but declaring
   // `'ungated'` would assert a `not_applicable` is impossible, and it is not.
   'tool-syntax-leak': 'artifact',
-  // Stub checkers (`eval/checks/structural/unimplemented.ts`). `'fixture'`
-  // is the accurate declaration on both halves of what it asserts: the
-  // verdict is decided before the model runs (a stub reads neither the turn
-  // nor the fixture), and it is unanimous across reps, so the 0.00/1.00 rule
-  // `fixture-gated-split` enforces cannot be violated. It also routes them
-  // to the reading that says the useful thing —
-  // `fixture-gated-never-applies`, "correct, but this pair contributes no
-  // regression coverage" — rather than `indeterminate-source`. Revisit
-  // alongside the real checkers, not before: a checker that reads the turn
-  // output is likely `'artifact'`.
-  'missing-delta': 'fixture',
-  'roll-result-inversion': 'fixture',
+  // Judged as of 2026-08-20, having been stubbed since capture. `'ungated'`
+  // — the question "did this turn describe a change it did not emit" is
+  // answerable of any turn that produced a response, so there is no gate and
+  // no selection hazard.
+  'missing-delta': 'ungated',
+  // `'artifact'` rather than `'ungated'`, by the same reasoning as
+  // `unexplained-delta`: a turn containing no roll has nothing to invert, so
+  // the denominator moves with how often the Warden rolls at all. Read it
+  // alongside its exclusion count rather than as a rate over the corpus.
+  'roll-result-inversion': 'artifact',
 };
 
 function applicabilitySourceFor(id: string): EvalCheck['applicabilitySource'] {
@@ -323,16 +321,17 @@ const UNIVERSAL_CHECK_IDS: ReadonlySet<string> = new Set(['tool-syntax-leak']);
 /**
  * Check ids whose checker is a stub — see `EvalCheck.stub`.
  *
- * Both arrived with the 2026-08-16 playtest (adventure `5c34991b`), whose
- * turns were captured as fixtures while that adventure was still seedable.
- * Emptying this set is the goal; until then `assertNoStubCheckers` stops a
- * run that would otherwise pay for Warden turns and report a tag as measured
- * when nothing measured it.
+ * **Empty as of 2026-08-20.** `MISSING-DELTA` and `ROLL-RESULT-INVERSION`
+ * arrived here with the 2026-08-16 playtest, captured while that adventure
+ * was still seedable and left ungraded because designing their checkers was
+ * separate work. Both are judged now, so nothing is stubbed.
+ *
+ * Kept rather than deleted: the mechanism is the right answer the next time
+ * a playtest surfaces a tag before its checker exists, and
+ * `assertNoStubCheckers` stops a run that would otherwise pay for Warden
+ * turns and report a tag as measured when nothing measured it.
  */
-const STUB_CHECK_IDS: ReadonlySet<string> = new Set([
-  'missing-delta',
-  'roll-result-inversion',
-]);
+const STUB_CHECK_IDS: ReadonlySet<string> = new Set([]);
 
 /**
  * Structural pre-filters for judged checks, by check id — see
