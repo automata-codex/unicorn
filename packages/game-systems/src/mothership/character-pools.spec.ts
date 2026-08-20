@@ -4,7 +4,11 @@ import type {
   MothershipCharacterSheet,
   MothershipClass,
 } from './character-sheet.schema';
-import { deriveMothershipCharacterResourcePools } from './character-pools';
+import {
+  deriveMothershipCharacterResourcePools,
+  explainMothershipCharacterPools,
+} from './character-pools';
+import { MOTHERSHIP_CHARACTER_POOL_NAMES } from './pool-definitions';
 
 /**
  * Every roll is `[3, 4]` (sum 7) except maxHp, so each ceiling is a single
@@ -281,4 +285,84 @@ describe('reconciliation — rolls plus class arithmetic equal each ceiling', ()
       });
     }
   }
+});
+
+describe('explainMothershipCharacterPools', () => {
+  const CLASSES: MothershipClass[] = [
+    'marine',
+    'android',
+    'scientist',
+    'teamster',
+  ];
+
+  /**
+   * The assertion the split exists for. `explain` is the authority and
+   * `derive` reads it, so a disagreement is structurally impossible — but this
+   * is the test that would catch someone "optimising" the derivation back into
+   * its own arithmetic, which is the state that let a bare total drift from the
+   * terms nobody could see.
+   *
+   * `wounds` is compared against `max` rather than `current`: it starts at zero
+   * and counts up, so its breakdown totals to the ceiling.
+   */
+  it.each(CLASSES)(
+    'reconciles every term against the derived pool — %s',
+    (cls) => {
+      const sheet = sheetFor(cls, 'speed');
+      const pools = deriveMothershipCharacterResourcePools(sheet).vasquez;
+      const explained = explainMothershipCharacterPools(sheet);
+
+      for (const name of MOTHERSHIP_CHARACTER_POOL_NAMES) {
+        const expected = name === 'wounds' ? pools[name].max : pools[name].current;
+        expect(explained[name].total, `${cls} ${name} total`).toBe(expected);
+
+        const folded = explained[name].terms.reduce(
+          (running, term) =>
+            term.op === 'multiply' ? running * term.value : running + term.value,
+          0,
+        );
+        expect(folded, `${cls} ${name} terms`).toBe(expected);
+      }
+    },
+  );
+
+  it('names every term of a Scientist Sanity save — the reported "bug"', () => {
+    const explained = explainMothershipCharacterPools(sheetFor('scientist', 'speed'));
+    expect(explained.sanity.terms).toEqual([
+      { kind: 'dice', value: 7, op: 'add' },
+      { kind: 'base', value: 10, op: 'add' },
+      { kind: 'class', value: 30, op: 'add' },
+    ]);
+    expect(explained.sanity.total).toBe(47);
+  });
+
+  it('omits a zero class adjustment rather than showing "+0"', () => {
+    const explained = explainMothershipCharacterPools(sheetFor('teamster'));
+    expect(explained.hp.terms.map((t) => t.kind)).toEqual(['dice', 'base']);
+    expect(explained.wounds.terms.map((t) => t.kind)).toEqual(['base']);
+  });
+
+  it('carries the chosen-Stat adjustment only on the chosen Stat', () => {
+    const explained = explainMothershipCharacterPools(sheetFor('android', 'combat'));
+    expect(explained.combat.terms).toContainEqual({
+      kind: 'choice',
+      value: -10,
+      op: 'add',
+    });
+    expect(explained.speed.terms.some((t) => t.kind === 'choice')).toBe(false);
+  });
+
+  it('shows credits as a multiplication, and the forgo-loadout multiplier', () => {
+    const sheet = sheetFor('teamster');
+    expect(explainMothershipCharacterPools(sheet).credits.terms).toEqual([
+      { kind: 'dice', value: 7, op: 'add' },
+      { kind: 'multiplier', value: 10, op: 'multiply' },
+    ]);
+    expect(
+      explainMothershipCharacterPools({
+        ...sheet,
+        creationChoices: { forgoLoadout: true },
+      }).credits.terms[1],
+    ).toEqual({ kind: 'multiplier', value: 100, op: 'multiply' });
+  });
 });

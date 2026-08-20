@@ -4,6 +4,7 @@ import type {
   MothershipSave,
   MothershipStat,
 } from './character-sheet.schema';
+import type { MothershipCharacterPoolName } from './pool-definitions';
 
 export type ResourcePool = { current: number; max: number | null };
 
@@ -108,38 +109,144 @@ const sum = (dice: readonly number[]): number =>
 export function deriveMothershipCharacterResourcePools(
   sheet: MothershipCharacterSheet,
 ): OwnedResourcePools {
+  const breakdowns = explainMothershipCharacterPools(sheet);
+  const total = (name: MothershipCharacterPoolName): number =>
+    breakdowns[name].total;
+
+  const pools: Record<string, ResourcePool> = {};
+
+  pools.hp = { current: total('hp'), max: total('hp') };
+
+  // Starts at zero and counts *up* to its ceiling, unlike every other pool
+  // here — so the breakdown's total is the ceiling, not the starting value.
+  pools.wounds = { current: 0, max: total('wounds') };
+
+  pools.stress = { current: total('stress'), max: null };
+
+  for (const stat of STATS) {
+    pools[stat] = { current: total(stat), max: total(stat) };
+  }
+
+  for (const save of SAVES) {
+    pools[save] = { current: total(save), max: total(save) };
+  }
+
+  pools.credits = { current: total('credits'), max: null };
+
+  return { [sheet.entityId]: pools };
+}
+
+/**
+ * One term in a pool's arithmetic — a die roll, a flat base, a class
+ * adjustment. `multiply` scales the running total rather than adding to it,
+ * which is only `credits`.
+ */
+export type PoolTermKind =
+  | 'dice'
+  | 'base'
+  | 'class'
+  | 'choice'
+  | 'seed'
+  | 'multiplier';
+
+export interface PoolTerm {
+  kind: PoolTermKind;
+  value: number;
+  /** `multiply` scales; everything else adds. */
+  op: 'add' | 'multiply';
+}
+
+export interface PoolBreakdown {
+  terms: PoolTerm[];
+  total: number;
+}
+
+function foldTerms(terms: PoolTerm[]): number {
+  return terms.reduce(
+    (running, term) =>
+      term.op === 'multiply' ? running * term.value : running + term.value,
+    0,
+  );
+}
+
+const breakdown = (terms: PoolTerm[]): PoolBreakdown => ({
+  terms,
+  total: foldTerms(terms),
+});
+
+const add = (kind: PoolTermKind, value: number): PoolTerm => ({
+  kind,
+  value,
+  op: 'add',
+});
+
+/**
+ * The same arithmetic `deriveMothershipCharacterResourcePools` performs, with
+ * its terms kept rather than collapsed.
+ *
+ * **This is the authority and the derivation reads it**, not the other way
+ * round. A second function that re-adds the same numbers to explain them is the
+ * duplication M7.6 removed everywhere else — it would be free to disagree with
+ * the pools it claims to explain, and it would disagree silently, because both
+ * numbers would still look plausible.
+ *
+ * It exists because a bare total is unauditable. The whole `creationRolls`
+ * design rests on rolls plus class arithmetic reconciling to each starting
+ * ceiling, and until this landed the only screens where a human could perform
+ * that reconciliation displayed the answer and none of the terms — which is how
+ * a *correct* Scientist Sanity of `2d10+10+30` came to be reported as a bug.
+ *
+ * Three pools carry a term with no dice behind it: `wounds` totals to its
+ * ceiling (it starts at zero), `stress` to Minimum Stress, and `credits`
+ * multiplies rather than adds.
+ */
+export function explainMothershipCharacterPools(
+  sheet: MothershipCharacterSheet,
+): Record<MothershipCharacterPoolName, PoolBreakdown> {
   const rolls = sheet.creationRolls;
   const adjustment = CLASS_ADJUSTMENTS[sheet.class];
   const chosen = sheet.creationChoices?.adjustedStat;
 
-  const pools: Record<string, ResourcePool> = {};
+  const statBreakdown = (stat: MothershipStat): PoolBreakdown => {
+    const terms = [add('dice', sum(rolls[stat])), add('base', STAT_BASE)];
+    const classBonus = adjustment.stats[stat] ?? 0;
+    if (classBonus !== 0) terms.push(add('class', classBonus));
+    if (chosen === stat && adjustment.chosenStat !== undefined) {
+      terms.push(add('choice', adjustment.chosenStat));
+    }
+    return breakdown(terms);
+  };
 
-  const maxHp = sum(rolls.maxHp) + MAX_HP_BASE;
-  pools.hp = { current: maxHp, max: maxHp };
+  const saveBreakdown = (save: MothershipSave): PoolBreakdown => {
+    const terms = [add('dice', sum(rolls[save])), add('base', SAVE_BASE)];
+    const classBonus = adjustment.saves[save] ?? 0;
+    if (classBonus !== 0) terms.push(add('class', classBonus));
+    return breakdown(terms);
+  };
 
-  const maxWounds = BASE_MAX_WOUNDS + adjustment.maxWoundsBonus;
-  pools.wounds = { current: 0, max: maxWounds };
-
-  pools.stress = { current: STARTING_STRESS, max: null };
-
-  for (const stat of STATS) {
-    const chosenBonus =
-      chosen === stat && adjustment.chosenStat !== undefined
-        ? adjustment.chosenStat
-        : 0;
-    const value =
-      sum(rolls[stat]) + STAT_BASE + (adjustment.stats[stat] ?? 0) + chosenBonus;
-    pools[stat] = { current: value, max: value };
+  const woundsTerms = [add('base', BASE_MAX_WOUNDS)];
+  if (adjustment.maxWoundsBonus !== 0) {
+    woundsTerms.push(add('class', adjustment.maxWoundsBonus));
   }
 
-  for (const save of SAVES) {
-    const value = sum(rolls[save]) + SAVE_BASE + (adjustment.saves[save] ?? 0);
-    pools[save] = { current: value, max: value };
-  }
-
-  const credits =
-    sum(rolls.credits) * (sheet.creationChoices?.forgoLoadout ? 100 : 10);
-  pools.credits = { current: credits, max: null };
-
-  return { [sheet.entityId]: pools };
+  return {
+    hp: breakdown([add('dice', sum(rolls.maxHp)), add('base', MAX_HP_BASE)]),
+    wounds: breakdown(woundsTerms),
+    stress: breakdown([add('seed', STARTING_STRESS)]),
+    strength: statBreakdown('strength'),
+    speed: statBreakdown('speed'),
+    intellect: statBreakdown('intellect'),
+    combat: statBreakdown('combat'),
+    sanity: saveBreakdown('sanity'),
+    fear: saveBreakdown('fear'),
+    body: saveBreakdown('body'),
+    credits: breakdown([
+      add('dice', sum(rolls.credits)),
+      {
+        kind: 'multiplier',
+        value: sheet.creationChoices?.forgoLoadout ? 100 : 10,
+        op: 'multiply',
+      },
+    ]),
+  };
 }

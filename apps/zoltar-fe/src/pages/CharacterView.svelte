@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { deriveMothershipCharacterResourcePools } from '@uv/game-systems';
+  import {
+    deriveMothershipCharacterResourcePools,
+    explainMothershipCharacterPools,
+  } from '@uv/game-systems';
   import { onMount } from 'svelte';
   import { push } from 'svelte-spa-router';
 
@@ -9,7 +12,12 @@
   import PageLayout from '../lib/components/PageLayout.svelte';
   import SectionLabel from '../lib/components/SectionLabel.svelte';
 
-  import type { MothershipCreationRolls } from '@uv/game-systems';
+  import type {
+    MothershipCharacterPoolName,
+    MothershipCreationRolls,
+    PoolTerm,
+    PoolTermKind,
+  } from '@uv/game-systems';
   import type { Adventure, CharacterSheet } from '../lib/types';
 
   let { params }: { params: { campaignId: string } } = $props();
@@ -62,7 +70,7 @@
    * mean fetching the adventure, and showing a stale number next to a label
    * that does not say "starting" is how a player reads a wound as a bad roll.
    */
-  const STARTING_LABELS: Array<[string, string]> = [
+  const STARTING_LABELS: Array<[MothershipCharacterPoolName, string]> = [
     ['hp', 'HEALTH'],
     ['wounds', 'MAX WOUNDS'],
     ['strength', 'STRENGTH'],
@@ -75,15 +83,32 @@
     ['credits', 'CREDITS'],
   ];
 
+  const TERM_LABELS: Record<PoolTermKind, string> = {
+    dice: 'ROLL',
+    base: 'BASE',
+    class: 'CLASS',
+    choice: 'CHOICE',
+    seed: 'START',
+    multiplier: 'RATE',
+  };
+
+  /** `+7`, `\u221210`, `x100` — signed so the arithmetic reads left to right. */
+  function formatTerm(term: PoolTerm): string {
+    if (term.op === 'multiply') return `x${term.value}`;
+    return term.value < 0 ? `\u2212${Math.abs(term.value)}` : `+${term.value}`;
+  }
+
   const startingValues = $derived.by(() => {
     const sheet = character;
     if (!sheet) return [];
     const pools = deriveMothershipCharacterResourcePools(sheet.data)[
       sheet.data.entityId
     ];
+    const explained = explainMothershipCharacterPools(sheet.data);
     return STARTING_LABELS.map(([key, label]) => ({
       label,
       value: key === 'wounds' ? pools[key].max : pools[key].current,
+      terms: explained[key as keyof typeof explained].terms,
     }));
   });
 
@@ -198,6 +223,15 @@
             <div class="stat-item">
               <span class="type-stat-value">{entry.value}</span>
               <span class="type-label">{entry.label}</span>
+              <span class="type-meta stat-terms">
+                {#each entry.terms as term, i (i)}<span class="stat-term"
+                    >{i === 0 && term.op === 'add'
+                      ? term.value
+                      : formatTerm(term)}<span class="stat-term-kind"
+                      >{TERM_LABELS[term.kind]}</span
+                    ></span
+                  >{/each}
+              </span>
             </div>
           {/each}
         </div>
@@ -330,6 +364,27 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-5);
+  }
+
+  /* The arithmetic behind each total — an audit trail, deliberately quieter
+     than the value it explains. Mirrors CharacterCreate. */
+  .stat-terms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    color: var(--color-text-tertiary);
+  }
+
+  .stat-term {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.25em;
+    white-space: nowrap;
+  }
+
+  .stat-term-kind {
+    color: var(--color-text-ghost);
+    letter-spacing: var(--tracking-wide);
   }
 
   .stat-item {

@@ -56,6 +56,24 @@ to add the Contractor branch behind an interface that already exists.
 Parts 1 and 2 are independent of everything else and of each other. If you want
 working code before more plan, start there.
 
+### What each part needs beyond the repo
+
+Relevant when handing a part to an environment without this machine's Postgres
+or the ingested PSG.
+
+| Part | Needs a database | Needs corpus/book content |
+|---|---|---|
+| 1, 3, 4, 7, 8, 10, 11 | no | no |
+| 2, 6, 9 | integration tests only | no |
+| 5 | integration tests only | **yes — see Part 5's content decision** |
+| 12 | yes, plus API spend and the enceladus host | no |
+
+`npm test` excludes `*.spec-int.ts` (`vitest.config.ts:8-9`), so the invariant at
+the top of this plan — build, test, lint — is satisfiable with no database.
+`npm run test:integration` is a separate config and is not. CLAUDE.md requires
+integration tests for any endpoint touching the database, so Parts 2, 5, 6 and 9
+can be *written* without one but not *verified*.
+
 ---
 
 ## Part 1 — Creation shows its arithmetic
@@ -208,6 +226,34 @@ shipped the render, so this commit changes no rendering code.*
 3. Validate the prerequisite chain **server-side as well**. A skill entry is a
    free string by deliberate design (`character-state.schema.ts:62-73`), so the
    schema cannot enforce the graph and a form-only check is not a check.
+
+**Blocked on a content decision, and it is the same one Part 6 already answered
+for loadouts.** Items 1 and 3 both need the Mothership skill tree — the full
+skill list, the Trained → Expert → Master prerequisite edges, and each class's
+starting allowance. **None of that is in this repo.** It lives in the ingested
+corpus (PSG pp. 22–25, `SKILLS` and `SKILL TRAINING`), which is per-self-hoster
+and unavailable to any code path outside a turn. Grepping the tree for skill
+names returns only `ADR-0100`'s role → chain table and
+`rules-extraction-findings.md`.
+
+Three ways out, and the choice belongs to the same person who decided the
+loadout question:
+
+1. **Don't validate the graph.** Free-text skill plus tier, which the schema
+   already permits. Cheapest, and consistent with `character-state.schema.ts:62-73`
+   deliberately leaving `skill` an open string. The prerequisite chain becomes the
+   player's responsibility, like the loadout table already is.
+2. **Ship the graph as structural data** — names and edges, no prose. `ADR-0100`
+   already commits ~25 skill names to the repo in its role table, so a precedent
+   of sorts exists, but a full graph with tiers is more than a mapping and the
+   call is a licensing judgement, not a technical one.
+3. **Gitignored data file**, exactly the `fixups.json` / `templates/` split
+   (`.gitignore:125`): the repo ships the shape and the self-hoster supplies the
+   content from their own book.
+
+Option 1 is the recommendation absent a reason otherwise — it is what the loadout
+half of this milestone already does, and shipping validation the self-hoster
+cannot install is worse than shipping none.
 
 **The update path is a trap.** `CharacterService.update` re-derives pools into
 `mergePlayerResourcePools`, which is preserve-on-conflict and therefore a no-op

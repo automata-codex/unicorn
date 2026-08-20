@@ -2,6 +2,7 @@
   import {
     deriveMothershipCharacterResourcePools,
     executeDiceRoll,
+    explainMothershipCharacterPools,
   } from '@uv/game-systems';
   import { push } from 'svelte-spa-router';
 
@@ -14,10 +15,13 @@
   import Select from '../lib/components/Select.svelte';
 
   import type {
+    MothershipCharacterPoolName,
     MothershipCharacterSheet,
     MothershipClass,
     MothershipCreationRolls,
     MothershipStat,
+    PoolTerm,
+    PoolTermKind,
   } from '@uv/game-systems';
 
   let { params }: { params: { campaignId: string } } = $props();
@@ -149,7 +153,32 @@
     deriveMothershipCharacterResourcePools(sheet)[sheet.entityId],
   );
 
-  const PREVIEW_ORDER: Array<[string, string]> = [
+  /**
+   * The terms behind each total, from the same function that computes them.
+   *
+   * Without this the screen asserted a number and showed none of its
+   * arithmetic — so a *correct* Scientist Sanity of `2d10+10+30` was
+   * indistinguishable from a broken one, and got reported as a bug by the
+   * person who wrote the class table.
+   */
+  const breakdowns = $derived(explainMothershipCharacterPools(sheet));
+
+  const TERM_LABELS: Record<PoolTermKind, string> = {
+    dice: 'ROLL',
+    base: 'BASE',
+    class: 'CLASS',
+    choice: 'CHOICE',
+    seed: 'START',
+    multiplier: 'RATE',
+  };
+
+  /** `+7`, `−10`, `x100` — signed so the arithmetic reads left to right. */
+  function formatTerm(term: PoolTerm): string {
+    if (term.op === 'multiply') return `x${term.value}`;
+    return term.value < 0 ? `\u2212${Math.abs(term.value)}` : `+${term.value}`;
+  }
+
+  const PREVIEW_ORDER: Array<[MothershipCharacterPoolName, string]> = [
     ['hp', 'HEALTH'],
     ['wounds', 'MAX WOUNDS'],
     ['stress', 'STRESS'],
@@ -346,6 +375,16 @@
                 {key === 'wounds' ? preview[key].max : preview[key].current}
               </span>
               <span class="type-label">{label}</span>
+              <span class="type-meta stat-terms">
+                {#each breakdowns[key].terms as term, i (i)}<span
+                    class="stat-term"
+                    >{i === 0 && term.op === 'add'
+                      ? term.value
+                      : formatTerm(term)}<span class="stat-term-kind"
+                      >{TERM_LABELS[term.kind]}</span
+                    ></span
+                  >{/each}
+              </span>
             </div>
           {/each}
         </div>
@@ -491,6 +530,29 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
+  }
+
+  /*
+   * The arithmetic behind each total. Tertiary rather than secondary — it is
+   * an audit trail, and it must not compete with the value it explains.
+   */
+  .stat-terms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    color: var(--color-text-tertiary);
+  }
+
+  .stat-term {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.25em;
+    white-space: nowrap;
+  }
+
+  .stat-term-kind {
+    color: var(--color-text-ghost);
+    letter-spacing: var(--tracking-wide);
   }
 
   .loadout-toggle {
