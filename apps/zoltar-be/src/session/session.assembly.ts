@@ -103,7 +103,18 @@ export const ASSEMBLY_PROBE: {
     },
     characterState: {
       probe_player: {
-        conditions: [{ condition: 'frightened', parameter: 'probe_threat' }],
+        // Two skills and one suppressed by the `loss_of_confidence` below.
+        // The suppressed case is the branch the render is most likely to get
+        // wrong, and a probe that never populates it is a shape the hash
+        // cannot see.
+        skills: [
+          { skill: 'Zero-G', tier: 'trained' },
+          { skill: 'Piloting', tier: 'expert' },
+        ],
+        conditions: [
+          { condition: 'frightened', parameter: 'probe_threat' },
+          { condition: 'loss_of_confidence', parameter: 'Piloting' },
+        ],
         wornArmor: {
           item: 'Standard Crew Attire',
           apBase: 3,

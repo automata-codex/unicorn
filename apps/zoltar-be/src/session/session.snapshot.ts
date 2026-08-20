@@ -1,3 +1,5 @@
+import { resolveMothershipSkills } from '@uv/game-systems';
+
 import type { MothershipCampaignState } from '@uv/game-systems';
 
 /**
@@ -179,6 +181,19 @@ function renderCharacterAttributes(
         return `${item.item} (${counts.join(', ')})`;
       });
       lines.push(`  loadout: ${rendered.join('; ')}`);
+    }
+
+    // Skills, with suppression already applied by the shared accessor. A
+    // suppressed skill still renders — the training is not lost, the bonus is,
+    // and a Warden that sees the skill vanish will read it as never held.
+    const skills = resolveMothershipSkills({ characterState: state });
+    if (skills.length > 0) {
+      const rendered = skills.map((skill) =>
+        skill.suppressed
+          ? `${skill.skill} ${skill.tier} (suppressed)`
+          : `${skill.skill} ${skill.tier} (+${skill.bonus})`,
+      );
+      lines.push(`  skills: ${rendered.join(', ')}`);
     }
 
     if (state.conditions.length > 0) {
