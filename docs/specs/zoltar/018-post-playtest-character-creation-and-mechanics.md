@@ -234,69 +234,137 @@ Suggested commit order: 1, 3, then the stub checkers, then 6, 2, 4, 5, then the 
 
 ## Predictions, pre-registered before the re-baseline
 
-Written 2026-08-20, **before any Warden call**, because five Warden-visible
-changes ride one run and no honest per-tag delta will exist (`ADR-0085`). The
-`--decision-rule` string points here; this is the reasoning it compresses.
+**Superseded once already. Read `§ The 2026-08-20 run` below first.**
 
-Identities: `promptHash` `ccac7d1c` → `fa4e6e2f`, `assemblyHash` `0bb41002` →
-`3d8df5f3`, `corpusVersion` `1c2a418cf68c` → `cbc840d21158` (scoring-only).
-Baseline for every number below is
-`claude-sonnet-5__ccac7d1c__2026-08-18T11-48-47Z`, 10 reps.
+Identities for the re-run: `promptHash` **`fa4e6e2f`**, `assemblyHash`
+**`3d8df5f3`** (both unchanged from the 2026-08-20 run), `corpusVersion`
+`cbc840d21158` → **`abbce198026c`**, an **input-affecting** bump.
 
-### What this corpus actually sees
+### The 2026-08-20 run, and why it is not the baseline
 
-Checked against the 22 fixtures rather than assumed, and it is narrower than
-"five changes":
+`claude-sonnet-5__fa4e6e2f__2026-08-20T20-20-01Z`, 10 reps, executed against
+corpus `cbc840d21158`. **Seven of its 22 fixtures ran without
+`gmContextBlob.playerEntityIds`** — every `5c34991b-*` capture was `null` while
+all fifteen older fixtures carry theirs. Two consequences, and the second is the
+disqualifying one:
+
+1. `attributionContext` returns `'unknown'` for every roll when that list is
+   empty (`attribution.ts:103-105`, whose own comment says a fixture declaring
+   no player ids "cannot answer the question at all"). That is exactly the three
+   harness defects the report flagged: `system-rolled-player-action` at 0.30,
+   0.40 and 0.40 applicability on a **fixture-gated** check, which is impossible
+   unless the gate is reading model output.
+2. `renderEntities` builds its player lines from the same list, so **those seven
+   turns never told the Warden which entity was the player character.**
+   `dr_kennedy` appeared in `resourcePools` and in no entity line.
+
+Backfilled 2026-08-21 to `["dr_kennedy"]`, recovered from fact rather than
+guessed: `dr_kennedy` is the only pool owner carrying the full eleven-pool
+character set, and appears in no entity list. The `<entities>` block now opens
+`dr_kennedy: visible, status=unknown, player_character` where it previously
+omitted the player entirely — which is why this is an input-affecting bump and
+`eval:rescore` cannot salvage the run.
+
+This is the roadmap's own capture bullet — "`gmContextBlob.playerEntityIds`
+populated from a real `character_sheet` row rather than backfilled by hand" —
+unfulfilled. The fifteen older fixtures needed the identical hand-patch.
+
+**What the 2026-08-20 run still tells us**, since its fifteen older fixtures were
+unaffected:
+
+- `SYSTEM-ROLLED-PLAYER-ACTION` **held**, and the Part 4 risk did not
+  materialise. Like-for-like on the five shared fixtures carrying the check:
+  **0.92 (45/49) → 0.96 (45/47)**, four failures down to two. The rollup's 0.97
+  (56/58) is inflated by new-fixture reps that graded only because attribution
+  was broken; 0.96 is the honest figure.
+- `TOOL-SYNTAX-LEAK` read **1.00 (216/216)** while **three turns died to
+  tool-syntax abandonment**, because an abandoned turn produces no `gm_response`
+  and leaves the denominator as an `error`. Honest emission **3/220 (1.4%)**
+  against 1/150 (0.67%) at the previous baseline and 4/150 (2.7%) unmitigated —
+  not distinguishable at this N. **The gate as written could not see this**, and
+  is corrected below.
+- Four errored turns total, all on older fixtures: three tool-syntax
+  abandonments plus one tool-loop cap exhaustion on off-screen combat (20
+  iterations of `rules_lookup`/`roll_dice`, the granular-per-NPC pattern that
+  drove the cap 8→20).
+
+### What this corpus sees
+
+Unchanged from the first pre-registration except where noted:
 
 - **15 of 22 fixtures carry `characterState.skills`** — `Military Training`
-  trained, `Firearms` expert — captured at M7.6 and never rendered until Part 4.
-  Those fixtures now hand the Warden **+10 and +15 it has never seen**.
-- **The tool schema changed**: `pool` enumerates the eleven character pool
-  names, `delta`/`maxDelta` disambiguate taking a Wound, and two
-  `roll_modifier` ops are new.
-- **The prompt changed**: a wounds-chain line routing a lasting `[-]` to
+  trained, `Firearms` expert — and render a skills line for the first time.
+  **All fifteen are the older captures.** The seven `5c34991b-*` fixtures carry
+  **no `characterState` at all**, so `<character_attributes>` renders nothing
+  for `dr_kennedy` on them. Faithful to the database rather than a capture
+  defect, but it means those seven contribute no coverage of the skills render,
+  the roll-modifier render, or armor.
+- The tool schema changed: `pool` enumerates the eleven character pool names,
+  `delta`/`maxDelta` disambiguate taking a Wound, two `roll_modifier` ops are new.
+- The prompt changed: a wounds-chain line routing a lasting `[-]` to
   `roll_modifier_add`, and a conditional NPC-Instinct line.
-- **Inert on this corpus**: no fixture carries `crewRole`, `instinctRoll` or
-  `rollModifiers`, so the `<entities>` and roll-modifier renders emit nothing
-  and cannot explain any movement. No fixture carries `loss_of_confidence`, so
-  skill suppression never fires either.
+- **Inert**: no fixture carries `crewRole`, `instinctRoll` or `rollModifiers`,
+  so those renders emit nothing and cannot explain movement. No fixture carries
+  `loss_of_confidence`, so skill suppression never fires.
 
-### Primary — and it is a new measurement, not a delta
+### Primary — a new measurement, not a delta
 
-`MISSING-DELTA` and `ROLL-RESULT-INVERSION` get a denominator for the first
-time, across three fixtures **captured precisely because the Warden failed
-them**. A low rate is the expected and correct result.
+`MISSING-DELTA` and `ROLL-RESULT-INVERSION` across three fixtures **captured
+precisely because the Warden failed them**. A low rate is expected and correct.
+**Read ≥0.90 on either tag as a rubric that cannot see its failure mode**, and
+investigate the judge transcript before recording it (`ADR-0082`).
 
-**Read ≥0.90 on either tag as a rubric that cannot see its failure mode, not as
-a clean Warden** — investigate the judge transcript before recording it
-(`ADR-0082`). `ROLL-RESULT-INVERSION` is artifact-gated: applicability 0 means
-it measured nothing and says nothing.
+On 2026-08-20 this clause fired: `ROLL-RESULT-INVERSION` read **1.00 (10/10)**
+and `MISSING-DELTA` **0.60 (12/20)**, splitting 0.30 / 0.90 across its two
+fixtures. Both numbers came from fixtures missing `playerEntityIds`, so neither
+is evidence yet — but `MISSING-DELTA` discriminating between two fixtures is
+early evidence the rubric works, and `ROLL-RESULT-INVERSION` at 1.00 remains the
+thing to explain. Two candidates to separate: a blind rubric, or a Warden that
+simply does not reproduce a temperature-1 one-off.
 
-### The tag most exposed, and why
+### The tag most exposed
 
-`SYSTEM-ROLLED-PLAYER-ACTION`, baseline **0.92 (45/49)**. Handing the Warden two
-skill bonuses invites it to resolve the player's own check rather than defer it
-— the exact pressure point `§ S32` repaired. **Predict ≥0.85.** A fall past that
-is attributable to the skills render rather than to noise, and the fix is a
-prompt line stating that a skill bonus does not license rolling for the player.
+`SYSTEM-ROLLED-PLAYER-ACTION`. Handing the Warden two skill bonuses invites it to
+resolve the player's own check rather than defer it — the pressure point `§ S32`
+repaired. **Predict ≥0.85 on the five shared fixtures**, measured like-for-like
+rather than off the rollup, because the rollup's denominator now moves with the
+seven new fixtures. Held at 0.96 on 2026-08-20.
 
-### Guardrails
+### Live, and unpredicted the first time
 
-- `TOOL-SYNTAX-LEAK` ≥ 0.99 (baseline 149/149 graded, 1 error)
-- `UNSURFACED-CHECK` ≥ 0.95 (baseline 1.00)
+**`UNAUDITABLE-MAPPING` applicability rose off 0/30 to 0.20 (10/50) and the rate
+was 0.00 (0/10)** — ten failures out of ten on the one fixture that got a
+denominator. M7.6's §6.3 prediction that applicability should rise, unfulfilled
+twice, is now fulfilled, and what it revealed is bad. Not gated, because the
+fixture is one of the seven and the number needs re-measuring first, but this is
+the finding most worth reading the artifacts for.
+
+### Guardrails, corrected
+
+- **`TOOL-SYNTAX-LEAK`: gate on per-turn emission, not the check rate.** Count
+  turns abandoned for tool-syntax leak across the run and divide by
+  `fixtures × reps`. Require **≤ 1.5%**. The check rate reads 1.00 while turns
+  die, because abandonment leaves the denominator (`ADR-0097` addendum 3) — a
+  gate written against the rate is blind by construction.
+- `UNSURFACED-CHECK` ≥ 0.95 (held 1.00)
 - `HIDDEN-INFO-LEAK` holds 1.00 — the NPC render sits inside the visible-only
-  branch and must not widen the leak in `hidden-information-findings.md`
-- No other tag drops > 0.15 at unchanged applicability
-- Zero errors before any number is read (`ADR-0085` category 4)
+  branch and must not widen the leak in `hidden-information-findings.md` (held
+  18/18)
+- No other tag drops > 0.15 at unchanged applicability (largest movement on
+  2026-08-20 was `SCENE-JUMP` 1.00 → 0.90, within bound)
+- **Errors: explain every one before reading a number** (`ADR-0085` category 4).
+  "Zero errors" was the wrong bar — the previous run had four, both classes were
+  known and neither invalidated the result. The bar is that each is attributed
+  to a known mode, not that none occur.
 
 ### Recorded, gated on nothing
 
-- `NARRATING-PAST-A-BLOCK` 0.55 is `turn16` at ~0.10, a known-defective fixture
-  (`ADR-0082` addendum). Not evidence about the Warden; re-authoring is not in
-  this run.
-- `UNAUDITABLE-MAPPING` 0/30 and `MISSING-CANON-CAPTURE` 0/10 applicability.
+- `NARRATING-PAST-A-BLOCK` 0.67 is composition, not improvement: the new fixture
+  reads 1.00 while `turn16` went 0.10 → 0.00. Still the rules-impossible fixture
+  (`ADR-0082` addendum), still not evidence about the Warden.
+- `MISSING-CANON-CAPTURE` 0/10 applicability — a third run measuring nothing.
 - `UNEXPLAINED-DELTA` and `CARRYOVER-ARITHMETIC` remain registered with no
-  fixture carrying either, so this run measures neither — again.
+  fixture carrying either.
 - Any tag reading exactly 1.00 is a suspect to investigate, not a pass.
 
 ---
