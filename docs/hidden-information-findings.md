@@ -1,9 +1,28 @@
 # Hidden Information — Findings
 
-**Status: open. Nothing here has been fixed, and no decision has been made
-about whether it should be.** This file records an unplanned finding from the
+**Status: closed 2026-08-21 by `ADR-0101`.** The work it implies is specced
+at `docs/specs/zoltar/019-entity-visibility-and-entity-write-path.md` and is
+not scheduled. Nothing here has been *fixed* — the decision is recorded, the
+code is unchanged.
+
+**Open question (1) resolved to neither of the two answers this document
+anticipated.** `visible` was overloaded: it means line of sight, and the
+playtest was using it as a discovery gate. Separating the two makes the pool
+"leak" correct behaviour, which closes (2), (4) and (5) as consequences —
+including **no fixture re-capture** — and (6) with them. (3) was answered by
+measurement, below. Read `ADR-0101` before this document; what follows is the
+evidence it was decided from, preserved as written.
+
+*Original status, for the record:* **open. Nothing here has been fixed, and no
+decision has been made about whether it should be.** This file records an unplanned finding from the
 M7.7 assembly-golden work (2026-08-18) in enough detail that whoever picks it
 up starts from the evidence rather than re-deriving it.
+
+**Amended 2026-08-21.** Answering "how does the Warden flip a hidden entity's
+visibility if the entity isn't in `<entities>`?" found that it doesn't need
+to — the entity is in the system prompt on every turn, by a path this
+document originally missed. That changes the premise of open questions (2)
+and (3) and answers (3). See [Amendment](#amendment-2026-08-21--the-snapshot-is-not-the-only-path).
 
 The subject is the gap between the *documented* two-mechanism hidden
 information model and what the state snapshot actually emits. It is written
@@ -100,6 +119,172 @@ on no turn. That is a property of this campaign's data, not of the code.
 | `turn03-unauditable-mapping` | same |
 | `turn03-unsurfaced-check` | same |
 
+## Amendment 2026-08-21 — the snapshot is not the only path
+
+**Everything above concerns `<state_snapshot>`. The hidden entity is also in
+the system prompt, on every turn, and that is the design rather than a bug in
+it.**
+
+`formatGmContextBlob` (`apps/zoltar-be/src/session/session.prompt.ts:52`)
+emits **every** entity in the GM context blob. It reads `visible` as a
+*label*, not a filter:
+
+```ts
+`- ${entity.id} (${entity.type}${entity.visible ? '' : ', starts hidden'}): tags=${tags}`
+```
+
+That block is the first of the two cached system blocks
+(`session.prompt.ts:148`), so it ships ahead of the state snapshot on every
+turn. Rendered from the 2026-08-16 playtest's own stored blob:
+
+```
+- signal_source_entity (threat, starts hidden): tags=cosmic, communication, escalating, combat_encounter
+```
+
+— accompanied by a `hidden_truth` line carrying the mystery in full prose.
+
+**This changes the premise of the finding above.** `renderResourcePools` is
+not what puts a hidden entity's existence in the prompt. The GM context
+entity roster does, for *every* hidden entity, pools or not, and more
+explicitly — it says `starts hidden` in as many words. `renderEntities`'
+filter is withholding from `<state_snapshot>` an id that `<gm_context>`
+stated earlier in the same prompt.
+
+So **nothing in M7 makes a hidden entity structurally absent.** The single
+renderer that consults visibility is filtering data the prompt already
+carries.
+
+Whether *that* is a defect turns on the same call as open question (1), and
+plausibly resolves the other way: an entity declared at synthesis is GM
+context, and GM context is the behavioral mechanism's territory by design. On
+that reading the design doc's "The goblin isn't in the prompt" is too strong
+about the entity's *existence* and exactly right about its *position*.
+
+### There is no reveal catch-22
+
+The question that prompted this pass — if a hidden entity is absent from
+`<entities>`, how does the Warden name it to flip `visible`? — has a
+mechanical answer: it reads the id from `<gm_context>`. The structural filter
+never withheld the identifier the reveal needs.
+
+Worth stating because the alternative would be silent corruption rather than
+an error: `applyEntity` has **no existence check**, so an id absent from
+`currentData.entities` is *created* rather than rejected
+(`session.validator.ts:626-633`). Nothing requires a revealed id to match a
+declared one. Hallucinated ids are not a live problem only because
+`<gm_context>` supplies the real ones.
+
+### Open question (3), answered: the Warden used it
+
+Across all 58 turns of adventure `5c34991b-b03e-46c4-93c1-855b13f6afb4`:
+
+| where `signal_source_entity` appears | turns |
+|---|---|
+| `snapshotSent` (the pools leak) | 58 |
+| `originalResponse` | 5 |
+| `applied` | 0 |
+| player-visible narration | 0 |
+
+The Warden never named it to the player before the reveal and did reason
+about it privately — one `gmUpdates.notes` entry weighs flipping
+`secret_signal_origin_revealed`, then deliberately holds off, citing the
+flag's own trigger. That is the behavioral mechanism working as intended.
+
+**One turn proposed the reveal outright** — 2026-08-16 23:19:59 — carrying
+`entities: {signal_source_entity: {visible: true, status: "manifested, stationary, vocalizing"}}`
+and the matching `combat_encounter_triggered` flip. **It did not apply.**
+Every `applied` bucket on that turn is empty, and `campaign_state` still
+reads:
+
+```
+signal_source_entity | visible=false | status=unknown
+```
+
+**The proximate cause is the tool-syntax defect (`ADR-0097`), not anything
+else in this document.** The response serialized
+`<parameter name="stateChanges">…` as text inside `playerText`, so the
+payload never reached the validator. The fiction has the entity manifest and
+speak to the crew; the state has it hidden and `unknown`. It is one of the 39
+turns `ADR-0097` already characterizes — recorded here only because the state
+change it ate is the one this document is about.
+
+The other four of the five mentions are `gmUpdates.notes` reasoning, not
+proposed changes. A second turn (2026-08-17 11:42:38) also carries
+`visible: true`, but on `dr_kennedy` — a death, `status: "deceased"` — and
+does not name `signal_source_entity` at all. It is cited below only as the
+second instance of an out-of-enum `status`.
+
+## A second defect, independent of the above: a bad `status` discards the reveal with it
+
+Found while answering the amendment. **Not** caused by the visibility
+question, and **not** covered by the `ADR-0097` guard.
+
+`submit_gm_response` advertises entity `status` as a free string
+(`session.schema.ts:272-278`):
+
+```ts
+entities: z.record(z.string(), z.object({
+  visible: z.boolean().optional(),
+  status: z.string().optional(),
+}))
+```
+
+`applyEntity` (`session.validator.ts:607`) validates it against
+`EntityStatusSchema` — `z.enum(['alive','dead','unknown'])`,
+`packages/game-systems/src/shared.ts:10` — and on failure pushes a rejection
+and **returns before writing anything**:
+
+```ts
+if (change.status !== undefined) {
+  const parsed = EntityStatusSchema.safeParse(change.status);
+  if (!parsed.success) {
+    result.rejections.push({ /* … */ });
+    return;                      // ← change.visible is discarded here
+  }
+}
+```
+
+An entity change carrying a valid `visible: true` and an invalid `status`
+therefore loses both. Both `visible: true` proposals in the playtest carried
+out-of-enum statuses — `"manifested, stationary, vocalizing"` on the reveal
+turn, `"deceased"` on the `dr_kennedy` death the next day — confirmed
+rejected:
+
+```
+EntityStatusSchema.safeParse('manifested, stationary, vocalizing').success === false
+```
+
+They died at the tool-syntax layer first, so this never fired in the
+playtest.
+
+**Corrected 2026-08-21 — it is not silent, and the loss is recoverable.** The
+paragraph above originally claimed the discarded `visible` reaches the
+database. It does not. `applyEntity` pushes a rejection, and `ADR-0038 § D4`'s
+validate-all-then-apply guarantee discards the *entire* `applied` set whenever
+any rejection exists: `SessionService` runs one correction round and throws
+`SessionCorrectionError` if that also fails (`session.service.ts:377-406`).
+Verified directly — the rejection fires with `applied.entities` empty. So the
+early return costs nothing observable today, and "apply the valid field" would
+be unreachable code.
+
+**What is genuinely wrong is narrower:** only the *first* bad field on an
+entity is ever reported, because the return happens before any other field is
+examined — and the correction path is single-shot, so a Warden that fixes the
+reported problem and fails on an unreported sibling loses the turn. With one
+other rejectable field this is theoretical. `ADR-0101` adds `revealed` and
+`npcState`, which is what makes it likely. Carried into
+`docs/specs/zoltar/019-entity-visibility-and-entity-write-path.md § Part 5`.
+
+**Tracking.** The prompt-side half is on the roadmap: `roadmap.md § M8.1` —
+*"`status`-field-overload prompt fix: `status` is strictly the
+`'alive'|'dead'|'unknown'` enum; tactical and narrative detail moves to
+`npcState`"*. **Superseded 2026-08-21:** that bullet moved from M8.1 to M7.7
+and folds into spec 019 § Part 4, because M8.1 is prompt-only and because
+`npcState` — its stated destination — turned out to have no write path at
+all. The applier-side half is spec 019 § Part 5, and is a reporting-
+completeness fix rather than the partial-application one this paragraph
+originally proposed; `ADR-0038 § D4` settles the rest by inheritance.
+
 ## What is *not* wrong
 
 Recorded so the next person doesn't re-litigate it.
@@ -129,8 +314,10 @@ playtest's does.
 **The two mechanisms are supposed to be distinguishable.** The design doc is
 explicit that they "work differently and should not be conflated". A hidden
 entity whose HP is in the prompt is being protected behaviorally while the
-documentation says it is protected structurally. Any reasoning that depends
-on the distinction — a security argument, a prompt-injection analysis
+documentation says it is protected structurally — and per the
+[amendment](#amendment-2026-08-21--the-snapshot-is-not-the-only-path), so is
+every hidden entity *without* pools, via `<gm_context>`. Any reasoning that
+depends on the distinction — a security argument, a prompt-injection analysis
 (`ADR-0093`), a hidden-info eval — is reasoning from a premise that does not
 hold for entities with pools.
 
@@ -153,13 +340,21 @@ has already happened once.
    are defensible and they imply opposite fixes.
 2. **If a defect, where does the filter belong?** Filtering
    `renderResourcePools` by owner visibility is a two-line change and would
-   have hidden `signal_source_entity.hp` on all 58 turns. But the Warden
-   needs a hidden NPC's HP to run off-screen combat — the very thing that
+   have hidden `signal_source_entity.hp` on all 58 turns. **Amended
+   2026-08-21:** it would have hidden the *HP*, not the entity — the id was
+   in `<gm_context>` on all 58 turns regardless, so this buys materially less
+   than first written. But the Warden needs a hidden NPC's HP to run
+   off-screen combat — the very thing that
    drove the tool-loop cap to 20 (`ADR-0023` context). A filter that starves
    it of that data may trade one defect for a worse one.
-3. **Does the Warden actually use it?** Unmeasured. The 58 turns of playtest
-   telemetry can answer whether any narration or state change referenced
-   `signal_source_entity` before it was revealed.
+3. ~~**Does the Warden actually use it?** Unmeasured.~~ **Answered
+   2026-08-21 — yes.** Named in 5 of 58 responses, once to propose the
+   reveal and four times in `gmUpdates.notes` reasoning; never in
+   player-visible narration. See
+   [Open question (3), answered](#open-question-3-answered-the-warden-used-it).
+   Note the measurement does not isolate *this* leak: the id was reaching the
+   Warden through `<gm_context>` too, so it does not establish that
+   `<resource_pools>` is what the Warden read.
 4. **What about the other four unfiltered renderers?** `flags`,
    `scenarioState` and `worldFacts` are keyed by author-chosen strings, so a
    leak there depends on naming discipline rather than structure. No
@@ -167,6 +362,15 @@ has already happened once.
 5. **Does the fixture corpus need re-capture?** Only if (1) resolves to
    "defect". Four fixtures would need re-capture or hand-patching, which is
    a `corpusVersion` bump and re-scoring of every frozen run.
+
+6. **Added 2026-08-21 — does `<gm_context>` emitting hidden entities need its
+   own answer?** It is a separate call from (1): (1) is about pools in the
+   state snapshot, this is about the entity roster in the cached system
+   block. If (1) resolves to "defect" on the grounds that a hidden entity's
+   existence must not reach the prompt, then this is the larger instance of
+   the same defect and filtering pools alone does not close it. If (1)
+   resolves to "the doc is too strong", this is what the amended doc has to
+   describe.
 
 ## Reproducing this
 
@@ -206,11 +410,50 @@ FROM adventure_telemetry
 WHERE adventure_id = '5c34991b-b03e-46c4-93c1-855b13f6afb4';
 ```
 
+For the amendment — the GM context roster is keyed by `adventure_id`, not
+`campaign_id`:
+
+```sql
+-- every entity the cached system block names, hidden included
+SELECT e->>'id' AS id, e->>'type' AS type, e->>'visible' AS visible
+FROM gm_context g, jsonb_array_elements(g.blob->'entities') e
+WHERE g.adventure_id = '5c34991b-b03e-46c4-93c1-855b13f6afb4'
+ORDER BY 3, 1;
+
+-- where the id actually appears, per turn
+SELECT count(*) FILTER (WHERE payload->>'snapshotSent'     LIKE '%signal_source_entity%') AS in_snapshot,
+       count(*) FILTER (WHERE payload->>'originalResponse' LIKE '%signal_source_entity%') AS in_response,
+       count(*) FILTER (WHERE payload->>'applied'          LIKE '%signal_source_entity%') AS in_applied,
+       count(*) AS total
+FROM adventure_telemetry
+WHERE adventure_id = '5c34991b-b03e-46c4-93c1-855b13f6afb4';
+```
+
+`payload->>'wardenPrompt'` is a `{hash, filename}` pointer to the static
+prompt file, not the assembled prompt — `<gm_context>` is **not** archived in
+telemetry, which is why grepping it for a hidden id returns nothing. Render
+it from the stored blob instead:
+
+```bash
+cd apps/zoltar-be
+npx tsx -e "
+import { formatGmContextBlob } from './src/session/session.prompt';
+// blob.json := SELECT blob FROM gm_context WHERE adventure_id = '5c34991b-…';
+console.log(formatGmContextBlob(require('/tmp/blob.json')));
+"
+```
+
 ## What was deliberately not done
 
 - **No behaviour changed.** No filter added, no fixture re-captured, no
   design-doc edit. Question (1) has to be answered first, and it is a design
-  call rather than an implementation one.
+  call rather than an implementation one. Still true after the 2026-08-21
+  amendment, which is investigation written up, not code touched.
+- **The `status`-discards-`visible` defect was left unfixed and unticketed.**
+  It is a real defect with a one-line shape, but it belongs to the entity
+  write path rather than to the hidden-information question, and filing it
+  against a milestone is a scheduling call. Named here so it is not
+  rediscovered from the same playtest a third time.
 - **No ADR written.** There is no decision to record yet. When (1) is
   answered, the answer is an ADR — and if the resolution is "the doc is too
   strong", that ADR should amend `docs/zoltar-design-doc.md § The Hidden
