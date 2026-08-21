@@ -604,25 +604,52 @@ function foldCharacterState(
   return { applied, rejections: [] };
 }
 
+/**
+ * Validates and merges one entity change.
+ *
+ * **Every invalid field on the entry is reported, and none of them are
+ * applied.** The two halves are independent and both deliberate.
+ *
+ * *All-or-nothing within the entry* is inherited from `ADR-0038 § D4` rather
+ * than chosen here: a non-empty `rejections` array makes `SessionService`
+ * discard the whole `applied` set and run a correction round, so applying the
+ * valid fields of a rejected entry would be unreachable code. The local
+ * accumulator is not a step toward partial application.
+ *
+ * *Reporting every field* is the part that changed. This function used to
+ * return at the first bad field, so a Warden told about `status`, fixing it,
+ * and failing on an unreported sibling got no second correction — the
+ * correction path is single-shot and the turn is thrown. With one rejectable
+ * field that was theoretical; it stops being theoretical as soon as the entry
+ * carries more than one.
+ */
 function applyEntity(
   entityId: string,
   change: { visible?: boolean; status?: string },
   currentData: MothershipCampaignState,
   result: ValidationResult,
 ): void {
+  const rejections: ValidationRejection[] = [];
+
+  let proposedStatus: EntityStatus | undefined;
   if (change.status !== undefined) {
     const parsed = EntityStatusSchema.safeParse(change.status);
-    if (!parsed.success) {
-      result.rejections.push({
+    if (parsed.success) {
+      proposedStatus = parsed.data;
+    } else {
+      rejections.push({
         path: `entities.${entityId}`,
         reason: "status must be 'alive', 'dead', or 'unknown'",
         received: change,
       });
-      return;
     }
   }
 
-  const proposedStatus = change.status as EntityStatus | undefined;
+  if (rejections.length > 0) {
+    result.rejections.push(...rejections);
+    return;
+  }
+
   const existing = currentData.entities[entityId];
 
   if (!existing) {

@@ -96,3 +96,11 @@ entity-keyed to owner-keyed, and a field named `entityId` that legally holds
 AP 1 and replacement swaps the item — both are equipment operations, and
 equipment has no write path in M7.6. Armor can be damaged and destroyed this
 milestone, never restored.
+
+**Addendum — D4's granularity within an `entities` entry, stated because it was read as unstated.** Recorded 2026-08-21 while drafting `docs/specs/zoltar/019-entity-visibility-and-entity-write-path.md`, which first proposed applying the valid fields of a rejected entity change and was wrong to.
+
+D4 settles rejection granularity *across* `stateChanges` members and says nothing about granularity *within* one entry, so `applyEntity`'s behaviour looked like an open question. It is not: **within-entry rejection is all-or-nothing by inheritance.** `validateStateChanges` returns one pass/fail, `SessionService` discards the entire `applied` set whenever `rejections` is non-empty and runs a correction round (`session.service.ts:377-406`), so applying the valid fields of a rejected entry would be unreachable code. Verified by direct call: an entity carrying a valid `visible` and an invalid `status` yields the rejection with `applied.entities` empty.
+
+**What was genuinely wrong is reporting, not application.** `applyEntity` returned at the first invalid field without examining the rest, so a Warden told about `status`, fixing it, and failing on an unreported sibling received no second correction — the correction path is single-shot and the turn is thrown. With `status` the only rejectable field this was theoretical. Spec 019 adds `revealed` (monotonic) and `npcState` and rejects unknown ids, which makes an entry with two independently invalid fields ordinary. `applyEntity` now accumulates every field-level rejection before returning.
+
+The distinction is worth keeping in mind wherever D4 is cited: *validate-all-then-apply* is a claim about what reaches the database, not a licence to stop validating once one thing has failed.
