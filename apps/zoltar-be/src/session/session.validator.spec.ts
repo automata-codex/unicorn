@@ -1150,19 +1150,177 @@ describe('validateStateChanges — entities', () => {
     expect(result.applied.resourcePools).toEqual({});
   });
 
-  it('initializes an absent entity with sensible defaults', () => {
+  it('rejects an unrecognized id instead of silently creating one', () => {
     const result = validateStateChanges({
       proposed: { entities: { corporate_spy_1: { status: 'alive' } } },
       currentData: emptyMothershipState(),
       poolDef,
     });
-    expect(result.applied.entities.corporate_spy_1).toEqual({
-      visible: true,
-      // An entity narrated into the scene has been discovered by definition.
-      // Part 3 of spec 019 replaces this branch with a rejection.
+    expect(result.applied.entities).toEqual({});
+    expect(result.rejections).toHaveLength(1);
+    expect(result.rejections[0].reason).toContain('newEntities');
+  });
+
+  it('reports every invalid field on one entity, not just the first', () => {
+    const result = validateStateChanges({
+      proposed: {
+        entities: { dr_chen: { status: 'hibernating', revealed: false } },
+      },
+      currentData: stateWith({
+        entities: {
+          dr_chen: { visible: true, revealed: true, status: 'alive' },
+        },
+      }),
+      poolDef,
+    });
+    expect(result.applied.entities).toEqual({});
+    expect(result.rejections).toHaveLength(2);
+    expect(result.rejections.map((r) => r.reason).join(' ')).toContain(
+      'status',
+    );
+    expect(result.rejections.map((r) => r.reason).join(' ')).toContain(
+      'monotonic',
+    );
+  });
+
+  it('rejects un-revealing a discovered entity', () => {
+    const result = validateStateChanges({
+      proposed: { entities: { dr_chen: { revealed: false } } },
+      currentData: stateWith({
+        entities: {
+          dr_chen: { visible: true, revealed: true, status: 'alive' },
+        },
+      }),
+      poolDef,
+    });
+    expect(result.applied.entities).toEqual({});
+    expect(result.rejections[0].reason).toContain('monotonic');
+  });
+
+  it('accepts losing sight of a discovered entity — the point of the split', () => {
+    const result = validateStateChanges({
+      proposed: { entities: { dr_chen: { visible: false } } },
+      currentData: stateWith({
+        entities: {
+          dr_chen: { visible: true, revealed: true, status: 'alive' },
+        },
+      }),
+      poolDef,
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.applied.entities.dr_chen).toEqual({
+      visible: false,
       revealed: true,
       status: 'alive',
     });
+  });
+
+  it('accepts revealing a hidden entity', () => {
+    const result = validateStateChanges({
+      proposed: { entities: { ghost: { visible: true, revealed: true } } },
+      currentData: stateWith({
+        entities: {
+          ghost: { visible: false, revealed: false, status: 'unknown' },
+        },
+      }),
+      poolDef,
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.applied.entities.ghost).toEqual({
+      visible: true,
+      revealed: true,
+      status: 'unknown',
+    });
+  });
+});
+
+describe('validateStateChanges — newEntities', () => {
+  it('creates an entity that is not in play', () => {
+    const result = validateStateChanges({
+      proposed: {
+        newEntities: {
+          corporate_spy_1: { visible: true, revealed: true, status: 'alive' },
+        },
+      },
+      currentData: emptyMothershipState(),
+      poolDef,
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.applied.entities.corporate_spy_1).toEqual({
+      visible: true,
+      revealed: true,
+      status: 'alive',
+    });
+  });
+
+  it('rejects creating an entity that already exists', () => {
+    const result = validateStateChanges({
+      proposed: {
+        newEntities: { dr_chen: { visible: true, revealed: true } },
+      },
+      currentData: stateWith({
+        entities: {
+          dr_chen: { visible: true, revealed: true, status: 'alive' },
+        },
+      }),
+      poolDef,
+    });
+    expect(result.applied.entities).toEqual({});
+    expect(result.rejections[0].reason).toContain('already in play');
+  });
+
+  it('rejects visible-but-undiscovered on create', () => {
+    const result = validateStateChanges({
+      proposed: {
+        newEntities: { ghost: { visible: true, revealed: false } },
+      },
+      currentData: emptyMothershipState(),
+      poolDef,
+    });
+    expect(result.applied.entities).toEqual({});
+    expect(result.rejections[0].reason).toContain('not a state that exists');
+  });
+
+  it('makes a created id a legal pool owner in the same turn', () => {
+    const result = validateStateChanges({
+      proposed: {
+        newEntities: { new_guard: { visible: true, revealed: true } },
+        resourcePools: [
+          { owner: 'new_guard', pool: 'hp', delta: 10, reason: 'bootstrap' },
+        ],
+      },
+      currentData: stateWith({
+        entities: {},
+        resourcePools: { alvarez: { hp: { current: 10, max: 10 } } },
+      }),
+      poolDef,
+      identifiers: { playerEntityIds: ['alvarez'], knownEntityIds: [] },
+    });
+    expect(result.rejections).toEqual([]);
+  });
+
+  /**
+   * Negative control for the test above. Without the create, the identical
+   * pool change is rejected as impersonation — an unknown owner bootstrapping
+   * a pool the player owns. That rejection is correct and stays; the point of
+   * widening the identifier set is that a create in the same payload is what
+   * separates "declared four lines ago" from "nobody declared this".
+   */
+  it('still rejects the same pool change when nothing created the owner', () => {
+    const result = validateStateChanges({
+      proposed: {
+        resourcePools: [
+          { owner: 'new_guard', pool: 'hp', delta: 10, reason: 'bootstrap' },
+        ],
+      },
+      currentData: stateWith({
+        entities: {},
+        resourcePools: { alvarez: { hp: { current: 10, max: 10 } } },
+      }),
+      poolDef,
+      identifiers: { playerEntityIds: ['alvarez'], knownEntityIds: [] },
+    });
+    expect(result.rejections).not.toEqual([]);
   });
 
   it('rejects an invalid status string', () => {

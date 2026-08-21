@@ -90,11 +90,34 @@ export function validateStateChanges(input: {
 
   const proposed = input.proposed ?? {};
 
+  // **Creates run first, and widen the identifier set for the rest of the
+  // turn.** A newly introduced NPC is a legal resource-pool owner immediately
+  // — without this, `new_npc.hp` would trip `impersonatesPlayerPool`, which
+  // rejects an *unknown* owner whose pool name matches one the player owns.
+  // That is the correct rule for an id nobody declared and the wrong one for
+  // an id declared four lines earlier in the same payload.
+  const createdEntityIds = applyNewEntities(
+    proposed.newEntities ?? {},
+    input.currentData,
+    result,
+  );
+
+  const identifiers =
+    input.identifiers && createdEntityIds.length > 0
+      ? {
+          ...input.identifiers,
+          knownEntityIds: [
+            ...input.identifiers.knownEntityIds,
+            ...createdEntityIds,
+          ],
+        }
+      : input.identifiers;
+
   const pools = foldResourcePools(
     proposed.resourcePools ?? [],
     input.currentData,
     input.poolDef,
-    input.identifiers,
+    identifiers,
   );
   const characters = foldCharacterState(
     proposed.characterState ?? [],
@@ -610,6 +633,79 @@ function foldCharacterState(
 }
 
 /**
+ * Validates `stateChanges.newEntities` and returns the ids actually created.
+ *
+ * Creation used to be a side effect of naming an unrecognized id in
+ * `entities`, which made a genuine mid-adventure NPC indistinguishable from a
+ * typo — the first is ordinary play, the second silently forks one entity into
+ * two records that then drift apart. `ADR-0101` made creation something a turn
+ * has to say out loud.
+ *
+ * Runs before the resource-pool fold so a created id is a legal pool owner for
+ * the rest of the turn; the returned ids are what widen that set.
+ */
+function applyNewEntities(
+  proposed: Record<
+    string,
+    {
+      visible: boolean;
+      revealed: boolean;
+      status?: EntityStatus;
+      npcState?: string;
+    }
+  >,
+  currentData: MothershipCampaignState,
+  result: ValidationResult,
+): string[] {
+  const created: string[] = [];
+
+  for (const [entityId, change] of Object.entries(proposed)) {
+    if (currentData.entities[entityId] !== undefined) {
+      result.rejections.push({
+        path: `newEntities.${entityId}`,
+        reason:
+          `an entity with id "${entityId}" is already in play. ` +
+          'Use `entities` to change one that exists; `newEntities` is only ' +
+          'for introducing one that does not.',
+        received: change,
+      });
+      continue;
+    }
+
+    // The same invariant the synthesis schema enforces: an entity in line of
+    // sight has necessarily been discovered.
+    if (change.visible && !change.revealed) {
+      result.rejections.push({
+        path: `newEntities.${entityId}`,
+        reason:
+          'an entity in line of sight has been discovered — `visible: true` ' +
+          'with `revealed: false` is not a state that exists. An entity the ' +
+          'players cannot see yet is `visible: false`.',
+        received: change,
+      });
+      continue;
+    }
+
+    const entity: {
+      visible: boolean;
+      revealed: boolean;
+      status: EntityStatus;
+      npcState?: string;
+    } = {
+      visible: change.visible,
+      revealed: change.revealed,
+      status: change.status ?? 'unknown',
+    };
+    if (change.npcState !== undefined) entity.npcState = change.npcState;
+
+    result.applied.entities[entityId] = entity;
+    created.push(entityId);
+  }
+
+  return created;
+}
+
+/**
  * Validates and merges one entity change.
  *
  * **Every invalid field on the entry is reported, and none of them are
@@ -630,7 +726,7 @@ function foldCharacterState(
  */
 function applyEntity(
   entityId: string,
-  change: { visible?: boolean; status?: string },
+  change: { visible?: boolean; revealed?: boolean; status?: string },
   currentData: MothershipCampaignState,
   result: ValidationResult,
 ): void {
@@ -650,28 +746,47 @@ function applyEntity(
     }
   }
 
+  // An entity created earlier in this same payload is a legitimate target.
+  const existing =
+    currentData.entities[entityId] ?? result.applied.entities[entityId];
+
+  if (!existing) {
+    // Joins the accumulator rather than returning directly, so a change that
+    // is both misaddressed *and* carries a bad field reports both. The single
+    // correction shot is the reason that matters.
+    rejections.push({
+      path: `entities.${entityId}`,
+      reason:
+        `no entity with id "${entityId}" is in play. ` +
+        '`entities` updates an entity that already exists; introducing one ' +
+        'during play is `newEntities`, which takes `visible` and `revealed`. ' +
+        'If this id was meant to name an existing entity, check its spelling ' +
+        'against the entity list in the state snapshot.',
+      received: change,
+    });
+    result.rejections.push(...rejections);
+    return;
+  }
+
+  // **`revealed` is monotonic** (`ADR-0101`): discovery does not un-happen. A
+  // gate that can be reopened is not a gate, and enforcing it here rather than
+  // by convention is three lines.
+  if (change.revealed === false && existing.revealed) {
+    rejections.push({
+      path: `entities.${entityId}`,
+      reason:
+        '`revealed` is monotonic — once the players have discovered an ' +
+        'entity it cannot become undiscovered. To take an entity out of ' +
+        'sight, set `visible: false` and leave `revealed` alone.',
+      received: change,
+    });
+  }
+
   if (rejections.length > 0) {
     result.rejections.push(...rejections);
     return;
   }
 
-  const existing = currentData.entities[entityId];
-
-  if (!existing) {
-    // An entity created by an unrecognized id. `revealed` is `true` because
-    // the only way an entity arrives mid-adventure today is by being narrated
-    // into the scene, which is a discovery by definition. Part 3 of spec 019
-    // replaces this branch with a rejection and an explicit create op.
-    result.applied.entities[entityId] = {
-      visible: change.visible ?? true,
-      revealed: true,
-      status: proposedStatus ?? 'unknown',
-    };
-    return;
-  }
-
-  // `revealed` is carried through rather than merged: it is not on the payload
-  // until spec 019 Part 3, which adds it together with its monotonicity rule.
   const merged: {
     visible: boolean;
     revealed: boolean;
@@ -679,7 +794,7 @@ function applyEntity(
     npcState?: string;
   } = {
     visible: change.visible ?? existing.visible,
-    revealed: existing.revealed,
+    revealed: change.revealed ?? existing.revealed,
     status: proposedStatus ?? existing.status,
   };
   if (existing.npcState !== undefined) {

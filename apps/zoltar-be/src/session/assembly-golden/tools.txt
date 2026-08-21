@@ -329,10 +329,43 @@
                   "visible": {
                     "type": "boolean"
                   },
+                  "revealed": {
+                    "type": "boolean"
+                  },
                   "status": {
                     "type": "string"
                   }
                 },
+                "additionalProperties": false
+              }
+            },
+            "newEntities": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "visible": {
+                    "type": "boolean"
+                  },
+                  "revealed": {
+                    "type": "boolean"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "alive",
+                      "dead",
+                      "unknown"
+                    ]
+                  },
+                  "npcState": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "visible",
+                  "revealed"
+                ],
                 "additionalProperties": false
               }
             },

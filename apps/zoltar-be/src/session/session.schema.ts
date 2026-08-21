@@ -1,4 +1,5 @@
 import {
+  EntityStatusSchema,
   MOTHERSHIP_CHARACTER_POOL_NAMES,
   MothershipConditionEnum,
 } from '@uv/game-systems';
@@ -273,7 +274,37 @@ export const submitGmResponseSchema = z.object({
           z.string(),
           z.object({
             visible: z.boolean().optional(),
+            revealed: z.boolean().optional(),
             status: z.string().optional(),
+          }),
+        )
+        .optional(),
+
+      /**
+       * Entities introduced during play, as a member of their own rather than
+       * an inferred side effect of naming an unrecognized id in `entities`
+       * (`ADR-0101`, spec 019 § Part 5).
+       *
+       * `entities` used to create an entity silently whenever it did not
+       * recognize the key, which made a genuine mid-adventure NPC and a
+       * mistyped or hallucinated id indistinguishable — the first is ordinary
+       * play and the second silently forks the entity into two records that
+       * drift apart. Creation is now stated. An id already in play is rejected
+       * here, and an id not in play is rejected in `entities`; each member has
+       * exactly one job.
+       *
+       * A create carries full initial state, so it needs no accompanying
+       * `entities` update, and its id becomes a legal resource-pool owner for
+       * the remainder of the same turn.
+       */
+      newEntities: z
+        .record(
+          z.string(),
+          z.object({
+            visible: z.boolean(),
+            revealed: z.boolean(),
+            status: EntityStatusSchema.optional(),
+            npcState: z.string().optional(),
           }),
         )
         .optional(),
