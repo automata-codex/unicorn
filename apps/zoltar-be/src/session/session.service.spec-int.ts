@@ -267,7 +267,7 @@ describe('SessionService (integration) — happy path', () => {
           worldFacts: { corridor_length: 'eight meters' },
         },
         gmUpdates: {
-          npcStates: { corporate_spy_1: 'Now following the player' },
+          npcAgendas: { corporate_spy_1: 'Now following the player' },
           proposedCanon: [
             { summary: 'Ship has a brig', context: 'Cell door.' },
           ],
@@ -482,7 +482,7 @@ describe('SessionService (integration) — correction succeeds', () => {
           { owner: 'dr_chen', pool: 'hp', delta: -1, reason: 'grazed' },
         ],
       },
-      gmUpdates: { npcStates: {} },
+      gmUpdates: { npcAgendas: {} },
     });
     const callSession = vi
       .fn()
