@@ -12,6 +12,7 @@ oracle_connections: Signal ↔ the sealed compartment on Deck 0.
 
 <entities>
 - probe_feature (feature): tags=(none)
+- probe_hidden_npc (npc, starts hidden): tags=stowaway
 - probe_npc_one (npc): tags=crew
 - probe_threat (threat, starts hidden): tags=unknown, aft
 </entities>

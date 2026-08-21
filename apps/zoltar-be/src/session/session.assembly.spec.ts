@@ -108,6 +108,39 @@ describe('the probe exercises every section', () => {
     expect(surfaces.stateSnapshot).toContain('frightened (probe_threat)');
   });
 
+  /**
+   * `assemblyHash` can only see what the probe exercises. A field that is
+   * present but always at its default renders identically whatever the code
+   * does with it, so an edit to that branch moves no run identity — the
+   * failure `ADR-0099` was written to prevent, and the one `CREW_ROLE_SKILLS`
+   * hit before the whole table was folded in.
+   *
+   * This asserts the *rendered surfaces*, not the probe literal, because the
+   * literal having a field proves nothing about whether the renderer reached
+   * it.
+   */
+  it('exercises both branches of every entity flag `ADR-0101` added', () => {
+    const block = surfaces.stateSnapshot.match(
+      /<entities>[\s\S]*?<\/entities>/,
+    )?.[0] as string;
+
+    expect(block).toContain('visible');
+    expect(block).toContain('hidden');
+    expect(block).toContain('revealed');
+    expect(block).toContain('undiscovered');
+
+    // Hidden *and* discovered — the combination with no single-boolean
+    // spelling, and the reason the field was split at all.
+    expect(block).toMatch(/probe_hidden_npc: hidden, revealed,/);
+
+    // A hidden entity rendering role-derived skills. Without an entity that is
+    // both hidden and role-bearing, this branch is unreachable from the hash.
+    expect(block).toMatch(/probe_hidden_npc:.*skills .*expert/);
+
+    // Disposition on a hidden entity.
+    expect(block).toMatch(/probe_hidden_npc:.*state: /);
+  });
+
   it('describes every top-level submit_gm_response property', () => {
     // The gap this whole mechanism was built after: `stateChanges` carried
     // fourteen nested descriptions while the five properties above it

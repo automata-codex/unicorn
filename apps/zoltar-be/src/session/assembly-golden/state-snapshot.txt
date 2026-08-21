@@ -16,6 +16,7 @@ probe_player:
 
 <entities>
 probe_player: visible, revealed, status=unknown, player_character
+probe_hidden_npc: hidden, revealed, status=alive, instinct 48, role medic, skills Zoology trained (+10), Field Medicine expert (+15), state: Wary — has not been seen yet and knows it.
 probe_npc_one: visible, revealed, status=alive, instinct 49, role chief_engineer, skills Industrial Equipment trained (+10), Mechanical Repair expert (+15), Engineering master (+20), Jury-Rigging trained (+10), state: Cooperative — wants the reactor kept online.
 probe_threat: hidden, undiscovered, status=unknown
 </entities>

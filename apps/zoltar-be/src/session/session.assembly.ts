@@ -91,6 +91,21 @@ export const ASSEMBLY_PROBE: {
         tags: ['unknown', 'aft'],
       },
       { id: 'probe_feature', type: 'feature', visible: true, tags: [] },
+      {
+        // Hidden *and* role-bearing. `probe_threat` is hidden but has no
+        // `crewRole`, so without this entity the hidden-NPC skill render that
+        // `ADR-0101` introduced is invisible to `assemblyHash` and a later
+        // edit to it would move no run identity — the failure `ADR-0099`
+        // exists to prevent. A fourth entity rather than a `crewRole` on
+        // `probe_threat`, because that entity's role in
+        // `conditions: frightened (probe_threat)` is a separate assertion the
+        // goldens already pin.
+        id: 'probe_hidden_npc',
+        type: 'npc',
+        visible: false,
+        tags: ['stowaway'],
+        crewRole: 'medic',
+      },
     ],
     structured: {
       flags: {
@@ -167,6 +182,19 @@ export const ASSEMBLY_PROBE: {
       // Hidden *and* undiscovered — the case the snapshot filter used to hide
       // entirely, and the only entity here that exercises either false branch.
       probe_threat: { visible: false, revealed: false, status: 'unknown' },
+      // Hidden but *discovered* — the goblin behind the column, and the
+      // combination that has no single-boolean spelling. Carries a `crewRole`
+      // so the hidden-NPC skill render reaches the hash (see the roster note
+      // above), and an `npcState` so disposition renders on a hidden entity
+      // too.
+      probe_hidden_npc: {
+        visible: false,
+        revealed: true,
+        status: 'alive',
+        crewRole: 'medic',
+        instinctRoll: [4, 9],
+        npcState: 'Wary — has not been seen yet and knows it.',
+      },
     },
     flags: {
       probe_flag_set: { value: true, trigger: 'Set when the probe runs.' },
