@@ -206,6 +206,49 @@ function seededPlayerEntityIds(fixture: EvalFixture): string[] {
  * `[]`, which silently disables `actingEntityId` validation in the tool loop
  * — the run would grade a code path production does not take.
  */
+/**
+ * Fills `revealed` on seeded entities that predate it, from `visible`.
+ *
+ * `ADR-0101` made `revealed` required on `EntitySchema`, and
+ * `V20__entity_revealed_backfill.sql` back-fills the database. The eval corpus
+ * is not in the database — it is literal JSON captured into fixture files — so
+ * the migration cannot reach it, and every fixture captured before 2026-08-21
+ * carries entities with `visible` and no `revealed`.
+ *
+ * Normalizing here rather than editing the files is what keeps `ADR-0101`'s
+ * "no fixture re-capture" guarantee true. `corpusVersion` hashes fixture bytes
+ * (`corpus-version.ts:70-74`), so a load-time fill moves nothing and no frozen
+ * run needs re-scoring; rewriting 22 files to add a derivable boolean would
+ * bump the corpus and invalidate every baseline on disk to no purpose.
+ *
+ * Same rule as the migration — `revealed := visible` — and the same
+ * leave-alone for entities that already carry it, so a fixture captured after
+ * this lands is passed through untouched.
+ */
+function backfillEntityRevealed(
+  campaignState: Record<string, unknown>,
+): Record<string, unknown> {
+  const entities = campaignState.entities;
+  if (typeof entities !== 'object' || entities === null) return campaignState;
+
+  const filled: Record<string, unknown> = {};
+  for (const [id, entity] of Object.entries(
+    entities as Record<string, unknown>,
+  )) {
+    if (typeof entity !== 'object' || entity === null) {
+      filled[id] = entity;
+      continue;
+    }
+    const record = entity as Record<string, unknown>;
+    filled[id] =
+      'revealed' in record
+        ? record
+        : { ...record, revealed: record.visible !== false };
+  }
+
+  return { ...campaignState, entities: filled };
+}
+
 export async function seedScratchAdventure(
   db: Db,
   fixture: EvalFixture,
@@ -276,7 +319,7 @@ export async function seedScratchAdventure(
     await tx.insert(schema.campaignStates).values({
       campaignId: campaign.id,
       system: 'mothership',
-      data: fixture.seededState.campaignState,
+      data: backfillEntityRevealed(fixture.seededState.campaignState),
     });
 
     const [adventure] = await tx

@@ -133,3 +133,38 @@ describe('submitGmContextSchema', () => {
     expect(() => submitGmContextSchema.parse(bad)).toThrow();
   });
 });
+
+describe('entity `revealed` (`ADR-0101`)', () => {
+  const withFirstEntity = (over: Record<string, unknown>) => ({
+    ...validInput,
+    structured: {
+      ...validInput.structured,
+      entities: [
+        { ...validInput.structured.entities[0], ...over },
+        validInput.structured.entities[1],
+      ],
+    },
+  });
+
+  it('accepts hidden-but-discovered — the combination the field exists for', () => {
+    const parsed = submitGmContextSchema.safeParse(
+      withFirstEntity({ visible: false, revealed: true }),
+    );
+    expect(parsed.success).toBe(true);
+  });
+
+  it('rejects visible-but-undiscovered — not a state that exists', () => {
+    const parsed = submitGmContextSchema.safeParse(
+      withFirstEntity({ visible: true, revealed: false }),
+    );
+    expect(parsed.success).toBe(false);
+  });
+
+  it('leaves `revealed` absent so `buildEntityMap` defaults it from `visible`', () => {
+    const parsed = submitGmContextSchema.safeParse(validInput);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.structured.entities[0].revealed).toBeUndefined();
+    }
+  });
+});

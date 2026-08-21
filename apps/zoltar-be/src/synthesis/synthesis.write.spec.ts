@@ -220,8 +220,15 @@ describe('buildEntityMap', () => {
   it('keys by entity id, rolling Instinct for npcs and not for threats', () => {
     const map = buildEntityMap(makeInput().structured.entities, () => [6, 3]);
     expect(map).toEqual({
-      dr_chen: { visible: true, status: 'unknown', instinctRoll: [6, 3] },
-      shadow_threat: { visible: false, status: 'unknown' },
+      dr_chen: {
+        visible: true,
+        revealed: true,
+        status: 'unknown',
+        instinctRoll: [6, 3],
+      },
+      // `revealed` defaults to `visible` when the author omits it, so a threat
+      // that starts hidden also starts undiscovered.
+      shadow_threat: { visible: false, revealed: false, status: 'unknown' },
     });
   });
 
@@ -257,7 +264,12 @@ describe('buildCampaignStateData', () => {
       schemaVersion: 1,
       resourcePools: { vasquez: { hp: { current: 15, max: 15 } } },
       entities: {
-        vasquez: { visible: true, status: 'alive', npcState: 'alert' },
+        vasquez: {
+          visible: true,
+          revealed: true,
+          status: 'alive',
+          npcState: 'alert',
+        },
       },
       flags: { old_flag: { value: true, trigger: 'legacy' } },
       scenarioState: { oxygen: { current: 100, max: 100, note: '' } },

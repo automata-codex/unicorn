@@ -247,7 +247,9 @@ describe('reconstructStateAsOfTurn (integration)', () => {
       priorGmContextBlob: turnB.newGmContextBlob,
       playerMessage: 'I confront the spy.',
       applied: {
-        entities: { corporate_spy_1: { visible: true, status: 'unknown' } },
+        entities: {
+          corporate_spy_1: { visible: true, revealed: true, status: 'unknown' },
+        },
       },
       npcStates: { corporate_spy_1: 'Rejected — invalid pool' },
       correctionNpcStates: { corporate_spy_1: 'Panics and flees' },

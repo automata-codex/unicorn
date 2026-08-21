@@ -39,7 +39,12 @@ export interface ValidationResult {
     characterState: Record<string, MothershipCharacterState>;
     entities: Record<
       string,
-      { visible: boolean; status: EntityStatus; npcState?: string }
+      {
+        visible: boolean;
+        revealed: boolean;
+        status: EntityStatus;
+        npcState?: string;
+      }
     >;
     flags: Record<string, { value: boolean; trigger: string }>;
     scenarioState: Record<
@@ -653,18 +658,30 @@ function applyEntity(
   const existing = currentData.entities[entityId];
 
   if (!existing) {
+    // An entity created by an unrecognized id. `revealed` is `true` because
+    // the only way an entity arrives mid-adventure today is by being narrated
+    // into the scene, which is a discovery by definition. Part 3 of spec 019
+    // replaces this branch with a rejection and an explicit create op.
     result.applied.entities[entityId] = {
       visible: change.visible ?? true,
+      revealed: true,
       status: proposedStatus ?? 'unknown',
     };
     return;
   }
 
-  const merged: { visible: boolean; status: EntityStatus; npcState?: string } =
-    {
-      visible: change.visible ?? existing.visible,
-      status: proposedStatus ?? existing.status,
-    };
+  // `revealed` is carried through rather than merged: it is not on the payload
+  // until spec 019 Part 3, which adds it together with its monotonicity rule.
+  const merged: {
+    visible: boolean;
+    revealed: boolean;
+    status: EntityStatus;
+    npcState?: string;
+  } = {
+    visible: change.visible ?? existing.visible,
+    revealed: existing.revealed,
+    status: proposedStatus ?? existing.status,
+  };
   if (existing.npcState !== undefined) {
     merged.npcState = existing.npcState;
   }

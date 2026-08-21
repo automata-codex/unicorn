@@ -157,11 +157,14 @@ export const ASSEMBLY_PROBE: {
     entities: {
       probe_npc_one: {
         visible: true,
+        revealed: true,
         status: 'alive',
         crewRole: 'chief_engineer',
         instinctRoll: [6, 3],
       },
-      probe_threat: { visible: false, status: 'unknown' },
+      // Hidden *and* undiscovered — the case the snapshot filter used to hide
+      // entirely, and the only entity here that exercises either false branch.
+      probe_threat: { visible: false, revealed: false, status: 'unknown' },
     },
     flags: {
       probe_flag_set: { value: true, trigger: 'Set when the probe runs.' },

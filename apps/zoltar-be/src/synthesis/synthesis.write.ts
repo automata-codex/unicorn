@@ -153,6 +153,7 @@ export function buildResourcePools(
 
 export type BuiltEntity = {
   visible: boolean;
+  revealed: boolean;
   status: 'unknown';
   crewRole?: MothershipCrewRole;
   instinctRoll?: number[];
@@ -185,7 +186,14 @@ export function buildEntityMap(
 ): Record<string, BuiltEntity> {
   const map: Record<string, BuiltEntity> = {};
   for (const entity of entities) {
-    const built: BuiltEntity = { visible: entity.visible, status: 'unknown' };
+    // `revealed` defaults to `visible`: at synthesis an entity in sight has
+    // been discovered, and one that starts hidden has not — unless the author
+    // said otherwise, which is the `visible: false, revealed: true` case.
+    const built: BuiltEntity = {
+      visible: entity.visible,
+      revealed: entity.revealed ?? entity.visible,
+      status: 'unknown',
+    };
     if (entity.type === 'npc') {
       built.instinctRoll = rollInstinct();
       if (entity.crewRole) built.crewRole = entity.crewRole;

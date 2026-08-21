@@ -1129,7 +1129,12 @@ describe('validateStateChanges — entities', () => {
       proposed: { entities: { dr_chen: { status: 'dead' } } },
       currentData: stateWith({
         entities: {
-          dr_chen: { visible: true, status: 'alive', npcState: 'Stressed' },
+          dr_chen: {
+            visible: true,
+            revealed: true,
+            status: 'alive',
+            npcState: 'Stressed',
+          },
         },
         resourcePools: { dr_chen: { hp: { current: 5, max: 10 } } },
       }),
@@ -1138,6 +1143,7 @@ describe('validateStateChanges — entities', () => {
     expect(result.rejections).toEqual([]);
     expect(result.applied.entities.dr_chen).toEqual({
       visible: true,
+      revealed: true,
       status: 'dead',
       npcState: 'Stressed',
     });
@@ -1152,6 +1158,9 @@ describe('validateStateChanges — entities', () => {
     });
     expect(result.applied.entities.corporate_spy_1).toEqual({
       visible: true,
+      // An entity narrated into the scene has been discovered by definition.
+      // Part 3 of spec 019 replaces this branch with a rejection.
+      revealed: true,
       status: 'alive',
     });
   });
@@ -1160,7 +1169,9 @@ describe('validateStateChanges — entities', () => {
     const result = validateStateChanges({
       proposed: { entities: { dr_chen: { status: 'hibernating' } } },
       currentData: stateWith({
-        entities: { dr_chen: { visible: true, status: 'alive' } },
+        entities: {
+          dr_chen: { visible: true, revealed: true, status: 'alive' },
+        },
       }),
       poolDef,
     });
