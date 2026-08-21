@@ -273,13 +273,53 @@ export const submitGmResponseSchema = z.object({
         .record(
           z.string(),
           z.object({
-            visible: z.boolean().optional(),
-            revealed: z.boolean().optional(),
-            status: EntityStatusSchema.optional(),
-            npcState: z.string().optional(),
+            visible: z
+              .boolean()
+              .optional()
+              .describe(
+                'Line of sight: can a player character perceive this entity ' +
+                  'right now? Changes in both directions and often — the ' +
+                  'goblin ducks behind a column (false), then steps back out ' +
+                  '(true). It is NOT a record of whether the players know the ' +
+                  'entity exists; that is `revealed`, and losing sight of ' +
+                  'something does not un-discover it.',
+              ),
+            revealed: z
+              .boolean()
+              .optional()
+              .describe(
+                'Discovery: have the players found out this entity exists at ' +
+                  'all? One-way — once true it can never go back to false, ' +
+                  'and an attempt is rejected. Set it true on the turn the ' +
+                  'players first learn of the entity. To take an entity out ' +
+                  'of sight afterwards, set `visible: false` and leave this ' +
+                  'alone.',
+              ),
+            status: EntityStatusSchema.optional().describe(
+              'Whether the entity is living: `alive`, `dead`, or `unknown`. ' +
+                'Nothing else — it is not a place for what the entity is ' +
+                'doing, feeling, or has just done. That is `npcState`.',
+            ),
+            npcState: z
+              .string()
+              .optional()
+              .describe(
+                'Disposition: what this NPC is doing or feeling now, in your ' +
+                  'own words. "Hostile — cornered, low ammo", "Panicked, fled ' +
+                  'to the galley". Free text, replaced whole each time you ' +
+                  'write it, omitted when nothing changed. This is where ' +
+                  "tactical and narrative detail goes. It is NOT the NPC's " +
+                  'agenda — their durable motivation is ' +
+                  '`gmUpdates.npcAgendas`.',
+              ),
           }),
         )
-        .optional(),
+        .optional()
+        .describe(
+          'Changes to entities already in play, keyed by entity id. An id ' +
+            'that is not in play is rejected — introduce one with ' +
+            '`newEntities`.',
+        ),
 
       /**
        * Entities introduced during play, as a member of their own rather than
@@ -302,13 +342,35 @@ export const submitGmResponseSchema = z.object({
         .record(
           z.string(),
           z.object({
-            visible: z.boolean(),
-            revealed: z.boolean(),
-            status: EntityStatusSchema.optional(),
-            npcState: z.string().optional(),
+            visible: z
+              .boolean()
+              .describe('Can a player character perceive it right now?'),
+            revealed: z
+              .boolean()
+              .describe(
+                'Do the players know it exists? An entity you are ' +
+                  'introducing into the scene in front of them is `true`; ' +
+                  'one moving unseen is `false`. `visible: true` with ' +
+                  '`revealed: false` is rejected — something in sight has ' +
+                  'been discovered.',
+              ),
+            status: EntityStatusSchema.optional().describe(
+              'Living or not; defaults to `unknown`.',
+            ),
+            npcState: z
+              .string()
+              .optional()
+              .describe('Starting disposition, if it has one.'),
           }),
         )
-        .optional(),
+        .optional()
+        .describe(
+          'Entities entering play this turn, keyed by a new entity id. Use ' +
+            'this for an NPC, threat or feature that did not exist before — ' +
+            'creating one is something a turn has to say out loud, so naming ' +
+            'an unknown id in `entities` is rejected rather than treated as ' +
+            'a create. An id already in play is rejected here.',
+        ),
 
       // Only flags introduced during play carry a trigger. For existing
       // flags, submit only the new value.
@@ -331,10 +393,11 @@ export const submitGmResponseSchema = z.object({
     .describe(
       'Everything this turn changed about the world, as a proposal the ' +
         'backend validates before applying: pool deltas, character state, ' +
-        'entity visibility and status, flags, scenario counters, world ' +
-        'facts. Send it on any turn that moved state, however small the ' +
-        'move; omit it entirely on a turn that moved none. A change ' +
-        'described only in the narration is a change that did not happen.',
+        'entity line of sight, discovery, status and disposition, new ' +
+        'entities, flags, scenario counters, world facts. Send it on any ' +
+        'turn that moved state, however small the move; omit it entirely on ' +
+        'a turn that moved none. A change described only in the narration is ' +
+        'a change that did not happen.',
     )
     .optional(),
 
@@ -358,7 +421,21 @@ export const submitGmResponseSchema = z.object({
        * `stateChanges.entities[id].npcState`, not this.** The two are
        * separately named and neither can reach the other's field.
        */
-      npcAgendas: z.record(z.string(), z.string()).optional(),
+      npcAgendas: z
+        .record(z.string(), z.string())
+        .optional()
+        .describe(
+          "Amendments to an NPC's agenda — their durable motivation: what " +
+            'they want, why, and what would make them act differently. Keyed ' +
+            "by entity id, and replaces that NPC's agenda outright, so send " +
+            'the whole new agenda rather than a fragment. Only send one when ' +
+            'the motivation itself has genuinely changed. What an NPC is ' +
+            'doing or feeling right now is NOT this — that is ' +
+            '`stateChanges.entities[id].npcState`. An observation that is ' +
+            'not about one specific NPC belongs in `notes`; a key naming ' +
+            'neither an entity in play nor an NPC with an existing agenda is ' +
+            'rejected.',
+        ),
       notes: z.string().optional(),
       proposedCanon: z
         .array(

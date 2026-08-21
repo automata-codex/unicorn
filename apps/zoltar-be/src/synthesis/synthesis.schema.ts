@@ -23,7 +23,14 @@ const entitySchema = z
         z: z.number().int().default(0),
       })
       .optional(),
-    visible: z.boolean(),
+    visible: z
+      .boolean()
+      .describe(
+        'Line of sight at the moment play begins: can the crew see this entity ' +
+          'in the opening scene? Transient — it changes in both directions ' +
+          'during play as entities move in and out of view. Whether the crew ' +
+          'knows the entity exists at all is `revealed`.',
+      ),
 
     /**
      * Discovery (`ADR-0101`). Optional here, unlike on `EntitySchema`, and
@@ -37,7 +44,18 @@ const entitySchema = z
      * mirror image is incoherent and rejected below: an entity in line of sight
      * has necessarily been discovered.
      */
-    revealed: z.boolean().optional(),
+    revealed: z
+      .boolean()
+      .optional()
+      .describe(
+        'Do the players know this entity exists when play begins? Omit it and ' +
+          'it follows `visible`, which is almost always right. Set it ' +
+          'explicitly for the one case that differs: `visible: false, ' +
+          'revealed: true` is someone the crew already knows about who is not ' +
+          'in the room — the cartographer in another compartment. ' +
+          '`visible: true, revealed: false` is rejected: something in sight ' +
+          'has been discovered.',
+      ),
 
     tags: z.array(z.string()),
   })

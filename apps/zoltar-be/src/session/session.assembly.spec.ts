@@ -141,6 +141,50 @@ describe('the probe exercises every section', () => {
     expect(block).toMatch(/probe_hidden_npc:.*state: /);
   });
 
+  /**
+   * The nested counterpart to the top-level check below. `ADR-0097` addendum 2
+   * found five top-level properties with no description; `ADR-0101` found the
+   * entity payload in the same state — `visible` was a bare boolean in both
+   * tool schemas, mentioned in no prompt, and a model reading only the word
+   * picked the wrong one of two defensible meanings for 58 turns.
+   */
+  it('describes every field of the entity payloads', () => {
+    const tools = JSON.parse(surfaces.tools) as {
+      name: string;
+      input_schema: {
+        properties: Record<
+          string,
+          {
+            properties?: Record<
+              string,
+              {
+                description?: string;
+                additionalProperties?: {
+                  properties?: Record<string, { description?: string }>;
+                };
+              }
+            >;
+          }
+        >;
+      };
+    }[];
+    const stateChanges = tools.find((t) => t.name === 'submit_gm_response')
+      ?.input_schema.properties.stateChanges;
+
+    for (const member of ['entities', 'newEntities']) {
+      const node = stateChanges?.properties?.[member];
+      expect(node?.description, `${member} has no description`).toBeTruthy();
+      const fields = node?.additionalProperties?.properties ?? {};
+      expect(Object.keys(fields).length).toBeGreaterThan(0);
+      for (const [name, field] of Object.entries(fields)) {
+        expect(
+          field.description,
+          `${member}.${name} has no description`,
+        ).toBeTruthy();
+      }
+    }
+  });
+
   it('describes every top-level submit_gm_response property', () => {
     // The gap this whole mechanism was built after: `stateChanges` carried
     // fourteen nested descriptions while the five properties above it

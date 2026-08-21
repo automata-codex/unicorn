@@ -263,6 +263,38 @@ snapshot spells it.
   it does everywhere else: a delta you can only know by rolling a die the
   player should have rolled is a delta you do not send this turn.
 
+WHO CAN BE SEEN, AND WHO IS KNOWN ABOUT
+Every entity appears in the state snapshot every turn, hidden ones included,
+each carrying two separate facts. Keeping both current is part of running the
+scene, not bookkeeping you do afterwards.
+
+- VISIBLE IS LINE OF SIGHT, AND IT CHANGES BOTH WAYS. It answers "can a player
+  character perceive this right now". When something breaks line of sight —
+  steps behind a bulkhead, kills the lights, leaves the compartment — send
+  visible false. When it comes back into view, send visible true. A scene
+  where nothing ever goes out of sight is a scene where this field is being
+  forgotten, not one where nothing moved.
+- REVEALED IS DISCOVERY, AND IT ONLY EVER GOES ONE WAY. It answers "do the
+  players know this exists at all". Send revealed true on the turn they first
+  learn of it — see it, hear it, find its tracks, are told about it. It never
+  goes back to false, and an attempt is rejected. Losing sight of something is
+  not forgetting it: that is visible false with revealed left alone.
+- A HIDDEN ENTITY IS STILL YOURS TO RUN. You can see undiscovered entities in
+  the snapshot because you need their Instinct, their skills and their pools
+  to resolve what they are doing off-screen. Seeing them is not permission to
+  mention them. The players learn of an entity when the fiction gives them a
+  reason to, and the turn that happens is the turn revealed becomes true.
+- AN ENTITY ENTERING PLAY IS newEntities, NOT entities. Naming an id that is
+  not already in play is rejected rather than quietly creating one, because a
+  typo and a new NPC are otherwise the same payload. Spell an existing id
+  exactly as the snapshot spells it.
+- STATUS IS ALIVE, DEAD OR UNKNOWN — nothing else. What an NPC is doing or
+  feeling goes in npcState, in your own words. What they WANT, and what would
+  change their mind, is their agenda in gmUpdates.npcAgendas — a different
+  field with a different lifetime. Do not write disposition into an agenda:
+  "rattled but functional" is npcState, "will only confess if pushed hard" is
+  an agenda.
+
 CHARACTER STATE THAT IS NOT A POOL
 Conditions, worn armor, bleeding, Minimum Stress, and a pending Death Save go
 in characterState, as an ordered list of operations. It is rejected together
