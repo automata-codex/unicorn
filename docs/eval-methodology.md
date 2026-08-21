@@ -116,6 +116,105 @@ carry a `system-rolled-player-action` check and the re-scored rate is 0.88 (44/5
 `§ S35` and `ADR-0096`. The rule above outlives the instance, and a fixture carries a
 check because someone authored it there, so it can go wrong again the same way.
 
+### The run the baseline actually points at, as of 2026-08-21
+
+**N is still 10 and still has not been re-calibrated.** The standing comparison point moves to
+018's re-baseline:
+
+- Model: **`claude-sonnet-5`**
+- Prompt hash: **`fa4e6e2f`**
+- Assembly hash: **`3d8df5f3`** (`ADR-0099`)
+- Corpus version: **`abbce198026c`** — an **input-affecting** bump from `cbc840d21158`
+  (`§ Two kinds of corpus bump`), because seven fixtures gained `gmContextBlob.playerEntityIds`
+  and the `<entities>` block therefore gained a `player_character` line it did not have
+- Run directory: **`claude-sonnet-5__fa4e6e2f__2026-08-21T11-05-26Z`**
+- Full corpus (22 fixtures), 10 reps, **four errored turns** — not zero, and all four attributed
+  before any number was read. Closeout and category calls in `docs/roadmap.md § M7.7`
+
+**Superseded `claude-sonnet-5__ccac7d1c__2026-08-18T11-48-47Z` (corpus `1c2a418cf68c`).** That run
+stays the correct comparison point for anything measured before 018's snapshot and tool-schema
+changes. It is not the current baseline.
+
+**`claude-sonnet-5__fa4e6e2f__2026-08-20T20-20-01Z` is void and is not a comparison point for
+anything.** Seven of its 22 fixtures ran with `playerEntityIds` unset, so `attributionContext`
+returned `'unknown'` for every roll on them and `renderEntities` never told the Warden which entity
+was the player. Its fifteen older fixtures were unaffected and its
+`SYSTEM-ROLLED-PLAYER-ACTION` figure is quoted below as a legitimate midpoint; nothing else from it
+should be cited.
+
+#### What this run establishes
+
+`SYSTEM-ROLLED-PLAYER-ACTION`, measured **like-for-like on the five shared fixtures** rather than
+off the rollup, because the rollup's denominator moved when seven fixtures joined:
+
+| Run | Rate | Failures |
+|---|---|---|
+| `ccac7d1c__2026-08-18` | 0.92 (45/49) | 4 |
+| `fa4e6e2f__2026-08-20` (void run, old fixtures valid) | 0.96 (45/47) | 2 |
+| `fa4e6e2f__2026-08-21` | **0.98 (47/48)** | 1 |
+
+Monotone across three runs. **Read as "018's skills render did not hurt", not as a win** — at one
+failure the interval is very wide, and no prediction called for an improvement. The pre-registered
+risk was the opposite: that handing the Warden `+10`/`+15` would invite it to resolve the player's
+own checks. It did not.
+
+**The two newly-judged tags discriminate, which is the result that matters about them.**
+`MISSING-DELTA` 0.75 (15/20), splitting 0.70 / 0.80 across its two fixtures. `ROLL-RESULT-INVERSION`
+0.90 (9/10). The decision rule's "≥0.90 is a blind rubric, not a pass" clause fires on the latter at
+exactly the threshold — and the movement off the void run's 1.00 is the evidence that clause exists
+to look for. A blind rubric stays pinned; this one found the inversion. **One occurrence in ten is
+thin**, and the honest reading is that the Warden reproduces the captured inversion at roughly 10%
+rather than systematically.
+
+`MISSING-DELTA` 0.60 → 0.75 across the two runs is **not** a comparison. The bump between them was
+input-affecting.
+
+#### Tool-syntax emission: the 2026-08-18 figure was the optimistic tail
+
+Counted as **turns abandoned for tool-syntax leak ÷ (fixtures × reps)**, which is the only honest
+denominator — the `TOOL-SYNTAX-LEAK` check reads 1.00 in every one of these runs because an
+abandoned turn produces no `gm_response` and leaves the denominator as an `error`
+(`ADR-0097` addendum 3):
+
+| Run | Emission |
+|---|---|
+| `ccac7d1c__2026-08-16` (unmitigated) | 4/150 — 2.7% |
+| `ccac7d1c__2026-08-18` (schema descriptions) | 1/150 — 0.67% |
+| `fa4e6e2f__2026-08-20` | 3/220 — 1.36% |
+| `fa4e6e2f__2026-08-21` | 3/220 — 1.36% |
+
+**Two independent runs agreeing at 1.36% reframe the 0.67%.** The schema-description mitigation
+reduced emission from 2.7% and did not come close to eliminating it; `ADR-0097`'s open item stays
+open, and the run report that called 1/150 "suggestive at p≈0.09, not the clean sweep the decision
+rule wanted" was right to hedge.
+
+**A gate written against the check rate cannot see any of this.** 018's first decision rule said
+`TOOL-SYNTAX-LEAK >= 0.99` and would have passed a run where every turn leaked. Gate on emission.
+
+#### What this run does not measure
+
+Read every number above with this list, not after it.
+
+- **`UNAUDITABLE-MAPPING` is 0.00 (0/10)** — ten failures out of ten, identical to the void run and
+  therefore robust to the `playerEntityIds` change. Applicability 0.20 (10/49): **four of its five
+  fixtures never apply**, so one fixture carries the entire tag. M7.6's §6.3 prediction that
+  applicability would rise off 0/30 is finally fulfilled, and what it revealed is bad. Nothing in
+  018 addressed it.
+- **`MISSING-CANON-CAPTURE` has now measured nothing for three consecutive runs** — 0/10
+  applicability every time, because the narration never introduces the marker phrase the fixture
+  waits for. The fixture, not the Warden, is what needs changing.
+- **`CARRYOVER-ARITHMETIC` and `UNEXPLAINED-DELTA` remain registered with no fixture carrying
+  either.** Third run in a row measuring neither.
+- **018's own additions are largely unexercised.** No fixture carries `crewRole`, `instinctRoll` or
+  `rollModifiers`, so Contractor Instinct, the role-derived skill chain and the roll-modifier render
+  emit nothing anywhere in the corpus. The skills render is exercised only by the fifteen older
+  fixtures; the seven `5c34991b-*` captures carry no `characterState` at all. **The wounds-pool
+  enumeration (Part 7) has no fixture running a wounds chain**, so the fix that motivated the
+  milestone's sharpest finding is untested by this run.
+- **`NARRATING-PAST-A-BLOCK` 0.66 is still `turn16`**, the rules-impossible fixture from `ADR-0082`'s
+  addendum, failing 10/10. Not evidence about the Warden. Re-authoring remains owed.
+- **Five tags read exactly 1.00 and are suspects, not passes** (`ADR-0082`).
+
 ### The run the baseline actually points at, as of 2026-08-16
 
 **N is still 10 and still has not been re-calibrated.** The standing comparison point moves to

@@ -1,6 +1,6 @@
 # 018 — Post-playtest: character creation gaps and three mechanical dead ends
 
-**Status:** ready for implementation. Plan at `../../plans/018-post-playtest-character-creation-and-mechanics-implementation-plan.md`
+**Status:** **executed and closed 2026-08-21.** Parts 1–11 shipped; re-baseline `claude-sonnet-5__fa4e6e2f__2026-08-21T11-05-26Z`, every gate clause passed. Closeout in `docs/roadmap.md § M7.7`, baseline in `docs/eval-methodology.md`. Plan at `../../plans/018-post-playtest-character-creation-and-mechanics-implementation-plan.md`
 **Target path:** `docs/plans/018-post-playtest-character-creation-and-mechanics-implementation-plan.md`
 **Type:** ephemeral implementation spec (archive after execution; the living record is `docs/decisions/` and the roadmap)
 
