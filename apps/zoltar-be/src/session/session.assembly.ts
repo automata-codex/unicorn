@@ -161,6 +161,8 @@ export const ASSEMBLY_PROBE: {
         status: 'alive',
         crewRole: 'chief_engineer',
         instinctRoll: [6, 3],
+        // Disposition, so the render is in the golden at all.
+        npcState: 'Cooperative — wants the reactor kept online.',
       },
       // Hidden *and* undiscovered — the case the snapshot filter used to hide
       // entirely, and the only entity here that exercises either false branch.

@@ -726,7 +726,12 @@ function applyNewEntities(
  */
 function applyEntity(
   entityId: string,
-  change: { visible?: boolean; revealed?: boolean; status?: string },
+  change: {
+    visible?: boolean;
+    revealed?: boolean;
+    status?: string;
+    npcState?: string;
+  },
   currentData: MothershipCampaignState,
   result: ValidationResult,
 ): void {
@@ -797,8 +802,14 @@ function applyEntity(
     revealed: change.revealed ?? existing.revealed,
     status: proposedStatus ?? existing.status,
   };
-  if (existing.npcState !== undefined) {
-    merged.npcState = existing.npcState;
+
+  // Disposition: what this NPC is currently doing or feeling. Writable from
+  // this turn (`ADR-0101`) — it was schema-defined, commented and preserved on
+  // merge since M7.6 with nothing able to set it, which is why narrative
+  // detail kept arriving in `status` instead.
+  const nextNpcState = change.npcState ?? existing.npcState;
+  if (nextNpcState !== undefined) {
+    merged.npcState = nextNpcState;
   }
   result.applied.entities[entityId] = merged;
 }

@@ -1232,6 +1232,46 @@ describe('validateStateChanges — entities', () => {
       status: 'unknown',
     });
   });
+  it('writes npcState, the field nothing could set until `ADR-0101`', () => {
+    const result = validateStateChanges({
+      proposed: {
+        entities: { dr_chen: { npcState: 'Panicked — fled the bay' } },
+      },
+      currentData: stateWith({
+        entities: {
+          dr_chen: {
+            visible: true,
+            revealed: true,
+            status: 'alive',
+            npcState: 'Cooperative',
+          },
+        },
+      }),
+      poolDef,
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.applied.entities.dr_chen.npcState).toBe(
+      'Panicked — fled the bay',
+    );
+  });
+
+  it('leaves npcState alone when the change does not mention it', () => {
+    const result = validateStateChanges({
+      proposed: { entities: { dr_chen: { visible: false } } },
+      currentData: stateWith({
+        entities: {
+          dr_chen: {
+            visible: true,
+            revealed: true,
+            status: 'alive',
+            npcState: 'Cooperative',
+          },
+        },
+      }),
+      poolDef,
+    });
+    expect(result.applied.entities.dr_chen.npcState).toBe('Cooperative');
+  });
 });
 
 describe('validateStateChanges — newEntities', () => {

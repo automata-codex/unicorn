@@ -16,7 +16,7 @@ probe_player:
 
 <entities>
 probe_player: visible, status=unknown, player_character
-probe_npc_one: visible, status=alive, instinct 49, role chief_engineer, skills Industrial Equipment trained (+10), Mechanical Repair expert (+15), Engineering master (+20), Jury-Rigging trained (+10)
+probe_npc_one: visible, status=alive, instinct 49, role chief_engineer, skills Industrial Equipment trained (+10), Mechanical Repair expert (+15), Engineering master (+20), Jury-Rigging trained (+10), state: Cooperative — wants the reactor kept online.
 </entities>
 
 <flags>

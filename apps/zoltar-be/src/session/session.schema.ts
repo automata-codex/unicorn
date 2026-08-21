@@ -276,6 +276,7 @@ export const submitGmResponseSchema = z.object({
             visible: z.boolean().optional(),
             revealed: z.boolean().optional(),
             status: z.string().optional(),
+            npcState: z.string().optional(),
           }),
         )
         .optional(),

@@ -321,6 +321,12 @@ function renderEntities(
         bits.push(`role ${entity.crewRole}`, `skills ${skills}`);
       }
 
+      // Disposition, last because it is free text of unbounded length and
+      // everything before it is a fixed-width fact. Rendered at all because a
+      // field nothing shows back is a field the Warden stops writing — which
+      // is the state `npcState` was in from M7.6 until `ADR-0101`.
+      if (entity.npcState) bits.push(`state: ${entity.npcState}`);
+
       return bits.join(', ');
     });
 

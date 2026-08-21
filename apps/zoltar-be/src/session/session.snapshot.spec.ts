@@ -251,6 +251,35 @@ describe('buildStateSnapshot', () => {
     expect(snapshot).not.toContain('shadow_threat');
   });
 
+  it('renders npcState as the trailing `state:` bit', () => {
+    const snapshot = buildStateSnapshot({
+      gmContextBlob: emptyBlob,
+      campaignStateData: makeState({
+        entities: {
+          engineer_kowalski: {
+            visible: true,
+            status: 'alive',
+            npcState: 'Hostile — cornered, low ammo',
+          },
+        },
+      }),
+    });
+    expect(snapshot).toContain(
+      'engineer_kowalski: visible, status=alive, state: Hostile — cornered, low ammo',
+    );
+  });
+
+  it('omits the `state:` bit entirely when npcState is unset', () => {
+    const snapshot = buildStateSnapshot({
+      gmContextBlob: emptyBlob,
+      campaignStateData: makeState({
+        entities: { engineer_kowalski: { visible: true, status: 'alive' } },
+      }),
+    });
+    expect(snapshot).toContain('engineer_kowalski: visible, status=alive');
+    expect(snapshot).not.toContain('state:');
+  });
+
   it('always includes player entities even when hidden', () => {
     const snapshot = buildStateSnapshot({
       gmContextBlob: {

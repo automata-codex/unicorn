@@ -334,6 +334,9 @@
                   },
                   "status": {
                     "type": "string"
+                  },
+                  "npcState": {
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false
