@@ -282,6 +282,21 @@ function renderCharacterAttributes(
  * A player id absent from the map reports `status=unknown` — the same value
  * `buildEntityMap` gives every synthesized entity, and the honest one here:
  * nothing recorded a status. Live HP is in `<resource_pools>` regardless.
+ *
+ * **No entity is withheld** (`ADR-0101`). Every entity renders every turn,
+ * carrying its own `visible` and `revealed`.
+ *
+ * The filter this replaces looked like structural secrecy and was not.
+ * `formatGmContextBlob` already emits every entity in the GM context blob —
+ * hidden ones tagged `starts hidden` — into the first cached system block,
+ * ahead of this one, alongside a `hidden_truth` line carrying the mystery in
+ * prose. Existence, id, type and tags were already in the prompt; all the
+ * filter withheld was the current value of the flag, which is precisely what
+ * an adjudicator of line of sight cannot work without. Deciding whether the
+ * goblin steps out of the shadow requires knowing it is in one.
+ *
+ * Position is the thing that is structurally absent, and nothing here emits
+ * it. That is the claim the design doc keeps.
  */
 function renderEntities(
   entities: CampaignStateData['entities'],
@@ -289,9 +304,12 @@ function renderEntities(
 ): string | null {
   const playerLines = [...playerEntityIds].sort().map((id) => {
     const entity = entities[id];
-    if (!entity) return `${id}: visible, status=unknown, player_character`;
+    if (!entity) {
+      return `${id}: visible, revealed, status=unknown, player_character`;
+    }
     const visibility = entity.visible ? 'visible' : 'hidden';
-    return `${id}: ${visibility}, status=${entity.status}, player_character`;
+    const discovery = entity.revealed ? 'revealed' : 'undiscovered';
+    return `${id}: ${visibility}, ${discovery}, status=${entity.status}, player_character`;
   });
 
   /*
@@ -306,10 +324,14 @@ function renderEntities(
    */
   const otherLines = Object.keys(entities)
     .sort()
-    .filter((id) => !playerEntityIds.has(id) && entities[id].visible)
+    .filter((id) => !playerEntityIds.has(id))
     .map((id) => {
       const entity = entities[id];
-      const bits = [`${id}: visible, status=${entity.status}`];
+      const visibility = entity.visible ? 'visible' : 'hidden';
+      const discovery = entity.revealed ? 'revealed' : 'undiscovered';
+      const bits = [
+        `${id}: ${visibility}, ${discovery}, status=${entity.status}`,
+      ];
 
       const instinct = deriveMothershipInstinct(entity);
       if (instinct !== null) bits.push(`instinct ${instinct}`);

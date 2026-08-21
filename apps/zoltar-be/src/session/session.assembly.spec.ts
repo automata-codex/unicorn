@@ -78,22 +78,33 @@ describe('the probe exercises every section', () => {
     );
   });
 
-  it('withholds an invisible entity from the snapshot entities block', () => {
-    // probe_threat is `visible: false` — spatial secrets are structurally
-    // absent from the snapshot rather than withheld behaviourally.
-    expect(surfaces.gmContext).toContain('probe_threat');
+  /**
+   * Inverted by `ADR-0101`. This test used to assert that `probe_threat` was
+   * absent from `<entities>`, on the stated grounds that "spatial secrets are
+   * structurally absent from the snapshot rather than withheld
+   * behaviourally". That belief did not survive contact with the assembled
+   * prompt: `<gm_context>` names the same entity, on the line asserted below,
+   * tagged `starts hidden`. Nothing about it was structurally absent — the
+   * filter withheld only the current value of its flag, from the one consumer
+   * that needs it.
+   */
+  it('renders a hidden entity in both blocks, with its flags (`ADR-0101`)', () => {
+    expect(surfaces.gmContext).toContain(
+      '- probe_threat (threat, starts hidden)',
+    );
 
     const entitiesBlock = surfaces.stateSnapshot.match(
       /<entities>[\s\S]*?<\/entities>/,
     )?.[0];
     expect(entitiesBlock).toBeDefined();
-    expect(entitiesBlock).not.toContain('probe_threat');
+    expect(entitiesBlock).toContain(
+      'probe_threat: hidden, undiscovered, status=unknown',
+    );
 
-    // Scoped to the entities block on purpose, not asserted over the whole
-    // snapshot: the probe's `frightened` condition names probe_threat as its
-    // parameter, so the id *does* reach the snapshot by that route. That is
-    // a real property of the current renderers rather than a flaw in this
-    // test — worth knowing, and out of scope to change here.
+    // Unchanged and still worth pinning: the probe's `frightened` condition
+    // names probe_threat as its parameter, so the id reaches the snapshot by
+    // that route as well. `ADR-0101` reads that as correct — a character
+    // frightened *of* something has perceived it.
     expect(surfaces.stateSnapshot).toContain('frightened (probe_threat)');
   });
 
