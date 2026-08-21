@@ -53,7 +53,12 @@ describe('submitGmResponseSchema', () => {
         ],
         characterState: [{ op: 'bleeding_set', entityId: 'dr_chen', value: 2 }],
         entities: {
-          shadow_threat: { visible: true, status: 'revealed' },
+          // `status: 'revealed'` until 2026-08-21 — this fixture was itself
+          // carrying the overload `ADR-0101` describes: a discovery fact
+          // written into the living/dead field, in a payload the schema
+          // accepted because `status` was a free string. It is now the enum,
+          // and discovery is `revealed`.
+          shadow_threat: { visible: true, revealed: true, status: 'alive' },
         },
         flags: {
           airlock_sealed: { value: true },
@@ -63,7 +68,7 @@ describe('submitGmResponseSchema', () => {
         worldFacts: { corridor_length: 'eight meters' },
       },
       gmUpdates: {
-        npcStates: { engineer_kowalski: 'wounded, cooperating' },
+        npcAgendas: { engineer_kowalski: 'Wants the reactor kept online.' },
         notes: 'Party is running low on ammo.',
         proposedCanon: [{ summary: 'Ship has a brig.', context: 'Cell door.' }],
       },

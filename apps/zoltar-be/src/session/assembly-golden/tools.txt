@@ -333,7 +333,12 @@
                     "type": "boolean"
                   },
                   "status": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                      "alive",
+                      "dead",
+                      "unknown"
+                    ]
                   },
                   "npcState": {
                     "type": "string"

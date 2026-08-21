@@ -1164,7 +1164,9 @@ describe('validateStateChanges — entities', () => {
   it('reports every invalid field on one entity, not just the first', () => {
     const result = validateStateChanges({
       proposed: {
-        entities: { dr_chen: { status: 'hibernating', revealed: false } },
+        entities: {
+          dr_chen: { status: 'hibernating' as never, revealed: false },
+        },
       },
       currentData: stateWith({
         entities: {
@@ -1365,7 +1367,13 @@ describe('validateStateChanges — newEntities', () => {
 
   it('rejects an invalid status string', () => {
     const result = validateStateChanges({
-      proposed: { entities: { dr_chen: { status: 'hibernating' } } },
+      // Cast: the tool schema now rejects this before the validator sees it
+      // (Part 6). The applier check stays as defence in depth for payloads
+      // that did not come through the schema — replayed history, direct calls
+      // — so it still needs exercising.
+      proposed: {
+        entities: { dr_chen: { status: 'hibernating' as never } },
+      },
       currentData: stateWith({
         entities: {
           dr_chen: { visible: true, revealed: true, status: 'alive' },

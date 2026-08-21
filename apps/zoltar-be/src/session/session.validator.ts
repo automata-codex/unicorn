@@ -810,7 +810,10 @@ function applyEntity(
     } else {
       rejections.push({
         path: `entities.${entityId}`,
-        reason: "status must be 'alive', 'dead', or 'unknown'",
+        reason:
+          "status must be 'alive', 'dead', or 'unknown' — it records whether " +
+          'an entity is living, not what it is doing. Tactical and narrative ' +
+          'detail goes in `npcState`, which takes free text.',
         received: change,
       });
     }
