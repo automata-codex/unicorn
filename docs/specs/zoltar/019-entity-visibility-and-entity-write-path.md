@@ -1,6 +1,6 @@
 # 019 — Entity visibility, and the entity write path that never got built
 
-**Status:** drafted 2026-08-21, **scheduled into M7.7**. Decision recorded as `ADR-0101`. Origin: `docs/hidden-information-findings.md`
+**Status:** **Parts 1–9 built 2026-08-21; the re-baseline is not run.** Decision recorded as `ADR-0101`. Plan at `../../plans/019-entity-visibility-and-entity-write-path-implementation-plan.md`. Origin: `docs/hidden-information-findings.md`. `promptHash` `fa4e6e2f` → `6717347d`, `assemblyHash` `3d8df5f3` → `6dc28608`
 **Target path:** `docs/plans/019-entity-visibility-and-entity-write-path-implementation-plan.md`
 **Type:** ephemeral implementation spec (archive after execution; the living record is `docs/decisions/` and the roadmap)
 
@@ -166,24 +166,77 @@ Suggested commit order: Part 5 first — no Warden-visible surface, independent 
 
 ---
 
+## Predictions, pre-registered 2026-08-21 before any run
+
+Written before the re-baseline, per `ADR-0085`, because `eval:compare` across
+this boundary is meaningless and predictions are the only route to attributing
+a moved score to this work.
+
+**Run identity.** Baseline is `claude-sonnet-5__fa4e6e2f__2026-08-21T11-05-26Z`
+(prompt `fa4e6e2f`, assembly `3d8df5f3`, corpus `abbce198026c`, 22 fixtures ×
+10 reps). The re-run moves both surfaces — prompt **`6717347d`**, assembly
+**`6dc28608`** — and **`corpusVersion` stays `abbce198026c`**: no fixture file
+is edited, which is the whole point of doing the `revealed` fill in
+`seedScratchAdventure` rather than in the files.
+
+**The tag most likely to move is `HIDDEN-INFO-LEAK`,** at 1.00 (20/20) on the
+baseline. `<entities>` now carries a line per hidden entity where it carried
+none, so the Warden sees ids it previously saw only in `<gm_context>`. **Floor:
+0.90.** Below that, the prompt work in Part 9 — specifically "seeing them is
+not permission to mention them" — has failed to hold and the finding is that
+the block needs to say less, not that the split was wrong. This is the
+prediction most worth being wrong about.
+
+**Guardrails, none of which this work should touch.**
+`SYSTEM-ROLLED-PLAYER-ACTION` 0.98 (47/48) — floor 0.90, the same clause 018
+used. `UNSURFACED-CHECK` 1.00 — floor 0.90. No tag down more than 0.15.
+
+**`UNAUDITABLE-MAPPING` stays at 0.00.** Nothing here addresses it; if it
+moves, the movement is unattributed and belongs to whatever else rode the run.
+
+**Tool-syntax emission is the one number that could move for a bad reason.**
+1.36% (3/220) across two runs. `mothership-m7.txt` grows by ~30 lines here,
+and `ADR-0097` established the defect tracks the model rather than the prompt —
+so the prediction is **no material change**, and a jump would be evidence
+against that conclusion rather than against this spec.
+
+**Five tags reading exactly 1.00 are suspects, not passes** (`ADR-0082`).
+
+### What the run does not measure
+
+- **The synthesis-side schema changes.** `revealed` on the synthesis entity
+  schema, its `visible → revealed` invariant, and both new descriptions. The
+  corpus replays turns, not synthesis, and `assemblyHash`'s goldens are
+  session-side — so nothing in a run exercises `submit_gm_context` at all.
+- **Agenda amendment.** No fixture writes `gmUpdates.npcAgendas`, so Part 4a is
+  covered by unit tests and the applier regression only.
+- **`newEntities`.** No fixture introduces an entity mid-adventure. Whether the
+  create op is ergonomic enough for the Warden to reach for instead of naming
+  an unknown id is unmeasured, and the telemetry could not size it either — the
+  2026-08-16 playtest applied entity changes on zero of 58 turns.
+- **The `V20` back-fill against real data.** Verified on a scratch database
+  across four row shapes and for idempotency; it has not run against the dev
+  volume or any deployed database.
+
 ## Done when
 
-- [ ] `renderEntities` emits every entity with its own `visible` value; no caller filters on visibility (Part 1)
-- [ ] Hidden NPCs render Instinct and `crewRole` skills like any other (Part 1)
-- [ ] `revealed` exists on all three schemas, is monotonic, and a reverse flip is rejected with a reason (Part 2)
-- [ ] `V20` back-fills `revealed := visible` on every entity, header-commented as disposable, with the matching note on M9's consolidation bullet (Part 2)
-- [ ] `visible`, `revealed`, `status`, `npcState` each carry a `.describe()` on both tool schemas, distinguishing the two axes (Part 3)
-- [ ] `mothership-m7.txt` states that line of sight is Warden-maintained (Part 3)
-- [ ] `status` is the enum at the tool boundary; both playtest rejects have a legal home (Part 4)
-- [ ] `npcState` is writable and rendered (Part 4)
-- [ ] Agenda amendment has its own explicit path; `gmUpdates.npcStates` is removed; no disposition write can reach `npcAgendas` (Part 4a)
-- [ ] A turn writing NPC disposition leaves that NPC's `npcAgendas` entry byte-identical; a golden pins it against `adventure_synthesis_snapshots` (Part 4a)
-- [ ] An entity change with two bad fields produces two rejections in one round; reasons name the remedy (Part 5)
-- [ ] An unknown entity id is rejected; an explicit create op introduces one (Part 5)
-- [ ] `ADR-0038` carries an addendum stating within-entry rejection is all-or-nothing by inheritance from D4 (Part 5)
-- [ ] Design doc and `CLAUDE.md` claim only what the code does (Part 6)
-- [ ] `docs/hidden-information-findings.md` closed against `ADR-0101`
-- [ ] Predictions written **before** one full-corpus re-baseline, with the report stating what it does not measure
+- [x] `renderEntities` emits every entity with its own `visible` value; no caller filters on visibility (Part 1)
+- [x] Hidden NPCs render Instinct and `crewRole` skills like any other (Part 1)
+- [x] `revealed` exists on all three schemas, is monotonic, and a reverse flip is rejected with a reason (Part 2)
+- [x] `V20` back-fills `revealed := visible` on every entity, header-commented as disposable, with the matching note on M9's consolidation bullet (Part 2)
+- [x] `visible`, `revealed`, `status`, `npcState` each carry a `.describe()` on both tool schemas, distinguishing the two axes (Part 3)
+- [x] `mothership-m7.txt` states that line of sight is Warden-maintained (Part 3)
+- [x] `status` is the enum at the tool boundary; both playtest rejects have a legal home (Part 4)
+- [x] `npcState` is writable and rendered (Part 4)
+- [x] Agenda amendment has its own explicit path; `gmUpdates.npcStates` is removed; no disposition write can reach `npcAgendas` (Part 4a)
+- [x] A turn writing NPC disposition leaves that NPC's `npcAgendas` entry byte-identical; a golden pins it against `adventure_synthesis_snapshots` (Part 4a)
+- [x] An entity change with two bad fields produces two rejections in one round; reasons name the remedy (Part 5)
+- [x] An unknown entity id is rejected; an explicit create op introduces one (Part 5)
+- [x] `ADR-0038` carries an addendum stating within-entry rejection is all-or-nothing by inheritance from D4 (Part 5)
+- [x] Design doc and `CLAUDE.md` claim only what the code does (Part 6)
+- [x] `docs/hidden-information-findings.md` closed against `ADR-0101`
+- [x] Predictions written **before** the run (`§ Predictions`)
+- [ ] One full-corpus re-baseline, with the report stating what it does not measure
 
 ---
 

@@ -48,7 +48,7 @@ Packages are internal workspace packages — they are not published to npm.
 
 **Claude as consequence engine, not state holder.** The backend constructs a visibility-filtered state snapshot, sends it to Claude with each request, and Claude issues structured change requests via the `submit_gm_response` tool. The backend validates and applies all state changes. Claude never holds authoritative state between requests.
 
-**Two-mechanism hidden information model.** GM context secrets (NPC agendas, mystery answers, faction loyalties) are included in Claude's prompt and withheld behaviorally — Claude is playing the Warden role faithfully. Spatial secrets (entities outside the player's line of sight) are structurally absent from the state snapshot — Claude genuinely doesn't receive that data.
+**Two-mechanism hidden information model.** GM context secrets (NPC agendas, mystery answers, faction loyalties) are included in Claude's prompt and withheld behaviorally — Claude is playing the Warden role faithfully. **Entity existence is part of that half**: every entity is named in the prompt every turn, hidden ones included, because the Warden needs their stats to run them off-screen. Only an entity's *position* is structurally absent (`ADR-0101`), and in Phase 1 that is vacuous — nothing emits position yet. Entity `visible` is line of sight (transient, both directions); `revealed` is discovery (monotonic).
 
 **Typed envelope + JSONB.** Universal concepts (campaigns, sessions, grid) use proper relational tables. System-specific state uses JSONB with Zod validation. Adding a new game system means writing a Zod schema, not a migration.
 

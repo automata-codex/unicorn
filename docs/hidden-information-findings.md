@@ -1,9 +1,19 @@
 # Hidden Information — Findings
 
-**Status: closed 2026-08-21 by `ADR-0101`.** The work it implies is specced
-at `docs/specs/zoltar/019-entity-visibility-and-entity-write-path.md` and is
-not scheduled. Nothing here has been *fixed* — the decision is recorded, the
-code is unchanged.
+**Status: closed 2026-08-21 by `ADR-0101`, and built the same day.** Spec at
+`docs/specs/zoltar/019-entity-visibility-and-entity-write-path.md`, plan at
+`docs/plans/019-entity-visibility-and-entity-write-path-implementation-plan.md`,
+Parts 1–9 shipped. **The re-baseline that would measure it has not run** —
+`promptHash` `fa4e6e2f` → `6717347d`, `assemblyHash` `3d8df5f3` →
+`6dc28608`; both moved and neither is exercised. Until it does, everything below is diagnosis and everything in the
+spec is a claim about code rather than about behaviour.
+
+What shipped, against what this document originally described: the snapshot no
+longer filters, so the "leak" it opens with is now correct behaviour rather
+than a defect; `revealed` exists and is monotonic; `npcState` has a writer and
+a reader; `gmUpdates.npcStates` is gone and agenda amendment is explicit and
+validated; entity creation is explicit; `status` is the enum at the boundary;
+and every one of those fields carries a description in both tool schemas.
 
 **Open question (1) resolved to neither of the two answers this document
 anticipated.** `visible` was overloaded: it means line of sight, and the

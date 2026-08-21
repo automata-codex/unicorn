@@ -260,16 +260,22 @@ Zoltar uses two distinct mechanisms for hidden information. They work differentl
 
 **GM context secrets** — NPC agendas, the true answer to the mystery, faction loyalties, what's actually in the vault — are included in Claude's prompt in full. Claude is the Warden. It knows everything the Warden knows. It is instructed to reveal GM context secrets only when fictionally appropriate — when the player's character could plausibly perceive or discover them. This is behavioral: Claude is playing the Warden role faithfully, not being prevented from speaking.
 
-**Spatial secrets** — entities outside the party's line of sight — are structurally absent from the visibility-filtered state snapshot. Claude doesn't choose not to mention the goblin behind the column; it genuinely doesn't receive that entity's position data. The goblin isn't in the prompt.
+**Spatial secrets** — *where* an entity is — are structurally absent. Claude doesn't choose not to mention that the goblin is behind the column at E4; it genuinely doesn't receive that entity's position data. The position isn't in the prompt.
 
 ```
 Visible cells: B3, B4, C3, C4 (partial — column at D4 blocks further east)
 Entities in visible cells: none
 Sounds: scratching from unknown direction
-Hidden (not in prompt): goblin_skirmisher at E4, watching through gap
+Position withheld: goblin_skirmisher's cell, watching through gap
 ```
 
 This is structural secrecy for spatial information specifically — not for GM context generally.
+
+**The boundary runs between an entity's position and its existence, and only the first half is structural** (`ADR-0101`). An earlier version of this section claimed "the goblin isn't in the prompt", which was true of its position and never true of the goblin. Every entity is named in the GM context block on every turn, hidden ones tagged `starts hidden`, and the state snapshot carries each one's `visible` and `revealed` flags. That is the behavioral mechanism doing its job, not a leak: the Warden needs a hidden NPC's Instinct, skills and pools to run what it is doing off-screen, and needs the current value of `visible` to decide whether it steps out of the shadow at all.
+
+`visible` is line of sight — transient, bidirectional, the goblin ducking behind the column and stepping back out. `revealed` is discovery — monotonic, whether the players know the entity exists. Collapsing the two into one boolean is what made the earlier claim look true.
+
+In Phase 1 the structural half is vacuous, because no renderer emits position and the snapshot has no spatial block at all (`ADR-0047`). It becomes real with the 2D renderer, where `grid_entity` rows are filtered by line of sight and the position genuinely never reaches the prompt.
 
 ### Claude as Consequence Engine
 
