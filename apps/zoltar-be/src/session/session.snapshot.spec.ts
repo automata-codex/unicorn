@@ -242,8 +242,8 @@ describe('buildStateSnapshot', () => {
       gmContextBlob: emptyBlob,
       campaignStateData: makeState({
         entities: {
-          engineer_kowalski: { visible: true, status: 'alive' },
-          shadow_threat: { visible: false, status: 'unknown' },
+          engineer_kowalski: { visible: true, revealed: true, status: 'alive' },
+          shadow_threat: { visible: false, revealed: false, status: 'unknown' },
         },
       }),
     });
@@ -258,6 +258,7 @@ describe('buildStateSnapshot', () => {
         entities: {
           engineer_kowalski: {
             visible: true,
+            revealed: true,
             status: 'alive',
             npcState: 'Hostile — cornered, low ammo',
           },
@@ -273,7 +274,9 @@ describe('buildStateSnapshot', () => {
     const snapshot = buildStateSnapshot({
       gmContextBlob: emptyBlob,
       campaignStateData: makeState({
-        entities: { engineer_kowalski: { visible: true, status: 'alive' } },
+        entities: {
+          engineer_kowalski: { visible: true, revealed: true, status: 'alive' },
+        },
       }),
     });
     expect(snapshot).toContain('engineer_kowalski: visible, status=alive');
@@ -288,8 +291,8 @@ describe('buildStateSnapshot', () => {
       },
       campaignStateData: makeState({
         entities: {
-          dr_chen: { visible: false, status: 'alive' },
-          shadow_threat: { visible: false, status: 'unknown' },
+          dr_chen: { visible: false, revealed: false, status: 'alive' },
+          shadow_threat: { visible: false, revealed: false, status: 'unknown' },
         },
       }),
     });
@@ -304,7 +307,9 @@ describe('buildStateSnapshot', () => {
     const snapshot = buildStateSnapshot({
       gmContextBlob: { ...emptyBlob, playerEntityIds: ['lt_alvarez'] },
       campaignStateData: makeState({
-        entities: { burned_out_medic: { visible: true, status: 'alive' } },
+        entities: {
+          burned_out_medic: { visible: true, revealed: true, status: 'alive' },
+        },
       }),
     });
     expect(snapshot).toContain(
@@ -318,8 +323,8 @@ describe('buildStateSnapshot', () => {
       gmContextBlob: { ...emptyBlob, playerEntityIds: ['dr_chen'] },
       campaignStateData: makeState({
         entities: {
-          apex_predator: { visible: true, status: 'unknown' },
-          dr_chen: { visible: true, status: 'alive' },
+          apex_predator: { visible: true, revealed: true, status: 'unknown' },
+          dr_chen: { visible: true, revealed: true, status: 'alive' },
         },
       }),
     });
@@ -349,7 +354,7 @@ describe('buildStateSnapshot', () => {
       gmContextBlob: emptyBlob,
       campaignStateData: makeState({
         entities: {
-          shadow_threat: { visible: false, status: 'unknown' },
+          shadow_threat: { visible: false, revealed: false, status: 'unknown' },
         },
       }),
     });
@@ -361,7 +366,7 @@ describe('buildStateSnapshot', () => {
       gmContextBlob: emptyBlob,
       campaignStateData: makeState({
         entities: {
-          engineer_kowalski: { visible: true, status: 'alive' },
+          engineer_kowalski: { visible: true, revealed: true, status: 'alive' },
         },
       }),
     });
@@ -369,7 +374,11 @@ describe('buildStateSnapshot', () => {
       gmContextBlob: emptyBlob,
       campaignStateData: makeState({
         entities: {
-          engineer_kowalski: { visible: false, status: 'alive' },
+          engineer_kowalski: {
+            visible: false,
+            revealed: false,
+            status: 'alive',
+          },
         },
       }),
     });
@@ -474,7 +483,9 @@ describe('buildStateSnapshot', () => {
             pendingDeathSave: null,
           },
         },
-        entities: { kowalski: { visible: true, status: 'alive' } },
+        entities: {
+          kowalski: { visible: true, revealed: true, status: 'alive' },
+        },
         flags: {
           adventure_complete: { value: false, trigger: 'Escape pod.' },
         },

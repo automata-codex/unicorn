@@ -1527,3 +1527,77 @@ describe('validateStateChanges — mixed batch', () => {
     ]);
   });
 });
+
+describe('validateStateChanges — npcAgendas', () => {
+  const cartographer = {
+    entities: {
+      deep_space_cartographer: {
+        visible: true,
+        revealed: true,
+        status: 'alive' as const,
+      },
+    },
+  };
+
+  it('amends the agenda of an entity in play', () => {
+    const result = validateStateChanges({
+      proposed: {},
+      proposedNpcAgendas: {
+        deep_space_cartographer: 'Now wants off the ship at any cost.',
+      },
+      currentNpcAgendas: {
+        deep_space_cartographer: 'Wants to seal the forward sections.',
+      },
+      currentData: stateWith(cartographer),
+      poolDef,
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.npcAgendas).toEqual({
+      deep_space_cartographer: 'Now wants off the ship at any cost.',
+    });
+  });
+
+  it('amends an agenda synthesis authored for an entity not in campaign state', () => {
+    const result = validateStateChanges({
+      proposed: {},
+      proposedNpcAgendas: { probe_npc_two: 'Reconsiders leaving.' },
+      currentNpcAgendas: { probe_npc_two: 'Wants off the station.' },
+      currentData: stateWith({ entities: {} }),
+      poolDef,
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.npcAgendas.probe_npc_two).toBe('Reconsiders leaving.');
+  });
+
+  /**
+   * The `deep_space_cartographer_reyes_note` case from the 2026-08-16
+   * playtest: a key that is not an entity and has no prior agenda, invented to
+   * park a cross-cutting observation because this map was the only writable
+   * string store in reach.
+   */
+  it('rejects an invented key that names neither an entity nor an agenda', () => {
+    const result = validateStateChanges({
+      proposed: {},
+      proposedNpcAgendas: {
+        deep_space_cartographer_reyes_note: 'Reyes has revealed…',
+      },
+      currentNpcAgendas: {
+        deep_space_cartographer: 'Wants to seal the forward sections.',
+      },
+      currentData: stateWith(cartographer),
+      poolDef,
+    });
+    expect(result.npcAgendas).toEqual({});
+    expect(result.rejections).toHaveLength(1);
+    expect(result.rejections[0].reason).toContain('gmUpdates.notes');
+  });
+
+  it('leaves agendas untouched when the turn proposes none', () => {
+    const result = validateStateChanges({
+      proposed: { entities: {} },
+      currentData: stateWith(cartographer),
+      poolDef,
+    });
+    expect(result.npcAgendas).toEqual({});
+  });
+});

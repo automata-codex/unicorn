@@ -340,7 +340,25 @@ export const submitGmResponseSchema = z.object({
 
   gmUpdates: z
     .object({
-      npcStates: z.record(z.string(), z.string()).optional(),
+      /**
+       * Amendments to an NPC's **agenda** — what they want and why, the
+       * durable motivation synthesis authored. Replaces the prior value for
+       * that entity outright, because an explicit agenda write is a stated
+       * intent rather than an accumulation.
+       *
+       * This replaces `npcStates`, which was the same map under a name that
+       * described the wrong thing. It merged into `narrative.npcAgendas`
+       * (`ADR-0101`), so a turn recording that an NPC was rattled overwrote
+       * the conditions governing their central secret and every later turn
+       * read the mood note under an `npc_agendas:` heading. Nine of 58 turns
+       * in the 2026-08-16 playtest wrote it, and the cartographer's agenda did
+       * not survive.
+       *
+       * **Disposition — what an NPC is doing or feeling right now — is
+       * `stateChanges.entities[id].npcState`, not this.** The two are
+       * separately named and neither can reach the other's field.
+       */
+      npcAgendas: z.record(z.string(), z.string()).optional(),
       notes: z.string().optional(),
       proposedCanon: z
         .array(

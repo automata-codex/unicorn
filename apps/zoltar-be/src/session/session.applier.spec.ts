@@ -32,7 +32,7 @@ describe('applyValidatedTurn', () => {
         priorCampaignState,
         priorGmContextBlob: {},
         applied: emptyApplied(),
-        npcStates: {},
+        npcAgendas: {},
       });
 
       expect(newCampaignState).toEqual(priorCampaignState);
@@ -52,7 +52,7 @@ describe('applyValidatedTurn', () => {
           ...emptyApplied(),
           resourcePools: { dr_chen: { hp: { current: 2, max: 10 } } },
         },
-        npcStates: {},
+        npcAgendas: {},
       });
 
       expect(priorCampaignState).toEqual(snapshot);
@@ -74,7 +74,7 @@ describe('applyValidatedTurn', () => {
           ...emptyApplied(),
           resourcePools: { dr_chen: { hp: { current: 2, max: 10 } } },
         },
-        npcStates: {},
+        npcAgendas: {},
       });
 
       expect(newCampaignState.resourcePools).toEqual({
@@ -113,7 +113,7 @@ describe('applyValidatedTurn', () => {
           ...emptyApplied(),
           resourcePools: { dr_chen: { hp: { current: 12, max: 20 } } },
         },
-        npcStates: {},
+        npcAgendas: {},
       });
 
       expect(newCampaignState.resourcePools.dr_chen).toEqual({
@@ -140,7 +140,7 @@ describe('applyValidatedTurn', () => {
             _scenario: { hull_breach_timer: { current: 5, max: 5 } },
           },
         },
-        npcStates: {},
+        npcAgendas: {},
       });
 
       expect(newCampaignState.resourcePools).toEqual({
@@ -153,8 +153,17 @@ describe('applyValidatedTurn', () => {
       const priorCampaignState: MothershipCampaignState = {
         ...emptyMothershipState(),
         entities: {
-          dr_chen: { visible: true, status: 'alive', npcState: 'Stressed' },
-          corporate_spy_1: { visible: false, status: 'unknown' },
+          dr_chen: {
+            visible: true,
+            revealed: true,
+            status: 'alive',
+            npcState: 'Stressed',
+          },
+          corporate_spy_1: {
+            visible: false,
+            revealed: false,
+            status: 'unknown',
+          },
         },
       };
 
@@ -164,15 +173,25 @@ describe('applyValidatedTurn', () => {
         applied: {
           ...emptyApplied(),
           entities: {
-            dr_chen: { visible: true, status: 'dead', npcState: 'Stressed' },
+            dr_chen: {
+              visible: true,
+              revealed: true,
+              status: 'dead',
+              npcState: 'Stressed',
+            },
           },
         },
-        npcStates: {},
+        npcAgendas: {},
       });
 
       expect(newCampaignState.entities).toEqual({
-        dr_chen: { visible: true, status: 'dead', npcState: 'Stressed' },
-        corporate_spy_1: { visible: false, status: 'unknown' },
+        dr_chen: {
+          visible: true,
+          revealed: true,
+          status: 'dead',
+          npcState: 'Stressed',
+        },
+        corporate_spy_1: { visible: false, revealed: false, status: 'unknown' },
       });
     });
 
@@ -204,7 +223,7 @@ describe('applyValidatedTurn', () => {
           ...emptyApplied(),
           resourcePools: { dr_chen: { hp: { current: 2, max: 10 } } },
         },
-        npcStates: {},
+        npcAgendas: {},
       });
 
       expect(newCampaignState.characterState).toEqual(
@@ -222,7 +241,7 @@ describe('applyValidatedTurn', () => {
         priorCampaignState,
         priorGmContextBlob: {},
         applied: emptyApplied(),
-        npcStates: {},
+        npcAgendas: {},
       });
 
       expect(newCampaignState.schemaVersion).toBe(1);
@@ -253,7 +272,7 @@ describe('applyValidatedTurn', () => {
         priorCampaignState: emptyMothershipState(),
         priorGmContextBlob,
         applied: emptyApplied(),
-        npcStates: { corporate_spy_1: 'Watch the player' },
+        npcAgendas: { corporate_spy_1: 'Watch the player' },
       });
 
       const narrative = newGmContextBlob.narrative as Record<string, unknown>;
@@ -273,7 +292,7 @@ describe('applyValidatedTurn', () => {
         priorCampaignState: emptyMothershipState(),
         priorGmContextBlob,
         applied: emptyApplied(),
-        npcStates: { dr_chen: 'Updated agenda — fleeing' },
+        npcAgendas: { dr_chen: 'Updated agenda — fleeing' },
       });
 
       const narrative = newGmContextBlob.narrative as Record<string, unknown>;
@@ -292,7 +311,7 @@ describe('applyValidatedTurn', () => {
         priorCampaignState: emptyMothershipState(),
         priorGmContextBlob,
         applied: emptyApplied(),
-        npcStates: {},
+        npcAgendas: {},
       });
 
       expect(newGmContextBlob).toEqual(priorGmContextBlob);
@@ -309,7 +328,7 @@ describe('applyValidatedTurn', () => {
         priorCampaignState: emptyMothershipState(),
         priorGmContextBlob,
         applied: emptyApplied(),
-        npcStates: { dr_chen: 'Updated agenda' },
+        npcAgendas: { dr_chen: 'Updated agenda' },
       });
 
       expect(newGmContextBlob.entities).toEqual(priorGmContextBlob.entities);
@@ -327,7 +346,7 @@ describe('applyValidatedTurn', () => {
         priorCampaignState: emptyMothershipState(),
         priorGmContextBlob,
         applied: emptyApplied(),
-        npcStates: { dr_chen: 'Updated agenda' },
+        npcAgendas: { dr_chen: 'Updated agenda' },
       });
 
       const narrative = newGmContextBlob.narrative as Record<string, unknown>;
@@ -340,11 +359,82 @@ describe('applyValidatedTurn', () => {
         priorCampaignState: emptyMothershipState(),
         priorGmContextBlob: {},
         applied: emptyApplied(),
-        npcStates: { dr_chen: 'First agenda' },
+        npcAgendas: { dr_chen: 'First agenda' },
       });
 
       const narrative = newGmContextBlob.narrative as Record<string, unknown>;
       expect(narrative.npcAgendas).toEqual({ dr_chen: 'First agenda' });
     });
+  });
+});
+
+/**
+ * Regression for the defect `ADR-0101` was written from. In the 2026-08-16
+ * playtest, `gmUpdates.npcStates` — disposition, in a map spread over
+ * `narrative.npcAgendas` — replaced the cartographer's authored agenda with a
+ * mood note, and every later turn read the mood note under an `npc_agendas:`
+ * heading. Both strings below are verbatim from that campaign: the agenda from
+ * `adventure_synthesis_snapshots`, the disposition from the turn that
+ * overwrote it.
+ */
+describe('disposition never reaches the agenda (`ADR-0101`)', () => {
+  const AUTHORED_AGENDA =
+    'Wants to seal the forward sections and abandon the aft, because they ' +
+    'recognize the signal pattern from old survey data they never reported. ' +
+    'They are withholding what they know out of guilt and fear of being ' +
+    'blamed — they will only reveal it if pushed hard or if the situation ' +
+    'becomes lethal enough that silence is worse than confession.';
+
+  const DISPOSITION =
+    'Panic check passed (rolled 15 vs stress ~4) after hearing the entity ' +
+    "mimic Kennedy's greeting - shaken, voice thin, but still functional " +
+    'and accompanying Kennedy.';
+
+  it('leaves the agenda byte-identical when a turn records disposition', () => {
+    const { newCampaignState, newGmContextBlob } = applyValidatedTurn({
+      priorCampaignState: {
+        schemaVersion: 1,
+        resourcePools: {},
+        characterState: {},
+        entities: {
+          deep_space_cartographer: {
+            visible: true,
+            revealed: true,
+            status: 'alive',
+          },
+        },
+        flags: {},
+        scenarioState: {},
+        worldFacts: {},
+      },
+      priorGmContextBlob: {
+        narrative: { npcAgendas: { deep_space_cartographer: AUTHORED_AGENDA } },
+      },
+      applied: {
+        resourcePools: {},
+        characterState: {},
+        entities: {
+          deep_space_cartographer: {
+            visible: true,
+            revealed: true,
+            status: 'alive',
+            npcState: DISPOSITION,
+          },
+        },
+        flags: {},
+        scenarioState: {},
+        worldFacts: {},
+      },
+      // The turn records disposition and proposes no agenda change, which is
+      // what the playtest turn actually meant.
+      npcAgendas: {},
+    });
+
+    const narrative = newGmContextBlob.narrative as Record<string, unknown>;
+    const agendas = narrative.npcAgendas as Record<string, string>;
+    expect(agendas.deep_space_cartographer).toBe(AUTHORED_AGENDA);
+    expect(newCampaignState.entities.deep_space_cartographer.npcState).toBe(
+      DISPOSITION,
+    );
   });
 });

@@ -356,8 +356,19 @@ export class SessionService {
     const originalParsed = innerLoop.finalParsed;
 
     // 5. Validate first-round state changes.
+    // Prior agendas, for the "does this key name anything" check. Read from
+    // `rawBlob` rather than the prompt-building `gmContextBlob` for the same
+    // reason step 8 does: the latter carries a per-request `playerEntityIds`
+    // addition that is not persisted state.
+    const currentNpcAgendas =
+      ((rawBlob.narrative as Record<string, unknown> | undefined)?.npcAgendas as
+        | Record<string, string>
+        | undefined) ?? {};
+
     let validation = validateStateChanges({
       proposed: originalParsed.stateChanges,
+      proposedNpcAgendas: originalParsed.gmUpdates?.npcAgendas,
+      currentNpcAgendas,
       currentData: campaignStateData,
       poolDef: getMothershipPoolDefinition,
       identifiers: {
@@ -389,6 +400,8 @@ export class SessionService {
 
       validation = validateStateChanges({
         proposed: parsed.stateChanges,
+        proposedNpcAgendas: parsed.gmUpdates?.npcAgendas,
+        currentNpcAgendas,
         currentData: campaignStateData,
         poolDef: getMothershipPoolDefinition,
         identifiers: {
@@ -409,11 +422,11 @@ export class SessionService {
     // 7. The final narration/state-change payload sent to the player is
     //    always the corrected one when a correction fired, otherwise the
     //    original. Computed here (not just at bundling time below) because
-    //    `gmUpdates.npcStates` feeds the gm_context blob merge that follows.
+    //    `gmUpdates.npcAgendas` feeds the gm_context blob merge that follows.
     const finalParsed = correctionParsed ?? originalParsed;
 
     // 8. Compute the final campaign state and gm_context blob by merging
-    //    this turn's applied deltas / npcStates. `rawBlob` — not the
+    //    this turn's applied deltas / agenda amendments. `rawBlob` — not the
     //    `playerEntityIds`-augmented `gmContextBlob` above — is the correct
     //    prior value here: `playerEntityIds` is a per-request prompt-
     //    building addition (session.snapshot.ts), never persisted state.
@@ -422,7 +435,7 @@ export class SessionService {
       priorCampaignState: campaignStateData,
       priorGmContextBlob: rawBlob,
       applied: validation.applied,
-      npcStates: finalParsed.gmUpdates?.npcStates ?? {},
+      npcAgendas: validation.npcAgendas,
     });
 
     // 9. Snapshot the prompt that was sent — stored in telemetry for

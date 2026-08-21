@@ -3,8 +3,16 @@ import type { ValidationResult } from './session.validator';
 
 /**
  * Pure fold step for a single turn: merges validated state-change deltas
- * into campaign state, and Claude's `gmUpdates.npcStates` into
- * `gm_context.blob.narrative.npcAgendas` (Claude wins on key collision).
+ * into campaign state, and validated agenda amendments into
+ * `gm_context.blob.narrative.npcAgendas` (the amendment wins on key
+ * collision).
+ *
+ * `npcAgendas` arrives already validated (`ADR-0101`). It used to arrive as
+ * `gmUpdates.npcStates` — the same map under a name describing disposition
+ * rather than motivation, spread over the agendas with nothing checking it,
+ * which is how a mood note came to replace an NPC's authored agenda mid-play.
+ * Disposition now goes to `campaign_state.entities[id].npcState` and never
+ * reaches this blob.
  * No I/O — callers own reading the prior state/blob and persisting the
  * results. This is also the fold step replay (M7.3) threads forward
  * through the event log turn by turn.
@@ -13,12 +21,12 @@ export function applyValidatedTurn(input: {
   priorCampaignState: MothershipCampaignState;
   priorGmContextBlob: Record<string, unknown>;
   applied: ValidationResult['applied'];
-  npcStates: Record<string, string>;
+  npcAgendas: Record<string, string>;
 }): {
   newCampaignState: MothershipCampaignState;
   newGmContextBlob: Record<string, unknown>;
 } {
-  const { priorCampaignState, priorGmContextBlob, applied, npcStates } = input;
+  const { priorCampaignState, priorGmContextBlob, applied, npcAgendas } = input;
 
   const newCampaignState: MothershipCampaignState = {
     schemaVersion: priorCampaignState.schemaVersion,
@@ -54,7 +62,7 @@ export function applyValidatedTurn(input: {
     ...priorGmContextBlob,
     narrative: {
       ...priorNarrative,
-      npcAgendas: { ...priorAgendas, ...npcStates },
+      npcAgendas: { ...priorAgendas, ...npcAgendas },
     },
   };
 

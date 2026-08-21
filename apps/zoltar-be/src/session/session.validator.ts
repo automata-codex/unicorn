@@ -53,12 +53,27 @@ export interface ValidationResult {
     >;
     worldFacts: Record<string, string>;
   };
+  /**
+   * Validated `gmUpdates.npcAgendas`. Kept beside `applied` rather than in it
+   * because `applied` is the campaign-state half and is persisted verbatim as
+   * `state_update.payload.applied`; agendas live in the `gm_context` blob.
+   */
+  npcAgendas: Record<string, string>;
   rejections: ValidationRejection[];
   thresholds: ThresholdCrossing[];
 }
 
 export function validateStateChanges(input: {
   proposed: SubmitGmResponse['stateChanges'];
+  /**
+   * `gmUpdates.npcAgendas`, validated here so an agenda amendment goes through
+   * the same validate-then-apply discipline as everything else. Until
+   * `ADR-0101` it bypassed validation entirely and was spread over the prior
+   * agendas in the applier.
+   */
+  proposedNpcAgendas?: Record<string, string>;
+  /** Prior `narrative.npcAgendas`, for the "does this key exist" check. */
+  currentNpcAgendas?: Record<string, string>;
   currentData: MothershipCampaignState;
   poolDef: (poolName: string) => PoolDefinition;
   /**
@@ -84,11 +99,19 @@ export function validateStateChanges(input: {
       scenarioState: {},
       worldFacts: {},
     },
+    npcAgendas: {},
     rejections: [],
     thresholds: [],
   };
 
   const proposed = input.proposed ?? {};
+
+  applyNpcAgendas(
+    input.proposedNpcAgendas ?? {},
+    input.currentNpcAgendas ?? {},
+    input.currentData,
+    result,
+  );
 
   // **Creates run first, and widen the identifier set for the rest of the
   // turn.** A newly introduced NPC is a legal resource-pool owner immediately
@@ -630,6 +653,48 @@ function foldCharacterState(
   const applied: Record<string, MothershipCharacterState> = {};
   for (const entityId of touched) applied[entityId] = working[entityId];
   return { applied, rejections: [] };
+}
+
+/**
+ * Validates `gmUpdates.npcAgendas`.
+ *
+ * **An agenda key must already name something.** Either an entity in play, or
+ * an agenda synthesis already authored — the second clause exists because
+ * synthesis may write an agenda for an NPC it never added to
+ * `campaign_state.entities`, and refusing to let the Warden amend one of those
+ * would make it unmaintainable.
+ *
+ * What it rejects is a key that names neither, which is how
+ * `deep_space_cartographer_reyes_note` came to exist in the 2026-08-16
+ * playtest: the Warden needed somewhere to park a cross-cutting observation
+ * and this map was the only writable string store in reach. That is what
+ * `gmUpdates.notes` is for.
+ */
+function applyNpcAgendas(
+  proposed: Record<string, string>,
+  currentAgendas: Record<string, string>,
+  currentData: MothershipCampaignState,
+  result: ValidationResult,
+): void {
+  for (const [entityId, agenda] of Object.entries(proposed)) {
+    const namesSomething =
+      currentData.entities[entityId] !== undefined ||
+      Object.hasOwn(currentAgendas, entityId);
+
+    if (!namesSomething) {
+      result.rejections.push({
+        path: `gmUpdates.npcAgendas.${entityId}`,
+        reason:
+          `"${entityId}" is neither an entity in play nor an NPC with an ` +
+          'existing agenda. An agenda belongs to a specific NPC; for an ' +
+          'observation that is not about one, use `gmUpdates.notes`.',
+        received: { [entityId]: agenda },
+      });
+      continue;
+    }
+
+    result.npcAgendas[entityId] = agenda;
+  }
 }
 
 /**

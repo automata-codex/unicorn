@@ -435,7 +435,7 @@
         "gmUpdates": {
           "type": "object",
           "properties": {
-            "npcStates": {
+            "npcAgendas": {
               "type": "object",
               "additionalProperties": {
                 "type": "string"
