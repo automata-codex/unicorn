@@ -701,13 +701,23 @@ Rows land at `<run-dir>/rescore/<timestamp>.jsonl`, never under `reps/` — same
 moves no fixture bytes, so successive re-scores would collide on that name.
 
 **Read the column tenses carefully.** On a re-score row, `model` / `promptHash` describe
-*generation* and are copied from the manifest; `corpusVersion` / `harnessVersion` describe
-*scoring* and are recomputed. Same column names, different moment. `source*` columns keep
-the originals.
+*generation* and are copied from the manifest; `corpusVersion` / `harnessVersion` /
+`judgeContractHash` describe *scoring* and are recomputed. Same column names, different
+moment. `source*` columns keep the originals.
+
+`judgeContractHash` is the newest of the three and the easiest to misread. It fingerprints the
+judge **contract** — the `judge_verdict` tool schema, the judge system prompt, the closing
+instruction and `JUDGE_MODEL` — none of which `rubricHash` covers. Two runs can carry identical
+rubric hashes and have been graded two different ways; before this field existed, nothing
+recorded that. It is set only where a judge was actually invoked, so structural rows and rows a
+`judgeGate` settled carry none, and an absent value means *unknown*, never *unchanged*.
 
 Rows with no artifact to re-grade (the turn errored before writing one) are carried forward
 rather than dropped, so a re-score file is a complete replacement for a run's rows — omitting
-them would make a re-scored report look cleaner than the run it describes.
+them would make a re-scored report look cleaner than the run it describes. **A carried-forward
+row keeps the source's `judgeContractHash` along with its other `source`-tense values**, because
+nothing re-graded it — relabelling it with today's contract would make every re-score containing
+one look like it spanned a judge change.
 
 **`eval:compare` does not read re-score rows**, only `reps/*/scores.jsonl`. A comparison
 across re-scored numbers has to be read from the `eval:rescore` report directly for now.
@@ -741,6 +751,20 @@ check's rates in the report are unaffected and can still be trusted. It also pri
 exact fix: `--filter-rubric CHECK=HASH`, scoped to the named check, repeatable if more than
 one check drifted. Don't reach for a bare hash — the flag requires the check id so it can
 never accidentally drop an unrelated check's results.
+
+**Mixed-*contract* warnings are a different animal, and there is no filter for them.** The
+rubric warning above can name one affected check and say the rest of the report is fine. The
+judge contract is process-wide — one tool schema, one system prompt, one model for every judged
+check in the run — so a run spanning two of them was graded two different ways *in its entirety*.
+`eval:compare` reports that at run level rather than per check, and prescribes `eval:rescore`
+rather than a filter, because there is no subset of rows to narrow to. Structural rows are
+excluded from the comparison: they carry no contract, and counting their absence as a second
+value would flag every mixed-mode run, which is every run.
+
+The same rule governs the A/B header line. Contracts that differ between the two sides warn;
+a contract missing on either side reports as **unknown**, never as a match. Every run frozen
+before this field existed carries none, so expect the unknown form on any comparison reaching
+back past 2026-08-22.
 
 **A code change that alters what reaches the Warden warrants a full-suite run, even with
 an untouched prompt hash.** `promptHash` only fingerprints the prompt text; it says
