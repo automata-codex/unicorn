@@ -55,6 +55,16 @@ export const judgeVarianceRowSchema = z.object({
    * none.
    */
   rationale: z.string().default(''),
+  /**
+   * Why the trial errored, when it did. Same omission as `rationale` was and
+   * found the same way: the after-side run of spec 020 produced one `error`
+   * trial in 114, and the row recorded only `check "hidden-info-leak" threw`
+   * — enough to know something failed, not enough to say whether the judge
+   * returned malformed input (which a field-order change could plausibly
+   * cause) or the API call simply failed. An error a reader cannot attribute
+   * is an error they have to re-run to understand.
+   */
+  errorMessage: z.string().default(''),
   durationMs: z.number().nonnegative(),
 });
 
@@ -351,6 +361,7 @@ export async function runJudgeVariance(
           verdict: observation.verdict,
           judgeInvoked: observation.judgeInvoked,
           rationale: observation.detail,
+          errorMessage: observation.errorMessage ?? '',
           durationMs: observation.durationMs,
         }),
       );

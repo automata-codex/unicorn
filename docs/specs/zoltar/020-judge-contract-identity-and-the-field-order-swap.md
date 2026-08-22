@@ -293,6 +293,82 @@ re-grade set; revisit in Part 11 with the after-side data.
   useful comparison in Part 9 is order-of-magnitude — several versus none —
   not a difference in proportion.
 
+---
+
+## Part 9 — the after side, measured 2026-08-22
+
+Same run and fixtures, contract **`01620ef7`**,
+`judge-variance/2026-08-22T14-56-22Z.jsonl`. 114 judge calls.
+
+| Check | Flip before | Flip after |
+|---|---|---|
+| `hidden-info-leak` | 0 / 20 | **2 / 20** |
+| `over-resolution` | 0 / 8 | 0 / 8 |
+| `roll-result-inversion` | 0 / 10 | 0 / 10 |
+
+Failures fell from **6 of 114 to 1 of 114**. One trial errored.
+
+### The decision rule, evaluated
+
+**Clause 1 — contradictions: 0. Passes.** The single `fail` closes *"constitutes
+exactly the kind of violation described in the rubric … This is a failure"* —
+consistent. A converse scan of all 112 pass closings for failure language found
+none, repeating the method that established the asymmetry in the first place.
+**Down from 2 of 6 failures on the before side.**
+
+**Clause 2 — flip rate: passes, by exactly zero margin.** `hidden-info-leak`
+moved 0.00 → 0.10, and the rule reverts on *more than* 0.10. Worth stating
+plainly rather than banking: one of those two flips is the error trial, so the
+verdict-disagreement flip rate is 1 of 20 — recorded, not used, because the
+rule as written does not draw that distinction and reinterpreting it after
+seeing the numbers is what pre-registration exists to prevent.
+
+**Clause 3 — verdict mix: FIRES.** Failures 6/114 → 1/114 is a 4.4pp shift,
+larger than the contradiction floor predicts. If the swap only removed
+contradictions, 6 → 4 was the expectation; 6 → 1 is not that. Per the rule this
+**pauses the decision pending a read of what moved**, and the read follows.
+
+### What moved, and it decomposes cleanly
+
+**`roll-result-inversion` rep 004: `fail`×3 → `pass`×3. The fix doing exactly
+what it was built to do.** That single input carried *both* before-side
+contradictions. Its before-side rationales concluded *"there is nothing
+confirmable as inverted"* and *"this does not fail the rubric on the stated
+criteria"* — under `verdict: fail`. Its after-side rationales conclude *"no
+basis to say this is a backwards adjudication … it should pass"* and *"there is
+nothing to invert"* — under `verdict: pass`. **Same reasoning, verdict now
+following it.** Three of the five removed failures.
+
+**`turn24-hidden-info-leak` rep 007: `fail`×3 → `fail`×1 + `pass`×2. Not the
+fix, and not grader noise either.** The three rationales disagree about a
+genuine question of rubric scope: the stated perception boundary concerns the
+Lab B / Delta encounter, and the narration's roll numbers (43, 73) belong to
+Alvarez's *own* firefight. Trial 1 applies the rubric's broad "specific roll
+values" prohibition and fails; trials 2 and 3 read the rubric as scoped to
+Delta and pass. Each verdict matches its own reasoning. **The rubric admits two
+defensible readings, and making verdicts follow reasoning is what made that
+visible.** Two of the five removed failures — a finding about the rubric, not
+about the judge.
+
+**One `error` trial, unattributed.** `turn28-hidden-info-leak` rep 007 trial 3,
+`judgeInvoked: false`, recorded only as `check "hidden-info-leak" threw`. The
+before side had zero errors in 114. A plausible mechanism exists and should not
+be waved away: `passed` is now the **last** field, so a model running long on
+the rationale could omit it and fail Zod validation. It is equally consistent
+with a transient API failure, and one event cannot separate those.
+`judgeVarianceRowSchema` did not persist `errorMessage` — the same omission
+Part 6 fixed for rationales, found the same way — so it is now recorded and the
+next run can attribute what this one cannot.
+
+### The standing question this leaves
+
+Clause 3 paused by design rather than by accident: the rule was written so a
+large mix shift returns the decision to a human with the read attached. That
+read is favourable on the check the swap targeted, neutral-to-awkward on the
+other, and carries one unexplained error. **Ship or revert is a judgement call
+and the rule declines to make it automatically.**
+
+
 
 ## What the swap costs, and why the corrections stay in prose
 
