@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   CREW_ROLE_SKILLS,
@@ -298,4 +299,55 @@ export function serializeAssemblySurfaces(s: AssemblySurfaces): string {
  */
 export function computeAssemblyHash(): string {
   return hashPromptText(serializeAssemblySurfaces(renderAssemblySurfaces()));
+}
+
+/** One committed golden that no longer matches what the code renders. */
+export interface AssemblyGoldenMismatch {
+  surface: keyof AssemblySurfaces;
+  /** The golden's filename, so an error names a file to go and look at. */
+  file: string;
+  reason: 'missing' | 'differs';
+}
+
+/**
+ * Every committed golden that disagrees with the live render, or is absent.
+ *
+ * **Extracted from the spec so `eval:run` can ask the same question.**
+ * `ADR-0099`'s addendum records a run labelled `assemblyHash 8e332e38` whose
+ * commit produces `6dc28608`: the eval host held a `@uv/game-systems` `dist`
+ * built before `revealed` existed on `EntitySchema`, and the probe *parses*
+ * its state rather than casting it, so Zod stripped the unknown key and the
+ * same source rendered a different surface. A hash that varies with the build
+ * cannot serve as run identity.
+ *
+ * The goldens already detect exactly this and were simply never run — nothing
+ * required a green suite on the eval host before a run was labelled.
+ * `eval/preflight.ts` now does, and this is what it calls.
+ *
+ * Returns rather than throws: which surfaces matter, and whether to refuse or
+ * warn, is the caller's policy. `session.assembly.spec.ts` keeps its own
+ * per-file byte assertions for the readable diff and asserts this is empty
+ * besides, so the function the preflight depends on is itself covered.
+ */
+export function findAssemblyGoldenMismatches(
+  /** Overridable so the failure paths can be tested against a temp directory
+   * rather than by mocking a function this repo owns. */
+  dir: string = ASSEMBLY_GOLDEN_DIR,
+): AssemblyGoldenMismatch[] {
+  const surfaces = renderAssemblySurfaces();
+  const mismatches: AssemblyGoldenMismatch[] = [];
+
+  for (const [key, file] of Object.entries(ASSEMBLY_GOLDEN_FILES)) {
+    const surface = key as keyof AssemblySurfaces;
+    const path = join(dir, file);
+    if (!existsSync(path)) {
+      mismatches.push({ surface, file, reason: 'missing' });
+      continue;
+    }
+    if (readFileSync(path, 'utf8') !== surfaces[surface]) {
+      mismatches.push({ surface, file, reason: 'differs' });
+    }
+  }
+
+  return mismatches;
 }

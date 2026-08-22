@@ -2,8 +2,11 @@ import { count, eq } from 'drizzle-orm';
 
 import * as schema from '../src/db/schema';
 
+import { findAssemblyGoldenMismatches } from '../src/session/session.assembly';
+
 import { selectChecksForFixture } from './checks/registry';
 
+import type { AssemblyGoldenMismatch } from '../src/session/session.assembly';
 import type { Db } from '../src/db/db.provider';
 import type { EvalFixture } from './fixture.schema';
 
@@ -122,4 +125,83 @@ export function assertNoStubCheckers(fixtures: EvalFixture[]): void {
       'preflight is not skippable: --skip-preflight covers the rules index, ' +
       'not the corpus.',
   );
+}
+
+/**
+ * Renders a mismatch list into the preflight message. Separate from the
+ * assertion, and exported, for the reason `describeToolCallSyntax`
+ * (`src/session/session.tool-syntax.ts`) is: the wording is the load-bearing
+ * part and testing it should not require provoking the condition.
+ *
+ * **Both readings are named deliberately.** A differing golden is ambiguous
+ * between a stale workspace build and an uncommitted formatter edit, and the
+ * two fixes are opposite — telling someone only one of them sends half of
+ * them the wrong way.
+ */
+export function describeAssemblyGoldenMismatches(
+  mismatches: AssemblyGoldenMismatch[],
+): string {
+  const differing = mismatches.filter((m) => m.reason === 'differs');
+  const missing = mismatches.filter((m) => m.reason === 'missing');
+
+  return (
+    `preflight: ${mismatches.length} assembly golden(s) do not match what ` +
+    'this build renders, so `assemblyHash` would label the run with a value ' +
+    'no commit corresponds to.\n' +
+    mismatches
+      .map((m) => `  - ${m.file} (${m.surface}): ${m.reason}`)
+      .join('\n') +
+    '\n' +
+    (differing.length > 0
+      ? "A differing golden means one of two opposite things. Either this " +
+        'host\u2019s workspace build is stale \u2014 run `npm run build` at the repo ' +
+        'root and try again, which is the case `ADR-0099`\u2019s addendum records ' +
+        '\u2014 or a formatter changed and its golden was not committed, in which ' +
+        'case `UPDATE_ASSEMBLY_GOLDENS=1 npx vitest run ' +
+        'src/session/session.assembly.spec.ts` is right and the diff belongs ' +
+        'in review.\n'
+      : '') +
+    (missing.length > 0
+      ? 'A missing golden has never been committed; generate it the same ' +
+        'way.\n'
+      : '') +
+    'This preflight is not skippable: --skip-preflight covers the rules ' +
+    'index, not the truth of the run label.'
+  );
+}
+
+/**
+ * Refuses a run whose committed assembly goldens no longer match what the code
+ * renders — which means the label about to be written on this run would be
+ * false.
+ *
+ * **The failure this exists for produced a run and nobody could see it.**
+ * `claude-sonnet-5__6717347d__2026-08-21T21-14-59Z` recorded
+ * `harnessVersion 1458aaf` with `assemblyHash 8e332e38`; that commit produces
+ * `6dc28608` against a current workspace build. The eval host was running a
+ * `@uv/game-systems` `dist` built before `revealed` existed on `EntitySchema`,
+ * and `ASSEMBLY_PROBE.campaignStateData` is built with
+ * `MothershipCampaignStateSchema.parse`, so Zod stripped the unknown key and
+ * the probe rendered `undiscovered` for entities carrying `revealed: true`.
+ *
+ * Nothing the Warden read was wrong — the probe feeds the hash and the goldens
+ * and is never sent — so the measurement stands and only its label is false.
+ * That is what makes it worth refusing rather than warning: a wrong number
+ * gets noticed, and a wrong label does not (`ADR-0099`, addendum).
+ *
+ * **Not skippable, following `assertNoStubCheckers` rather than
+ * `assertRulesIndexPopulated`.** The distinction those two already draw is the
+ * right one. `--skip-preflight` exists for assertions about *the environment*,
+ * which a self-hoster may legitimately know are fine. This one's subject is
+ * whether the identity about to be recorded is true, and there is no state of
+ * the world under which recording a false one is correct.
+ *
+ * The message names both readings deliberately: a failing golden is ambiguous
+ * between a stale build and an uncommitted formatter edit, and the two fixes
+ * are opposite.
+ */
+export function assertAssemblyGoldensCurrent(): void {
+  const mismatches = findAssemblyGoldenMismatches();
+  if (mismatches.length === 0) return;
+  throw new EvalPreflightError(describeAssemblyGoldenMismatches(mismatches));
 }

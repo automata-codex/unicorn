@@ -6,6 +6,7 @@ import { runCheck } from '../eval/checks/run-check';
 import { computeCorpusVersion } from '../eval/corpus-version';
 import { loadFixtures } from '../eval/fixture-loader';
 import {
+  assertAssemblyGoldensCurrent,
   assertNoStubCheckers,
   assertRulesIndexPopulated,
 } from '../eval/preflight';
@@ -209,6 +210,15 @@ export async function runEval(
   // each row carries the corpus as it stood for *that* rep, since reps may
   // be appended weeks apart against a changed fixture corpus.
   const corpusVersion = await computeCorpusVersion(args.fixturesDir);
+
+  // Before the hash is taken, and before the run directory exists: a stale
+  // workspace build renders surfaces this commit does not, and the value
+  // below would then label the run with a hash no commit produces
+  // (`ADR-0099`, addendum). Not routed through `deps.assertPreflight` and not
+  // covered by `--skip-preflight`, for the reason `assertNoStubCheckers`
+  // gives — the subject is the repo and the label, not the environment.
+  assertAssemblyGoldensCurrent();
+
   const assemblyHash = computeAssemblyHash();
 
   let runDir: string;

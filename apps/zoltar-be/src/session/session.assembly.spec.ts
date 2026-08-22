@@ -7,6 +7,7 @@ import {
   ASSEMBLY_GOLDEN_FILES,
   ASSEMBLY_PROBE,
   computeAssemblyHash,
+  findAssemblyGoldenMismatches,
   renderAssemblySurfaces,
   serializeAssemblySurfaces,
 } from './session.assembly';
@@ -44,6 +45,16 @@ describe('assembly goldens', () => {
       expect(rendered).toBe(readFileSync(path, 'utf8'));
     });
   }
+});
+
+describe('findAssemblyGoldenMismatches', () => {
+  // `eval:run` refuses to start on a non-empty result (`eval/preflight.ts`),
+  // so this is the function a run's identity depends on. The per-file
+  // assertions above stay: they produce the text diff, which this cannot.
+  it('is empty when every golden matches', () => {
+    if (UPDATE) return;
+    expect(findAssemblyGoldenMismatches()).toEqual([]);
+  });
 });
 
 describe('the probe exercises every section', () => {
