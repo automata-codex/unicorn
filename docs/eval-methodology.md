@@ -638,6 +638,21 @@ six sit in runs actively used as comparison points (the 2026-08-21 baseline abov
 `6717347d` run, whose `HIDDEN-INFO-LEAK` is therefore 1.00 rather than 0.95). Neither number moves
 until those runs are re-scored, which is judge spend.
 
+**The six, by path**, relative to `$ZOLTAR_EVAL_ROOT/eval-runs/`, so acting on them needs no
+re-scan. All six are `verdict: fail` under a rationale concluding the opposite:
+
+```
+claude-sonnet-5__fa4e6e2f__2026-08-21T11-05-26Z/reps/003/5c34991b-turn10-roll-result-inversion/judge-roll-result-inversion.json
+claude-sonnet-5__6717347d__2026-08-21T21-14-59Z/reps/007/turn24-hidden-info-leak/judge-hidden-info-leak.json
+claude-sonnet-5__97feadbd__2026-07-29T15-40-17Z/reps/007/turn24-over-resolution/judge-over-resolution.json
+claude-sonnet-5__97feadbd__2026-07-29T15-40-17Z/reps/008/turn24-over-resolution/judge-over-resolution.json
+claude-sonnet-5__97feadbd__2026-07-29T15-40-17Z/rescore/2026-08-09T20-50-55Z/007/turn24-over-resolution/judge-over-resolution.json
+claude-sonnet-4-6__97feadbd__2026-07-29T10-51-26Z/rescore/2026-08-09T20-51-01Z/005/turn24-over-resolution/judge-over-resolution.json
+```
+
+The first two are the ones that matter — they sit in runs still used as comparison points. The
+other four are `97feadbd`-era history and affect no live comparison.
+
 **Detecting it needs a direct read, not a classifier.** A per-check Naive Bayes over rationale text
 found five of the six, and missed one of `OVER-RESOLUTION`'s four for a structural reason worth
 knowing: a check whose failures are frequently contradictions teaches the model to read pass-language
