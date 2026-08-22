@@ -131,6 +131,15 @@ check because someone authored it there, so it can go wrong again the same way.
 - Full corpus (22 fixtures), 10 reps, **four errored turns** — not zero, and all four attributed
   before any number was read. Closeout and category calls in `docs/roadmap.md § M7.7`
 
+**Correction, 2026-08-21: this run's `ROLL-RESULT-INVERSION` is 1.00, not the 0.90 its report
+renders.** Its single failure is a judge contradicting its own rationale — the text closes on
+*"Marking as passed (no violation)."* under `verdict: fail` (rep 003,
+`5c34991b-turn10-roll-result-inversion`). The tag has one other failure in the whole corpus and
+that one is genuine, so this is 1 of 2. **Anything compared against this baseline on that tag must
+use 1.00**, and the first comparison to hit it already went wrong: spec 019's `eval:compare` listed
+`ROLL-RESULT-INVERSION` under *Unchanged* at 0.90 → 0.90, when the truth is 1.00 → 0.90. See
+`§ Before trusting any judged rate from this corpus` and `docs/roadmap.md § M7.7`.
+
 **Superseded `claude-sonnet-5__ccac7d1c__2026-08-18T11-48-47Z` (corpus `1c2a418cf68c`).** That run
 stays the correct comparison point for anything measured before 018's snapshot and tool-schema
 changes. It is not the current baseline.
@@ -606,6 +615,41 @@ fixture, which asks about a detail neither model reproduces and therefore grades
 that is fixture work, not a checker change.
 
 ### Before trusting any judged rate from this corpus
+
+**A judged `fail` does not always mean the rationale agreed.** A scan of all 1,341 `judge-*.json`
+on disk (2026-08-21, 940 pass / 401 fail, 15 runs) found **six verdicts that contradict their own
+rationale** — every one a `fail` under a rationale arguing the turn was fine. The converse scan
+over all 940 passes found none, and that asymmetry has a cause: `judgeVerdictSchema`
+(`eval/checks/judged/judge.ts:41`) is `{ passed, rationale }` with `passed` **first**, and the tool
+call is forced, so the boolean is emitted before any reasoning exists and cannot be retracted once
+the rationale talks its way out of it.
+
+It is concentrated rather than spread, so a corpus-wide error bar understates the affected checks:
+
+| Check | Contradictions | of failures |
+|---|---|---|
+| `OVER-RESOLUTION` | 4 | 22 — **18%** |
+| `ROLL-RESULT-INVERSION` | 1 | 2 |
+| `HIDDEN-INFO-LEAK` | 1 | 38 |
+
+**What this means in practice.** A failure rate on `OVER-RESOLUTION` is a ceiling, not a
+measurement — roughly a fifth of its recorded failures are the grader, not the Warden. Two of the
+six sit in runs actively used as comparison points (the 2026-08-21 baseline above, and spec 019's
+`6717347d` run, whose `HIDDEN-INFO-LEAK` is therefore 1.00 rather than 0.95). Neither number moves
+until those runs are re-scored, which is judge spend.
+
+**Detecting it needs a direct read, not a classifier.** A per-check Naive Bayes over rationale text
+found five of the six, and missed one of `OVER-RESOLUTION`'s four for a structural reason worth
+knowing: a check whose failures are frequently contradictions teaches the model to read pass-language
+as fail-language. The reliable pass was reading all 401 failure closings.
+
+**Separately, 7 of 1,341 rationales carry leaked tool-call markup** (`</rationale>`, `</invoke>`,
+`<parameter name=`), including one in the `6717347d` run. Their verdicts match their rationales, so
+this corrupts the audit trail rather than the score — but `TOOL-SYNTAX-LEAK` guards
+`submit_gm_response` and nothing guards `judge_verdict` (`ADR-0097` scoped the Warden only).
+
+Fixes for all of the above are tracked in `docs/roadmap.md § M7.7`, sequenced behind `rubricHash`
+covering the judge contract — without that, changing the judge moves no run identity.
 
 `eval:judge-variance` against both new rubrics, per step 1 of the comparison procedure
 above. New rubric, grader stability unverified, and the two structural halves changed what
