@@ -28,7 +28,17 @@ function side(
   };
 }
 
-function baseManifest(overrides: Partial<Manifest> = {}): Manifest {
+function baseManifest(
+  overrides: Partial<Manifest> = {},
+  /**
+   * Recorded on a completed rep, which is where the field lives — the contract
+   * is scoring identity, so it is per-rep rather than run-level. Defaults to a
+   * value for the same reason `assemblyHash` above does: the interesting cases
+   * are two modern runs agreeing or disagreeing, and a run recording nothing
+   * is the deliberate exception. Pass `null` for that.
+   */
+  judgeContractHash: string | null = 'fbbd8e46',
+): Manifest {
   return {
     schemaVersion: 1,
     runId: 'claude-sonnet-4-6__aaaaaaaa__2026-07-26T14-32-10Z',
@@ -39,7 +49,19 @@ function baseManifest(overrides: Partial<Manifest> = {}): Manifest {
     assemblyHash: '0bb41002',
     createdAt: '2026-07-26T14:32:10.000Z',
     plannedReps: 10,
-    completedReps: [],
+    completedReps: judgeContractHash
+      ? [
+          {
+            index: 1,
+            harnessVersion: 'abc1234',
+            rubricHashes: {},
+            judgeContractHash,
+            fixtureIds: ['turn24-over-resolution'],
+            startedAt: '2026-07-26T14:33:00.000Z',
+            completedAt: '2026-07-26T14:35:00.000Z',
+          },
+        ]
+      : [],
     ...overrides,
   };
 }
@@ -124,6 +146,39 @@ describe('renderCompareReport', () => {
     );
     expect(report).toContain('does not record');
     expect(report).not.toContain('Assembly hashes differ');
+  });
+
+  it('warns when the two sides were graded by different judge contracts', () => {
+    const report = renderCompareReport(
+      side(baseManifest({}, 'fbbd8e46')),
+      side(baseManifest({}, '9c1d40ab')),
+      [],
+    );
+    expect(report).toContain('Judge contracts differ');
+    expect(report).toContain('fbbd8e46');
+    expect(report).toContain('9c1d40ab');
+  });
+
+  it('reports a missing judgeContractHash as unknown rather than matching', () => {
+    // Every run on disk predates the field. Rendering absent as agreement is
+    // the failure the field exists to prevent, arriving through the back door.
+    const report = renderCompareReport(
+      side(baseManifest({}, 'fbbd8e46')),
+      side(baseManifest({}, null)),
+      [],
+    );
+    expect(report).toContain('does not record a judgeContractHash');
+    expect(report).toContain('unknown rather than');
+  });
+
+  it('does not warn when both sides carry the same judge contract', () => {
+    const report = renderCompareReport(
+      side(baseManifest({}, 'fbbd8e46')),
+      side(baseManifest({}, 'fbbd8e46')),
+      [],
+    );
+    expect(report).not.toContain('Judge contracts differ');
+    expect(report).toContain('- Judge contract: fbbd8e46');
   });
 
   it('does not warn when both sides share the same corpusVersion', () => {

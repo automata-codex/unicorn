@@ -262,6 +262,14 @@ export interface MixedRubricCheck {
 
 export interface HeterogeneityInfo {
   mixedRubricChecks: MixedRubricCheck[];
+  /**
+   * Every distinct judge contract the side's judged rows were graded under.
+   * More than one means the judge itself changed partway through, which is a
+   * **run-level** condition rather than a per-check one — unlike a rubric, the
+   * contract is shared by every judged check in the process, so there is no
+   * "every other check is unaffected" consolation to offer.
+   */
+  judgeContractHashes: string[];
   harnessVersions: string[];
   /** One entry per heterogeneous dimension, each naming the exact
    * `--filter-rubric`/`--filter-harness` invocation that would reduce this
@@ -327,6 +335,17 @@ export function detectHeterogeneity(
     ...new Set(graded.map((r) => r.harnessVersion)),
   ].sort();
 
+  // Judged rows only. A structural row carries no contract because no judge
+  // graded it, and folding those in as a distinct empty value would report
+  // every mixed-mode run as spanning two contracts.
+  const judgeContractHashes = [
+    ...new Set(
+      graded
+        .map((r) => r.judgeContractHash)
+        .filter((h): h is string => h !== undefined),
+    ),
+  ].sort();
+
   const warnings: string[] = [];
   for (const mixed of mixedRubricChecks) {
     warnings.push(
@@ -337,6 +356,17 @@ export function detectHeterogeneity(
         `to one with --filter-rubric ${mixed.checkId}=${mixed.hashes[0]}`,
     );
   }
+  if (judgeContractHashes.length > 1) {
+    warnings.push(
+      `${label} spans ${judgeContractHashes.length} judge contracts ` +
+        `(${judgeContractHashes.join(', ')}) — the tool schema, judge system ` +
+        `prompt, closing instruction or judge model changed partway through, ` +
+        `so every judged check in this run was graded two different ways. ` +
+        `There is no per-check filter for this: unlike a rubric, the contract ` +
+        `is shared by all of them. Re-score the run under one contract, or ` +
+        `read its judged rates as spanning a grader change`,
+    );
+  }
   if (harnessVersions.length > 1) {
     warnings.push(
       `${label} spans multiple harness versions (${harnessVersions.join(', ')}) — ` +
@@ -344,7 +374,12 @@ export function detectHeterogeneity(
     );
   }
 
-  return { mixedRubricChecks, harnessVersions, warnings };
+  return {
+    mixedRubricChecks,
+    judgeContractHashes,
+    harnessVersions,
+    warnings,
+  };
 }
 
 export interface ApplyFiltersOptions {
