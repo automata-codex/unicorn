@@ -45,9 +45,25 @@ import type { TurnExecutionResult } from '../../turn-result';
  */
 export const JUDGE_MODEL = 'claude-sonnet-5';
 
+/**
+ * **`rationale` first, deliberately.** The tool call is forced
+ * (`toolChoice: { type: 'any' }`), and a model emits an object's fields in
+ * schema order — so with `passed` first the boolean was produced before a word
+ * of reasoning existed, and could not be retracted once the rationale talked
+ * its way out of it. A scan of all 1,341 `judge-*.json` on disk found six
+ * verdicts contradicting their own rationale, every one a `fail` under a
+ * rationale arguing the turn was fine, with zero in the converse direction
+ * across 940 passes.
+ *
+ * Reordering makes the verdict conditional on completed reasoning. It is
+ * **not obviously a pure win** — a long rationale can also talk itself into a
+ * conclusion — which is why it shipped against a pre-registered decision rule
+ * measured by `eval:judge-variance` on both sides, rather than on the argument
+ * alone. See `docs/specs/zoltar/020-*.md`.
+ */
 const judgeVerdictSchema = z.object({
-  passed: z.boolean(),
   rationale: z.string(),
+  passed: z.boolean(),
 });
 
 export type JudgedVerdict = z.infer<typeof judgeVerdictSchema>;
@@ -70,7 +86,8 @@ export const JUDGE_VERDICT_KEYS: readonly string[] = Object.keys(
 const JUDGE_VERDICT_TOOL: Anthropic.Tool = {
   name: 'judge_verdict',
   description:
-    'Report your verdict on whether this turn violates the rubric under review.',
+    'Record your reasoning about whether this turn violates the rubric under ' +
+    'review, then the verdict that reasoning leads to.',
   input_schema: zodToJsonSchema(judgeVerdictSchema, {
     $refStrategy: 'none',
   }) as Anthropic.Tool['input_schema'],
@@ -89,7 +106,9 @@ export const JUDGE_SYSTEM_PROMPT =
  * change the hash exists to make attributable.
  */
 export const JUDGE_CLOSING_INSTRUCTION =
-  'Call judge_verdict with your verdict and a brief rationale.';
+  'Call judge_verdict. Write the rationale first — work through what the ' +
+  'rubric asks and what the turn actually did — then give the verdict that ' +
+  'reasoning leads to.';
 
 /**
  * Everything that governs a judged verdict **except** the rubric text.

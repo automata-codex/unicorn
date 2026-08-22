@@ -77,15 +77,20 @@ describe('serializeJudgeContract', () => {
     expect(rendered).toContain('"name": "judge_verdict"');
   });
 
-  it('preserves the schema field order the hash exists to see', () => {
-    // Not incidental. The whole reason this hash was built is that swapping
-    // `passed` and `rationale` changes how every judged tag is graded, and a
-    // serialization that normalized key order would hide exactly that.
+  it('renders rationale before passed, which is the contract not a detail', () => {
+    // Not incidental, and this assertion has already earned its place: it is
+    // the test that failed when the swap landed. The forced tool call makes a
+    // model emit fields in schema order, so this ordering is what makes the
+    // verdict conditional on completed reasoning rather than narration of a
+    // verdict already spent. A serialization that normalized key order would
+    // hide the one thing this hash exists to see.
     const rendered = serializeJudgeContract();
-    expect(rendered.indexOf('"passed"')).toBeLessThan(
-      rendered.indexOf('"rationale"'),
+    expect(rendered.indexOf('"rationale"')).toBeLessThan(
+      rendered.indexOf('"passed"'),
     );
-    expect(rendered).toContain('"required": [\n      "passed",\n      "rationale"\n    ]');
+    expect(rendered).toContain(
+      '"required": [\n      "rationale",\n      "passed"\n    ]',
+    );
   });
 
   it('labels its sections, so moving text between two of them moves the hash', () => {
