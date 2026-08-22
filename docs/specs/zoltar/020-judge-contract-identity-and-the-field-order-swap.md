@@ -211,6 +211,89 @@ Written before any number is seen.
 
 ---
 
+---
+
+## Part 7 — the before side, measured 2026-08-22
+
+`claude-sonnet-5__6717347d__2026-08-21T21-14-59Z`, contract **`fbbd8e46`**,
+`judge-variance/2026-08-22T14-33-11Z.jsonl`. 114 judge calls.
+
+**38 frozen inputs, not the 40 predicted.** `turn24-over-resolution` reps 007
+and 010 carry no `warden-output.json` — those turns errored during the original
+run — so that check contributed 8 inputs rather than 10. `gatedInputs` is **0**
+as predicted; none of the three checks carries a `judgeGate`.
+
+### Flip rate: 0% on all three
+
+| Check | Rubric | Flipped |
+|---|---|---|
+| `hidden-info-leak` | `4cf7fda1` | 0 of 20 |
+| `over-resolution` | `e659c2d1` | 0 of 8 |
+| `roll-result-inversion` | `4dad5cc5` | 0 of 10 |
+
+Every frozen input produced three identical verdicts. The grader is perfectly
+stable on this set.
+
+### Contradictions: 2 of 6 failures
+
+Six `fail` trials in 114. Read by hand, per `§ Predictions`:
+
+- **`roll-result-inversion`, rep 004 — 2 of 3 trials contradict.** Trial 1
+  closes *"I conclude there is insufficient information to confirm an
+  inversion, so this does not fail the rubric on the stated criteria"* under
+  `verdict: fail`. Trial 2 closes *"there is nothing confirmable as
+  inverted"*, also under `fail`. Trial 3 concludes an inversion did occur and
+  is consistent.
+- **`turn24-hidden-info-leak`, rep 007 — 0 of 3 contradict.** All three argue
+  the narration leaks Beta's and Gamma's raw roll totals (43, 73) and fail on
+  that basis.
+- **`over-resolution` produced no failures at all** in 24 trials.
+
+### Three findings, and the first is the one that matters
+
+**1. Flip rate is blind to the defect, demonstrated rather than argued.** 0%
+flip alongside a 33% contradiction rate among failures is the spec's central
+claim made concrete: a grader that stably produces the same
+wrong-relative-to-its-own-reasoning answer scores perfectly on the metric
+`eval:judge-variance` was built to report. **This is why the decision rule puts
+contradictions first and does not require the flip rate to improve.** Had Part
+6 not landed, this run would have reported three zeros and nothing else.
+
+**2. Contradiction is per-trial, not a property of the input.** Rep 004's
+*original* artifact is a `fail` whose rationale concludes *"a probable
+inversion reaching the player"* — entirely consistent. Re-graded three times
+under the identical contract, the same input contradicted twice. So the defect
+is not "certain inputs confuse the judge"; it is a per-call coin flip about
+where the reasoning lands after the boolean is already spent. That is what the
+field-order hypothesis predicts, and it means a contradiction rate is a rate
+rather than a fixed set of bad artifacts.
+
+**3. A recorded data correction is now in doubt, and it should not be acted on
+further until Part 9.** `docs/eval-methodology.md` holds that spec 019's
+`HIDDEN-INFO-LEAK` is truly **1.00 rather than 0.95**, because its single
+failure — rep 007 — is one of the six confirmed contradictions. The recorded
+artifact is a contradiction; that stands, and its closing (*"does not leak
+information from beyond her perception boundary"*) is unambiguous. But all
+three re-grades reach `fail` on grounds the original rationale never
+considered: the narration states raw roll totals, which the rubric prohibits
+independently of the perception boundary. **The verdict may be substantively
+correct even though the rationale accompanying it was unusable.** The
+correction was reasoned from "the rationale says no violation, so the failure
+is the grader" — and on this evidence that inference does not hold for this
+artifact. Do not revise `eval-methodology.md` on the strength of one
+re-grade set; revisit in Part 11 with the after-side data.
+
+### What this side does not establish
+
+- **Nothing about `over-resolution`, the check the contradictions historically
+  concentrate in** (4 of 22 failures, 18%). It produced zero failures here, and
+  two of its ten inputs do not exist. The before side is therefore silent on
+  the check that motivated the fixture selection.
+- **A contradiction rate with any precision.** Two events in six failures. The
+  useful comparison in Part 9 is order-of-magnitude — several versus none —
+  not a difference in proportion.
+
+
 ## What the swap costs, and why the corrections stay in prose
 
 **Part 3 makes every judged rate in the corpus non-comparable to any produced after it**, unless re-scored. That is not a side effect to minimise — it is the honest consequence of changing a grader, and Part 2 exists so it is visible in `eval:compare` rather than silent.
