@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
+import { findRationaleToolSyntax } from '../eval/checks/judged/judge';
 import { rubricTextFor, selectChecksForFixture } from '../eval/checks/registry';
 import { runCheck } from '../eval/checks/run-check';
 import { computeCorpusVersion } from '../eval/corpus-version';
@@ -565,6 +566,7 @@ async function runFixtureAndScore(
         rationale: observation.detail,
         rubricHash: observation.rubricHash ?? '',
         judgeContractHash: observation.judgeContractHash,
+        rationaleToolSyntax: findRationaleToolSyntax(observation.detail),
       });
       artifactPath = relativeArtifactPath(
         runDir,

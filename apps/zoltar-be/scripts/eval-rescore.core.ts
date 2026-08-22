@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs';
 
+import { findRationaleToolSyntax } from '../eval/checks/judged/judge';
 import { selectChecksForFixture } from '../eval/checks/registry';
 import { runCheck } from '../eval/checks/run-check';
 import { computeCorpusVersion } from '../eval/corpus-version';
@@ -301,6 +302,7 @@ export async function runRescore(
             rationale: observation.detail,
             rubricHash: observation.rubricHash ?? '',
             judgeContractHash: observation.judgeContractHash,
+            rationaleToolSyntax: findRationaleToolSyntax(observation.detail),
             judgeContext: check.judgeContext?.(turnResult, fixture),
           });
           artifactPath = relativeArtifactPath(args.runDir, path);

@@ -162,3 +162,24 @@ describe('messages', () => {
     expect(text).toContain('separate tool parameters');
   });
 });
+
+describe('findToolCallSyntax with a caller-supplied property-name set', () => {
+  it('detects a tag built from a supplied name', () => {
+    expect(
+      findToolCallSyntax('text</rationale>', ['passed', 'rationale']),
+    ).not.toBeNull();
+  });
+
+  it('leaves the Warden path unchanged when no set is passed', () => {
+    // The default is SUBMIT_GM_RESPONSE_KEYS, so a judge_verdict property
+    // name is not markup as far as the Warden detector is concerned. This is
+    // the assertion that the parameterisation did not widen the Warden's
+    // token set by accident.
+    expect(findToolCallSyntax('text</rationale>')).toBeNull();
+    expect(findToolCallSyntax('text</playerText>')).not.toBeNull();
+  });
+
+  it('still matches the canonical elements regardless of the set', () => {
+    expect(findToolCallSyntax('text</invoke>', ['passed'])).not.toBeNull();
+  });
+});

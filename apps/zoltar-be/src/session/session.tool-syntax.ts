@@ -72,7 +72,24 @@ function tagPattern(names: readonly string[]): RegExp {
 }
 
 const TOOL_CALL_TAGS = tagPattern(TOOL_CALL_ELEMENTS);
-const PROPERTY_NAME_TAGS = tagPattern(SUBMIT_GM_RESPONSE_KEYS);
+
+/**
+ * Compiled property-name patterns, one per distinct key set. Cached because
+ * `findToolCallSyntax` is called once per graded turn and once per judge
+ * rationale, and there are exactly two key sets in practice — recompiling a
+ * `RegExp` on every call to support that would be silly.
+ */
+const propertyNamePatterns = new Map<string, RegExp>();
+
+function propertyNameTags(names: readonly string[]): RegExp {
+  const key = names.join('|');
+  let pattern = propertyNamePatterns.get(key);
+  if (!pattern) {
+    pattern = tagPattern(names);
+    propertyNamePatterns.set(key, pattern);
+  }
+  return pattern;
+}
 
 export interface ToolCallSyntaxFinding {
   /** Payload field the markup was found in — always `playerText` today. */
@@ -98,9 +115,22 @@ const MAX_REPORTED_TOKENS = 6;
  */
 export function findToolCallSyntax(
   text: string,
+  /**
+   * Property names whose tag form counts as leaked markup — the schema half
+   * of the token set. Defaults to `submit_gm_response`'s, so the Warden path
+   * is unchanged by construction.
+   *
+   * **Parameterised for the judge, and it is not a formality.** 7 of 1,341
+   * rationales on disk carry leaked markup, and `</rationale>` is a
+   * `judge_verdict` property name: against the default set the canonical
+   * elements would catch `</invoke>` and `<parameter name=` and miss it
+   * entirely. One implementation stays one implementation — this is a
+   * signature change, not a second detector.
+   */
+  propertyNames: readonly string[] = SUBMIT_GM_RESPONSE_KEYS,
 ): Omit<ToolCallSyntaxFinding, 'field'> | null {
   const matches: { token: string; index: number }[] = [];
-  for (const pattern of [TOOL_CALL_TAGS, PROPERTY_NAME_TAGS]) {
+  for (const pattern of [TOOL_CALL_TAGS, propertyNameTags(propertyNames)]) {
     // `lastIndex` is per-RegExp state and these are module-level constants,
     // so reset before scanning rather than trusting the previous caller.
     pattern.lastIndex = 0;

@@ -3,6 +3,10 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
+import {
+  describeToolCallSyntax,
+  findToolCallSyntax,
+} from '../../../src/session/session.tool-syntax';
 import { hashPromptText } from '../../../src/wardens/prompt-paths';
 import { getWinningResponseEvent } from '../../turn-result';
 
@@ -47,6 +51,21 @@ const judgeVerdictSchema = z.object({
 });
 
 export type JudgedVerdict = z.infer<typeof judgeVerdictSchema>;
+
+/**
+ * Top-level property names on `judge_verdict`, read off the schema rather
+ * than re-listed by hand — the same construction `SUBMIT_GM_RESPONSE_KEYS`
+ * uses, and for the same reason: a field added to the tool automatically
+ * becomes a detectable leaked tag.
+ *
+ * `ADR-0097` scoped tool-syntax leak detection to the Warden, and the judge
+ * leaks too — 7 of 1,341 rationales on disk carry `</rationale>`, `</invoke>`
+ * or `<parameter name=`. The canonical element names are shared; this is the
+ * half that is not, and without it `</rationale>` goes undetected.
+ */
+export const JUDGE_VERDICT_KEYS: readonly string[] = Object.keys(
+  judgeVerdictSchema.shape,
+);
 
 const JUDGE_VERDICT_TOOL: Anthropic.Tool = {
   name: 'judge_verdict',
@@ -285,4 +304,25 @@ export async function runJudgeCall(
   });
 
   return extractToolResult(message, 'judge_verdict', judgeVerdictSchema);
+}
+
+/**
+ * A one-line description of any tool-call markup leaked into a judge
+ * rationale, or `undefined` when it is clean.
+ *
+ * Points the Warden's detector at the judge, which `ADR-0097` explicitly did
+ * not cover. Same implementation, different property-name set — see
+ * `JUDGE_VERDICT_KEYS`.
+ *
+ * Returns rather than throws, and callers record rather than fail: the seven
+ * known cases all carry verdicts consistent with their rationales, so this
+ * corrupts what a reader can audit rather than what the run measured.
+ */
+export function findRationaleToolSyntax(
+  rationale: string,
+): string | undefined {
+  const found = findToolCallSyntax(rationale, JUDGE_VERDICT_KEYS);
+  return found
+    ? describeToolCallSyntax({ field: 'rationale', ...found })
+    : undefined;
 }
