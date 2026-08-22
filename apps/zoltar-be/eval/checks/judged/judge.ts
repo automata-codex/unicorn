@@ -1,6 +1,9 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
+import { hashPromptText } from '../../../src/wardens/prompt-paths';
 import { getWinningResponseEvent } from '../../turn-result';
 
 import { judgeRubrics } from './rubrics';
@@ -53,6 +56,111 @@ const JUDGE_VERDICT_TOOL: Anthropic.Tool = {
     $refStrategy: 'none',
   }) as Anthropic.Tool['input_schema'],
 };
+
+export const JUDGE_SYSTEM_PROMPT =
+  'You are grading a single turn from a tabletop RPG "Game Master" AI ' +
+  '(the Warden) against a fixed rubric, as part of a scripted ' +
+  'regression eval harness. Be precise and literal — grade only what ' +
+  'the rubric asks, not general narrative quality.';
+
+/**
+ * The last line of every judge prompt. Named rather than inlined because it
+ * is part of the contract `judgeContractHash` covers: it states the order the
+ * model is asked to work in, and that order is the subject of the field-order
+ * change the hash exists to make attributable.
+ */
+export const JUDGE_CLOSING_INSTRUCTION =
+  'Call judge_verdict with your verdict and a brief rationale.';
+
+/**
+ * Everything that governs a judged verdict **except** the rubric text.
+ *
+ * ## Why this is not folded into `rubricHash`
+ *
+ * `rubricHashFor` (`eval/checks/registry.ts`) hashes the rubric template and
+ * nothing else, so the tool schema, the system prompt, the closing
+ * instruction and the model all sit outside any recorded identity. Reordering
+ * `judge_verdict`'s fields would change how every judged tag is graded and
+ * move nothing: `manifest.completedReps[].rubricHashes` unchanged,
+ * `eval:compare --filter-rubric CHECK=HASH` still matching, and the "graded by
+ * different checker code" warning silent. A before/after boundary that reads
+ * as like-for-like and is not.
+ *
+ * Widening `rubricHash` was rejected for the reason `ADR-0099` rejected
+ * widening `promptHash`, and the case here is stronger. Rubric hashes are not
+ * merely quoted in prose — they are **filenames on disk**
+ * (`rubrics/<hash>.txt`, `eval/runs/paths.ts`) and the right-hand side of
+ * `--filter-rubric CHECK=HASH`. Redefining what the token covers would
+ * reinterpret every recorded value in hindsight and rename every artifact
+ * carrying one.
+ *
+ * `ADR-0099`'s rule settles which mechanism each half gets: **hash the file
+ * when the thing is a file, use a golden when what you care about is what
+ * code produces.** A rubric template is authored text and its content is its
+ * identity — `rubricHash`, unchanged. The tool schema, the system prompt and
+ * the closing instruction are assembled here, so they get the `assemblyHash`
+ * treatment: a live hash over a render, with a committed golden that makes an
+ * edit arrive in review as a diff of the text the judge actually receives.
+ *
+ * `JUDGE_MODEL` is in the hash despite being neither a file nor a rendered
+ * surface. It is the single largest determinant of a verdict, and a run graded
+ * by a different model is not comparable to one that was not.
+ */
+export function serializeJudgeContract(): string {
+  return (
+    `# model\n${JUDGE_MODEL}\n\n` +
+    `# system\n${JUDGE_SYSTEM_PROMPT}\n\n` +
+    `# closingInstruction\n${JUDGE_CLOSING_INSTRUCTION}\n\n` +
+    // Pretty-printed for the reason the tools golden is: `properties` and
+    // `required` both preserve the Zod shape's declaration order, so a
+    // reordered field reads as a moved line rather than a changed
+    // 800-character one. Field order is what this hash exists to see.
+    `# tool\n${JSON.stringify(JUDGE_VERDICT_TOOL, null, 2)}\n`
+  );
+}
+
+/**
+ * 8 hex chars, same convention as `promptHash` and `assemblyHash` so all three
+ * read alike in a manifest. Computed live from the render, never read from the
+ * golden, so it cannot go stale relative to the code.
+ */
+export function computeJudgeContractHash(): string {
+  return hashPromptText(serializeJudgeContract());
+}
+
+/**
+ * Where the golden lives. `.txt`, not `.json`, and the extension is the whole
+ * mechanism: biome does not handle `.txt` at all, so a golden is safe wherever
+ * it sits — with no `biome.json` exclusion to maintain and no promise that can
+ * lapse when a sixth golden is added (`ADR-0099`).
+ *
+ * Resolved from `__dirname`, which is fine because the only readers are the
+ * spec and CLIs running from source — the hash itself never reads it.
+ */
+export const JUDGE_CONTRACT_GOLDEN_PATH = join(
+  __dirname,
+  'judge-contract-golden.txt',
+);
+
+/**
+ * `'missing'`, `'differs'`, or `null` when the committed golden matches.
+ *
+ * Same role as `findAssemblyGoldenMismatches`, called from the same preflight.
+ * A stale build renders a judge contract no commit corresponds to as readily
+ * as it renders an assembly surface — more so, since `input_schema` comes out
+ * of `zodToJsonSchema` and therefore moves with a dependency version rather
+ * than with our source.
+ */
+export function findJudgeContractGoldenMismatch(
+  /** Overridable so the failure paths can be tested against a temp file
+   * rather than by mocking something this repo owns. */
+  path: string = JUDGE_CONTRACT_GOLDEN_PATH,
+): 'missing' | 'differs' | null {
+  if (!existsSync(path)) return 'missing';
+  return readFileSync(path, 'utf8') === serializeJudgeContract()
+    ? null
+    : 'differs';
+}
 
 export class JudgeOutputError extends Error {
   constructor(message: string) {
@@ -166,15 +274,11 @@ export async function runJudgeCall(
     `--- This turn's narration (playerText) ---\n${extractPlayerText(result)}\n\n` +
     `--- This turn's tool-call sequence ---\n${summarizeGameEvents(result)}\n\n` +
     (extraContext ? `--- Scope of this check ---\n${extraContext}\n\n` : '') +
-    'Call judge_verdict with your verdict and a brief rationale.';
+    JUDGE_CLOSING_INSTRUCTION;
 
   const message = await anthropic.callMessages({
     model: JUDGE_MODEL,
-    system:
-      'You are grading a single turn from a tabletop RPG "Game Master" AI ' +
-      '(the Warden) against a fixed rubric, as part of a scripted ' +
-      'regression eval harness. Be precise and literal — grade only what ' +
-      'the rubric asks, not general narrative quality.',
+    system: JUDGE_SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
     tools: [JUDGE_VERDICT_TOOL],
     toolChoice: { type: 'any' },

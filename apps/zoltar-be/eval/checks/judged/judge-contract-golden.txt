@@ -1,0 +1,31 @@
+# model
+claude-sonnet-5
+
+# system
+You are grading a single turn from a tabletop RPG "Game Master" AI (the Warden) against a fixed rubric, as part of a scripted regression eval harness. Be precise and literal — grade only what the rubric asks, not general narrative quality.
+
+# closingInstruction
+Call judge_verdict with your verdict and a brief rationale.
+
+# tool
+{
+  "name": "judge_verdict",
+  "description": "Report your verdict on whether this turn violates the rubric under review.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "passed": {
+        "type": "boolean"
+      },
+      "rationale": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "passed",
+      "rationale"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+}
