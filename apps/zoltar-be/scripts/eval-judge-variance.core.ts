@@ -34,6 +34,27 @@ export const judgeVarianceRowSchema = z.object({
    * discarded, so a stored variance file can be re-read later and still show
    * which rows were graded and which were gated. */
   judgeInvoked: z.boolean().default(true),
+  /**
+   * The judge's own reasoning for this trial.
+   *
+   * **Not decorative, and its absence was a hole.** The flip rate answers
+   * "does the grader agree with itself"; it cannot answer "does the grader
+   * agree with its own stated reasoning", which is a different defect and the
+   * one `docs/eval-methodology.md § Before trusting any judged rate from this
+   * corpus` documents — six verdicts in 1,341 that contradict their own
+   * rationale, every one a `fail` under a rationale arguing the turn was fine.
+   * That is checkable by reading one artifact against itself, and until now
+   * this command threw away the half you need to do it.
+   *
+   * Persisted for passes as well as failures. The 2026-08-21 scan established
+   * the asymmetry by scanning all 940 passes and finding none; keeping only
+   * failures would make that converse check impossible to repeat.
+   *
+   * Defaults to `''` so a variance file written before the field existed still
+   * parses. Empty means the rationale was not recorded, not that there was
+   * none.
+   */
+  rationale: z.string().default(''),
   durationMs: z.number().nonnegative(),
 });
 
@@ -329,6 +350,7 @@ export async function runJudgeVariance(
           trialIndex,
           verdict: observation.verdict,
           judgeInvoked: observation.judgeInvoked,
+          rationale: observation.detail,
           durationMs: observation.durationMs,
         }),
       );

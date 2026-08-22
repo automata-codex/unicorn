@@ -223,6 +223,41 @@ describe('runJudgeVariance', () => {
     expect(summary.headlines[0]).toMatch(/flipped on 1 of 1 frozen inputs/);
   });
 
+  it('persists each trial\'s rationale and the contract it was graded under', async () => {
+    // The flip rate answers "does the grader agree with itself". It cannot
+    // answer "does the grader agree with its own reasoning" — a different
+    // defect, and the one this corpus actually has: six verdicts in 1,341
+    // contradict their own rationale. Reading one artifact against itself is
+    // the only reliable detector, and this command used to discard the half
+    // you need for it.
+    const callMessages = vi
+      .fn()
+      .mockResolvedValueOnce(
+        toolUseMessage({ passed: false, rationale: 'no leak here at all' }),
+      )
+      .mockResolvedValueOnce(
+        toolUseMessage({ passed: true, rationale: 'clean' }),
+      );
+
+    const summary = await runJudgeVariance(
+      { runDir, fixturesDir, trials: 2 },
+      {
+        anthropicService: fakeAnthropic(callMessages),
+        clock: () => new Date('2026-07-26T15:00:00.000Z'),
+      },
+    );
+
+    expect(summary.rows.map((r) => r.rationale)).toEqual([
+      'no leak here at all',
+      'clean',
+    ]);
+    // Both variance files in a before/after study must be distinguishable by
+    // contract from their contents alone, not from filename or ordering.
+    expect(
+      summary.rows.every((r) => /^[0-9a-f]{8}$/.test(r.judgeContractHash)),
+    ).toBe(true);
+  });
+
   it('excludes gate-settled inputs from the flip-rate denominator, and names them', async () => {
     // A `judgeGate` that settles a rep structurally produces a verdict that
     // is deterministic over fixed input by construction. Counting it as a
