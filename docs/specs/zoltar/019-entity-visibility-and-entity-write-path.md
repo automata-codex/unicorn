@@ -1,6 +1,6 @@
 # 019 — Entity visibility, and the entity write path that never got built
 
-**Status:** **Parts 1–9 built 2026-08-21; the re-baseline is not run.** Decision recorded as `ADR-0101`. Plan at `../../plans/019-entity-visibility-and-entity-write-path-implementation-plan.md`. Origin: `docs/hidden-information-findings.md`. `promptHash` `fa4e6e2f` → `6717347d`, `assemblyHash` `3d8df5f3` → `6dc28608`
+**Status:** **executed and closed 2026-08-21.** Parts 1–9 shipped in ten commits (`1626d9d`..`1458aaf`); re-baseline `claude-sonnet-5__6717347d__2026-08-21T21-14-59Z`, **every clause of the pre-registered decision rule passed**. Decision recorded as `ADR-0101`. Plan at `../../plans/019-entity-visibility-and-entity-write-path-implementation-plan.md`. Origin: `docs/hidden-information-findings.md`. `promptHash` `fa4e6e2f` → `6717347d`; `assemblyHash` `3d8df5f3` → `6dc28608`, **but the run recorded `8e332e38`** — see `§ The run`. Closeout in `docs/roadmap.md § M7.7`
 **Target path:** `docs/plans/019-entity-visibility-and-entity-write-path-implementation-plan.md`
 **Type:** ephemeral implementation spec (archive after execution; the living record is `docs/decisions/` and the roadmap)
 
@@ -218,6 +218,81 @@ against that conclusion rather than against this spec.
   across four row shapes and for idempotency; it has not run against the dev
   volume or any deployed database.
 
+## The run
+
+`claude-sonnet-5__6717347d__2026-08-21T21-14-59Z`, 10 reps, 22 fixtures,
+`corpusVersion` **`abbce198026c`** — unchanged, which is `ADR-0101`'s
+no-re-capture guarantee holding in practice: the `revealed` fill happens in
+`seedScratchAdventure`, so no fixture byte moved and no frozen run needs
+re-scoring.
+
+**Every gate clause passed.**
+
+| Clause | Baseline | This run | |
+|---|---|---|---|
+| `HIDDEN-INFO-LEAK` ≥ 0.90 | 1.00 (20/20) | **0.95** (19/20) | pass |
+| `SYSTEM-ROLLED-PLAYER-ACTION` ≥ 0.90 | 0.99 (76/77) | **0.96** (73/76) | pass |
+| `UNSURFACED-CHECK` ≥ 0.90 | 1.00 (10/10) | **1.00** (10/10) | pass |
+| No tag falls > 0.15 | — | worst `SCENE-JUMP` **−0.12** | pass |
+
+Non-gates behaved as predicted: `UNAUDITABLE-MAPPING` unchanged at 0.00, and
+tool-syntax emission **4 abandonments in 220 turns on both sides** — the
+no-change prediction fulfilled, and corroboration for `ADR-0097`'s finding that
+the defect tracks the model rather than the prompt, across a prompt that grew
+by ~30 lines.
+
+**The single `HIDDEN-INFO-LEAK` failure is a judge contradicting itself.** Rep
+007's rationale argues the opposite of its verdict throughout, closing on *"does
+not leak information from beyond her perception boundary"* under
+`"verdict": "fail"`. On that reading the tag did not move at all, and the
+"narrow the `<entities>` block" clause this spec pre-registered never fired.
+Tracked as its own bullet in `roadmap.md § M7.7`; it is not evidence about this
+work either way, which is the point of recording it here rather than counting
+it.
+
+**What did move is `SYSTEM-ROLLED-PLAYER-ACTION`, and four of five regressions
+cluster on `turn24-*`.** Three structural failures against one at baseline
+(reps 005 and 009 on `turn24-hidden-info-leak`, rep 008 on
+`turn24-over-resolution`), all the same shape: the Warden rolling Alvarez's
+Wounds-table roll, Panic check and Death Save timer inside a wounds chain. The
+Panic check at least looks like a genuine violation, since Mothership has the
+player roll those. **A causal link to this work is plausible and unproven** —
+hidden NPCs now render Instinct, skills and disposition, which could invite
+richer off-screen combat that cascades into a wounds chain — but three failures
+against one is a story, not a finding. Worth watching on the next run rather
+than acting on now.
+
+**One positive the corpus was not designed to catch.** The Warden reached for
+`npcState` unprompted and used it for disposition — `"Firing wildly from EVA
+locker cover, missed high, reacquiring"`, `"Reached Deck 1 research wing,
+approaching Lab B corridor undetected so far"` — and wrote no agendas. Part 4a
+behaving as intended on the first run that offered the field, which no check
+scores.
+
+### The recorded run identity is wrong, and the numbers are not
+
+The manifest says `assemblyHash 8e332e38` at `harnessVersion 1458aaf`; that
+commit produces **`6dc28608`**. The eval host ran a `@uv/game-systems` `dist`
+built before `revealed` existed, and `ASSEMBLY_PROBE.campaignStateData` is
+built with `MothershipCampaignStateSchema.parse`, so Zod stripped the unknown
+key. Reproduced exactly — deleting `revealed` from the probe before rendering
+yields `8e332e38` to the character.
+
+**Nothing the Warden read was affected.** The probe feeds the hash and the
+goldens and is never sent; fixtures reach the turn path through a cast rather
+than a parse. The archived `warden-request.json` carries the correct render
+(`alvarez: visible, revealed, …`, `cargo_hold: hidden, undiscovered, …`), the
+fixture-loader backfill worked, and the run's tool definitions are
+byte-identical to the committed `tools.txt`. The measurement stands; the label
+on it does not. `ADR-0099` addendum and `roadmap.md § M7.7`.
+
+### What this run still does not measure
+
+Unchanged from the pre-registration, restated because the report must say so:
+the synthesis-side schema changes (the corpus replays turns, not synthesis, so
+nothing exercises `submit_gm_context`), agenda amendment, `newEntities`, and
+`V20` against real data.
+
 ## Done when
 
 - [x] `renderEntities` emits every entity with its own `visible` value; no caller filters on visibility (Part 1)
@@ -236,7 +311,7 @@ against that conclusion rather than against this spec.
 - [x] Design doc and `CLAUDE.md` claim only what the code does (Part 6)
 - [x] `docs/hidden-information-findings.md` closed against `ADR-0101`
 - [x] Predictions written **before** the run (`§ Predictions`)
-- [ ] One full-corpus re-baseline, with the report stating what it does not measure
+- [x] One full-corpus re-baseline, with the report stating what it does not measure (`§ The run`)
 
 ---
 

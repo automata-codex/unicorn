@@ -2226,6 +2226,19 @@ The manifest field is optional and `schemaVersion` stays at `1`, so the runs alr
 
 **Naming.** `assemblyHash`, not `promptShapeHash`. `buildSessionRequest` is the assembly step and that is exactly what is fingerprinted; a name beginning with `prompt` would read as a variant of `promptHash` when the two are "the file" and "everything else".
 
+**Addendum — `assemblyHash` is a function of the build, not of the commit, and a stale workspace package produces a hash no commit corresponds to.** Recorded 2026-08-21 from the spec 019 re-baseline, `claude-sonnet-5__6717347d__2026-08-21T21-14-59Z`.
+
+That run recorded `harnessVersion 1458aaf` and `assemblyHash 8e332e38`. The same commit produces **`6dc28608`** on a machine with a current workspace build, which is the value spec 019 pre-registered. The gap is `@uv/game-systems`: the eval host was running a `dist` built before `ADR-0101` added `revealed` to `EntitySchema`, and `ASSEMBLY_PROBE.campaignStateData` is constructed with `MothershipCampaignStateSchema.parse` — so Zod stripped the unknown key and the probe rendered `undiscovered` for entities that carry `revealed: true`. Reproduced exactly: deleting `revealed` from the probe's entities before rendering yields `8e332e38` to the character.
+
+**Nothing the Warden read was wrong, which is what makes this worth recording rather than merely fixing.** The probe feeds the hash and the goldens and is never sent; fixtures reach the turn path through a cast (`session.service.ts:282`) rather than a parse, so `revealed` rendered correctly in every request — verified against the archived `warden-request.json`, and the run's tool definitions are byte-identical to the committed `tools.txt`. The measurement stands. What is wrong is the label on it.
+
+**Two holes this exposes.**
+
+- **The hash absorbed a dependency version silently, which is the failure mode this entry exists to prevent, one level out.** `ADR-0099` reasoned about edits to *our* source moving the hash. It did not consider that the same source can render two different surfaces depending on what `node_modules` and the workspace `dist` hold, and a hash that varies with the build cannot serve as run identity — `eval:compare` pairs on it and will call two runs incomparable, or comparable, for reasons no commit explains.
+- **The goldens would have caught it and were not run.** `session.assembly.spec.ts` asserts the rendered surfaces match the committed files; against a stale `@uv/*` build it fails. A green `npm test` on the eval host is therefore a precondition for a run being labelled, and nothing enforces that today.
+
+**Not fixed here.** The obvious candidates — fold resolved `@uv/*` versions into the hash, or have `eval:run` refuse to start unless the assembly goldens pass — are a change with its own design questions, and the entry that records the requirement should not also invent the mechanism. Tracked in `roadmap.md § M7.7`.
+
 ---
 
 ## Monorepo, Tooling & Deployment

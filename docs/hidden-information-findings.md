@@ -1,12 +1,16 @@
 # Hidden Information — Findings
 
-**Status: closed 2026-08-21 by `ADR-0101`, and built the same day.** Spec at
-`docs/specs/zoltar/019-entity-visibility-and-entity-write-path.md`, plan at
+**Status: closed 2026-08-21 by `ADR-0101`, built and measured the same day.**
+Spec at `docs/specs/zoltar/019-entity-visibility-and-entity-write-path.md`,
+plan at
 `docs/plans/019-entity-visibility-and-entity-write-path-implementation-plan.md`,
-Parts 1–9 shipped. **The re-baseline that would measure it has not run** —
-`promptHash` `fa4e6e2f` → `6717347d`, `assemblyHash` `3d8df5f3` →
-`6dc28608`; both moved and neither is exercised. Until it does, everything below is diagnosis and everything in the
-spec is a claim about code rather than about behaviour.
+Parts 1–9 shipped. **Re-baseline
+`claude-sonnet-5__6717347d__2026-08-21T21-14-59Z` passed every clause of its
+pre-registered decision rule** — `HIDDEN-INFO-LEAK` 0.95 (19/20) against a 0.90
+floor, and its single failure is a judge contradicting its own rationale rather
+than a leak. `corpusVersion` unchanged at `abbce198026c`: no fixture was
+re-captured, which was the consequence of question (5) that mattered most.
+Details in the spec's `§ The run`.
 
 What shipped, against what this document originally described: the snapshot no
 longer filters, so the "leak" it opens with is now correct behaviour rather
