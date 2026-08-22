@@ -140,6 +140,24 @@ use 1.00**, and the first comparison to hit it already went wrong: spec 019's `e
 `ROLL-RESULT-INVERSION` under *Unchanged* at 0.90 → 0.90, when the truth is 1.00 → 0.90. See
 `§ Before trusting any judged rate from this corpus` and `docs/roadmap.md § M7.7`.
 
+**Follow-up 2026-08-22: that −0.10 is probably not a real regression.** Spec 020's variance runs located
+spec 019's single `ROLL-RESULT-INVERSION` failure — it is **rep 004**, and that is the same frozen input
+which fails 3/3 under the old judge contract and passes 3/3 under the new one (`ADR-0102`). So both sides
+of the comparison were reading 0.90 for the same reason, and the corrected figure is most likely
+1.00 → 1.00 — genuinely *Unchanged*, arrived at by two wrong numbers rather than one.
+
+**The mechanism differs from the baseline's above and the two should not be blurred.** Rep 004's recorded
+artifact is a **consistent** fail, closing on *"a probable inversion reaching the player"* — it is not a
+contradiction. The input sits on a decision boundary and the field order decided which side of it the
+judge landed on. A contract-dependent verdict and a self-contradicting verdict are different defects with
+the same cause.
+
+**This reopens a re-score option spec 020 declined, on better grounds than it had.** The objection was
+that a re-score under the new contract is not like-for-like with the contract-A numbers it corrects — true
+against history, but re-scoring *both* runs under contract B makes them like-for-like with **each other**,
+which is what a comparison actually needs. Roughly 20 judge calls for this one tag across two runs. Not
+spent.
+
 **Superseded `claude-sonnet-5__ccac7d1c__2026-08-18T11-48-47Z` (corpus `1c2a418cf68c`).** That run
 stays the correct comparison point for anything measured before 018's snapshot and tool-schema
 changes. It is not the current baseline.
@@ -661,7 +679,25 @@ as fail-language. The reliable pass was reading all 401 failure closings.
 **Separately, 7 of 1,341 rationales carry leaked tool-call markup** (`</rationale>`, `</invoke>`,
 `<parameter name=`), including one in the `6717347d` run. Their verdicts match their rationales, so
 this corrupts the audit trail rather than the score — but `TOOL-SYNTAX-LEAK` guards
-`submit_gm_response` and nothing guards `judge_verdict` (`ADR-0097` scoped the Warden only).
+`submit_gm_response` and nothing guarded `judge_verdict` (`ADR-0097` scoped the Warden only).
+
+**Guarded since 2026-08-22** (`ADR-0102`): the Warden's detector is now pointed at judge rationales with
+the `judge_verdict` property names, and re-scanning all 1,341 artifacts finds exactly these seven — the
+confirmation the count above was asserted without. By path, for the reason the six contradictions are
+listed by path, so acting on one needs no re-scan:
+
+```
+claude-sonnet-5__0bdd1306__2026-08-09T14-37-36Z/reps/008/turn24-over-resolution/judge-over-resolution.json
+claude-sonnet-5__0bdd1306__2026-08-09T14-37-36Z/reps/009/turn24-scene-jump/judge-scene-jump.json
+claude-sonnet-5__0bdd1306__2026-08-09T21-23-39Z/reps/009/turn16-narrating-past-a-block/judge-narrating-past-a-block.json
+claude-sonnet-5__6717347d__2026-08-21T21-14-59Z/reps/005/turn24-over-resolution/judge-over-resolution.json
+claude-sonnet-5__c45a142a__2026-08-10T12-18-32Z/reps/002/turn24-over-resolution/judge-over-resolution.json
+claude-sonnet-5__ccac7d1c__2026-08-16T12-38-30Z/reps/008/turn24-hidden-info-leak/judge-hidden-info-leak.json
+claude-sonnet-5__fa4e6e2f__2026-08-20T20-20-01Z/reps/006/5c34991b-turn10-narrating-past-a-block/judge-narrating-past-a-block.json
+```
+
+Detection is recorded on the artifact and never fails the check: all seven carry verdicts consistent with
+their rationales, so failing them would discard a usable grade to punish a cosmetic defect.
 
 **Fixed 2026-08-22 (spec 020, `ADR-0102`), and the corrections above still stand.** `judgeVerdictSchema`
 now emits `rationale` before `passed`, so the verdict is conditioned on completed reasoning rather than
