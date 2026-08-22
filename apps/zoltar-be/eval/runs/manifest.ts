@@ -14,6 +14,23 @@ const completedRepSchema = z.object({
   index: z.number().int().positive(),
   harnessVersion: z.string().min(1),
   rubricHashes: z.record(z.string(), z.string()),
+  /**
+   * The judge contract every judged check in this rep was graded under
+   * (`eval/checks/judged/judge.ts`). One value, not a map: unlike a rubric,
+   * the contract is shared by every judged check in the process.
+   *
+   * Beside `rubricHashes` rather than beside `assemblyHash`, and the
+   * distinction is the point. `assemblyHash` is *input* identity, frozen for a
+   * run and asserted by `assertManifestMatches` because appending reps across
+   * a change would mix two prompts under one run id. This is *scoring*
+   * identity, which is re-doable — `eval:rescore` regrades the same frozen
+   * output under a new contract — so it is recorded per rep and made visible,
+   * exactly as rubric hashes are, rather than asserted.
+   *
+   * Optional: reps written before the field existed do not carry it, and
+   * `schemaVersion` stays at 1.
+   */
+  judgeContractHash: z.string().min(1).optional(),
   fixtureIds: z.array(z.string().min(1)),
   startedAt: z.string(),
   completedAt: z.string(),

@@ -344,6 +344,7 @@ export async function runEval(
       const startedAt = deps.clock().toISOString();
       const attemptedFixtureIds: string[] = [];
       const rubricHashesThisRep: Record<string, string> = {};
+      const judgeContractHashesThisRep = new Set<string>();
 
       for (const [fixtureIndex, fixture] of fixturesForThisRep.entries()) {
         attemptedFixtureIds.push(fixture.id);
@@ -381,6 +382,7 @@ export async function runEval(
             writer,
             rowCounts,
             rubricHashesThisRep,
+            judgeContractHashesThisRep,
           });
         } finally {
           if (!args.keepScratch) {
@@ -409,6 +411,14 @@ export async function runEval(
         index: repIndex,
         harnessVersion,
         rubricHashes: rubricHashesThisRep,
+        // One value per rep, because the contract is process-wide. A rep
+        // whose judged checks somehow disagreed is a bug rather than a
+        // manifest shape to model, so it records as unknown rather than as
+        // one of the two — the rows still carry every value.
+        judgeContractHash:
+          judgeContractHashesThisRep.size === 1
+            ? [...judgeContractHashesThisRep][0]
+            : undefined,
         fixtureIds: attemptedFixtureIds,
         startedAt,
         completedAt: deps.clock().toISOString(),
@@ -453,6 +463,7 @@ interface RunFixtureAndScoreInput {
   writer: ScoreWriter;
   rowCounts: Record<Verdict, number>;
   rubricHashesThisRep: Record<string, string>;
+  judgeContractHashesThisRep: Set<string>;
 }
 
 /**
@@ -482,6 +493,7 @@ async function runFixtureAndScore(
     writer,
     rowCounts,
     rubricHashesThisRep,
+    judgeContractHashesThisRep,
   } = input;
 
   let turnResult;
@@ -552,6 +564,7 @@ async function runFixtureAndScore(
         verdict: observation.verdict,
         rationale: observation.detail,
         rubricHash: observation.rubricHash ?? '',
+        judgeContractHash: observation.judgeContractHash,
       });
       artifactPath = relativeArtifactPath(
         runDir,
@@ -559,6 +572,9 @@ async function runFixtureAndScore(
       );
       if (observation.rubricHash) {
         rubricHashesThisRep[check.id] = observation.rubricHash;
+      }
+      if (observation.judgeContractHash) {
+        judgeContractHashesThisRep.add(observation.judgeContractHash);
       }
     } else {
       artifactPath = relativeArtifactPath(
@@ -583,6 +599,7 @@ async function runFixtureAndScore(
       applicabilitySource: check.applicabilitySource,
       judgeInvoked: observation.judgeInvoked,
       rubricHash: observation.rubricHash,
+      judgeContractHash: observation.judgeContractHash,
       notApplicableReason: observation.notApplicableReason,
       // Was omitted here while every other layer carried it — the field is
       // set by `runCheck`, validated on the row, and read by

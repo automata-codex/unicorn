@@ -18,6 +18,14 @@ export const judgeVarianceRowSchema = z.object({
   fixtureId: z.string().min(1),
   checkId: z.string().min(1),
   rubricHash: z.string(),
+  /**
+   * The judge contract this trial was graded under. Load-bearing for a
+   * before/after study of the contract itself: the two variance files have to
+   * be distinguishable from their contents alone, not from which order they
+   * were produced in or what someone named them. Defaults to `''` so a file
+   * written before the field existed still parses; empty means unknown.
+   */
+  judgeContractHash: z.string().default(''),
   sourceRepIndex: z.number().int().positive(),
   trialIndex: z.number().int().positive(),
   verdict: verdictSchema,
@@ -316,6 +324,7 @@ export async function runJudgeVariance(
           // Empty string means "no rubric graded this"; `summarize` recovers
           // the hash for display from the check's judged rows.
           rubricHash: observation.rubricHash ?? '',
+          judgeContractHash: observation.judgeContractHash ?? '',
           sourceRepIndex,
           trialIndex,
           verdict: observation.verdict,

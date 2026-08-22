@@ -80,6 +80,13 @@ const baseScoreRowSchema = z.object({
    * `CheckObservation.judgeInvoked`. Absent on older rows. */
   judgeInvoked: z.boolean().optional(),
   rubricHash: z.string().optional(),
+  /**
+   * The judge contract this row was graded under — see
+   * `CheckObservation.judgeContractHash`. Optional: absent on structural rows
+   * and gated rows, which no judge produced, and on every row written before
+   * the field existed. Absent means unknown, never unchanged.
+   */
+  judgeContractHash: z.string().optional(),
   notApplicableReason: z.string().optional(),
   /** Stable grouping key for `notApplicableReason` — see
    * `CheckObservation.notApplicableReasonCode`. Absent on older rows and on

@@ -300,6 +300,7 @@ export async function runRescore(
             verdict: observation.verdict,
             rationale: observation.detail,
             rubricHash: observation.rubricHash ?? '',
+            judgeContractHash: observation.judgeContractHash,
             judgeContext: check.judgeContext?.(turnResult, fixture),
           });
           artifactPath = relativeArtifactPath(args.runDir, path);
@@ -424,6 +425,10 @@ function buildRescoreRow(input: BuildRescoreRowInput): RescoreRow {
     judgeInvoked: observation.judgeInvoked,
     verdict: observation.verdict,
     rubricHash: observation.rubricHash,
+    // Re-score-time, like `corpusVersion`/`harnessVersion` above: this row
+    // was graded by the contract in the tree now, not the one the source run
+    // used. `carryForward` deliberately keeps the source's — see there.
+    judgeContractHash: observation.judgeContractHash,
     notApplicableReason: observation.notApplicableReason,
     notApplicableReasonCode: observation.notApplicableReasonCode,
     errorMessage: observation.errorMessage,
@@ -442,7 +447,11 @@ function buildRescoreRow(input: BuildRescoreRowInput): RescoreRow {
  * `corpusVersion`/`harnessVersion` keep the *source* values here, unlike
  * every other row this command writes: no current-code checker ran, so
  * stamping the re-score's versions on this verdict would claim a
- * measurement that never happened.
+ * measurement that never happened. `judgeContractHash` rides the spread for
+ * the same reason and must keep doing so — a carried-forward verdict was
+ * graded by the contract the source run used, and relabelling it with
+ * today's would make every re-score containing one look like it spanned two
+ * judge contracts.
  */
 function carryForward(
   row: ScoreRow,

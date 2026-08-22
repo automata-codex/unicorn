@@ -212,6 +212,39 @@ describe('assertManifestMatches', () => {
   });
 });
 
+describe('judgeContractHash on a completed rep', () => {
+  let root: string;
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'eval-contract-'));
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('round-trips when recorded', () => {
+    const runDir = createRunDirectory(baseOptions(root));
+    appendCompletedRep(
+      runDir,
+      completedRep({ index: 1, judgeContractHash: 'fbbd8e46' }),
+    );
+    expect(readManifest(runDir).completedReps[0].judgeContractHash).toBe(
+      'fbbd8e46',
+    );
+  });
+
+  it('parses a rep that predates the field rather than rejecting it', () => {
+    // Every rep on disk today was written before this existed. An absent
+    // value means the contract is unknown, never that it was unchanged.
+    const runDir = createRunDirectory(baseOptions(root));
+    appendCompletedRep(runDir, completedRep({ index: 1 }));
+    expect(
+      readManifest(runDir).completedReps[0].judgeContractHash,
+    ).toBeUndefined();
+  });
+});
+
 describe('appendCompletedRep', () => {
   let root: string;
 
