@@ -663,8 +663,28 @@ as fail-language. The reliable pass was reading all 401 failure closings.
 this corrupts the audit trail rather than the score — but `TOOL-SYNTAX-LEAK` guards
 `submit_gm_response` and nothing guards `judge_verdict` (`ADR-0097` scoped the Warden only).
 
-Fixes for all of the above are tracked in `docs/roadmap.md § M7.7`, sequenced behind `rubricHash`
-covering the judge contract — without that, changing the judge moves no run identity.
+**Fixed 2026-08-22 (spec 020, `ADR-0102`), and the corrections above still stand.** `judgeVerdictSchema`
+now emits `rationale` before `passed`, so the verdict is conditioned on completed reasoning rather than
+narrating one already spent, and `judgeContractHash` records which contract graded a row so the boundary
+is visible. Measured rather than asserted: `eval:judge-variance` on both sides of the change, 114 judge
+calls each over 38 frozen inputs, contradictions **2 of 6 failures → 0**. The strongest single piece of
+evidence is that the one input carrying both before-side contradictions now returns `pass` three times,
+reasoning exactly as it did when it returned `fail`.
+
+**None of that repairs the artifacts already on disk.** Every judged rate produced before
+`judgeContractHash 01620ef7` still carries the contradiction floor described above — roughly 1.5%
+corpus-wide, 18% within `OVER-RESOLUTION` — and re-scoring those runs now would grade them under the new
+contract, which is no longer like-for-like with the contract-A numbers it would be correcting. The prose
+correction remains the right instrument.
+
+**One caveat on the `HIDDEN-INFO-LEAK` correction specifically, added 2026-08-22.** Re-grading rep 007 six
+times across the two variance runs reaches `fail` on grounds the original rationale never considered: the
+narration states raw roll totals, which the rubric prohibits independently of the perception boundary. The
+recorded artifact is a genuine contradiction and 1.00 stands on its own terms — but the inference behind it
+("the rationale says no violation, so the failure is the grader") does not hold for this artifact, and the
+re-grades that disagree are disagreeing about **rubric scope** rather than showing the grader
+malfunctioned. That ambiguity is now its own item in `docs/roadmap.md § M7.7`; revisit this figure when
+the rubric says which reading it means.
 
 `eval:judge-variance` against both new rubrics, per step 1 of the comparison procedure
 above. New rubric, grader stability unverified, and the two structural halves changed what

@@ -1,6 +1,6 @@
 # 020 — Identity for the judge contract and the build, and the field-order swap
 
-**Status:** drafted 2026-08-22, not started. Plan at `../../plans/020-judge-contract-identity-and-the-field-order-swap-implementation-plan.md` — eleven items, of which two are runs rather than commits.
+**Status:** **executed and closed 2026-08-22.** All eleven items shipped in eleven commits; the field-order swap was **kept** against its pre-registered rule. Decision recorded as `ADR-0102`. `judgeContractHash` `fbbd8e46` → `01620ef7`; `promptHash`, `assemblyHash` and `corpusVersion` unmoved. Closeout in `docs/roadmap.md § M7.7`. Plan at `../../plans/020-judge-contract-identity-and-the-field-order-swap-implementation-plan.md` — eleven items, of which two are runs rather than commits.
 **Target path:** `docs/plans/020-judge-contract-identity-and-the-field-order-swap-implementation-plan.md`
 **Type:** ephemeral implementation spec (archive after execution; the living record is `docs/decisions/` and the roadmap)
 **Origin:** the two open bullets in `docs/roadmap.md § M7.7`, and `docs/eval-methodology.md § Before trusting any judged rate from this corpus`. Extends `ADR-0099` and its addendum.
@@ -360,13 +360,19 @@ with a transient API failure, and one event cannot separate those.
 Part 6 fixed for rationales, found the same way — so it is now recorded and the
 next run can attribute what this one cannot.
 
-### The standing question this leaves
+### Resolved: kept
 
-Clause 3 paused by design rather than by accident: the rule was written so a
-large mix shift returns the decision to a human with the read attached. That
-read is favourable on the check the swap targeted, neutral-to-awkward on the
-other, and carries one unexplained error. **Ship or revert is a judgement call
-and the rule declines to make it automatically.**
+Clause 3 paused by design rather than by accident — the rule was written so a
+large mix shift returns the decision to a human with the read attached. **The
+swap was kept, 2026-08-22.** The targeted defect is gone and its mechanism is
+confirmed by the strongest evidence the study could produce; the two
+counter-signals are an ambiguity that predates the change and one unexplained
+event in 114.
+
+**The rubric ambiguity became its own item** in `docs/roadmap.md § M7.7` rather
+than being absorbed here: `HIDDEN-INFO-LEAK` implies both a global numeric
+prohibition and one scoped to the stated boundary, and a tag whose rate depends
+on which half a grader weights is not measuring the Warden.
 
 
 
