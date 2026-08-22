@@ -7,6 +7,7 @@ import { computeCorpusVersion } from '../eval/corpus-version';
 import { loadFixtures } from '../eval/fixture-loader';
 import {
   assertAssemblyGoldensCurrent,
+  assertJudgeContractGoldenCurrent,
   assertNoStubCheckers,
   assertRulesIndexPopulated,
 } from '../eval/preflight';
@@ -218,6 +219,7 @@ export async function runEval(
   // covered by `--skip-preflight`, for the reason `assertNoStubCheckers`
   // gives — the subject is the repo and the label, not the environment.
   assertAssemblyGoldensCurrent();
+  assertJudgeContractGoldenCurrent();
 
   const assemblyHash = computeAssemblyHash();
 

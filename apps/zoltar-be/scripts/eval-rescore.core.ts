@@ -10,6 +10,7 @@ import {
   writeJudgeArtifactAt,
 } from '../eval/runs/artifacts';
 import { envOnlyConfigService } from '../eval/runs/env-config-service';
+import { assertJudgeContractGoldenCurrent } from '../eval/preflight';
 import { readManifest } from '../eval/runs/manifest';
 import {
   listRepDirsOnDisk,
@@ -144,6 +145,13 @@ export async function runRescore(
   args: RescoreArgs,
   deps: RescoreDeps,
 ): Promise<RescoreSummary> {
+  // Before anything is read or re-graded. A re-score spends judge calls on
+  // every judged check it touches, and doing that under a contract no commit
+  // produces buys a pass whose `judgeContractHash` is a lie. No assembly gate
+  // here: `eval:rescore` renders no assembly surface and writes no
+  // `assemblyHash`.
+  assertJudgeContractGoldenCurrent();
+
   const manifest = readManifest(args.runDir);
   const { rows: sourceRows, exclusions: sourceExclusions } = readVouchedRows(
     args.runDir,

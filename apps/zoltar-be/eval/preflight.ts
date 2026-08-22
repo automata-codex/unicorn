@@ -5,6 +5,7 @@ import * as schema from '../src/db/schema';
 import { findAssemblyGoldenMismatches } from '../src/session/session.assembly';
 
 import { selectChecksForFixture } from './checks/registry';
+import { findJudgeContractGoldenMismatch } from './checks/judged/judge';
 
 import type { AssemblyGoldenMismatch } from '../src/session/session.assembly';
 import type { Db } from '../src/db/db.provider';
@@ -204,4 +205,48 @@ export function assertAssemblyGoldensCurrent(): void {
   const mismatches = findAssemblyGoldenMismatches();
   if (mismatches.length === 0) return;
   throw new EvalPreflightError(describeAssemblyGoldenMismatches(mismatches));
+}
+
+/**
+ * Refuses any command that can spend judge calls when the committed judge
+ * contract golden no longer matches what this build renders.
+ *
+ * **Wider exposure than the assembly goldens, not narrower.**
+ * `JUDGE_VERDICT_TOOL.input_schema` comes out of `zodToJsonSchema`, so this
+ * surface moves with a `node_modules` version as readily as with our source —
+ * the `assemblyHash` failure `ADR-0099`'s addendum records, one dependency
+ * further out. A grading spent under a contract no commit produces is worse
+ * than a mislabelled Warden run, because re-grading costs judge calls where
+ * re-running structural checks costs nothing.
+ *
+ * Asserted by `eval:run`, `eval:rescore` and `eval:judge-variance` — every
+ * entry point that can invoke a judge. Deliberately **not** paired with
+ * `assertAssemblyGoldensCurrent` in the latter two: neither renders an
+ * assembly surface nor writes an `assemblyHash`, and asserting something a
+ * command cannot affect is how people learn to skip preflight failures.
+ */
+export function assertJudgeContractGoldenCurrent(): void {
+  const mismatch = findJudgeContractGoldenMismatch();
+  if (mismatch === null) return;
+
+  throw new EvalPreflightError(
+    `preflight: the judge contract golden is ${mismatch}, so every judged ` +
+      'verdict this command produced would be graded under a contract no ' +
+      'commit corresponds to — and `judgeContractHash` would record the ' +
+      'wrong one.\n' +
+      (mismatch === 'differs'
+        ? 'Two opposite causes. Either this host\u2019s install is stale \u2014 ' +
+          '`input_schema` is rendered by `zodToJsonSchema`, so a dependency ' +
+          'version moves it without any source change; run `npm ci` (and ' +
+          '`npm run build` at the repo root) and try again. Or the judge ' +
+          'contract was edited and its golden not committed, in which case ' +
+          '`UPDATE_JUDGE_CONTRACT_GOLDEN=1 npx vitest run ' +
+          'eval/checks/judged/judge-contract.spec.ts` is right and the diff ' +
+          'belongs in review.\n'
+        : 'The golden has never been committed; generate it with ' +
+          '`UPDATE_JUDGE_CONTRACT_GOLDEN=1 npx vitest run ' +
+          'eval/checks/judged/judge-contract.spec.ts`.\n') +
+      'This preflight is not skippable: --skip-preflight covers the rules ' +
+      'index, not the contract a verdict was graded under.',
+  );
 }

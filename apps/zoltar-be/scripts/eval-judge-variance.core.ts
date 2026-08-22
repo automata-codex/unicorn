@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { evalChecks } from '../eval/checks/registry';
 import { runCheck } from '../eval/checks/run-check';
 import { loadFixtures } from '../eval/fixture-loader';
+import { assertJudgeContractGoldenCurrent } from '../eval/preflight';
 import { readTurnResultArtifact } from '../eval/runs/artifacts';
 import { envOnlyConfigService } from '../eval/runs/env-config-service';
 import { judgeVarianceDir, judgeVarianceOutputPath } from '../eval/runs/paths';
@@ -176,6 +177,12 @@ export async function runJudgeVariance(
   args: RunJudgeVarianceArgs,
   deps: RunJudgeVarianceDeps,
 ): Promise<RunJudgeVarianceSummary> {
+  // The command whose entire output is a statement about the grader, so
+  // grading under an unrecorded contract makes the result uninterpretable
+  // rather than merely mislabelled. No assembly gate: no assembly surface is
+  // rendered and no `assemblyHash` is written.
+  assertJudgeContractGoldenCurrent();
+
   const { rows: vouchedRows } = readVouchedRows(args.runDir);
   const { fixtures } = await loadFixtures(args.fixturesDir);
   const fixturesById = new Map(fixtures.map((f) => [f.id, f]));

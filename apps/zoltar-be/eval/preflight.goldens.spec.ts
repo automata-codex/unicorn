@@ -11,6 +11,7 @@ import {
 
 import {
   assertAssemblyGoldensCurrent,
+  assertJudgeContractGoldenCurrent,
   describeAssemblyGoldenMismatches,
 } from './preflight';
 
@@ -99,5 +100,11 @@ describe('assertAssemblyGoldensCurrent', () => {
     // The integration half: if this fails, the workspace build is stale or a
     // golden was not committed — which is exactly what it exists to catch.
     expect(() => assertAssemblyGoldensCurrent()).not.toThrow();
+  });
+});
+
+describe('assertJudgeContractGoldenCurrent', () => {
+  it('passes against the golden committed in this repo', () => {
+    expect(() => assertJudgeContractGoldenCurrent()).not.toThrow();
   });
 });
