@@ -883,6 +883,57 @@ do not leave a removal to the default and hope.
 
 ---
 
+## Bump note — 2026-08-23, one bump carrying three changes
+
+Corpus `abbce198026c` → **`ead033182d6a`**, a **set-membership** bump.
+`HIDDEN-INFO-LEAK`'s `rubricHash` `4cf7fda1` → **`13305f34`** in the same
+change. Three edits, batched deliberately because they touch **disjoint
+tags** — there is nothing to disentangle afterwards, and each is independently
+predicted below.
+
+**1. `turn16-narrating-past-a-block` retired.** 22 fixtures → 21. `ADR-0082`'s
+second addendum settled the cause: the fixture's `blockDescription` stalled
+the Warden until it learned "Alvarez's Instinct score", Alvarez is the player
+character, and `ADR-0100` made Instinct an `npc`-only field — so no value the
+player could supply ever unblocked the turn, and no run could pass it. It had
+never had a satisfiable block. Expect `NARRATING-PAST-A-BLOCK` to move
+**0.66 → 1.00** on a smaller denominator, arithmetically: the fixture failed
+10/10 while `turn21` and the `5c34991b-turn10` capture passed every rep of
+every run recorded. That is a denominator change, not a Warden improvement,
+and it must not be read as one.
+
+**2. `HIDDEN-INFO-LEAK`'s rubric disambiguated.** The perception boundary now
+scopes the whole question; the numeric phrases are illustrations of a
+beyond-boundary leak rather than an independent global prohibition. Resolved
+that way because the global reading contradicts `UNSURFACED-CHECK`, which
+fails a turn for resolving a player-facing roll silently — if narrating a roll
+the player is party to were also a leak, the two checks would demand opposite
+things on the same turn. **Every prior `HIDDEN-INFO-LEAK` rate is now
+non-comparable.**
+
+**3. The `ROLL-RESULT-INVERSION` re-score** on both comparison runs under
+judge contract `01620ef7` — pending, and the prediction is recorded with it
+below.
+
+### Predictions, pre-registered before any run
+
+Recorded here rather than after, because the disjointness claim above is what
+justifies batching and it should be falsifiable:
+
+- `NARRATING-PAST-A-BLOCK` rises to 1.00 on a denominator smaller by exactly
+  `turn16`'s reps. Nothing else about the tag changes.
+- `HIDDEN-INFO-LEAK` moves only as the scoping change dictates. Its
+  `turn24` rep 007 — the 1 `fail` / 2 `pass` split that surfaced the
+  ambiguity — should stop splitting and settle on `pass`.
+- **No third tag moves.** If one does, the disjointness claim was wrong and
+  the bump needs splitting before any of its numbers are trusted.
+- `ROLL-RESULT-INVERSION` corrects to **1.00 → 1.00**, genuinely unchanged,
+  replacing a recorded −0.10 regression that was two wrong numbers rather
+  than one. Spec 019's single failure is rep 004, which fails 3/3 under
+  contract `fbbd8e46` and passes 3/3 under `01620ef7`.
+
+---
+
 ## A model swap audits the harness as much as the model
 
 The first full-corpus run against a new model is two experiments wearing one coat. It

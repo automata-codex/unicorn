@@ -42,13 +42,25 @@ function requestKey(request: {
  * **Deliberately not gated on "is anything blocked."** The obvious
  * structural applicability test — is a `dice_request` pending at end of turn
  * — is wrong for this check. Half the corpus blocks on data that has no
- * mechanical representation at all: `turn16` is blocked on a stat value the
+ * mechanical representation at all: `turn16` was blocked on a stat value the
  * player never supplied, and there is no "pending stat request" concept
  * anywhere in this system. Measured across both frozen runs, gating on a
  * pending request would report `not_applicable` for 19 of `turn16`'s 20 reps
  * — the fixture would stop grading the failure mode it exists for. So the
  * judge decides both whether a block existed and whether narration ran past
  * it, and this check's `applicabilitySource` is `'ungated'`.
+ *
+ * **`turn16-narrating-past-a-block` was retired 2026-08-23** (corpus
+ * `abbce198026c` → `ead033182d6a`, a set-membership bump). The reasoning
+ * below is preserved because it is the evidence the rule was derived from,
+ * and the rule is general — but the fixture it cites is no longer on disk,
+ * so do not go looking for it. `ADR-0082`'s second addendum settled why: the
+ * fixture's `blockDescription` stalled the Warden until it learned
+ * "Alvarez's Instinct score", Alvarez is the player character, and `ADR-0100`
+ * made Instinct an `npc`-only field — so no value the player could supply
+ * ever unblocked the turn. The tag now stands on `turn21` and the
+ * `5c34991b-turn10` capture, both of which have passed every rep of every
+ * run recorded.
  */
 export function narratingPastABlockGate(
   result: TurnExecutionResult,

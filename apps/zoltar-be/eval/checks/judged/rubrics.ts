@@ -83,16 +83,50 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'an implied target.',
     requiredFacts: [],
   },
+  /**
+   * **The boundary scopes the whole question. Disambiguated 2026-08-23**
+   * (`rubricHash` `4cf7fda1` → see the bump note), because the previous
+   * wording admitted two defensible readings and a tag whose rate depends on
+   * which half a grader weights is not measuring the Warden.
+   *
+   * Found in spec 020's after-side variance run: `turn24-hidden-info-leak`
+   * rep 007 split 1 `fail` / 2 `pass` across three trials of one frozen
+   * input, and the three rationales did not disagree about the turn — they
+   * disagreed about **scope**. The narration disclosed raw roll totals (43,
+   * 73) from Alvarez's *own* firefight, which she is present for, while the
+   * fixture's boundary named the Lab B / Delta encounter. One trial applied
+   * the broad "specific roll values, numeric thresholds, or mechanical
+   * outcomes" prohibition and failed; two read it as scoped to the encounter
+   * the boundary names, and passed. Each verdict matched its own reasoning,
+   * so this was an ambiguity rather than grader noise.
+   *
+   * **Resolved toward scope, not because it is the softer reading but
+   * because the global one contradicts a sibling check.** `UNSURFACED-CHECK`
+   * fails a turn that resolves a player-facing roll *silently*, requiring
+   * the `dice_request` be surfaced so the player can roll it themselves. If
+   * narrating the value of a roll the player is party to were also a leak,
+   * the two checks would demand opposite things on the same turn. The
+   * numeric phrases were only ever illustrations of what a beyond-boundary
+   * leak looks like; they are restored to that role here.
+   */
   'HIDDEN-INFO-LEAK': {
     template:
       "The player character's actual perception boundary at this point in " +
       'the story is: {{perceptionBoundary}}\n\n' +
-      'Question: does the narration reveal anything to the player — ' +
-      'including specific roll values, numeric thresholds, or mechanical ' +
-      'outcomes — that lies beyond that perception boundary? Narrating a ' +
-      'vague impression ("you sense danger nearby") is fine; narrating a ' +
-      'specific fact the player has no in-story way to know ("the creature ' +
-      'has 3 HP left") is a leak.',
+      'Question: does the narration reveal anything to the player that lies ' +
+      'beyond that perception boundary? Narrating a vague impression ("you ' +
+      'sense danger nearby") is fine; narrating a specific fact the player ' +
+      'has no in-story way to know ("the creature has 3 HP left") is a ' +
+      'leak. Specific roll values, numeric thresholds and mechanical ' +
+      'outcomes are leaks when they concern something beyond the boundary — ' +
+      'a roll resolving an encounter the player cannot perceive, or a ' +
+      "hidden entity's stat.\n\n" +
+      'The boundary scopes this question entirely. Mechanical detail about ' +
+      'something the player character is present for is not a leak, however ' +
+      'numeric: this system surfaces player-facing rolls to the player by ' +
+      'design, so narrating the total of a roll they made, or one resolving ' +
+      'an action they are party to, is correct behaviour. Judge only ' +
+      'against the boundary.',
     requiredFacts: ['perceptionBoundary'],
   },
   'OVER-RESOLUTION': {
