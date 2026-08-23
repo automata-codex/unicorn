@@ -244,3 +244,93 @@ disambiguate, and it should be its own change.
   0.20**. The guard narrows what the Warden may roll, so the falsifier is
   live again in a way it was not on the first run: a rate that stays at 1.00
   while applicability falls means the guard over-corrected into "roll less".
+
+---
+
+## The second run, 2026-08-23 — `f0753f86__2026-08-23T14-39-39Z`
+
+Run on enceladus, 10 reps, corpus `ead033182d6a`. **The revision worked on its
+target and on most of the damage; two things remain, and only one of them is
+this plan's.**
+
+| Tag | pre-021 `6717347d` | 021 v1 `995083c8` | 021 v2 `f0753f86` |
+|---|---|---|---|
+| `UNAUDITABLE-MAPPING` | 0.00, app 0.20 | 1.00, app 0.20 | **1.00, app 0.20 (10/50)** |
+| `SYSTEM-ROLLED-PLAYER-ACTION` | 0.94 | 0.76 | **0.89** |
+| `SCENE-JUMP` | 0.88 | 0.43 | **0.22** |
+| `UNSURFACED-CHECK` | 1.00 | 1.00 | 1.00 |
+| `NARRATING-PAST-A-BLOCK` | 1.00 | — | 0.95 |
+| `HIDDEN-INFO-LEAK` | 1.00 | — | 1.00 |
+
+The target holds **with applicability unmoved at 0.20 (10/50)** — the Warden
+kept making spontaneous rolls at the prior rate and explained them. The
+over-correction falsifier did not fire.
+
+### `SYSTEM-ROLLED-PLAYER-ACTION` — 0.89, and the 8 failures are two unrelated bugs
+
+Recovery is real (0.76 → 0.89) and the residual is still on the three
+`5c34991b-turn10-*` fixtures (0.78–0.90, from 1.00 pre-021). Reading all eight
+failing artifacts splits them cleanly:
+
+**Class 1 — the Warden rolls the player's Panic Check (5 of 8).** Every one is
+a `1d20` for `dr_kennedy` with `diceRequests: []`, e.g. *"Panic Check for
+dr_kennedy — … needs greater than 2 to succeed"*. **This is the case this plan
+deliberately left open**, and the pre-registered condition has now fired:
+`WHEN TO CALL roll_dice` lists *"Panic checks triggered by the fiction"*
+without saying **whose**, and that line outranks a guard forty lines below it.
+Disambiguating it is the next change, and per the plan's own note it should be
+its own change rather than folded in here.
+
+**Class 2 — damage and wound rolls *targeting* the player (3 of 8).** *"Damage
+from contractor Beta's hit on Alvarez"*, *"Wounds Table roll, Gunshot column,
+for Alvarez taking a wound"*. The Warden set `actingEntityId` to the player
+because the prompt tells it to: *"For a roll the world makes with no actor,
+name the entity it acts on."* `rollActsFor` then classifies the roll as
+`'player'` and the check fails it. **A prompt instruction and a checker
+contradict each other**, and this predates plan 021 — `turn24-over-resolution`
+carried it at 0.88 before and 0.78 now, `turn24-hidden-info-leak` 0.80 → 0.89.
+Flat within noise, not caused by this plan, and not fixable by prompt wording
+alone: either the prompt stops overloading `actingEntityId` with "the entity
+acted upon", or the checker stops treating target-of-roll as actor.
+
+### `SCENE-JUMP` — 0.22, and the rubric is the larger part of it
+
+Investigated because it fell *further* against my prediction that it would
+recover. Three hypotheses tested against the artifacts:
+
+- **Rolling? No.** 5 of the 7 failing reps make **zero dice rolls**, and both
+  passing reps also make zero. The `purpose` instruction cannot be operating
+  through a mechanism the failing turns never use.
+- **Judge contract? No, and the evidence runs the other way.** `6717347d`'s
+  0.88 was graded under contract `fbbd8e46`. On the four fixture/check pairs
+  measured under *both* contracts on identical frozen artifacts, contract
+  `01620ef7` is equal or **more lenient** every time (0.90→1.00, 0.90→0.97,
+  1.00→1.00, 1.00→1.00). A harsher-grader story is unavailable.
+- **Behaviour? Yes, partly, and it is narrow.** Delta is mentioned in 7 of 8
+  pre-021 reps and passed; it is mentioned in 8 of 9 now and mostly fails. The
+  shift is in tense, not subject — pre-021: *"footsteps… walking a straight
+  line toward Lab B. Delta hasn't stopped."* (approaching); now: *"Vasques.
+  Raised, sharp, cut short. Whatever Delta found on Deck 1, it just started
+  without you."* (arrived and begun).
+
+**But the dominant finding is that the rubric cannot decide the case: 8 of 9
+rationales explicitly flag it** — `borderline`, `ambiguous`, `arguably`,
+`edge`, in both directions, including both passes. The template forbids
+*"beginning a new NPC encounter"* and never says whether an off-screen thread
+the player can only **hear** counts as one for the player. Under the narrow
+reading (an encounter the PC is *in*) every one of these turns passes; under
+the broad reading (any encounter beginning anywhere in the fiction) most fail.
+
+**This is the same defect class as `HIDDEN-INFO-LEAK`'s, on a tag that also
+rests on one fixture** — and it wants the same treatment: say which reading is
+meant, in the rubric. Until then `SCENE-JUMP`'s rate is measuring the coin
+flip, and the 0.88 → 0.22 slide is not a clean behavioural signal. Note this
+is one of the four tags M7.4's fixture-count bullet is blocked on, so the
+second playtest should widen it regardless.
+
+### Where this leaves the decision rule
+
+Not satisfied as written: `SYSTEM-ROLLED-PLAYER-ACTION` is 0.89 against a 0.90
+floor. The shortfall is one bug this plan predicted and deferred, plus one that
+predates it. `SCENE-JUMP` is below every floor but is not currently a
+trustworthy measurement.
