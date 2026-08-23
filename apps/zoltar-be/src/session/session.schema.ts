@@ -541,12 +541,14 @@ export const rollDiceInputSchema = z.object({
     .string()
     .describe(
       'What the roll is for AND what its results mean, fixed before the die ' +
-        'is read. Name the threshold for a Stat Check or Save ("roll under ' +
-        "the cartographer's Instinct 35\"), the row or range for a table, or " +
-        'the bands for anything decided by die ("1d6 for what she notices: ' +
-        '1-2 nothing, 3-4 distant movement, 5-6 the contractor"). A purpose ' +
-        'naming only the subject leaves the number meaning whatever the ' +
-        'Warden decides after seeing it.',
+        'is read. Being able to state a threshold is not permission to roll ' +
+        "something that belongs to the player — if the roll is theirs it is " +
+        'still a diceRequest. Name the value an NPC\'s roll is measured ' +
+        'against ("roll under the cartographer\'s Instinct 35"), the row or ' +
+        'range for a table, or the bands for anything decided by die ("1d6 ' +
+        'for what she notices: 1-2 nothing, 3-4 distant movement, 5-6 the ' +
+        'contractor"). A purpose naming only the subject leaves the number ' +
+        'meaning whatever the Warden decides after seeing it.',
     ),
   /**
    * The entity this roll is *for*, by its state identifier (`dr_chen`,

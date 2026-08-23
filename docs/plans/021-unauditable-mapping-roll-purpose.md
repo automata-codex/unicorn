@@ -199,3 +199,48 @@ relying on it holding from forty lines earlier. Then re-run.
 
 **Not shipped.** The prompt change is committed and currently breaches the
 decision rule; it must be revised or reverted before any capture.
+
+### Revision, 2026-08-23 — awaiting a second run
+
+`promptHash` `995083c8` → **`f0753f86`**, `assemblyHash` `dc5fa663` →
+**`ada7fb8a`**. Corpus unchanged at `ead033182d6a`.
+
+Three changes to the `purpose` entry, all aimed at the one mechanism the run
+exposed:
+
+- **"Stat Check or Save" is gone.** Those are the player's rolls, and naming
+  them in the `roll_dice` required-fields section read as authorisation.
+  Replaced with *"the value an NPC's roll is measured against"*.
+- **An ownership guard, placed before any example** so it is read before the
+  threshold instruction: *"being able to state a threshold is not permission
+  to resolve a roll that belongs to the player: if the roll is theirs, it is
+  still a diceRequest, however clearly you could have named the number it
+  needs."* `§ 014`'s lesson is that this boundary is placement-sensitive, so
+  the guard sits inside the entry rather than relying on `:53-58`.
+- The schema `.describe()` carries the same guard, for a reader who never
+  sees the role prompt.
+
+**Deliberately not touched: the `WHEN TO CALL roll_dice` list.** Its "Panic
+checks triggered by the fiction" entry does not say *whose* panic check, and
+the failing artifact was a Panic Die rolled for the player character — so
+there is a real latent ambiguity there. But that line predates this plan and
+the fixture passed 10/10 against it before this edit, so the ambiguity was
+not what broke: this edit was. Fixing only the entry that caused the
+regression keeps attribution clean on the re-run. If the second run still
+shows player-owned panic checks, that list entry is the next thing to
+disambiguate, and it should be its own change.
+
+**Predictions for the second run** — unchanged from the original set, plus:
+
+- `SYSTEM-ROLLED-PLAYER-ACTION` returns to ≥ 0.90, and specifically the three
+  `5c34991b-turn10-*` fixtures return to 1.00. Anything less than a full
+  recovery there means the guard did not hold and the `WHEN TO CALL` list is
+  implicated after all.
+- `SCENE-JUMP` and `ROLL-RESULT-INVERSION` return to their prior 0.88 and
+  0.90 (1.00 under the contract-B rescore). Both fell alongside
+  `SYSTEM-ROLLED-PLAYER-ACTION` and should recover with it; if they do not,
+  they were never collateral and need separate attention.
+- `UNAUDITABLE-MAPPING` holds its gain **with applicability still near
+  0.20**. The guard narrows what the Warden may roll, so the falsifier is
+  live again in a way it was not on the first run: a rate that stays at 1.00
+  while applicability falls means the guard over-corrected into "roll less".

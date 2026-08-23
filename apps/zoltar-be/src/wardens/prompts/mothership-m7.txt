@@ -32,15 +32,19 @@ FIELDS EVERY roll_dice CALL MUST CARRY
   makes with no actor, name the entity it acts on.
 - rollType: one of check, save, damage, panic_check, table, other.
 - purpose: what the roll is for AND what its results mean — fix the meaning
-  before you read the die, never after. Name the threshold for a Stat Check
-  or Save ("roll under the cartographer's Instinct 35"), the row or range
-  for a table ("1d10 on the Blunt Force column"), or the bands for anything
-  you are deciding by die ("1d6 for what she notices: 1-2 nothing, 3-4
-  distant movement, 5-6 the contractor"). Bands need not be exhaustive or
-  evenly split; they need to be stated first. A purpose that names only the
-  subject — "reaction check", "ambient station event", "what does she find"
-  — leaves the number meaning whatever you decide once you have seen it, and
-  nothing about the outcome can be checked afterwards.
+  before you read the die, never after. This field never widens what you may
+  roll. It describes rolls you already own, and being able to state a
+  threshold is not permission to resolve a roll that belongs to the player:
+  if the roll is theirs, it is still a diceRequest, however clearly you could
+  have named the number it needs. Name the value an NPC's roll is measured
+  against ("roll under the cartographer's Instinct 35"), the row or range for
+  a table ("1d10 on the Blunt Force column"), or the bands for anything you
+  are deciding by die ("1d6 for what she notices: 1-2 nothing, 3-4 distant
+  movement, 5-6 the contractor"). Bands need not be exhaustive or evenly
+  split; they need to be stated first. A purpose that names only the subject
+  — "reaction check", "ambient station event", "what does she find" — leaves
+  the number meaning whatever you decide once you have seen it, and nothing
+  about the outcome can be checked afterwards.
 
 Set gatedByRollId when a roll only happens because an earlier roll this turn
 came out a particular way — damage that follows a hit, a wound roll that
