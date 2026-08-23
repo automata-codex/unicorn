@@ -849,16 +849,37 @@ field, `assertion.facts` a checker reads, a checker's own logic. Frozen artifact
 exactly as valid as they were; re-scoring them in place is a real measurement, not an
 approximation of one.
 
+**Set-membership.** Added 2026-08-23, because a third kind exists and the two
+above do not cover it. The edit adds or removes a *fixture*, leaving every
+surviving fixture's inputs and grading untouched. Frozen artifacts for the
+survivors remain exactly as valid as they were, so `eval:rescore` is a real
+measurement here too and no Warden call is owed — but the **denominators
+move**, which neither category above addresses. A rate that changes across
+such a bump has not necessarily measured anything about the Warden: dropping
+a fixture that failed 10/10 raises its tag arithmetically.
+
+The distinction from scoring-only matters in one direction only. Both permit a
+rescore; only scoring-only permits comparing the resulting rate against the
+prior run's as a like-for-like figure. After a set-membership bump, per-tag
+movement needs the like-for-like-on-shared-fixtures treatment
+`SYSTEM-ROLLED-PLAYER-ACTION` already gets above — restricted to the fixtures
+present on both sides — before it means anything.
+
 The `8071500a4952...` → `4c9f2e73efd7...` bump was scoring-only, which is why re-grading
 the two existing runs off disk produced genuine corrected rates with no API spend and no
 re-run. That distinction was obvious to the person who made the edit and will not be
 obvious to anyone reading the hash six months later.
 
 **Convention: name the kind in the bump note**, next to the hash, in the same place the
-change is described. The two mistakes this prevents are not symmetric — re-running after a
+change is described. The two costly mistakes are not symmetric — re-running after a
 scoring-only bump wastes money and nothing else, while reusing artifacts after an
 input-affecting bump silently produces numbers that look fine and mean nothing. Default to
 re-running when the note is missing or the kind is unclear.
+
+That default is right for the ambiguity it was written against — input-affecting
+versus scoring-only — and wrong for a set-membership bump, where re-running buys a
+full Warden run to answer a question arithmetic already answers. So name the kind;
+do not leave a removal to the default and hope.
 
 ---
 
