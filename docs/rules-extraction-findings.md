@@ -4953,3 +4953,92 @@ touched here. `out-of-order-resolution` is not tag-independent-eligible on the
 merits of what it reads (it reads no assertion), but attaching
 `system-rolled-player-action` to them is a corpus decision of its own, made on
 the same evidence and worth making explicitly rather than by extension.
+
+---
+
+### S36 — 2026-08-23 · `UNAUDITABLE-MAPPING` fails 10/10 because `roll_dice` has nowhere to put a target
+
+The diagnostic half of M7.7's `UNAUDITABLE-MAPPING` bullet, run against the
+2026-08-21 re-baseline `claude-sonnet-5__6717347d__2026-08-21T21-14-59Z`. The
+bullet asked what the Warden is doing wrong. It is doing something wrong, but
+the primary cause is a schema asymmetry that makes the thing the rubric asks
+for impossible to record.
+
+#### The ten failures agree, and they are not grader noise
+
+`5c34991b-turn01-unauditable-mapping` is the entire tag: applicability 1.00
+(10/10) against a rollup of 0.20 (10/50), the other four fixtures returning
+"no dice_roll events this turn" every rep. All ten reps fail, and all ten
+rationales say the same thing in different words — the `purpose` text names
+the *subject* of the roll and never states what ranges of the result map to
+which outcome, so the number cannot be audited against a pre-declared intent.
+
+Two rationales catch the Warden interpreting after the fact in its own notes:
+rep 007 records `gmUpdates.notes` calling a 93 "auto-fail territory", and rep
+009 has the notes reading 22 as "low = coherent". Unanimity across ten reps
+with converging reasoning is the opposite of the split-verdict pattern
+`HIDDEN-INFO-LEAK` rep 007 shows; there is no rubric ambiguity to find here.
+
+#### What the Warden emitted
+
+```
+"payload": {
+  "total": 92, "rollId": "roll_1", "notation": "1d100", "rollType": "check",
+  "modifier": 0, "results": [92], "actingEntityId": "deep_space_cartographer",
+  "purpose": "Cartographer's reaction/instinct check to gauge honesty vs
+              deflection when asked about the rest of the crew"
+}
+```
+
+An Instinct check on an NPC. Under the prompt's own statement of the mechanic
+— *"Stat Checks and Saves are roll-under. The acting character rolls 1d100 and
+needs LOWER than the relevant Stat or Save"* — the mapping is not open at all:
+the target is the Cartographer's Instinct, and 92 fails regardless, since
+90–99 always fails. The Warden narrated a gradient instead of a roll-under
+binary, which is a real defect. But it had no way to say otherwise.
+
+#### The asymmetry, which is the actual finding
+
+`session.schema.ts:463` — the **player** roll path — carries the field:
+
+```ts
+z.object({ notation: z.string(), purpose: z.string(),
+           target: z.number().int().nullable().optional() })
+```
+
+`session.schema.ts:523` — the **GM** roll path, `rollDiceInputSchema` — does
+not:
+
+```ts
+export const rollDiceInputSchema = z.object({
+  notation: z.string(),
+  purpose: z.string(),
+  actingEntityId: z.string().min(1),
+  rollType: rollTypeSchema,
+  gatedByRollId: z.string().min(1).optional(),
+});
+```
+
+There is no `target`. So when the player rolls, the threshold is structurally
+recorded; when the Warden rolls, the only place a threshold can go is free
+text in `purpose`. And `purpose` is a bare `z.string()` with **no
+`.describe()`**, while `prompt.txt` for this run mentions the word "purpose"
+**zero times**. The Warden is given no field for the threshold and no
+instruction to write one in prose either.
+
+This is the same shape as the `roll target and adjudication` gap M7.7's
+fixture-authoring bullet already records against `DiceRollEventPayload` —
+reached from the other direction, and with a measured 0.00 attached to it.
+
+#### Consequences
+
+- The tag's 0.00 is not a pure Warden-behaviour number. Part of it is a
+  missing field, and no prompt edit alone can move it to 1.00 while the
+  threshold has nowhere structural to live.
+- Widening the tag's coverage — the bullet's second half — is worth doing
+  regardless, but widening it before the field exists buys more fixtures
+  measuring the same unrecordable thing.
+- The fix is Warden-visible: a new field on `roll_dice` moves `assemblyHash`,
+  and the prompt sentence that tells the Warden to populate it moves
+  `promptHash`. That is an input-affecting change and a fresh re-baseline, not
+  a rescore.
