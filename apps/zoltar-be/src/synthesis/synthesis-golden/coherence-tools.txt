@@ -1,0 +1,48 @@
+[
+  {
+    "name": "report_coherence",
+    "description": "Report hard contradictions between oracle selections, if any, and a recommended resolution path.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "conflicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "rerollable": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "category",
+              "description",
+              "rerollable"
+            ]
+          }
+        },
+        "resolution": {
+          "type": "string",
+          "enum": [
+            "proceed",
+            "reroll",
+            "surface"
+          ]
+        },
+        "rerollCategory": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "conflicts",
+        "resolution"
+      ]
+    }
+  }
+]

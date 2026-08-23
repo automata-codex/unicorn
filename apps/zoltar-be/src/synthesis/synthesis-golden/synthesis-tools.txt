@@ -1,0 +1,177 @@
+[
+  {
+    "name": "submit_gm_context",
+    "description": "Commit the synthesized GM context to the database. Call this exactly once when synthesis is complete.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "openingNarration": {
+          "type": "string"
+        },
+        "narrative": {
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "string"
+            },
+            "atmosphere": {
+              "type": "string"
+            },
+            "npcAgendas": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "hiddenTruth": {
+              "type": "string"
+            },
+            "oracleConnections": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "location",
+            "atmosphere",
+            "npcAgendas",
+            "hiddenTruth",
+            "oracleConnections"
+          ],
+          "additionalProperties": false
+        },
+        "structured": {
+          "type": "object",
+          "properties": {
+            "entities": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "npc",
+                      "threat",
+                      "feature"
+                    ]
+                  },
+                  "crewRole": {
+                    "type": "string",
+                    "enum": [
+                      "captain",
+                      "executive_officer",
+                      "pilot",
+                      "navigator",
+                      "chief_engineer",
+                      "engineer",
+                      "machinist_mechanic",
+                      "life_support_tech",
+                      "doctor",
+                      "medic",
+                      "scientist",
+                      "geologist",
+                      "miner",
+                      "xenobiologist",
+                      "comms_officer",
+                      "corporate_liaison",
+                      "counselor",
+                      "security_chief",
+                      "security_officer",
+                      "cargo_handler"
+                    ]
+                  },
+                  "startingPosition": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "integer"
+                      },
+                      "y": {
+                        "type": "integer"
+                      },
+                      "z": {
+                        "type": "integer",
+                        "default": 0
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "visible": {
+                    "type": "boolean",
+                    "description": "Line of sight at the moment play begins: can the crew see this entity in the opening scene? Transient — it changes in both directions during play as entities move in and out of view. Whether the crew knows the entity exists at all is `revealed`."
+                  },
+                  "revealed": {
+                    "type": "boolean",
+                    "description": "Do the players know this entity exists when play begins? Omit it and it follows `visible`, which is almost always right. Set it explicitly for the one case that differs: `visible: false, revealed: true` is someone the crew already knows about who is not in the room — the cartographer in another compartment. `visible: true, revealed: false` is rejected: something in sight has been discovered."
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "type",
+                  "visible",
+                  "tags"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "flags": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "boolean"
+                  },
+                  "trigger": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "value",
+                  "trigger"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "initialState": {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            "worldFacts": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "entities",
+            "flags",
+            "initialState"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "narrative",
+        "structured"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  }
+]
