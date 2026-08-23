@@ -546,7 +546,8 @@
           "type": "string"
         },
         "purpose": {
-          "type": "string"
+          "type": "string",
+          "description": "What the roll is for AND what its results mean, fixed before the die is read. Name the threshold for a Stat Check or Save (\"roll under the cartographer's Instinct 35\"), the row or range for a table, or the bands for anything decided by die (\"1d6 for what she notices: 1-2 nothing, 3-4 distant movement, 5-6 the contractor\"). A purpose naming only the subject leaves the number meaning whatever the Warden decides after seeing it."
         },
         "actingEntityId": {
           "type": "string",

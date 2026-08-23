@@ -522,7 +522,32 @@ export type RollType = z.infer<typeof rollTypeSchema>;
 
 export const rollDiceInputSchema = z.object({
   notation: z.string(),
-  purpose: z.string(),
+  /**
+   * Carries the roll's meaning, not just its subject — and it is the only
+   * place that meaning is recorded.
+   *
+   * `UNAUDITABLE-MAPPING` grades this text and read 0.00 for three runs
+   * because the Warden wrote the subject alone ("gauge honesty vs
+   * deflection") and settled what the number meant after seeing it. Nothing
+   * had ever asked otherwise: this field had no description and
+   * `mothership-m7.txt` did not mention it
+   * (`docs/rules-extraction-findings.md § S36`).
+   *
+   * The GM roll path has no `target`, unlike the player path
+   * (`diceRequests` above), so a threshold stated here is the whole record
+   * of it. That asymmetry is real and out of scope for plan 021.
+   */
+  purpose: z
+    .string()
+    .describe(
+      'What the roll is for AND what its results mean, fixed before the die ' +
+        'is read. Name the threshold for a Stat Check or Save ("roll under ' +
+        "the cartographer's Instinct 35\"), the row or range for a table, or " +
+        'the bands for anything decided by die ("1d6 for what she notices: ' +
+        '1-2 nothing, 3-4 distant movement, 5-6 the contractor"). A purpose ' +
+        'naming only the subject leaves the number meaning whatever the ' +
+        'Warden decides after seeing it.',
+    ),
   /**
    * The entity this roll is *for*, by its state identifier (`dr_chen`,
    * `corporate_spy_1`).
