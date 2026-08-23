@@ -120,3 +120,82 @@ Recorded here, before the edit, so the run can falsify them:
   playtest, and worth more once the Warden has been told what to write.
 - Whether `isSpontaneousGmRoll` should exclude fixed-mechanic rolls. Decided
   *not* to, above; revisit if the run shows stat checks dominating the scope.
+
+---
+
+## The run, 2026-08-23 — target hit, decision rule breached, do not ship
+
+`claude-sonnet-5__995083c8__2026-08-23T13-24-26Z`. **Partial: reps 1–7 of 10**
+— the run was stopped during rep 8 and never wrote a report, so everything
+below is computed from the seven complete `scores.jsonl` files. Small N, and
+the run also carried ~6 errored turns.
+
+### The target moved, and the falsifier did not fire
+
+| | Before | After (7 reps) |
+|---|---|---|
+| `UNAUDITABLE-MAPPING` rate | 0.00 (0/10) | **1.00 (7/7)** |
+| applicability | 0.20 (10/50) | **0.20 (7/35)** |
+
+Applicability held at exactly the prior ratio, which is the thing that had to
+be checked first: the Warden kept making spontaneous rolls at the same rate
+and started explaining them, rather than avoiding them. The `§ 014` failure
+mode did not recur. Per the plan's own caveat, 1.00 on one fixture is seven
+reps of one turn and is evidence, not a solved tag.
+
+### `SYSTEM-ROLLED-PLAYER-ACTION` fell through the floor
+
+**0.76 (38/50) against a 0.90 floor**, and like-for-like on shared fixtures
+the damage is concentrated and severe:
+
+| Fixture | Before | After |
+|---|---|---|
+| `5c34991b-turn10-system-rolled-player-action` | 1.00 (10/10) | **0.33 (2/6)** |
+| `5c34991b-turn10-narrating-past-a-block` | 1.00 (10/10) | **0.50 (3/6)** |
+| `5c34991b-turn10-roll-result-inversion` | 1.00 (10/10) | **0.71 (5/7)** |
+| `turn19-system-rolled-player-action` | 1.00 | 1.00 |
+| `turn21-system-rolled-player-action` | 1.00 | 1.00 |
+
+Two more tags moved with it: `SCENE-JUMP` 0.88 → **0.43**,
+`ROLL-RESULT-INVERSION` 0.90 → **0.71** (1.00 under the contract-B rescore).
+All three regressed tags share the `5c34991b-turn10` source turn or `turn24`.
+
+### The mechanism, from the artifact rather than inferred
+
+Rep 001 of `5c34991b-turn10-system-rolled-player-action`, whose
+`playerEntityIds` is `['dr_kennedy']`:
+
+```
+ROLL: 1d20 | actingEntityId: dr_kennedy | rollType: panic_check
+purpose: "Panic Die for dr_kennedy — … check against current Stress 2 to see
+          if the mounting dread costs composure. Roll greater than 2"
+diceRequests: []
+```
+
+**The Warden obeyed the new instruction precisely** — it named the threshold —
+and rolled the player's Panic Check itself in order to do so.
+
+The wording is the cause. The new entry says *"Name the threshold for a Stat
+Check or Save"*, and Stat Checks and Saves are **the player's** rolls. It sits
+in `FIELDS EVERY roll_dice CALL MUST CARRY`, so it reads as authorisation to
+roll them — reintroducing the exact hazard `mothership-m7.txt:53-58` exists to
+neutralise:
+
+> Everything below this line describes mechanics in the book's voice — "call
+> for a FEAR Save", "roll under it", "make a SPEED Check". […] none of them
+> authorises you to resolve a player's Check or Save yourself.
+
+`§ 014` established that this boundary is placement-sensitive and that the
+rule being *present* in the prompt does not make it hold. This edit put player
+vocabulary on the GM-roll side of it.
+
+### What to change
+
+Rewrite the `purpose` entry in NPC-and-world vocabulary only. Drop "Stat Check
+or Save" outright; keep the threshold requirement but illustrate it with rolls
+the Warden legitimately owns — an NPC's Instinct, a wound-table column, an
+oracle band — and restate the ownership boundary inside the entry rather than
+relying on it holding from forty lines earlier. Then re-run.
+
+**Not shipped.** The prompt change is committed and currently breaches the
+decision rule; it must be revised or reverted before any capture.
