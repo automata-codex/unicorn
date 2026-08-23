@@ -73,10 +73,12 @@ capture across the whole session this time.
 - **Answer the `applicability` stubs `capture-fixture` writes; do not delete them.**
   `applies: false` with a real reason surfaces in the report's
   `fixture-gated-never-applies` finding. A deleted entry is visible nowhere.
-- **Open, and it affects what a capture freezes:** the hidden-entity leak
-  (`docs/hidden-information-findings.md`) is undecided, and 4 of the current 15 older
-  fixtures already freeze it. Capturing again before the design call freezes more of
-  it. Decide, or record that you accepted it knowingly.
+- **Settled 2026-08-21, and it no longer constrains the capture:** the hidden-entity
+  leak resolved to `ADR-0101` — `visible` is line of sight, `revealed` is discovery,
+  and the snapshot no longer filters, so the pool "leak" this list once warned about is
+  correct behaviour rather than something a capture would freeze. No fixture needed
+  re-capturing (`corpusVersion` held at `abbce198026c`). Read `ADR-0101` before
+  `docs/hidden-information-findings.md`, which is closed and preserved as evidence.
 
 ## Take a Wound — drive a player character to 0 HP
 
