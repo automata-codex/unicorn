@@ -1,4 +1,7 @@
+import { desc, eq } from 'drizzle-orm';
+
 import * as schema from '../db/schema';
+import { hashPromptText } from '../wardens/prompt-paths';
 
 import type Anthropic from '@anthropic-ai/sdk';
 import type { CallSessionParams } from '../anthropic/anthropic.service';
@@ -77,6 +80,57 @@ export interface WardenPromptRef {
 }
 
 /**
+ * The GM context block as the Warden received it, stored on change.
+ *
+ * ## Why this is not a count
+ *
+ * Four surfaces reach the Warden per turn and this one used to survive as
+ * `systemBlocks: number` — an integer. `playerMessage` and `snapshotSent`
+ * survive in full and `wardenPrompt` survives as a file-plus-hash ref
+ * against a file that is in the repo, so the block carrying `npcAgendas`,
+ * the hidden truth, entities and flags was the only one that did not.
+ *
+ * **Recomputing it after the fact does not work.** `gm_context`
+ * (`db/schema.ts`) is a single mutable row with an `updatedAt` and no
+ * history: turn 0 survives in `adventure_synthesis_snapshots`, the current
+ * value is live, and every intermediate state is gone. Nine of 58 turns of
+ * the 2026-08-16 playtest wrote `npcStates`, which destroyed the
+ * cartographer's authored agenda, and nothing can now say which turns read
+ * the original and which read the mood note that replaced it.
+ *
+ * ## Why store-on-change rather than a hash plus one copy
+ *
+ * `ADR-0099` proposed a per-turn hash plus the full text once per adventure.
+ * That assumed the blob is essentially static, and spec 019 Part 4a
+ * established that it is not — the hash would then tell you the text changed
+ * while the single stored copy is the wrong text, leaving you certain you
+ * have lost something and unable to recover it.
+ *
+ * So: hash every turn, and write `text` only when it moves off the previous
+ * turn. One copy on a quiet adventure, ten on the 2026-08-16 playtest, and
+ * `ADR-0099`'s 7.5 KB × 58 worst case only for an adventure that genuinely
+ * rewrote its context every turn — which would itself be worth seeing.
+ *
+ * The asymmetry this closes is backwards today: eval runs archive the whole
+ * assembled request in `warden-request.json` and are replays of things that
+ * already happened, while the playtest is what fixture capture reads *from*.
+ * The artifact needing the most provenance had the least.
+ */
+export interface GmContextRender {
+  /** Hash of the rendered block. Present on every turn. */
+  hash: string;
+  /**
+   * The full rendered block, present only on turns where the hash moved off
+   * the previous turn's — and on the first turn of an adventure, which has
+   * no previous hash to move off.
+   *
+   * Absent means *identical to the last turn that carried text*, never
+   * "unknown": walk back to the most recent turn with `text` to recover it.
+   */
+  text?: string;
+}
+
+/**
  * The raw Anthropic response envelope, recorded alongside the parsed payload.
  *
  * Without this, a turn that went wrong cannot be diagnosed from the archive
@@ -139,6 +193,12 @@ export interface AdventureTelemetryPayload {
     messageCount: number;
     promptTokens: number | null;
     completionTokens: number | null;
+    /**
+     * Optional only because rows written before this field existed do not
+     * carry it. Readers must tolerate its absence on historical turns —
+     * every turn of the 2026-08-16 playtest is such a row.
+     */
+    gmContext?: GmContextRender;
   };
   originalResponse: SubmitGmResponse;
   /**
@@ -197,8 +257,31 @@ export function buildAdventureTelemetryPayload(input: {
    * would silently break the per-turn "Warden" header in the report.
    */
   wardenPrompt: WardenPromptRef;
+  /**
+   * The `gmContext.hash` on this adventure's most recent telemetry row, or
+   * `null` on the first turn of an adventure (and on an adventure whose
+   * earlier rows predate the field).
+   *
+   * Drives the store-on-change decision in `GmContextRender`: `null` always
+   * stores the text, since there is nothing to compare against and a turn
+   * whose predecessor is unknown is exactly the turn worth keeping whole.
+   */
+  previousGmContextHash?: string | null;
 }): AdventureTelemetryPayload {
   const originalUsage = input.originalResponse.usage;
+
+  // `buildSessionRequest` puts the GM context block first and the Warden
+  // prompt second; the Warden prompt already survives as `wardenPrompt`.
+  const gmContextText = input.originalRequest.systemBlocks[0]?.text;
+  const gmContext: GmContextRender | undefined =
+    gmContextText === undefined
+      ? undefined
+      : {
+          hash: hashPromptText(gmContextText),
+          ...(hashPromptText(gmContextText) === input.previousGmContextHash
+            ? {}
+            : { text: gmContextText }),
+        };
 
   // Sort dice rolls by sequence_number so the review tool sees events in
   // the order they actually landed in game_events (system-generated and
@@ -214,6 +297,7 @@ export function buildAdventureTelemetryPayload(input: {
     originalRequest: {
       model: input.originalResponse.model,
       systemBlocks: input.originalRequest.systemBlocks.length,
+      ...(gmContext ? { gmContext } : {}),
       messageCount: input.originalRequest.messages.length,
       promptTokens: originalUsage?.input_tokens ?? null,
       completionTokens: originalUsage?.output_tokens ?? null,
@@ -259,4 +343,35 @@ export async function writeAdventureTelemetry(args: {
     sequenceNumber: args.sequenceNumber,
     payload: args.payload,
   });
+}
+
+/**
+ * The `gmContext.hash` on this adventure's most recent telemetry row, or
+ * `null` when there is none — a first turn, or an adventure whose rows all
+ * predate the field.
+ *
+ * Reads the highest `sequenceNumber` rather than the newest `createdAt`: the
+ * unique index is on `(adventureId, sequenceNumber)`, and a correction round
+ * does not write a second telemetry row, so the two agree — but sequence is
+ * the ordering the rest of the turn path is keyed to.
+ *
+ * Returning `null` rather than throwing on a missing field is the point:
+ * `null` makes the caller store the full text, which is the safe direction.
+ * A turn whose predecessor is unknown is exactly the turn worth keeping
+ * whole.
+ */
+export async function latestGmContextHash(args: {
+  tx: DbOrTx;
+  adventureId: string;
+}): Promise<string | null> {
+  const [row] = await args.tx
+    .select({ payload: schema.adventureTelemetry.payload })
+    .from(schema.adventureTelemetry)
+    .where(eq(schema.adventureTelemetry.adventureId, args.adventureId))
+    .orderBy(desc(schema.adventureTelemetry.sequenceNumber))
+    .limit(1);
+
+  if (!row) return null;
+  const payload = row.payload as AdventureTelemetryPayload;
+  return payload.originalRequest?.gmContext?.hash ?? null;
 }
