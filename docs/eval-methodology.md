@@ -968,7 +968,22 @@ justifies batching and it should be falsifiable:
   2026-08-23** on both runs, arithmetically.
 - `HIDDEN-INFO-LEAK` moves only as the scoping change dictates. Its
   `turn24` rep 007 — the 1 `fail` / 2 `pass` split that surfaced the
-  ambiguity — should stop splitting and settle on `pass`.
+  ambiguity — should stop splitting and settle on `pass`. **Confirmed
+  2026-08-23**, and isolated cleanly: `eval:judge-variance --trials 3` over
+  both `hidden-info-leak` fixtures, run at the *same* judge contract
+  (`01620ef7`) as spec 020's after-side variance, so the rubric is the only
+  variable between them.
+
+  | | `turn24` | `turn28` | rep 007 |
+  |---|---|---|---|
+  | rubric `4cf7fda1` (spec 020) | 29/30 | 30/30 | `fail`/`pass`/`pass` |
+  | rubric `13305f34` (today) | **30/30** | **30/30** | **`pass`/`pass`/`pass`** |
+
+  59 `pass`, 0 `fail`, and one transient `error` (rep 002 trial 2, *check
+  "hidden-info-leak" threw*) which is a failed call rather than a verdict.
+  All three rep 007 rationales now reason from the boundary's scope
+  explicitly — the disambiguation did the work it was written to do, rather
+  than the split resolving by chance.
 - **No third tag moves.** If one does, the disjointness claim was wrong and
   the bump needs splitting before any of its numbers are trusted.
   **Partly falsified 2026-08-23, and the claim is narrowed rather than
