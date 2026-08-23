@@ -140,6 +140,12 @@ use 1.00**, and the first comparison to hit it already went wrong: spec 019's `e
 `ROLL-RESULT-INVERSION` under *Unchanged* at 0.90 → 0.90, when the truth is 1.00 → 0.90. See
 `§ Before trusting any judged rate from this corpus` and `docs/roadmap.md § M7.7`.
 
+**Settled 2026-08-23: that −0.10 was not a real regression, and the record
+below is superseded.** Both runs were re-scored under judge contract
+`01620ef7`, scoped to the one fixture carrying the tag, and both return 1.00
+(10/10). The corrected comparison is **1.00 → 1.00**. See
+`§ Bump note — 2026-08-23`. The reasoning that anticipated it, preserved:
+
 **Follow-up 2026-08-22: that −0.10 is probably not a real regression.** Spec 020's variance runs located
 spec 019's single `ROLL-RESULT-INVERSION` failure — it is **rep 004**, and that is the same frozen input
 which fails 3/3 under the old judge contract and passes 3/3 under the new one (`ADR-0102`). So both sides
@@ -912,8 +918,23 @@ things on the same turn. **Every prior `HIDDEN-INFO-LEAK` rate is now
 non-comparable.**
 
 **3. The `ROLL-RESULT-INVERSION` re-score** on both comparison runs under
-judge contract `01620ef7` — pending, and the prediction is recorded with it
-below.
+judge contract `01620ef7` — **run 2026-08-23, and the prediction held
+exactly.** Both sides return **1.00 (10/10)**, so the corrected comparison is
+**1.00 → 1.00, genuinely *Unchanged***. The phantom −0.10 is deleted: it was
+two wrong numbers rather than one.
+
+- Baseline `fa4e6e2f__2026-08-21T11-05-26Z`: 10/10 pass, no transitions. Its
+  0.90 was the self-contradicting rep 003 verdict, which contract `01620ef7`
+  grades as `pass`.
+- After side `6717347d__2026-08-21T21-14-59Z`: 0.90 → 1.00, **exactly one
+  transition, rep 004 `fail→pass`** — the rep spec 020's variance runs had
+  already located as failing 3/3 under `fbbd8e46` and passing 3/3 under
+  `01620ef7`. Predicted before the run, and it is the only rep that moved.
+
+Reports: `…-rescore-rri-01620ef7.md` beside each run. Scoped to the one
+fixture carrying the tag, so no other judged rate acquired a second
+contract-B figure. The fixture carries no `hidden-info-leak` check, so change
+2 above could not confound it.
 
 ### Predictions, pre-registered before any run
 
@@ -931,6 +952,8 @@ justifies batching and it should be falsifiable:
   replacing a recorded −0.10 regression that was two wrong numbers rather
   than one. Spec 019's single failure is rep 004, which fails 3/3 under
   contract `fbbd8e46` and passes 3/3 under `01620ef7`.
+  **Confirmed 2026-08-23** — see change 3 above. The remaining three
+  predictions are still open; they need the re-baseline.
 
 ---
 
