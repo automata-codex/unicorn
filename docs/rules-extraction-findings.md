@@ -5030,15 +5030,44 @@ This is the same shape as the `roll target and adjudication` gap M7.7's
 fixture-authoring bullet already records against `DiceRollEventPayload` —
 reached from the other direction, and with a measured 0.00 attached to it.
 
+#### Correction, same day: the tag is prose-graded, so a prompt edit *can* move it
+
+The first version of this section concluded that "no prompt edit alone can
+move it to 1.00 while the threshold has nowhere structural to live." That is
+wrong, and the rubric is the reason. `UNAUDITABLE-MAPPING` asks:
+
+> for each of those rolls, does the roll's own `purpose` **text** state what
+> the possible results mean, across the range the notation can produce […] and
+> so is one that states a threshold ("1d10, 7+ and the panel is unlocked")
+
+It grades prose, start to finish. It never reads a structural field. So a
+Warden that wrote *"1d100 roll-under the Cartographer's Instinct 35"* into
+`purpose` would satisfy it today, with no schema change at all — and "states a
+threshold" is exactly the shape a Mothership stat check has.
+
+What survives from the finding above is narrower and still worth having: the
+Warden is given **no instruction to do this**. `purpose` is a bare
+`z.string()` with no `.describe()`, and the prompt mentions the field zero
+times. The `target` asymmetry against the player path is real, and it matters
+for *structural* auditability and for the `DiceRollEventPayload` gap M7.7's
+fixture-authoring bullet records — but it is not what holds this tag at 0.00.
+
 #### Consequences
 
-- The tag's 0.00 is not a pure Warden-behaviour number. Part of it is a
-  missing field, and no prompt edit alone can move it to 1.00 while the
-  threshold has nowhere structural to live.
+- The cheap fix is a prompt sentence plus a `.describe()` on `purpose`,
+  telling the Warden to fix the meaning before the die is read. Still
+  Warden-visible — `promptHash` and `assemblyHash` both move, and it is
+  input-affecting, so a fresh re-baseline rather than a rescore — but it is
+  not the schema redesign the first draft implied.
+- **One scope question to settle first, and it is the same shape as
+  `HIDDEN-INFO-LEAK`'s.** `isSpontaneousGmRoll` scopes in any
+  `system_generated`, single-die, unmodified roll with no `requestId`. An NPC
+  stat check qualifies structurally, yet it *does* have a fixed mechanic —
+  roll under the NPC's Instinct — which the rubric's own preamble says is out
+  of scope ("it resolves no player-facing dice_request and **no fixed
+  mechanic**"). Either the scope excludes stat checks, or the Warden states
+  the stat as the threshold and they stay in. The second is cleaner and needs
+  no checker change, but it should be decided rather than discovered.
 - Widening the tag's coverage — the bullet's second half — is worth doing
-  regardless, but widening it before the field exists buys more fixtures
-  measuring the same unrecordable thing.
-- The fix is Warden-visible: a new field on `roll_dice` moves `assemblyHash`,
-  and the prompt sentence that tells the Warden to populate it moves
-  `promptHash`. That is an input-affecting change and a fresh re-baseline, not
-  a rescore.
+  regardless, but widening it before the instruction exists buys more fixtures
+  measuring a Warden that was never told.
