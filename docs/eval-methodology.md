@@ -902,11 +902,33 @@ second addendum settled the cause: the fixture's `blockDescription` stalled
 the Warden until it learned "Alvarez's Instinct score", Alvarez is the player
 character, and `ADR-0100` made Instinct an `npc`-only field — so no value the
 player could supply ever unblocked the turn, and no run could pass it. It had
-never had a satisfiable block. Expect `NARRATING-PAST-A-BLOCK` to move
-**0.66 → 1.00** on a smaller denominator, arithmetically: the fixture failed
-10/10 while `turn21` and the `5c34991b-turn10` capture passed every rep of
-every run recorded. That is a denominator change, not a Warden improvement,
-and it must not be read as one.
+never had a satisfiable block.
+
+**Confirmed arithmetically 2026-08-23, from the archived reports, with no
+spend.** `turn16` carried exactly two checks, so the removal touches exactly
+two tags:
+
+| Run | `NARRATING-PAST-A-BLOCK` before | `turn16`'s contribution | After |
+|---|---|---|---|
+| `fa4e6e2f__2026-08-21T11-05-26Z` | 0.66 (19/29) | 0 pass / 10 fail | **1.00 (19/19)** |
+| `6717347d__2026-08-21T21-14-59Z` | 0.70 (21/30) | 1 pass / 9 fail | **1.00 (20/20)** |
+
+`turn21` and the `5c34991b-turn10` capture pass every rep of both runs, which
+is the whole of what is left. **This is a denominator change, not a Warden
+improvement, and must not be read as one.**
+
+**A correction to the roadmap's figure, found while checking this:** M7.7's
+bullet cites 0.66 "on the 2026-08-21 re-baseline", but 0.66 is `fa4e6e2f`
+(the 11-05 run, four errored turns) and the spec 019 re-baseline is
+`6717347d` (21-14) at 0.70. Two runs share the date and the bullet conflated
+them.
+
+**The prediction below was too strong, and this is the correction rather than
+a quiet fix.** "No third tag moves" is right about *rates* and wrong about
+*denominators*: `turn16`'s second check was `tool-syntax-leak`, 10/10 pass on
+both runs, so `TOOL-SYNTAX-LEAK` goes 216 → 206 with its rate unchanged at
+1.00. A set-membership bump moves every denominator the removed fixture
+contributed to — which is exactly why the kind needed naming.
 
 **2. `HIDDEN-INFO-LEAK`'s rubric disambiguated.** The perception boundary now
 scopes the whole question; the numeric phrases are illustrations of a
@@ -942,12 +964,19 @@ Recorded here rather than after, because the disjointness claim above is what
 justifies batching and it should be falsifiable:
 
 - `NARRATING-PAST-A-BLOCK` rises to 1.00 on a denominator smaller by exactly
-  `turn16`'s reps. Nothing else about the tag changes.
+  `turn16`'s reps. Nothing else about the tag changes. **Confirmed
+  2026-08-23** on both runs, arithmetically.
 - `HIDDEN-INFO-LEAK` moves only as the scoping change dictates. Its
   `turn24` rep 007 — the 1 `fail` / 2 `pass` split that surfaced the
   ambiguity — should stop splitting and settle on `pass`.
 - **No third tag moves.** If one does, the disjointness claim was wrong and
   the bump needs splitting before any of its numbers are trusted.
+  **Partly falsified 2026-08-23, and the claim is narrowed rather than
+  dropped:** no third tag's *rate* moves, but `TOOL-SYNTAX-LEAK`'s
+  *denominator* does, 216 → 206, because `turn16` carried it too. Disjoint in
+  the sense that justified batching — no two of the three changes touch the
+  same tag's rate — and not disjoint in denominators, which no set-membership
+  bump can be.
 - `ROLL-RESULT-INVERSION` corrects to **1.00 → 1.00**, genuinely unchanged,
   replacing a recorded −0.10 regression that was two wrong numbers rather
   than one. Spec 019's single failure is rep 004, which fails 3/3 under
