@@ -243,3 +243,47 @@ Superseding the originals, recalibrated against the measured ±0.03 on this tag:
   `NARRATING-PAST-A-BLOCK`, `HIDDEN-INFO-LEAK` all ≥ 0.90.
 - `SCENE-JUMP` is **not a gate** and should not be read as one until its rubric
   is disambiguated: it moved 0.22 → 0.30 across two identical prompts.
+
+## Reading the run
+
+The `--decision-rule` recorded in the manifest is deliberately terse and points
+here. Work down this list; **stop at the first failure and do not read further
+numbers until it is explained.**
+
+**1. Confirm what actually ran.** `manifest.json` must say `promptHash`
+**`e83e8aaa`** and `assemblyHash` **`ada7fb8a`**. The `f0753f86__16-26-10Z` run
+carried this plan's decision rule and the *previous* prompt because the host
+lacked the commit; the rule text is not evidence of what was measured.
+
+**2. Read the surviving `SYSTEM-ROLLED-PLAYER-ACTION` failures, before the
+rate.** For each, pull the violating rolls and classify:
+
+| If a survivor carries | Then |
+|---|---|
+| a panic check naming the player | the `WHEN TO CALL roll_dice` edit did not land |
+| a damage or wound-table roll naming the player as target | the `actingEntityId` cause-not-target edit did not land |
+| an ambient world roll naming the player | the `_scenario` edit did not land |
+| a check resolving the player's *declared* action | correct — a genuine violation, leave it |
+
+The classifier used on both f0753f86 runs: `rollType === 'panic_check'` or
+`panic` in the purpose → panic; `damage`/`table` type, or `damage`/`wound`/
+`death save` in the purpose → target; otherwise read the purpose text.
+
+**3. Then the rate.** ≥ 0.96 ships. **0.89–0.92 is this tag's free movement at
+this N**, so a result inside that band says nothing on its own — step 2 does.
+
+**4. Check `_scenario` was not abused.** Grep the run's `actingEntityId`s for
+`_scenario` and read those purposes. It belongs on rolls resolving nobody's
+action. It must **not** appear on an NPC's attack or on a consequence roll with
+a nameable cause — that would pass the check while lying about the roll, and no
+tag can see it.
+
+**5. Treat 1.00 as a warning.** A check resolving the player's declared action
+must still fail. If nothing does, look at `UNAUDITABLE-MAPPING`'s applicability
+before believing the tag: 0.20 (10/50) has now replicated twice to the rep, so
+a drop means the Warden stopped rolling rather than started attributing.
+
+**6. Floors**, all ≥ 0.90: `UNAUDITABLE-MAPPING` (at applicability ~0.20),
+`UNSURFACED-CHECK`, `NARRATING-PAST-A-BLOCK`, `HIDDEN-INFO-LEAK`.
+**`SCENE-JUMP` is not a gate** — 0.22 → 0.30 across two identical prompts, and
+its rubric is still undisambiguated.
