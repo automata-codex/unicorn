@@ -1001,6 +1001,49 @@ justifies batching and it should be falsifiable:
 
 ---
 
+## Same-prompt run-to-run variance, measured 2026-08-23
+
+Two full-corpus runs landed at **identical `promptHash` `f0753f86`,
+`assemblyHash` `ada7fb8a` and corpus `ead033182d6a`** — `14-39-39Z` and
+`16-26-10Z`. The second was launched intending to test plan 022 and ran the
+unchanged prompt because the host did not have the commit; the archived
+`prompt.txt` files are byte-identical. An accident, and the only whole-corpus
+variance estimate this project has.
+
+| Tag | `14-39-39Z` | `16-26-10Z` | Δ | N |
+|---|---|---|---|---|
+| `UNAUDITABLE-MAPPING` | 1.00 (app 0.20) | 1.00 (app 0.20) | **0.00** | 10/50 |
+| `NARRATING-PAST-A-BLOCK` | 0.95 | 0.95 | 0.00 | ~20 |
+| `SYSTEM-ROLLED-PLAYER-ACTION` | 0.89 | 0.92 | +0.03 | ~75 |
+| `SCENE-JUMP` | 0.22 | 0.30 | +0.08 | 9/10 |
+| `MISSING-DELTA` | 0.80 | 0.90 | +0.10 | 20 |
+| `ROLL-RESULT-INVERSION` | 0.89 | 1.00 | **+0.11** | 9/10 |
+
+**Nothing changed between these two runs except the dice.** So on this corpus,
+a single-fixture tag can move **0.11 for free**, and a 20-rep tag 0.10.
+
+Consequences for how these numbers get read:
+
+- **A decision rule with a 0.90 floor cannot adjudicate a 0.89.** Plan 021's
+  second run was called just-under-floor at 0.89; the replication says 0.92.
+  That call was inside noise and should not have been treated as a finding.
+- **Single-fixture tags need a movement threshold wider than 0.10** before
+  anything is attributed to a change. `SCENE-JUMP`, `ROLL-RESULT-INVERSION`,
+  `UNSURFACED-CHECK`, `OVER-RESOLUTION` and both `UNAUDITABLE-MAPPING`-bearing
+  tags all sit at N ≤ 10.
+- **Artifact-level predictions beat rate-level ones.** "No remaining failure
+  carries a violating roll of class X" is checkable at N=1 and immune to this;
+  "the rate rises to 0.95" is not.
+- **Stability is itself evidence.** `UNAUDITABLE-MAPPING` returning 1.00 at
+  applicability 0.20 (10/50) twice, to the rep, is a much stronger result than
+  the single run suggested — plan 021's gain replicates exactly.
+
+Budget a replication before attributing any sub-0.10 movement on a small tag
+to a change. Two runs at one prompt cost the same as one run at each of two
+prompts, and the first pair buys a denominator for reading every later pair.
+
+---
+
 ## A model swap audits the harness as much as the model
 
 The first full-corpus run against a new model is two experiments wearing one coat. It
