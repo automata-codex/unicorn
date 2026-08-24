@@ -32,6 +32,17 @@ export function isAttributedTo(purpose: string, playerEntity: string): boolean {
 }
 
 /**
+ * The reserved non-entity owner, lowercase for comparison against a
+ * lowercased id. Spec 018 established it for resource pools belonging to no
+ * entity (`session.validator.ts`, the synthesis prompt's
+ * `RESOURCE POOL ADDRESSES:` section); `rollActsFor` reuses it for rolls that
+ * resolve nobody's action. Not imported from `src/` because no constant
+ * exists there to import — the string is a prompt-and-validator convention,
+ * and this is the eval side's copy of it.
+ */
+const RESERVED_SCENARIO_OWNER = '_scenario';
+
+/**
  * Who a roll acted for. Three states, not two — see `rollActsFor`.
  *
  * `'unknown'` is not a soft `'other'`. It means the payload named an entity
@@ -109,6 +120,27 @@ export function rollActsFor(
 
   if (ctx.playerEntityIds.some(matches)) return 'player';
   if (ctx.knownEntityIds.some(matches)) return 'other';
+
+  // The reserved owner for a roll that resolves nobody's action — an ambient
+  // world roll, a detail the Warden decides by die rather than by fiat.
+  //
+  // **`'other'`, deliberately, and not `'unknown'`.** The question this check
+  // asks is whether the system resolved the *player's* action, and
+  // `_scenario` answers it definitively: no. Routing an honest declaration to
+  // `'unknown'` would send it to `unbindableVerdict` and drop the rep out of
+  // the denominator — a rate bought by a shrinking denominator, which is
+  // worse than the failure it replaces.
+  //
+  // Reuses spec 018's pool convention rather than inventing a second
+  // sentinel: `_scenario` is the one owner that may begin with an underscore
+  // and entity ids never do, so it cannot collide with a real entity.
+  //
+  // **No-op on every archived artifact**, verified 2026-08-24: no run in
+  // `eval-runs/` carries an `actingEntityId` beginning with an underscore.
+  // So this edit needs no rescore to keep older runs comparable, and it is
+  // not the case `ADR-0099`'s declined structural-checker hash reserved as a
+  // revisit trigger — nothing archived grades differently because of it.
+  if (needle === RESERVED_SCENARIO_OWNER) return 'other';
 
   // Named something that is neither the player nor any entity this fixture
   // declares. Most often a resource pool name. It cannot be ruled out as the

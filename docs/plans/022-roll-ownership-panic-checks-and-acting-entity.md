@@ -182,3 +182,64 @@ and genuinely has no actor.** Nothing in the corpus is yet that roll.
 **Decide this before running.** Running the plan as currently drafted would
 measure two fixes and one unresolved third case, and the residual would be
 uninterpretable.
+
+---
+
+## Resolved 2026-08-24: `_scenario` gets a home, and the checker learns it
+
+**Option 2 taken, and the reason is a design position rather than a
+tie-break:** the Warden deciding world details by die is behaviour worth
+keeping, not noise to suppress. Option 1 would have bought a cleaner tag by
+removing something the game is better for having. So the roll stays and gets an
+honest owner.
+
+**Prompt** — the `actingEntityId` entry gains the reserved-owner case:
+*"When a roll resolves nobody's action … name the reserved owner `_scenario`.
+Whether the corridor lighting fails, whether a distant noise is the thing they
+fear or the ship settling … **Keep making them**; they are how the world stays
+uncertain to you as well."* Phrased to encourage the behaviour, not merely to
+permit it, and it still demands a meaning-first `purpose` like any other roll.
+
+**Checker** — `rollActsFor` returns `'other'` for `_scenario`, placed after the
+player and known-entity checks so neither is weakened. `'other'` rather than
+`'unknown'` because `_scenario` answers this check's question definitively —
+no, the system did not resolve the player's action — and routing an honest
+declaration to `unbindableVerdict` would cost a denominator, buying a rate with
+a shrinking one. Two tests: the carve-out passes, and `_scenario_hp` still
+reports undecided so it is a carve-out and not a hole.
+
+**No rescore is owed, and this is verified rather than assumed.** No archived
+run carries an `actingEntityId` beginning with an underscore, so the checker
+edit grades every existing artifact identically. It is therefore **not** the
+revisit trigger `ADR-0099`'s declined structural-checker hash reserved — that
+was "a checker that reads something no longer present in the archived
+artifact", and nothing archived changes here.
+
+`promptHash` `165be9eb` → **`e83e8aaa`**. `assemblyHash` **holds at
+`ada7fb8a`** — three prompt edits and one eval-side checker change, no tool
+schema touched.
+
+### Predictions, restated for the run
+
+Superseding the originals, recalibrated against the measured ±0.03 on this tag:
+
+- `SYSTEM-ROLLED-PLAYER-ACTION` **≥ 0.96**. Across the two f0753f86 runs, 14
+  failures decompose to 10 panic, 4 target, 3 ambient-world (some reps carry
+  more than one); all three classes now have a fix or a home.
+- **The gate is the artifacts, not the rate.** No remaining failure should
+  carry (a) a panic check for the player, (b) a damage or wound-table roll
+  naming the player as target, or (c) an ambient world roll naming the player.
+  Any survivor of a class means that edit did not land, and at ±0.03 free
+  movement the rate alone cannot tell you which.
+- **`_scenario` should appear and should not be abused.** Expect it on ambient
+  rolls; it must not show up on an NPC's attack or a consequence roll with a
+  nameable cause. `_scenario` on a roll that has an actor is the failure mode
+  this carve-out creates, and it is invisible in the tag — read the purposes.
+- **1.00 remains a warning.** A Combat check resolving the player's declared
+  action must still fail. If the tag is perfect, check `UNAUDITABLE-MAPPING`'s
+  applicability for the Warden having quietly stopped rolling.
+- Hold: `UNAUDITABLE-MAPPING` ≥ 0.90 at applicability ~0.20 (10/50) — now
+  replicated twice, so a drop here is real; `UNSURFACED-CHECK`,
+  `NARRATING-PAST-A-BLOCK`, `HIDDEN-INFO-LEAK` all ≥ 0.90.
+- `SCENE-JUMP` is **not a gate** and should not be read as one until its rubric
+  is disambiguated: it moved 0.22 → 0.30 across two identical prompts.

@@ -38,6 +38,15 @@ FIELDS EVERY roll_dice CALL MUST CARRY
   are both the contractor's — corporate_spy_1, not the player. Naming the
   player because a roll lands on them is what makes it read as the system
   resolving their action.
+
+  When a roll resolves nobody's action — you are deciding a detail of the
+  world by die rather than by fiat, and no character is acting — name the
+  reserved owner _scenario. Whether the corridor lighting fails, whether a
+  distant noise is the thing they fear or the ship settling, how badly the
+  weather turns: these are yours to roll and they belong to the scenario.
+  Keep making them; they are how the world stays uncertain to you as well.
+  Give them a purpose that fixes the meaning first, exactly like any other
+  roll, and do not attach them to whichever character happens to be nearby.
 - rollType: one of check, save, damage, panic_check, table, other.
 - purpose: what the roll is for AND what its results mean — fix the meaning
   before you read the die, never after. This field never widens what you may

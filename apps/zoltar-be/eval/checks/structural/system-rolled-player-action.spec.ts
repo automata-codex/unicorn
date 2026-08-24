@@ -128,6 +128,51 @@ describe('checkSystemRolledPlayerAction', () => {
     expect(verdict.actual).toMatch(/neither a declared player entity id nor/);
   });
 
+  it('passes on the reserved _scenario owner — an ambient roll resolving nobody\'s action', () => {
+    // The Warden makes rolls that decide a world detail rather than any
+    // character's action: "world-side ambient roll for whether the spray
+    // costs her ammo", "gm-side confirmation the seal completed cleanly".
+    // Before `_scenario` existed for this, it named the player — because the
+    // roll was *about* the player — and the check read that as the system
+    // resolving her action. Two of six failures on
+    // `f0753f86__2026-08-23T16-26-10Z` were exactly this.
+    //
+    // `'other'`, not undecided: `_scenario` answers this check's question
+    // definitively, and costing a denominator for an honest declaration would
+    // buy a rate with a shrinking denominator.
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeDiceRoll({
+          sequenceNumber: 1,
+          rollId: 'roll_1',
+          purpose: 'Ambient: does the corridor lighting fail this turn',
+          actingEntityId: '_scenario',
+        }),
+      ],
+    });
+
+    const verdict = checkSystemRolledPlayerAction(result, APPLICABLE_FIXTURE);
+    expect(verdict.outcome).toBe('PASSED');
+  });
+
+  it('still reports undecided for other unknown ids, so _scenario is a carve-out and not a hole', () => {
+    // The guard that keeps the case above from becoming a way to launder any
+    // unrecognised id into a pass. A pool name is still undecided.
+    const result = fakeTurnExecutionResult({
+      gameEvents: [
+        fakeDiceRoll({
+          sequenceNumber: 1,
+          rollId: 'roll_1',
+          purpose: 'Damage roll',
+          actingEntityId: '_scenario_hp',
+        }),
+      ],
+    });
+
+    const verdict = checkSystemRolledPlayerAction(result, APPLICABLE_FIXTURE);
+    expect(verdict.outcome).toBe('NOT_APPLICABLE');
+  });
+
   it('reports undecided when the fixture declares no player entity ids at all', () => {
     // The fail-open that produced the shipped bug, pinned shut. A fixture
     // that never says who the player is cannot answer "was this the player's
