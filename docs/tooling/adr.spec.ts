@@ -10,7 +10,13 @@ import {
   splitDecisionsLog,
 } from './adr.core';
 
-const validFrontMatter = {
+import type { FrontMatter } from './adr.core';
+
+// Annotated rather than inferred: without it `area` and `status` widen to
+// `string`, and every use that feeds an `AdrFile` fails to typecheck. The
+// annotation also checks the fixture against the real schema type, which is
+// what a fixture for these round-trip tests should be doing anyway.
+const validFrontMatter: FrontMatter = {
   id: 'ADR-0042',
   title: 'A rate that never moves is a harness suspect, not a finding',
   area: 'eval-harness',
