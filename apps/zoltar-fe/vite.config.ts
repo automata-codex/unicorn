@@ -10,6 +10,15 @@ export default defineConfig({
 	// breaks value imports in the browser. Including it in optimizeDeps
 	// routes it through esbuild's pre-bundler, which handles CJS→ESM
 	// conversion properly.
+	//
+	// Pre-bundling it has a cost the `dev` script pays for: Vite keys the
+	// optimizer cache on the config and lockfile hashes, never on the contents
+	// of a symlinked workspace package. Rebuilding `@uv/game-systems` therefore
+	// leaves the browser on the previous pre-bundle indefinitely, and because
+	// the CJS interop compiles named imports into runtime property lookups, a
+	// symbol added since that pre-bundle binds as `undefined` rather than
+	// failing to import — surfacing much later as "x is not a function". Hence
+	// `vite --force` in the dev scripts, which re-optimizes on every start.
 	optimizeDeps: {
 		include: ['@uv/game-systems'],
 	},
