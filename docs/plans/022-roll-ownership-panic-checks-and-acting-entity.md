@@ -287,3 +287,96 @@ a drop means the Warden stopped rolling rather than started attributing.
 `UNSURFACED-CHECK`, `NARRATING-PAST-A-BLOCK`, `HIDDEN-INFO-LEAK`.
 **`SCENE-JUMP` is not a gate** — 0.22 → 0.30 across two identical prompts, and
 its rubric is still undisambiguated.
+
+---
+
+## The run, 2026-08-24 — `e83e8aaa__2026-08-24T11-21-49Z`
+
+**Decision rule satisfied. Two of three edits landed as designed; the third
+was routed around, and the check cannot see it.**
+
+Step 1 passed: `promptHash e83e8aaa`, `assemblyHash ada7fb8a`, archived
+`prompt.txt` byte-identical to the local file, all three edits present.
+
+| | 14-39-39Z | 16-26-10Z | **e83e8aaa** |
+|---|---|---|---|
+| `SYSTEM-ROLLED-PLAYER-ACTION` | 0.89 | 0.92 | **1.00** (app 0.66, 79/119) |
+| `UNAUDITABLE-MAPPING` | 1.00 | 1.00 | 0.90 (app 0.20, 10/50) |
+| `UNSURFACED-CHECK` | 1.00 | 1.00 | 0.90 |
+| `NARRATING-PAST-A-BLOCK` | 0.95 | 0.95 | 1.00 |
+| `HIDDEN-INFO-LEAK` | 1.00 | 0.94 | 1.00 |
+| `SCENE-JUMP` (not a gate) | 0.22 | 0.30 | 0.50 |
+
+### 1.00 is real for two classes, and it is not over-correction
+
+The pre-registered warning was that a perfect tag means the Warden stopped
+rolling. **It did the opposite:** total `dice_roll` events 73 → 52 → **80**,
+applicability 0.66 (79/119) against 0.66 and 0.65, and `diceRequests` emitted
+57 against 59. Volume up, deferral rate flat.
+
+Player-attributed rolls, by class, against `16-26-10Z`:
+
+| Class | before | after |
+|---|---|---|
+| panic checks naming the player | 3 | **0** |
+| damage / wound rolls naming the player | 1 | **0** (and 2 → 18 correctly attributed) |
+
+Both edits landed. Zero surviving `SYSTEM-ROLLED-PLAYER-ACTION` failures of
+any class.
+
+### `_scenario` was used zero times, and the ambient class was laundered
+
+**Not one roll in the run named `_scenario`** — 80 rolls, none. The checker
+carve-out is dead code so far. The ambient class did not go away; it grew:
+
+| | 14-39-39Z | 16-26-10Z | e83e8aaa |
+|---|---|---|---|
+| ambient-style rolls | 1 (`dr_kennedy`) | 2 (`alvarez`) | **4** (`hull_breach_cascade` ×3, `decommissioned_android` ×1) |
+
+The Warden stopped naming the player and started naming **a thematically
+adjacent declared entity** instead — *"Ambient station event as Alvarez
+crosses to the hub junction"* attributed to `decommissioned_android`, which is
+not acting and not involved. That resolves through `knownEntityIds` to
+`'other'` and passes.
+
+**This is the blind spot the plan pre-registered, arriving in mirror image.**
+The guard looked for `_scenario` on rolls that have an actor; what happened is
+a real entity on rolls that have none. Same defect — an attribution that is
+false but passes — and the tag cannot distinguish it, because every declared
+entity is equally `'other'`. So `SYSTEM-ROLLED-PLAYER-ACTION` at 1.00 should
+be read as **two classes fixed and one relabelled**, not three fixed.
+
+Worth noting what did work: those ambient purposes are excellent —
+*"1-40 nothing but the ship groaning, 41-70 …"* — which is plan 021's
+instruction holding, and why `UNAUDITABLE-MAPPING` stayed at the floor rather
+than collapsing.
+
+### The two floor-level dips, both single failures at N=10
+
+Measured free movement at this N is ±0.11 (`§ Same-prompt run-to-run
+variance`), so neither is conclusive on its own. Both are worth naming because
+each has an identifiable shape rather than looking like noise:
+
+- **`UNAUDITABLE-MAPPING` 0.90** — the one failure states outcomes
+  *semantically* without a number: *"success means a mostly truthful answer,
+  failure means they deflect"*, with no threshold the rolled 29 can be checked
+  against. A partial slippage of plan 021's instruction toward qualitative
+  bands.
+- **`UNSURFACED-CHECK` 0.90** — the one failure is an *"Ambient station
+  event"* roll, i.e. the same new ambient behaviour, now generating collateral
+  in a second tag.
+
+Both point at the ambient rolls as the live edge, which is the same place the
+`_scenario` finding points.
+
+### What this leaves open
+
+1. **Make the Warden actually use `_scenario`.** The instruction is present
+   and was ignored in favour of an entity that happens to be in the fixture.
+   It needs to be a rule the Warden follows rather than an option offered —
+   likely by naming the failure mode explicitly ("do not attach an ambient
+   roll to whichever entity is nearby").
+2. **The checker cannot police this**, and that is now a demonstrated gap
+   rather than a hypothesis. A rule like "an ambient-purpose roll must name
+   `_scenario`" would be a new structural check, not a change to this one.
+3. Both floor dips want a replication before either is treated as real.
