@@ -380,3 +380,60 @@ Both point at the ambient rolls as the live edge, which is the same place the
    rather than a hypothesis. A rule like "an ambient-purpose roll must name
    `_scenario`" would be a new structural check, not a change to this one.
 3. Both floor dips want a replication before either is treated as real.
+
+### Correction: naming a nearby entity is mostly right, and "laundering" was wrong
+
+Re-read against the full purposes and the fixtures' entity lists, the
+characterisation above is too harsh and the recommendation that followed from
+it was wrong. Both entities named are real scenario actors —
+`hull_breach_cascade` is a `threat`, `decommissioned_android` an `npc` — and
+the question is not "player or not" but **whose outcome space the roll
+actually spans**.
+
+One of the four is squarely correct:
+
+> *"whether the hull cascade claims a section as they cross the mid-deck
+> junction. 1-40 nothing new, 41-70 a section seals behind them cutting off a
+> retreat route, 71-100 a violent shudder throws debris"* — `hull_breach_cascade`
+
+Every band is the hull cascade acting. **`_scenario` would be strictly worse
+here**: it would discard the information that this specific threat is the live
+hazard, which is exactly the off-screen-threat bookkeeping the two-mechanism
+model wants the Warden doing. Forcing the sentinel would destroy signal.
+
+The other three attach a **multi-source outcome table** to one of its sources:
+
+> *"1-40 nothing but the ship groaning, 41-70 evidence of the missing crew,
+> 71-90 a structural hazard, 91-100 first direct contact cue from the signal
+> source"* — `hull_breach_cascade`
+
+Bands here belong to the ship, the missing crew, a hazard, and
+`signal_source_entity` — a *different* declared threat. The roll is not the
+hull cascade's; the hull cascade is one quarter of it. Same for the
+`decommissioned_android` roll, where only the "clicking changes/stops" band is
+plausibly the android.
+
+**So the behaviour is not wrong, and it is not to be discouraged.** The
+imprecision is narrow: a table spanning several sources gets filed under one of
+them. That is a mild accuracy nit with no downstream consumer —
+`actingEntityId` is read by this checker, which only asks player-or-not, and by
+nothing else.
+
+**Recommendation reversed: do not tighten the prompt to force `_scenario`.**
+It is correctly available for the genuinely ownerless roll — the quarantine
+seal completing cleanly, the corridor lighting — and correctly unused when a
+real actor owns the outcome. Zero uses in this run is not a failed edit; it is
+four rolls that each had a better answer available.
+
+What survives from the section above:
+
+- **The measurement gap is real but smaller than implied.** The check cannot
+  distinguish a well-attributed ambient roll from a lazily-attributed one. That
+  is worth knowing and is not worth a structural check, because both are
+  acceptable behaviour and neither is what the tag exists to catch.
+- **The one shape worth watching** is a multi-source outcome table generally,
+  independent of attribution — a roll whose bands span four different causes is
+  harder to adjudicate and to replay than four narrower rolls would be. That is
+  a `UNAUDITABLE-MAPPING`-adjacent observation, not a
+  `SYSTEM-ROLLED-PLAYER-ACTION` one, and it is an observation rather than a
+  proposed change.
