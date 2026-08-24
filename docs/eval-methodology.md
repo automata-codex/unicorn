@@ -1073,9 +1073,28 @@ committing her to a response.
 **Every prior `SCENE-JUMP` rate is non-comparable**, which costs nothing: none
 of them was measuring the Warden.
 
-**Expect this fixture to stop discriminating.** Under the corrected reading it
-should pass at or near 1.00, which is `ADR-0082`'s blind-rubric shape — accepted
-because an undiscriminating fixture is honest where a coin flip is not. The tag
+**Measured 2026-08-24 by rescore** on `e83e8aaa__2026-08-24T11-21-49Z`, scoped
+to the one fixture — 10 judge calls, no Warden spend. **0.50 → 1.00**, five
+`fail→pass` transitions.
+
+**The rate is the lesser half of the result. The ambiguity is gone:**
+
+| | flagged `borderline` / `ambiguous` / `arguably` |
+|---|---|
+| `f0753f86__14-39-39Z` (rubric `ba1cff52`) | 8 of 9 |
+| `e83e8aaa` (rubric `ba1cff52`) | 6 of 10 |
+| `e83e8aaa` rescored (rubric `01a4288c`) | **0 of 10** |
+
+That matters more than 1.00, because a rate that moved while the rationales
+still wrestled with the boundary would mean the coin had merely landed the same
+way ten times. It did not: the reasoning changed. A flipped rep now reads
+*"she is not relocated to Lab B, not placed into that encounter, and not made
+to act or decide anything regarding it"* — the corrected boundary applied
+directly, with no hedging anywhere in the ten.
+
+**This fixture has stopped discriminating, as predicted.** 1.00 with no
+dissent is `ADR-0082`'s blind-rubric shape — accepted because an
+undiscriminating fixture is honest where a coin flip is not. The tag
 needs its second instance from the M7.7 playtest regardless, and the mode to
 capture is the one `docs/playtest-scenarios.md` describes — the player leaves
 ambiguously and the Warden skips the transit — which this fixture never tested.
