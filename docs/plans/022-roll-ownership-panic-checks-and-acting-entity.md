@@ -109,3 +109,76 @@ a nameable cause.
 - The `_scenario` sentinel and its checker change, above.
 - Widening `UNAUDITABLE-MAPPING` past its single fixture — still blocked on
   the second playtest.
+
+---
+
+## Not yet run — and one prediction is already wrong
+
+**2026-08-23/24: the run intended for this plan tested the previous prompt.**
+`f0753f86__2026-08-23T16-26-10Z` carries this plan's `--decision-rule` and
+plan 021's `promptHash f0753f86`; its archived `prompt.txt` is byte-identical
+to the `14-39-39Z` run's and contains neither edit. The host did not have the
+commit. The manifest is honest — it records `f0753f86` — so nothing is
+mislabelled; the run simply measures the old prompt. **Plan 022 remains
+unmeasured.**
+
+It is still worth having: two runs at one prompt gave the project its first
+whole-corpus variance estimate, recorded in
+`docs/eval-methodology.md § Same-prompt run-to-run variance`.
+
+### What the replication changes here
+
+**The premise is softer than stated.** `SYSTEM-ROLLED-PLAYER-ACTION` read 0.89
+on one run and **0.92** on the other with nothing changed. The "0.89 against a
+0.90 floor" framing above was inside noise and should not be read as a finding.
+The bugs are still real — they are visible in the artifacts, which do not care
+about noise — but the tag was never meaningfully below floor.
+
+**The ≥ 0.95 prediction is recalibrated to ≥ 0.96**, and the artifact-level
+prediction is now the only one that should gate: at N ≈ 75 with ±0.03 of free
+movement, a rate target near the current value cannot discriminate.
+
+### The third class is not what this plan called it
+
+The plan predicted a residual of "genuine violations neither fix addresses,"
+citing a Combat check resolving the player's declared suppressive fire. The
+replication has **two** such residuals and neither is that:
+
+```
+[check] 1d100  "World-side ambient roll for whether suppressive spray costs
+                Alvarez ammo attention/…; not a player action roll, purely flavour"
+[other] 1d100  "gm-side confirmation of quarantine seal command sequence
+                completing cleanly under fire (no player stat at risk…)"
+```
+
+The Warden **says in the purpose text that these are not player rolls**, and
+then names the player in `actingEntityId` anyway — because the roll is *about*
+the player's situation and there is nowhere else to point. These are actorless
+world rolls: **exactly the `_scenario` case this plan deferred**, and it is
+live at 2 of 6 failures rather than hypothetical.
+
+So this plan's `actingEntityId` edit is incomplete as drafted. It forbids
+naming the player and supplies no alternative for a roll that resolves nobody's
+action. The Warden's options become naming an NPC arbitrarily (passes, but a
+lie), naming the player (still fails), or not rolling.
+
+**Two ways forward, and they are not equivalent:**
+
+1. **Tell the Warden not to make them.** An ambient roll with "no player stat
+   at risk… purely flavour" decides nothing mechanical, and the prompt already
+   says *"Do not pre-roll dice you haven't needed yet."* Cheapest, needs no
+   checker change, and it should help `UNAUDITABLE-MAPPING` rather than hurt
+   it — an unauditable flavour roll is the exact shape that tag grades. Risk:
+   it suppresses colour the Warden currently uses well.
+2. **Give them `_scenario` and teach the checker.** `rollActsFor` gains a
+   reserved-owner case returning `'other'`; the prompt gains a sentinel that
+   matches spec 018's pool convention. Truthful, reusable, and the correct end
+   state — but it is a checker change, which means structural-checker identity
+   (`ADR-0099`'s declined hash) and a rescore to keep older runs comparable.
+
+Recommended: **(1) now, (2) when a roll appears that genuinely needs to exist
+and genuinely has no actor.** Nothing in the corpus is yet that roll.
+
+**Decide this before running.** Running the plan as currently drafted would
+measure two fixes and one unresolved third case, and the residual would be
+uninterpretable.
