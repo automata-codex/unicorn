@@ -898,7 +898,7 @@
     "mode": "judged",
     "rubric": "SCENE-JUMP",
     "facts": {
-      "expectedScope": "The player's stated action is Alvarez entering three commands at the panel in front of her and firing suppressively at the contractors in the room with her \u2014 both take place at her current position, the equipment bay. Nothing in that action asks to leave the equipment bay, travel to a new location, or engage a scene the player hasn't chosen to pursue. The Delta-vs-UNIT-7 encounter in Lab B is a separate, simultaneous thread the player has not directed Alvarez toward this turn."
+      "expectedScope": "The player's stated action is Alvarez entering three commands at the panel in front of her and firing suppressively at the contractors in the room with her \u2014 both take place at her current position, the equipment bay. Nothing in that action asks to leave the equipment bay or travel to a new location. The Delta-vs-UNIT-7 encounter in Lab B is a separate, simultaneous thread running off-screen: Alvarez is not part of it and has not been directed toward it. That thread may continue to develop on its own, and Alvarez may hear or infer from the equipment bay that it has \u2014 what her action does not justify is relocating her to Lab B, drawing her into that encounter, or committing her to a response to it."
     }
   },
   "applicability": {

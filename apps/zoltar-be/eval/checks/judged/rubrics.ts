@@ -192,17 +192,60 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'If nothing was actually blocked this turn, that is a pass.',
     requiredFacts: ['blockDescription'],
   },
+  /**
+   * **The boundary is the player character, not the fiction.
+   * Disambiguated 2026-08-24** (`rubricHash` `ba1cff52` → see the bump note),
+   * for the same reason and by the same argument as `HIDDEN-INFO-LEAK`'s:
+   * the previous wording admitted two defensible readings, and one of them
+   * contradicted something else in the system.
+   *
+   * The old template forbade *"beginning a new NPC encounter"* and never said
+   * whether an off-screen thread the player can only **hear** counts as one.
+   * Narrow reading — an encounter the PC is *in* — passes those turns; broad
+   * reading — any encounter beginning anywhere — fails them. Judges split
+   * openly on it: 8 of 9 rationales on `f0753f86__14-39-39Z` and 6 of 10 on
+   * `e83e8aaa` flagged the boundary as *borderline*, *ambiguous* or
+   * *arguably*, in both directions, including passes. The tag read 0.88,
+   * 0.22, 0.30 and 0.50 across four runs, two of which used a byte-identical
+   * prompt. It was measuring the coin flip, not the Warden.
+   *
+   * **Resolved narrow, because the broad reading forbids what the
+   * architecture requires.** `CLAUDE.md` and `ADR-0101` have every entity
+   * named in the prompt every turn, hidden ones included, *"because the
+   * Warden needs their stats to run them off-screen."* A rule that fails the
+   * Warden for advancing an off-screen thread would prohibit the behaviour
+   * the design exists to enable. That is the same shape as
+   * `HIDDEN-INFO-LEAK`'s resolution, where the global reading contradicted
+   * `UNSURFACED-CHECK`.
+   *
+   * **Known consequence:** under this reading `turn24-scene-jump` will
+   * likely pass at or near 1.00 and stop discriminating — `ADR-0082`'s "a
+   * high rate is a blind rubric, not a pass". That is accepted here because
+   * an undiscriminating fixture is honest where a coin flip is not, and
+   * because the tag needs a second instance from the M7.7 playtest anyway.
+   * The instance to capture is the mode `docs/playtest-scenarios.md`
+   * describes — the player leaves ambiguously and the Warden skips the
+   * transit — which this fixture never tested.
+   */
   'SCENE-JUMP': {
     template:
       "This turn's player action justifies the following scope: {{expectedScope}}\n\n" +
-      'Question: does the narration advance the story beyond that scope — ' +
-      'relocating the player character to a new location, beginning a new ' +
-      'NPC encounter, or resolving subsequent plot beats — that the player ' +
-      'did not choose to pursue in their stated action? Narrating the ' +
-      'immediate, direct consequences of the stated action, at the ' +
-      "location where it's taken, is fine; advancing to a decision or " +
-      'event beyond it without the player choosing to make that next move ' +
-      'is a violation, even if the prose reads as a natural continuation.',
+      'Question: does the narration move the player character beyond that ' +
+      'scope — relocating them to a new location, drawing them into an ' +
+      'encounter they did not choose to enter, or resolving a beat of their ' +
+      'own story they have not yet acted on? Narrating the immediate, direct ' +
+      "consequences of the stated action, at the location where it's taken, " +
+      'is fine; advancing the player character to a decision or event beyond ' +
+      'it without them choosing that next move is a violation, even if the ' +
+      'prose reads as a natural continuation.\n\n' +
+      'The boundary is the player character. Events elsewhere in the fiction ' +
+      'may advance on their own, and the player character may see, hear or ' +
+      'infer that they have — a distant encounter beginning, a threat acting ' +
+      'off-screen, a timer running down. The Warden runs those threads, and ' +
+      'narrating them moving is correct behaviour rather than a violation, ' +
+      'provided the player character is neither relocated into them nor ' +
+      'committed to a response on their behalf. Judge whether the player ' +
+      'character was moved, not whether the world was.',
     requiredFacts: ['expectedScope'],
   },
 };

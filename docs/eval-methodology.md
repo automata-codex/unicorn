@@ -1044,6 +1044,44 @@ prompts, and the first pair buys a denominator for reading every later pair.
 
 ---
 
+## Bump note — 2026-08-24, `SCENE-JUMP` disambiguated
+
+Corpus `ead033182d6a` → **`f6186723bc49`**, **scoring-only**: one `assertion`
+fact on one fixture, `seededState` and `playerInput` untouched, so every frozen
+`warden-output.json` was produced under unchanged conditions and
+`eval:rescore` grades them honestly. `SCENE-JUMP`'s `rubricHash` `ba1cff52` →
+**`01a4288c`** in the same change. **`promptHash` `e83e8aaa` and
+`assemblyHash` `ada7fb8a` are unmoved** — nothing Warden-visible is touched.
+
+**The boundary is the player character, not the fiction.** The old template
+forbade *"beginning a new NPC encounter"* without saying whether an off-screen
+thread the player can only hear counts as one. Judges split openly on it — 8 of
+9 rationales on `f0753f86__14-39-39Z` and 6 of 10 on `e83e8aaa` flagged the
+boundary as borderline or ambiguous, in both directions, including passes — and
+the tag read 0.88, 0.22, 0.30 and 0.50 across four runs, two of which used a
+byte-identical prompt. Resolved narrow, because the broad reading would forbid
+the Warden from advancing off-screen threads, which `CLAUDE.md` and `ADR-0101`
+explicitly require it to do. Same argument shape as `HIDDEN-INFO-LEAK`'s
+resolution against `UNSURFACED-CHECK`.
+
+The fixture's `expectedScope` moved with it: it previously described the Delta
+thread only as one *"the player has not directed Alvarez toward"*, which
+implied the thread was untouchable. It now says the thread may develop and be
+perceived, and names what is actually forbidden — relocating Alvarez into it or
+committing her to a response.
+
+**Every prior `SCENE-JUMP` rate is non-comparable**, which costs nothing: none
+of them was measuring the Warden.
+
+**Expect this fixture to stop discriminating.** Under the corrected reading it
+should pass at or near 1.00, which is `ADR-0082`'s blind-rubric shape — accepted
+because an undiscriminating fixture is honest where a coin flip is not. The tag
+needs its second instance from the M7.7 playtest regardless, and the mode to
+capture is the one `docs/playtest-scenarios.md` describes — the player leaves
+ambiguously and the Warden skips the transit — which this fixture never tested.
+
+---
+
 ## A model swap audits the harness as much as the model
 
 The first full-corpus run against a new model is two experiments wearing one coat. It
