@@ -37,6 +37,15 @@ tasks:
     cmds:
       - npx tsx docs/tooling/missing-summaries.ts
 
+  docs:eval-tags:
+    desc: 'Catalog every eval failure-mode tag — meaning, grading mode, applicability source, rubric and fixture coverage. Reads the check registry and eval/fixtures/ only; no database, no Anthropic or Voyage calls, no cost, so it needs no approval. Usage — task docs:eval-tags [-- --json | --output <path>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Deliberately not under `eval:` and not named `scripts/eval-*.ts`: that
+      # namespace and filename pattern mark the scripts CLAUDE.md requires
+      # approval for, and this one spends nothing.
+      - npx tsx scripts/tag-catalog.ts {{.CLI_ARGS}}
+
   db:backup:
     desc: Back up the local dev database to infra/db/backups/ (or $DB_BACKUP_DIR). Usage — task db:backup [-- <output-file>]
     dotenv: ['.env']

@@ -128,3 +128,4 @@ ingestion/*/templates/*
 # Personal notes — kept on disk, not tracked
 docs/mental-health-toolkit.md
 /.claude/worktrees/
+/docs/eval-tags.md
