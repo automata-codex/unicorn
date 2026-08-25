@@ -13,7 +13,7 @@ like one failure mode.** Adventure `2c0ba938-ea80-4138-a95a-dc13e417bf2b`, 52 tu
 Turn 8 has Danny leave the bridge and climb *down to the deck below* to reach the
 engineering records terminal, which `worldFacts.ship_layout` places on the upper deck aft
 of the bridge. Turn 14 takes him from that terminal *past mid-deck and on toward the
-lower deck* to Mara's berth; berths are mid. Turn 19 repeats it. Turn 21 places the cryo
+lower deck* to Mara's berth; berths are mid. Turn 18 repeats it. Turn 21 places the cryo
 bay *two decks from here* and the bridge *two decks up* in one sentence, which cannot both
 hold from one position. Turn 28 puts the cryo bay *two decks away* from a scene explicitly
 set in the mess hall, which is the same deck.
@@ -54,7 +54,7 @@ distance errors without touching distance reasoning at all.
 **`SEEDED-CANON-CONTRADICTION` is deliberately scoped wider than the spatial cases.** The
 unifying property is not that a claim is spatial; it is that its referent lives in the
 fixture, which is what makes the tag gradeable at all. Two subtypes are attested. Layout
-contradictions against `ship_layout` (turns 8, 14, 19), and a timeline contradiction at
+contradictions against `ship_layout` (turns 8, 14, 18), and a timeline contradiction at
 turn 1, which places the mid-deck lighting failure *since day four* against a seeded
 opening narration saying the fixtures went dark *two nights ago*, aboard a ship three weeks
 out. Four instances across two kinds of case. Registering `DECK-LOOKUP-ERROR` and a
@@ -132,3 +132,55 @@ tag's denominator moves. The three fixtures × N reps are owed whenever they are
 deferring saves nothing and forfeits the coverage. The provisional rubric's first figures
 become citable, so a bump note is written when the rubric is authored rather than when it is
 first revised.
+
+**Addendum — `SPATIAL-RELATION-ERROR` is not a category-three tag, and its registration is
+deferred.** Recorded 2026-08-25 while annotating the playtest report for fixture extraction.
+
+The claim above is that this tag "would be structural if the schema recorded an additional
+field," and that adding `current_location` converts it. `ADR-0074`'s third case does not
+admit it. The test that case sets is not that a field is missing; it is that once the field
+lands the check reads **no prose at all** — `out-of-order-resolution` compares a named gate's
+sequence number, `system-rolled-player-action` attributes through `actingEntityId` "without
+reading `purpose` at all," and both cleared it because the fact being graded already lived in
+the `roll_dice` payload and the new field completed it.
+
+The fact graded here does not. *"Four hundred and twelve people are asleep two decks away"*
+exists only in narration. `current_location` supplies where the acting entity stands; it does
+not supply the assertion, and extracting the assertion is classification — the same argument
+this entry makes one paragraph earlier to send `SEEDED-CANON-CONTRADICTION` to a judge. So
+the field moves this tag from ungradeable to *judged with a better fact injected*, which is
+not what category three means: every prior third-case example resolved into the first case,
+not into a better-informed judge call.
+
+**Two different checks were conflated.** Grading the prose claim is judged permanently, and
+`current_location` improves the `judgeContext` injection exactly as `worldFacts` does for the
+sibling tag. Grading the *state writes* — are consecutive `current_location` values
+adjacency-legal against `ship_layout` — is genuinely structural, but it is a narrower
+question that catches turn 14's misplacement and misses turns 21 and 28 entirely, because a
+prose distance claim need not correspond to any state write. Those two turns are the
+instances that motivated the tag. This entry describes the first and promises the second.
+
+**Registration is therefore deferred**, reversing the "considered and rejected" bullet above
+on its own terms. That bullet rejected deferral because registration is free. It is not free
+in the way that assumed: registering forces a choice between `structuralFailureModeTags` and
+`judgedFailureModeTags` now, and that is precisely the question that is unsettled. Registering
+structural and later moving to judged is the `MISSING-DELTA` / `ROLL-RESULT-INVERSION`
+migration, which required an `assertion.mode` edit inside every fixture file carrying the tag
+and therefore a `corpusVersion` bump.
+
+Deferral also keeps the guardrail mechanical rather than procedural. `capture-fixture`
+validates `--tag` against `failureModeTagSchema` and refuses an unregistered value, so while
+the tag is unregistered a fixture cannot be captured against it by accident. Registering it
+replaces that gate with a note asking people to remember. Nothing is lost by waiting: the
+`SEEDED-CANON-CONTRADICTION` fixtures are unaffected, and no fixture was planned for this tag
+in the same batch. Annotating the playtest report with the tag is safe and stays — nothing
+reads those annotations, and the 2026-08-16 report already carries unregistered tags.
+
+**`SEEDED-CANON-CONTRADICTION` is unaffected.** Register it, author the rubric with
+`requiredFacts: []`, and capture its fixtures as planned.
+
+**One correction to the body above, applied in place.** The third layout contradiction is
+**turn 18**, not turn 19 — *"You head back down to the lower deck ... and rap a knuckle
+against Mara's hatch"* — and turn 19 contains no deck claim at all. The same error is in the
+M7.7 roadmap bullet and in the capture list, which name turn 19 for this instance. The count
+of five stands otherwise, and the enumeration in the opening paragraph is correct.
