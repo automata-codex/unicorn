@@ -1243,6 +1243,224 @@ Found while planning `docs/specs/zoltar/018-post-playtest-character-creation-and
 - **`BASE` is 25 and the tier adjustments are +15 / +10 / +5 / +0**, all invented rather than sourced (`§ Role → Instinct adjustment`).
 - **`npc` is the only type that rolls Instinct**; `threat` does not, and no new enum value is added (`§ Decision`).
 
+### [ADR-0103](decisions/0103-entity-merge-preserves-schema-fields.md) — Entity merge preserves all schema fields rather than a hand-enumerated set
+
+## Context
+
+`session.validator.ts:861-882` builds the merged entity record for every
+`stateChanges.entities` write. The merged object is a fresh literal with a closed,
+hand-enumerated field list:
+
+```ts
+const merged: {
+  visible: boolean;
+  revealed: boolean;
+  status: EntityStatus;
+  npcState?: string;
+} = {
+  visible: change.visible ?? existing.visible,
+  revealed: change.revealed ?? existing.revealed,
+  status: proposedStatus ?? existing.status,
+};
+
+const nextNpcState = change.npcState ?? existing.npcState;
+if (nextNpcState !== undefined) merged.npcState = nextNpcState;
+
+result.applied.entities[entityId] = merged;
+```
+
+The merge-from-prior-state logic is present and correct — each field reads
+`change ?? existing` — but it operates only on the four fields the literal names.
+Any other field on the entity record is absent from `merged` and is therefore
+absent from `applied.entities`, and the TypeScript annotation declares those fields
+out of existence rather than surfacing their omission.
+
+`ADR-0100` (shipped 2026-08-21 as 018 Parts 9–10) introduced the first entity fields
+that only synthesis writes and the Warden never proposes: `crewRole` and
+`instinctRoll`. These are *authored-only* fields — the play loop has no path to set
+them and no reason to, so they never appear in a `change` object and were never added
+to the literal.
+
+The consequence is that **any `entities` write naming an entity destroys every field
+on that entity outside the enumerated four**, permanently, with no error and no log
+entry.
+
+### Evidence
+
+Observed in adventure `2c0ba938-ea80-4138-a95a-dc13e417bf2b` (playtest 2026-08-24,
+52 turns). `mara_odinsen` was authored at synthesis with
+`{crewRole: "cargo_handler", instinctRoll: [5,5]}`. Both fields rendered correctly to
+the Warden through turn 18 — the `<entities>` block showed `instinct 40, role
+cargo_handler, skills Zero-G trained (+10), Athletics trained (+10)`, and both numbers
+reconcile against `crew-roles.ts`.
+
+The adventure contains exactly four entity writes: seq 30, 66, 99, 122. Seq 99
+(turn 31) names `mara_odinsen` with an empty delta; the record emerges as
+`{status, visible, revealed}` and both authored fields are gone. Turns 32–52 ran with a
+statless Mara.
+
+Seq 122 (turn 38) is the decisive case. The Warden proposed a *partial* delta —
+`npcState` only — and the validator emitted the same four fields. Had a guard rejected
+the empty delta at seq 99, the authored fields would have survived seven further turns
+and been destroyed at seq 122 instead. The defect is not specific to empty deltas.
+
+Independent confirmation without reference to the code: `crewRole` and `instinctRoll`
+appear in **zero rows** of the adventure's `game_event` log — not in any proposal, not
+in any applied payload. The output shape cannot carry them.
+
+### The applier is not the cause
+
+The loss was initially attributed to `session.applier.ts:47`
+(`entities: { ...prior, ...applied.entities }`) and its documented replace-outright
+semantics. That attribution is wrong. The fields are absent from `applied.entities`
+before the applier runs; line 47 delivers faithfully what the validator produced. The
+rationale at `session.applier.ts:37-42` — that array-valued operations cannot be
+diffed without re-deriving the fold — stands and is not revisited here.
+
+### This is the second instance of the same defect
+
+`npcState` was added to the merge literal in M7.6 for this exact reason, and carries a
+comment recording it as "schema-defined, commented and preserved on merge since M7.6."
+The class has bitten before and was closed one field at a time. Under the standing
+principle of deferring generalization until a second concrete case justifies it, the
+second case has now occurred.
+
+## Decision
+
+The merged entity record is seeded from the prior record, overlaid with the validated
+fields, and parsed through `EntitySchema` before being written to
+`result.applied.entities`.
+
+```ts
+const merged = EntitySchema.parse({
+  ...existing,
+  visible: change.visible ?? existing.visible,
+  revealed: change.revealed ?? existing.revealed,
+  status: proposedStatus ?? existing.status,
+  ...(nextNpcState !== undefined ? { npcState: nextNpcState } : {}),
+});
+```
+
+Preservation becomes the default. A field added to `EntitySchema` survives entity
+writes without anyone remembering this call site. The `EntitySchema.parse` is
+load-bearing and not decoration: spreading `existing` alone would also preserve fields
+that have been *removed* from the schema, indefinitely and invisibly. Parsing converts
+that into a validation failure at the write, which is the same reasoning that types
+`structuralCheckers` as `Record<StructuralTag, ...>` so a missing entry is a
+compile-time error rather than a silent runtime `undefined`.
+
+The fix is forward-only. Records already stripped are not restored by it.
+
+## Alternatives considered
+
+**Reject or ignore empty entity deltas.** The narrow fix, and the one the initial
+applier-centric diagnosis suggested. Rejected on evidence: seq 122 demonstrates that a
+partial delta destroys the same fields, so the guard relocates the bug rather than
+closing it. Would have moved the observed loss from turn 31 to turn 38 and left the
+class live.
+
+**Add `crewRole` and `instinctRoll` to the merge literal.** Matches existing style and
+is the same patch `npcState` received in M7.6. Rejected because it is the third
+application of a one-field-at-a-time remedy to a defect whose shape is now clear, and
+it leaves every future `EntitySchema` field a live landmine until someone recalls this
+literal exists. The M7.6 precedent is the argument against repeating it, not for.
+
+**Deep-merge in the applier.** Rejected on two grounds: it addresses the wrong file,
+and `session.applier.ts:37-42` gives a sound reason why generic deep merge is unsafe
+for array-valued operations.
+
+## Consequences
+
+**Warden-visible.** Preserved fields render into the `<entities>` block, so the fix
+changes the Warden's input. Under the alpha code-freeze rule it is a cohort boundary
+requiring explicit tagging, and it is an input-affecting change for eval purposes —
+it belongs in the same re-baseline batch as any fixtures captured alongside it.
+
+**Regression coverage must span both shapes.** A test asserting only the empty-delta
+case would pass against the rejected narrow fix. Cover: empty delta preserves authored
+fields; partial delta preserves authored fields; complete delta still overwrites the
+validated four. Seq 99 and seq 122 supply concrete inputs and expected outputs for the
+first two.
+
+**Not an eval fixture.** The turn 31 / turn 32 pair is deterministic — fixed input,
+fixed expected output, no Warden in the loop — and belongs in unit tests beside the
+fix. Placing it in the eval corpus would spend Warden budget re-proving what a unit
+test asserts for free.
+
+**Replay is affected.** `reconstructStateAsOfTurn` folds `state_update` payloads
+through `applyValidatedTurn`, so the validator sits in the capture path as well as the
+harness path. Fixtures captured from folds that cross an entity write may resolve
+differently before and after the fix. See open item 1.
+
+## Open items
+
+1. **Fix-invariance of the pending captures has not been established.** Clean capture
+   candidates from the 2026-08-24 playtest (turns 19, 29, the 1/8/9/14 geography
+   sequence, and the 20/21 retcon pair) fold at most seq 30 and seq 66, both writes to
+   `falsified_maintenance_logs`. That entity carries neither `crewRole` nor
+   `instinctRoll`, so those two fields are not at stake. But the relocated diagnosis
+   puts *every* non-enumerated `EntitySchema` field at stake, not just those two, so
+   invariance now depends on the full schema field list rather than on `ADR-0100`'s
+   pair. Confirm that the four non-Mara entities carry no field outside
+   `{status, visible, revealed, npcState}` at synthesis before treating the captures as
+   fix-invariant.
+
+2. **There is no way to remove a field from an entity record, and this decision makes
+   that consequential.** The inability predates this ADR: `change.x ?? existing.x`
+   treats an omitted value and an explicit `null` identically as "no opinion," so
+   deletion is already inexpressible. For the three non-optional fields this is moot.
+   For `npcState` it is a real gap — once set, it can be overwritten but never cleared,
+   and the closest approximation is an empty string.
+
+   What changes is the visibility of the gap. Under copy-by-list, a field that should
+   no longer be present is indistinguishable from one that was silently dropped, because
+   both are simply absent. Under preserve-by-default, a stale field persists and is
+   observable. That is the better failure, but it means the question stops being
+   hypothetical the first time a field genuinely needs removing.
+
+   **No mechanism now**, per the standing principle of deferring generalization: no
+   current entity field requires deletion. `crewRole` and `instinctRoll` are
+   authored-once and must never be removed — preserving them is the entire point of
+   this ADR — and `npcState` is overwrite-in-place by nature. There is not yet a first
+   case, let alone a second.
+
+   **When one arrives, the shape is already established.** `characterState.rollModifiers`
+   uses explicit add/remove operations rather than inferring intent from payload
+   presence (`session.validator.ts:471-496`), and that is the precedent to follow.
+
+   **Explicitly rejected in advance: a sentinel value.** Treating `null` or `""` as
+   "delete" would require `null` to mean "no opinion" on some fields and "remove" on
+   others, and would make "the Warden omitted this" indistinguishable from "the Warden
+   wants this gone." That ambiguity is the precise shape of the defect this ADR exists
+   to close, and reintroducing it one field over would be a regression in reasoning even
+   where it happened to work.
+
+3. **`capture-fixture` cannot emit `playerEntityIds`, and the harness treats its
+   absence as `[]`.** `reconstructStateAsOfTurn` returns `gmContextBlob` from the
+   synthesis snapshot, where the field is never persisted; `harness-runner.ts:179`
+   reads it and resolves empty, which — per the comment in `seedScratchAdventure` —
+   silently disables `actingEntityId` validation and grades a code path production does
+   not take. All 21 existing fixtures carry hand-added values. This is a tooling defect
+   reproducing on every capture, not a discipline lapse, and it is the mechanism behind
+   the voided 2026-08-20 re-baseline. Two changes: `capture-fixture` should derive and
+   emit the field from `character_sheet.data->>'entityId'` as
+   `session.service.ts:280` already does, and `harness-runner` should fail loudly on an
+   empty resolution rather than proceed. Tracked separately from this ADR.
+
+4. **`gm_context_blob.entities` and `campaign_state.data->'entities'` disagree at
+   synthesis.** The duplicate copy carries `crewRole` for `mara_odinsen` but not
+   `instinctRoll`. Rendering reads `campaign_state`, so `ADR-0100` verified end-to-end
+   only because the complete copy is the one consumed. The synthesis write path
+   populates the two copies inconsistently, and a divergent duplicate of the same
+   record is the shape M7.6 was meant to have eliminated. Separate defect; separate
+   entry.
+
+5. **`ADR-0100` status.** Verified end-to-end in the negative direction only — turns 15
+   and 18 show the Warden correctly declining to apply Zero-G/Athletics out of domain,
+   and both the Instinct arithmetic and the role→skill mapping reconcile against
+   `crew-roles.ts`. The positive direction — an in-domain check where the tier bonus
+   appears in the roll target — remains unexercised by any turn or fixture.
+
 ---
 
 ## Claude Integration — Turn Loop & Correction
@@ -1551,6 +1769,97 @@ Deferred under uncertainty, consistent with the project's general bias against f
 **Scheduled into M7.7**, against the open bullet this finding already had there. M8.1 was the wrong home twice over — it is prompt-only by its own preamble, and the tool-schema batch it defers to has never been allocated. M7.7 is already paying for a re-baseline and already owns the playtest this was found in. The spec at `docs/specs/zoltar/019-entity-visibility-and-entity-write-path.md` carries the work.
 
 **Addendum, 2026-08-21 — `gmUpdates.npcStates` destroys the agenda it merges into, and that is why `npcState` must exist on the entity.** The two are *not* the same concept under two names. `narrative.npcAgendas` holds durable authored motivation; `gmUpdates.npcStates` holds volatile per-turn disposition; and `session.applier.ts:57` merges the second over the first, keyed by entity id, silently. In the 2026-08-16 playtest the cartographer's synthesized agenda — *"withholding what they know out of guilt and fear of being blamed — they will only reveal it if pushed hard or if the situation becomes lethal enough that silence is worse than confession"* — was overwritten by *"Panic check passed (rolled 15 vs stress ~4) … shaken, voice thin, but still functional."* The conditions governing the NPC's central secret were replaced by a mood note, and every subsequent turn read the mood note under an `npc_agendas:` heading. Nine of 58 turns wrote `npcStates`. The original survives only in `adventure_synthesis_snapshots`. This makes the entity-scoped `npcState` field load-bearing rather than tidy: disposition needs a home that is not the agenda.
+
+**Addendum, 2026-08-25 — the structural half was vacuous for *grid* position and not for
+*narrative* position, and the entry did not distinguish them.**
+
+This entry narrowed structural secrecy to position and then observed that *"no renderer
+emits grid position and the M7 snapshot has no spatial block at all, so today the
+structural half is vacuous."* Every clause of that is still true of the grid.
+`grid_entity` holds five rows for the 2026-08-24 playtest campaign, all `z=0`, all
+synthesis-assigned, Danny among the absent — player entities never enter that map — and
+nothing reads any of it into the prompt. The 2D renderer remains the thing that makes
+grid position load-bearing, exactly as scoped.
+
+**What the entry did not anticipate is that Phase 1 already has a spatial model, and it
+is vertical, narrative, and load-bearing without a grid.** A three-deck ship with a
+single ladder shaft is a topology. The Warden narrates movement through it every turn,
+and in the 2026-08-24 playtest (adventure `2c0ba938-ea80-4138-a95a-dc13e417bf2b`, 52
+turns) it got that movement wrong five times. "Vacuous" was read off the absence of a
+grid; what it should have been read off is whether any position reasoning was occurring
+at all. It was.
+
+**The errors are two kinds, and conflating them points the fix at the smaller half.**
+
+*Destination-deck errors* — three instances — are failures to recall which deck a named
+place is on. Turn 8: Danny leaves the bridge, stated in the same paragraph, then climbs
+*down to the deck below* and arrives at the engineering records terminal, which
+`worldFacts.ship_layout` places on the upper deck aft of the bridge. Turn 14: from that
+same terminal alcove, *past mid-deck and on toward the lower deck* to Mara's berth;
+berths are mid. Turn 19: *back down to the lower deck* to Mara's hatch, two messages
+after correctly treating the cryo bay as above the lower deck. These need no position
+term. The layout was in the prompt — `ship_layout` renders verbatim in all 52 snapshots,
+`ladder shaft` and all — and the lookup failed against it.
+
+*Distance-computation errors* — two instances — genuinely require position and layout
+together. Turn 21 places the cryo bay *two decks from here* and the bridge *two decks
+up* in one sentence; both cannot hold from one spot. Turn 28 puts the cryo bay *two decks
+away* from a scene explicitly set in the mess hall, which is the same deck.
+
+**The first kind manufactures the false premises the second kind then reasons from
+correctly.** Turn 21 was narrated from Mara's berth — which turn 14 had wrongly placed
+on the lower deck seven turns earlier. From the lower deck, *bridge two decks up* is
+right. The distance arithmetic was sound; the position it operated on was a fiction the
+Warden had authored itself and never recorded. That ordering matters for the fix: the
+lookup failures are upstream.
+
+**Why the lookups fail is form, not absence.** `ship_layout` is a single ~700-character
+prose run carrying roughly fifteen spatial facts with no deck list and no adjacency
+structure, so answering "how many decks from the mess to the cryo bay" means re-parsing
+that paragraph on every turn. The errors cluster on the mid deck, which is the middle
+clause of the sentence. **Eviction is not the explanation for this class** — turns 8 and
+14 are early, and turn 19's error sits two messages after the same turn got the adjacent
+geometry right. It compounds the second class, where it is real: messages total 95.7 KB
+against a 40 KB window, prompt tokens plateau near 13.1k from turn 28 on, and
+`rolling_summary` is never read, so current deck is recoverable only by reading back
+through narration that is being dropped.
+
+**One field actively misleads.** `gm_context.narrative.location` ships in the cached
+system block every turn as a scenario-level descriptor fixed at synthesis — *"The colony
+transport ESV Halbrecht, three weeks out from the nearest relay beacon…"*. It occupies
+the slot a reader checks for *where are we* and answers *what is this scenario about*.
+An absent field would be less misleading than this one. Renaming it (`scenario_premise`
+or similar) is nearly free and should not wait for the rest.
+
+**Fix ordering, and one correction to the obvious fix.** Restructuring `ship_layout`
+from prose into a deck-indexed list comes first: no schema change, no snapshot section,
+no write path, and it addresses the larger error class and the upstream one. Adding a
+`current_location` the Warden writes through `stateChanges` — `scenarioState` is `{}`
+today and already in the snapshot pipeline — comes second, **but not for the reason it
+first appears.** The Warden authors that field, and no independent position source
+exists to validate it against, so at turn 14 it would have written *lower deck* and
+every subsequent turn would have read that back as authoritative. A wrong value in a
+structured field is worse than a wrong sentence in prose, because everything downstream
+treats structured fields as trustworthy — the same failure shape as a Warden supplying
+its own Instinct score. The field is still worth having, and what it buys is
+**auditability**: position becomes a visible value in the event log rather than an
+inference from narration, and a wrong one becomes a gradeable defect.
+
+**Consequence for the checker taxonomy.** The destination-deck class is judge-gradeable
+today — a named place, a claimed deck, and `ship_layout` as ground truth in the fixture —
+and becomes substantially more tractable once the layout is a lookup rather than a
+paragraph. The distance class is not gradeable at all, because the position term does not
+exist in state. It is a clean instance of the third structural-checker category: a
+question that would be structural if the tool schema recorded an additional field. The
+interim answer is `not_applicable` naming `current_location`, and if that field ships the
+tag converts from judged to structural — the first worked example of that category
+resolving in the direction it was defined for.
+
+**What this does not change.** `visible` as line of sight, `revealed` as monotonic
+discovery, the removal of `renderEntities`' filter, and the conclusion that no fixture
+needed re-capture all stand. The two-mechanism model stands. What moves is the claim that
+the structural half is presently vacuous: it is vacuous for the grid, and it was never
+vacuous for the vertical topology Phase 1 has been narrating since M1.
 
 ---
 
@@ -2286,6 +2595,231 @@ Two things kept honest rather than tidied away. `hidden-info-leak`'s flip rate m
 **Accuracy.** Flip rate measures grader stability against frozen input; a judge that is stably wrong scores perfectly on it. Nothing here establishes that a verdict is *correct*, which is `§ M7.8`'s remit and needs known answers.
 
 **The six other judged checks.** The change applies to all nine; the evidence covers three. The trigger for buying the rest is recorded in the spec rather than pre-emptively spent.
+
+### [ADR-0104](decisions/0104-spatial-errors-two-failure-modes.md) — Spatial narration errors are two failure modes, not one
+
+**The 2026-08-24 playtest narrated ship movement wrongly five times, and the five look
+like one failure mode.** Adventure `2c0ba938-ea80-4138-a95a-dc13e417bf2b`, 52 turns.
+Turn 8 has Danny leave the bridge and climb *down to the deck below* to reach the
+engineering records terminal, which `worldFacts.ship_layout` places on the upper deck aft
+of the bridge. Turn 14 takes him from that terminal *past mid-deck and on toward the
+lower deck* to Mara's berth; berths are mid. Turn 19 repeats it. Turn 21 places the cryo
+bay *two decks from here* and the bridge *two decks up* in one sentence, which cannot both
+hold from one position. Turn 28 puts the cryo bay *two decks away* from a scene explicitly
+set in the mess hall, which is the same deck.
+
+**They are two, and the line between them is whether the fixture contains the answer.**
+`worldFacts.ship_layout` states which deck each place is on and renders verbatim in all
+52 snapshots, so it is seeded into any fixture captured from this adventure. Danny's
+current deck is stated nowhere in state at all — the snapshot emits four sections
+(`<resource_pools>`, `<entities>`, `<flags>`, `<world_facts>`) and none is spatial,
+`grid_entity` is unread and does not contain the player, and `narrative.location` is a
+scenario descriptor fixed at synthesis. A checker can compare a claimed deck against
+`ship_layout`. Nothing can evaluate *two decks from here* without knowing where *here* is.
+That is the difference between a gradeable tag and a category-three tag, and it is why one
+finding produces two registrations.
+
+**The first kind manufactures the false premises the second kind then reasons from
+correctly.** Turn 21 was narrated from Mara's berth, which turn 14 had wrongly placed on
+the lower deck seven turns earlier. From the lower deck, *bridge two decks up* is right.
+The arithmetic was sound and the position it operated on was a fiction the Warden had
+authored itself and never recorded. Scoring both under one tag would double-count one root
+cause and erase the ordering, which is the most actionable thing the playtest produced
+about this failure: the lookup errors are upstream, and fixing them removes some of the
+distance errors without touching distance reasoning at all.
+
+**Decision, in two parts.**
+
+- **`SEEDED-CANON-CONTRADICTION`** — narration asserts something contradicting a concrete
+  value resident in the fixture's seeded state or seeded opening narration. Judged, not
+  structural: extracting the claim from prose is classification, and structural checks may
+  read event and state structure only. A response making no such claim is
+  `not_applicable`, not a pass.
+- **`SPATIAL-RELATION-ERROR`** — the Warden asserts a relative spatial claim that is wrong
+  given the layout and the acting entity's actual position. Registered as **category
+  three**: a question that would be structural if the schema recorded an additional field.
+  Every rep returns `not_applicable` naming `current_location` as the missing field, until
+  that field exists.
+
+**`SEEDED-CANON-CONTRADICTION` is deliberately scoped wider than the spatial cases.** The
+unifying property is not that a claim is spatial; it is that its referent lives in the
+fixture, which is what makes the tag gradeable at all. Two subtypes are attested. Layout
+contradictions against `ship_layout` (turns 8, 14, 19), and a timeline contradiction at
+turn 1, which places the mid-deck lighting failure *since day four* against a seeded
+opening narration saying the fixtures went dark *two nights ago*, aboard a ship three weeks
+out. Four instances across two kinds of case. Registering `DECK-LOOKUP-ERROR` and a
+timeline sibling separately would mean generalising later against a corpus already
+committed to the narrow shape, and the standing defer-until-a-second-case principle is
+satisfied here by a second *kind* rather than a repeat.
+
+**The judge cannot see seeded state, so the ground truth has to be injected.**
+`runJudgeCall` builds the rubric text, the winning response's `playerText`, a dump of this
+turn's `gameEvents`, and an optional `judgeContext` block. No `seededState`, no
+`campaignState`, no `worldFacts` — and since `summarizeGameEvents` shows only what the turn
+*wrote*, a seeded value never appears there either. The mechanism is `judgeContext`, which
+receives the fixture and can render `fixture.seededState.campaignState.worldFacts` into the
+scope block; `unauditableMappingJudgeContext` is the existing precedent.
+
+**The rubric is authored with `requiredFacts: []`, and that is a durability decision
+rather than a shortcut.** Rubric text lives in `eval/checks/judged/rubrics.ts` and is
+outside `corpusVersion`, so a rubric revision is scoring-only — frozen artifacts stay valid
+and `eval:rescore` re-grades them in place. `assertion.facts` lives inside the fixture file
+and is not. Putting the contradicted value in `requiredFacts` would therefore pin the
+fixture files to the provisional rubric's fact set, so any later revision changing that set
+costs a `corpusVersion` bump. With an empty fact set and the ground truth injected through
+`judgeContext`, the first rubric is a revisable draft rather than a permanent commitment,
+and getting it wrong is cheap.
+
+**The injection sits in a hash blind spot, which is a separate defect and gets a separate
+entry.** `judgeContext` output is covered by neither `rubricHash` (which hashes the
+template alone) nor `judgeContractHash` (model, system prompt, closing instruction, verdict
+tool) nor `corpusVersion`. Two runs can therefore carry identical identities on every axis
+while the judge read different material — the shape `ADR-0099`'s addendum exists to
+prevent, and pre-existing, since `unauditable-mapping` already sits in it. Mitigated here by
+sourcing the injected data from `fixture.seededState`, so the *data* falls under
+`corpusVersion` and only the renderer is unhashed, plus a committed golden on the renderer.
+Hashing the output directly is the wrong instrument: it varies per fixture and per run, so
+it would not be a stable contract identity in the way `rubricHash` and `judgeContractHash`
+are, and what needs coverage is the renderer's behaviour rather than its output.
+
+**Considered and rejected.**
+
+- **One tag covering all five errors.** Rejected on the causal argument above: it
+  double-counts turn 14 as turn 21 and hides which fix comes first.
+- **A narrow `SEEDED-CANON-CONTRADICTION` restricted to spatial claims.** Rejected because
+  the turn 1 timeline case has the identical gradeable property and would force the
+  generalisation later at higher cost.
+- **Deferring `SPATIAL-RELATION-ERROR` until `current_location` exists.** Rejected because
+  registration is free — the registry is harness-side and moves neither `promptHash` nor
+  `assemblyHash` — and because registering it now means the tag converts when the field
+  ships rather than being invented late. Note the report must distinguish a tag gated by a
+  *declared* missing schema field from one gated by accident; `MISSING-CANON-CAPTURE`'s
+  three runs of 0/10 are the second kind, and reading them the same way at a glance is the
+  hazard.
+- **A third tag for turn 9's silent retcon.** Asked directly whether he had changed decks,
+  the Warden asserts Danny is on the upper deck and *never had to take the ladder shaft down
+  at all* — restoring `ship_layout` correctly while flatly denying turn 8's narration. The
+  correction is right; the failure is that it is unacknowledged. One instance, entangled
+  with a defensible behaviour, and a different mechanism from the turn 20/21 retcon defect
+  which is about state committed and not reversed. Logged, not registered. Revisit on a
+  second instance, and do not merge the two on the strength of both containing the word
+  retcon.
+
+**Measurement hazard this decision creates.** The `ADR-0101` addendum of the same date
+recommends restructuring `ship_layout` from a ~700-character prose run into a deck-indexed
+list — a Warden-visible intervention aimed at precisely what
+`SEEDED-CANON-CONTRADICTION` measures. If it lands in the same batch as the fixtures, the
+tag's first number is post-intervention with nothing to compare against, and the effect of
+the one intervention most worth knowing about is unrecoverable. The restructure is a
+`worldFacts` edit with no schema change and does not need to ride any particular milestone,
+so the cheap resolution is to measure first. Whichever order is chosen, the §6.3 prediction
+is written before the run: a prediction too loose to be violated makes category-2
+attribution unreachable by construction.
+
+**Cost.** New fixtures are a set-membership `corpusVersion` bump — survivors' artifacts
+stay valid and no Warden call is owed for them — and because both tags are new, no existing
+tag's denominator moves. The three fixtures × N reps are owed whenever they are captured, so
+deferring saves nothing and forfeits the coverage. The provisional rubric's first figures
+become citable, so a bump note is written when the rubric is authored rather than when it is
+first revised.
+
+### [ADR-0105](decisions/0105-judgecontext-golden-not-hash.md) — `judgeContext` output is covered by a golden, not a hash
+
+**Four surfaces reach the judge and three of them have a recorded identity.** `runJudgeCall`
+assembles the rubric text (template plus `assertion.facts` interpolated), the winning
+`gm_response`'s `playerText`, a JSON dump of this turn's `gameEvents`, an optional
+`--- Scope of this check ---` block produced by the check's `judgeContext`, and the closing
+instruction. Of those, `rubricHashFor(checkId)` hashes `rubric.template` — the
+uninterpolated template alone; `corpusVersion` covers `assertion.facts`, since it is a field
+inside the fixture file; `serializeJudgeContract` covers the model, the system prompt, the
+closing instruction and the verdict tool; and narration and event summary are derived from
+the run itself. **`judgeContext` output is covered by nothing.**
+
+**The consequence is that two runs can carry identical identities on every axis while the
+judge read materially different material.** `judgeContext` is
+`(result: TurnExecutionResult, fixture: EvalFixture) => string` — it receives the fixture and
+can render anything it likes into the prompt, including seeded state the judge otherwise
+never sees. Editing that function changes what the grader reads and moves `rubricHash`,
+`judgeContractHash` and `corpusVersion` not at all. This is the shape `ADR-0099`'s addendum
+exists to prevent — a Warden-visible or judge-visible surface built by code and carrying no
+identity — reproduced inside the machinery built to prevent it.
+
+**The severity is not "a missing test."** `eval:compare` treats matching identity hashes as
+license to compare two runs, and reports a *missing* hash as unknown rather than as a match
+precisely so that license is not issued on absent evidence. A surface that is present, that
+varies, and that no hash covers means the license can be issued falsely: the comparison
+reports like-for-like and is not. Every other gap in the hash coverage produces a warning;
+this one produces silence.
+
+**Pre-existing rather than introduced.** `unauditableMappingJudgeContext` has sat in this
+gap since `UNAUDITABLE-MAPPING` shipped. It surfaced now because
+`SEEDED-CANON-CONTRADICTION` (`ADR-0104`, drafted 2026-08-25) is definitionally a comparison
+against seeded state, the judge cannot see seeded state, and `judgeContext` is therefore the
+only available injection point — which made the gap load-bearing for a new check rather than
+latent in an old one.
+
+**Partially mitigated already, in one direction only.** The rendered output is recorded
+per-run in the artifacts (`eval/runs/artifacts.ts:144-150`), so a reader of a given run can
+see exactly what was injected. That makes any single run **auditable**. It does not make two
+runs **comparable**, because nothing surfaces a difference between them without a manual
+read of both artifact sets — and comparability is the property `eval:compare` exists to
+assert.
+
+**Decision: a committed golden on the renderer, and no hash over its output.**
+
+Same instrument as `assemblyHash`'s three committed `.txt` goldens: a frozen input rendered
+through the real function, the result committed, and a refactor producing identical text
+moving nothing while a one-word edit fails a golden by name. Verified by mutation rather
+than by argument.
+
+**Hashing the output is the obvious move and it is wrong.** `judgeContext` output varies per
+fixture and per run by construction — it is a function of both. A hash over it would move
+whenever the corpus or the run moved, which is what `corpusVersion` and the run identity
+already express, and it would therefore not be a stable contract identity in the way
+`rubricHash` and `judgeContractHash` are. Those hash a *contract*: a thing that is fixed
+across fixtures and changes only when someone changes it. The renderer is the contract here;
+its output is not. What needs coverage is the renderer's behaviour, and a golden covers
+behaviour where a hash would only re-express variability that is already labelled.
+
+**Where the injected data should come from, as a corollary.** Data rendered from
+`fixture.seededState` falls under `corpusVersion`, because the fixture file is hashed. Data
+constructed inside the renderer does not fall under anything. So a `judgeContext` that
+*selects* from the fixture leaves only the selection logic uncovered, while one that
+*authors* content leaves the content uncovered too. Prefer selection, which is also what the
+field's own doc comment endorses — *"One implementation selects; the judge grades what it
+hands over."*
+
+**Alternatives considered.**
+
+- **Hash the rendered output.** Rejected above: not a contract identity, and re-expresses
+  variability already carried by `corpusVersion` and the run identity.
+- **Fold `judgeContext` into the rubric template.** Would inherit `rubricHash` coverage for
+  free, and is impossible: the template is static text and the whole purpose of
+  `judgeContext` is to render per-fixture data into the prompt.
+- **Move the injected values into `assertion.facts`.** Would inherit `corpusVersion`
+  coverage, and is rejected on a cost that falls elsewhere: `assertion.facts` lives inside
+  the fixture file, so pinning a check's ground truth there commits every fixture carrying
+  that tag to the current rubric's fact set, and any later revision changing that set costs
+  a `corpusVersion` bump on all of them. Recorded at length in `ADR-0104`, where the
+  `requiredFacts: []` decision for `SEEDED-CANON-CONTRADICTION` turns on exactly this.
+- **Leave it and rely on the artifacts.** Rejected: auditability after the fact is not
+  comparability, and the failure this gap produces is a silent false match rather than a
+  missing record.
+
+**Scope.** Two goldens are owed — one for the new `SEEDED-CANON-CONTRADICTION` renderer,
+landing with its capture work in M7.7 because it is a prerequisite for using the mechanism
+honestly there, and one for `unauditableMappingJudgeContext`, which is this entry's own work
+in M7.8. Any future check adding a `judgeContext` adds a golden with it. Whether that is
+enforceable by construction — the way `structuralCheckers` is typed
+`Record<StructuralTag, ...>` so a missing checker is a compile error rather than a silent
+`undefined` — is an open question worth answering while the goldens are being written, since
+a convention that depends on remembering is the same class of thing this entry is
+correcting.
+
+**Incidental, found in the same read.** The comment in `fixture.schema.ts` stating that the
+stub refusal *"is currently in force for the whole corpus"* is stale: `STUB_CHECK_IDS` has
+been empty since 2026-08-20 and `assertNoStubCheckers` no longer blocks a full run. Correct
+at the source rather than patching around it.
 
 ---
 
