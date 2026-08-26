@@ -1,9 +1,9 @@
 """Unit tests for pipeline/extract.py's HTML reduction.
 
-Only `html_to_text` is covered, and deliberately so: it is pure, it decides
-what text actually lands in the index, and it is the one part of extraction
-that can be tested without marker's models or a real PDF. The marker
-subprocess and the pypdfium2 footer pass are not tested here — they are
+Covers the pure parts: `html_to_text`, which decides what text actually lands
+in the index, and `fill_chapter_gaps`, which decides what chapter a chunk is
+attributed to. Both can be tested without marker's models or a real PDF. The
+marker subprocess and the pypdfium2 footer read are not tested here — they are
 covered by the manual run, per the spec's Testing Summary.
 
 `extract.py` imports pypdfium2 lazily for exactly this reason, so importing
@@ -15,7 +15,12 @@ from __future__ import annotations
 import pytest
 
 from pipeline.chunk import Block
-from pipeline.extract import ExtractionError, _assert_text_layer, html_to_text
+from pipeline.extract import (
+    ExtractionError,
+    _assert_text_layer,
+    fill_chapter_gaps,
+    html_to_text,
+)
 
 
 def test_paragraphs_become_blank_line_separated() -> None:
@@ -127,3 +132,60 @@ def test_the_floor_scales_with_page_count() -> None:
     _assert_text_layer(blocks, page_count=2)
     with pytest.raises(ExtractionError):
         _assert_text_layer(blocks, page_count=40)
+
+
+class TestFillChapterGaps:
+    """`fill_chapter_gaps` — inheritance for footer-less pages.
+
+    The PSG case these encode: physical 10 is equipment continuation whose
+    footer does not parse and which should inherit `EQUIPMENT`, while physical
+    1 and 43 are reference cards that belong to no chapter at all.
+    """
+
+    def test_a_gap_inherits_the_preceding_chapter(self) -> None:
+        filled = fill_chapter_gaps({0: "EQUIPMENT"}, 3)
+
+        assert filled == {0: "EQUIPMENT", 1: "EQUIPMENT", 2: "EQUIPMENT"}
+
+    def test_a_chapterless_page_stays_blank(self) -> None:
+        filled = fill_chapter_gaps(
+            {0: "EQUIPMENT"}, 3, chapterless_pages=frozenset({1, 2})
+        )
+
+        assert filled == {0: "EQUIPMENT"}
+
+    def test_a_chapterless_page_stops_the_carry(self) -> None:
+        """A card between two chapters must not leak the earlier one past itself.
+
+        Without this, physical 43 (back cover) would hand `SURVIVAL` to
+        anything following it, and a reader would be told the back-cover
+        reference card is part of the last chapter of the book.
+        """
+        filled = fill_chapter_gaps(
+            {0: "COMBAT"}, 4, chapterless_pages=frozenset({1})
+        )
+
+        assert filled == {0: "COMBAT"}
+
+    def test_a_later_chapter_resumes_the_carry(self) -> None:
+        filled = fill_chapter_gaps({0: "COMBAT", 2: "SURVIVAL"}, 4)
+
+        assert filled == {
+            0: "COMBAT",
+            1: "COMBAT",
+            2: "SURVIVAL",
+            3: "SURVIVAL",
+        }
+
+    def test_leading_pages_before_any_chapter_stay_blank(self) -> None:
+        """Nothing to inherit from — front matter must not borrow forwards."""
+        filled = fill_chapter_gaps({2: "COMBAT"}, 4)
+
+        assert filled == {2: "COMBAT", 3: "COMBAT"}
+
+    def test_the_input_is_not_mutated(self) -> None:
+        chapters = {0: "COMBAT"}
+
+        fill_chapter_gaps(chapters, 3)
+
+        assert chapters == {0: "COMBAT"}

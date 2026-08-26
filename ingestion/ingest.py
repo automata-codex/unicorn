@@ -344,7 +344,11 @@ def build_chunks(
         system_dir / "templates",
     )
 
-    page_chapters = extract.read_page_chapters(args.pdf, page_offset=page_offset)
+    page_chapters = extract.read_page_chapters(
+        args.pdf,
+        page_offset=page_offset,
+        chapterless_pages=frozenset(config.get("chapterless_pages", ())),
+    )
 
     # Marker's emitted order is not reading order on multi-column pages; the
     # curated path skips this because its file is in reading order already.
@@ -494,6 +498,11 @@ def write_manifest(
         "overlapTokens": list(chunking["overlap_tokens"]),
         "droppedPages": sorted(chunking["drop_pages"]),
         "includeSectionHeaders": chunking["include_section_headers"],
+        # Attribution changes chunk *text*, not just metadata: `chunk_blocks`
+        # prefixes each chunk with a `chapter` breadcrumb. So which pages carry
+        # a chapter is a lever like the four above, and a score is only
+        # comparable against a build with the same value.
+        "chapterlessPages": sorted(config.get("chapterless_pages", ())),
     }
     MANIFEST_PATH.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     logger.info("wrote index provenance to %s", MANIFEST_PATH)

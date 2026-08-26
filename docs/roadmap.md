@@ -356,9 +356,9 @@ Populate the `rules_chunk` index for Mothership. A separate milestone because th
 - Retrieval eval harness (`task eval:retrieval`) with a labelled fixture set
 - One-time local seed of Mothership rules chunks
 
-Two gaps shipped knowingly rather than by oversight: the empty `Table` blocks on printed pp. 11–12, and fallback chapter attribution for the five footer-less pages.
+Both gaps this milestone shipped knowingly were closed 2026-08-26 (`ADR-0111`): the footer-less pages now inherit the preceding chapter, with the reference cards carrying none by design, and the empty `Table` blocks on physical pp. 11–12 are dropped as restatements of the inside-cover card.
 
-Spec: [012](specs/zoltar/012-m7.2-rules-ingestion.md) · Plan: [012](plans/012-m7.2-rules-ingestion-implementation-plan.md) · Decisions: ADR-0012, ADR-0013, ADR-0014, ADR-0015, ADR-0017, ADR-0018, ADR-0019 · Findings: `rules-extraction-findings.md § S1–S15`
+Spec: [012](specs/zoltar/012-m7.2-rules-ingestion.md) · Plan: [012](plans/012-m7.2-rules-ingestion-implementation-plan.md) · Decisions: ADR-0012, ADR-0013, ADR-0014, ADR-0015, ADR-0017, ADR-0018, ADR-0019, ADR-0111 · Findings: `rules-extraction-findings.md § S1–S15`
 
 #### M7.3 — Turn-State Replay Infrastructure
 

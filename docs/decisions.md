@@ -220,6 +220,70 @@ fixup mechanism exists for defects that reach a reader.
 
 **Revisit only if** something starts resolving trinkets or patches mechanically.
 
+### [ADR-0111](decisions/0111-footer-less-pages-inherit-the-preceding-chapter.md) — Footer-less pages inherit the preceding chapter; reference cards carry none by design
+
+**Decided 2026-08-26, closing the last open question M7.2 shipped with.**
+
+Chapter attribution is read from the PSG's running footer
+(`footer_format: "page-number-then-chapter"`). Eight of 44 physical pages carry
+no parseable footer, and M7.2 shipped a placeholder policy — page citation, no
+chapter breadcrumb — while the real answer was deferred. Three of the eight were
+already resolved by dropping them
+([[0016-character-creation-content-is-excluded-from-the-rules-index]]). This
+settles the remaining five.
+
+**They are not one problem, and the whole decision is in separating them.**
+
+- **Physical 0 and 2** — the cover (23 chars) and the credits / content-warning
+  page. No rules content. **Dropped**, the same way page 4 was.
+- **Physical 1 and 43** — the inside-cover and back-cover reference cards. These
+  belong to no chapter *in the printed book*. Their footer is not missing; there
+  is nothing for it to say. **They carry no chapter, by design**, recorded as
+  `chapterless_pages` in `ingestion/mothership/system.json`. They stay in the
+  index per [[0107-reference-cards-stay-in-the-rules-index]].
+- **Physical 10** — equipment continuation, printed p.11. Genuine body content
+  mid-chapter that happens to have lost its running footer, and reachable
+  content the Warden queries. **Inherits the preceding page's chapter**, which
+  resolves `EQUIPMENT` on physical 9.
+
+**Blank stays a signal; inherited is a claim.** The reason `chapterless_pages` is
+an explicit list rather than "inherit everywhere" is that a future footer-parsing
+regression should present as a gap, not as plausible-looking wrong attributions.
+`read_page_chapters` logs the resolved count before filling — 36 of 44 on this
+edition — and warns below half. Taken after filling, that number would read a
+clean 44 of 44 on a book whose footers had stopped parsing entirely.
+
+**A chapterless page also stops the carry**, so the back-cover card cannot hand
+the last chapter of the book to anything following it.
+
+**Implementation.** `fill_chapter_gaps` in `ingestion/pipeline/extract.py`, pure
+and unit-tested without a PDF; called from `read_page_chapters` so the document
+is opened once.
+
+**This is a lever, not a metadata tidy-up, and the manifest says so.**
+`chunk_blocks` prefixes each chunk with its chapter breadcrumb, so attribution
+changes the indexed text. `chapterlessPages` joins `droppedPages`,
+`targetTokens`, `overlapTokens` and `includeSectionHeaders` in the ingest
+manifest — a retrieval score is only comparable against a build with the same
+value.
+
+**Physical 11 and 12 are dropped in the same change, for an unrelated reason.**
+`FIREARMS` and `INDUSTRIAL EQUIPMENT` restate the inside-cover reference card in
+a different format — confirmed against the printed book by the maintainer, not
+inferred from the extraction. Their `Table` blocks all extract empty
+(`docs/rules-extraction-findings.md § S3.2`), so today they contribute nothing;
+dropping them also stops `--include-section-headers` resurrecting them as bare
+topic labels with no table body, which is the false-positive shape
+[[0016-character-creation-content-is-excluded-from-the-rules-index]]'s addendum
+describes for physical page 3. This closes M7.2's other known gap.
+
+**Cost, and what is owed.** The index does not change until `task ingest` runs —
+real Voyage calls, and it replaces the system's rows. `drop_pages` goes from 4
+pages to 8 and every chunk on physical 10 gains a breadcrumb, so the M7.5
+retrieval baseline (`recall@3` 97.3%, MRR 0.883, `§ S28`) is measured against an
+index that will no longer exist. Re-measure with `task eval:retrieval` after
+re-ingesting, and treat the current figures as superseded rather than comparable.
+
 ---
 
 ## Rules Retrieval

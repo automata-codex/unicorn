@@ -238,13 +238,61 @@ def _assert_text_layer(blocks: list[Block], *, page_count: int) -> None:
 # ---------------------------------------------------------------------------
 
 
-def read_page_chapters(pdf_path: Path, *, page_offset: int = 1) -> dict[int, str]:
+def fill_chapter_gaps(
+    chapters: dict[int, str],
+    page_count: int,
+    *,
+    chapterless_pages: frozenset[int] = frozenset(),
+) -> dict[int, str]:
+    """Carry each resolved chapter forward over pages whose footer did not parse.
+
+    A body page mid-chapter that happens to lose its running footer is still in
+    that chapter, and the reader of a retrieved chunk needs the breadcrumb to
+    know where they are. The PSG has one such page — physical 10, the equipment
+    continuation — and it is reachable body content the Warden queries.
+
+    ``chapterless_pages`` names the pages that are outside any chapter *by
+    design* rather than by extraction failure: the PSG's inside-cover and
+    back-cover reference cards (physical 1 and 43) belong to no chapter in the
+    book, so inheriting the previous page's would invent an attribution the
+    printed page does not make.
+
+    **Keeping those two categories apart is the point of this function.** If
+    every unresolved page simply inherited, a future footer-parsing regression
+    would present as plausible-looking wrong chapters rather than as the sharp
+    drop in resolved count :func:`read_page_chapters` already logs. Blank stays
+    a signal; inherited is a claim.
+    """
+    filled = dict(chapters)
+    carried: str | None = None
+    for index in range(page_count):
+        if index in chapters:
+            carried = chapters[index]
+        elif index in chapterless_pages:
+            carried = None
+        elif carried is not None:
+            filled[index] = carried
+    return filled
+
+
+def read_page_chapters(
+    pdf_path: Path,
+    *,
+    page_offset: int = 1,
+    chapterless_pages: frozenset[int] = frozenset(),
+) -> dict[int, str]:
     """Physical page index -> chapter name, read from the running footer.
 
     Edition- and printing-specific. A sharp drop in the resolved count on some
     future PDF is the signal that this heuristic has stopped applying to it,
     which is why the count is logged rather than silently accepted — on the
     PSG 1e it is 36 of 44.
+
+    Pages whose footer does not parse inherit the preceding page's chapter via
+    :func:`fill_chapter_gaps`; ``chapterless_pages`` opts specific pages out of
+    that. **The logged count above is deliberately the count before filling** —
+    it measures footer parsing, which is the thing that can regress, and would
+    read as a clean 44 of 44 if it were taken afterwards.
     """
     import pypdfium2 as pdfium  # lazy: keeps this module stdlib-importable
 
@@ -273,4 +321,6 @@ def read_page_chapters(pdf_path: Path, *, page_offset: int = 1) -> dict[int, str
             "is edition-specific; a new book or printing needs its own check "
             "before its page and chapter attribution can be trusted."
         )
-    return chapters
+    return fill_chapter_gaps(
+        chapters, page_count, chapterless_pages=chapterless_pages
+    )
