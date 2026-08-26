@@ -82,6 +82,14 @@ prefix on a ~400-token chunk, and no fixture's expected page is printed p.11. So
 the attribution gap closed at zero retrieval cost, and `§ S28`'s figures stand
 rather than being superseded.
 
+**The mechanism was confirmed separately, and it had to be.** Identical
+aggregates are also what a silently no-op'd inheritance would produce, so the
+scores alone cannot tell "worked and cost nothing" from "did nothing". The dry
+run reports which pages carry no chapter by name: it listed **printed p.2 and
+p.44 only** — the two reference cards — with printed p.11 absent, which is
+physical 10 having inherited `EQUIPMENT`. That is the pass condition, and it is
+why `print_dry_run` names the pages rather than counting them.
+
 **The similarity distributions still overlap** — answerable-correct-hit
 0.330–0.601 against unanswerable 0.271–0.426 — so [[0020-no-similarity-floor-for-rules-lookup-the-distributions-overl]]
 is unchanged by this.
