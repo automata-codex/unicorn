@@ -88,3 +88,34 @@ halves were misleading: `turn21` is pinned at 1.00 and already listed above as a
 presenting as a stable mid-range rate — the failure this file catalogues as "a tag rate can certify a
 fixture rather than the corpus", arrived from the third direction. Re-authoring or retiring `turn16`
 goes with M7.7's fixture work; the class goes to M7.8.
+
+**Addendum, 2026-08-23 — `turn16` is retired, and a removal turns out to be a third kind of
+corpus bump.**
+
+The addendum above settled why `turn16-narrating-past-a-block` could never pass and left the
+choice between re-authoring and retiring it to M7.7. **Retirement chosen.**
+
+**The two options were not equivalent.** Re-authoring the block against something a player
+character can actually be blocked on keeps a third instance but needs a fresh capture.
+Retiring costs a corpus bump and no Warden spend. Retirement stops the fixture gating the
+playtest, and the tag no longer rests on it alone — `turn21` and the `5c34991b-turn10`
+capture both pass every rep, so the rate should read 1.00 on a smaller denominator. What
+made this cheaper than it was in M7.6 is that second instance arriving.
+
+[[0100-npc-crew-role-skills]] has since made the underlying category error explicit rather
+than interpretive: Instinct is a rolled field on `npc` entities and on nothing else, and
+`mothership-m7.txt`'s NPC instruction is now conditional on the snapshot actually carrying
+one. The fixture asked a player character for a field the schema gives only to NPCs.
+
+**Retired 2026-08-23.** Fixture removed, 22 → 21. Corpus `abbce198026c` →
+`ead033182d6a`.
+
+**That bump is a third kind, and naming it was the general lesson.** A removal is neither
+input-affecting nor scoring-only: survivors' inputs and grading are untouched, so
+`eval:rescore` is legitimate, but the denominators move. `docs/eval-methodology.md § Two
+kinds of corpus bump` had no name for it, and its "re-run when the kind is unclear" default
+would have bought a full Warden run to answer a question arithmetic answers. The kind is now
+named there.
+
+The checker's comments keep the `turn16` evidence as history, with a pointer recording that
+the fixture is gone.

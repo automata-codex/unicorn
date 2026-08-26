@@ -23,6 +23,7 @@ Each entry records what was decided, what the alternatives were, and why.
 ## Open
 
 - [ADR-0080](decisions/0080-open-the-undecided-discipline-has-never-been-extended-to-jud.md) — OPEN — the undecided discipline has never been extended to judged checks, and `turn24-over-resolution` is the case that shows it should be
+- [ADR-0106](decisions/0106-handoff-format.md) — Cross-Context Handoff Format
 
 ---
 
@@ -77,6 +78,32 @@ The default is now `voyage-4-lite`, which emits 1024 dimensions by default and l
 Two constraints follow, and neither is enforced by the type system: the ingestion model and the runtime `VOYAGE_EMBED_MODEL` must be the *same model*, not merely two models of the same width, or similarity scores are meaningless while looking healthy; and any future model swap must be checked against the column dimension before ingesting rather than after. M7.2's pipeline should validate the returned vector length against `game_system.embedding_dim` before insert — that check is the cheap guard that would have caught this at M7 time.
 
 No eval re-baseline is owed for this change on its own. Both existing baselines ran against an empty index, so no graded turn ever consumed an embedding; the re-baseline that `ADR-0023` anticipates is owed to ingestion itself, not to the model swap.
+
+### [ADR-0110](decisions/0110-dice-are-stored-as-rolled-and-offset-at-lookup.md) — Dice are stored as they fell; the 0-indexed table offset is applied at lookup
+
+**Convention decided 2026-08-20, shipped 2026-08-21 as spec 018 Part 3.**
+
+**The mismatch.** Mothership's creation tables — loadout, trinkets, patches — are indexed
+`00`–`09` or `00`–`99`. `executeDiceRoll` is not: `dice.ts:57-64` returns
+`randomInt(sides) + 1`, so `1d10` yields 1–10 against a table whose first row is `00`.
+
+**Decision: store the dice as they fell and apply the `-1` at lookup time.** Two reasons,
+both about keeping one convention rather than two:
+
+- It preserves the dice-as-they-fell property that `creationRolls` is built on. A recorded
+  roll means what the player saw on the table.
+- It keeps the offset in one place rather than at every roll site.
+
+**Shipped.** `tableIndexForRoll` (`packages/game-systems/src/dice.ts:88-95`) owns the offset
+and throws on a die result below 1. `executeDiceRoll` is untouched. `loadout` joins `trinket`
+and `patch` in `creationRolls` as the one optional roll, since a sheet written before the
+field existed cannot retroactively acquire a roll nobody made.
+
+**Consequence for `trinket` and `patch`.** Both have carried the same 1-based roll since
+M7.6, and because the player reads those tables themselves the offset has never been applied
+by anything. This is therefore a convention to establish going forward, not a bug to repair
+on those two. See [[0109-trinket-and-patch-tables-are-not-repaired]], which is why nothing
+in the app reads them.
 
 ---
 
@@ -157,6 +184,32 @@ Same action, two different justifications, and conflating them would have been e
 `docs/rules-ingestion.md § Step 2` specifies fixup entries matched by `{section, contains}` — e.g. `{"section": ["Combat", "Panic"], "contains": "1-10Roll"}`. Neither key can express the confirmed extraction defects. `contains` needs text to match against, and the defect is 14 of 32 `Table` blocks extracting as empty (`<p></p>`) — there's nothing there to match on. `section` was meant to derive from `section_hierarchy`, already rejected above as unreliable ancestry.
 
 **Decided:** match fixup entries on the block `id` (e.g. `/page/11/Table/5`) instead — stable, unique, and already the fallback every other part of this pipeline uses once `page` and `section_hierarchy` proved unreliable (`docs/rules-extraction-findings.md § S6.5`). `ingestion/mothership/fixups.json` remains empty pending the table-defect scoping decision in `roadmap.md` M7.2; this entry fixes the schema those fixups will eventually use, not the defects themselves.
+
+### [ADR-0109](decisions/0109-trinket-and-patch-tables-are-not-repaired.md) — The garbled trinket and patch tables are not repaired — nothing queries them
+
+**Found 2026-08-20, not fixed by decision the same day.**
+
+An audit of the printed-p.7 loadout tables for the wide-table truncation signature
+(`docs/rules-extraction-findings.md § S27.4`) came back clean — 40 of 40 rows present across
+four class tables × `00`–`09`. The defect turned up one page over instead. `TRINKETS`
+(printed p.8) has 4 orphan continuation rows and 2 comma-terminated ones; `PATCHES`
+(printed p.9) has 6 orphans.
+
+**All 100 indices survive in each, so this is reassembly damage rather than loss.** Both are
+three-column tables, and extraction interleaves the columns across lines. Nothing is missing;
+the rows are assembled wrongly.
+
+**`§ S11.2` calls these tables "intact", which is true at the token level and wrong at the
+row level.** That is worth correcting in the findings document even though no repair follows
+from it.
+
+**No fixup entry, by decision.** Character creation rolls the number and the player enters
+the result from their own copy of the book. Nothing in the app resolves a d100 against these
+tables, and the character sheet schema itself records both as *"narrative, never mechanical"*
+(`character-sheet.schema.ts:132-135`). A garbled table nobody queries costs nothing, and the
+fixup mechanism exists for defects that reach a reader.
+
+**Revisit only if** something starts resolving trinkets or patches mechanically.
 
 ---
 
@@ -417,6 +470,39 @@ both. `authored` at 100% still earns its place in the report — a chunking
 change that broke it would be caught immediately — but "did this round help"
 has to be asked of a number that can answer. Worth checking whenever a
 threshold is written against a metric that is already at its ceiling.
+
+### [ADR-0107](decisions/0107-reference-cards-stay-in-the-rules-index.md) — The reference-card duplicates stay in the rules index — a close call settled on a pre-fixed criterion
+
+**Decided 2026-08-09.** Mothership's printed pp. 1 and 44 are cheat sheets that restate
+body content, so their chunks are near-duplicates competing with the pages they summarize
+in cosine ranking. The question was whether dropping them improves retrieval enough to
+justify losing the cards themselves.
+
+**Run as chunking round 4** (`docs/rules-extraction-findings.md § S28`): physical p.43 —
+printed p.44, the back-cover cheat sheet — dropped, paired with
+`--include-section-headers`, against a criterion **fixed before the run**: keep the change
+only if `recall@3` holds at 97.3% or better and no fixture regresses.
+
+**Every aggregate came back identical.** `recall@3` 97.3%, `warden-observed` 95.7%, MRR
+0.883. The mechanism worked exactly as intended — p.44's share of the 147 top-3 slots went
+14 → 0. But `rq-010` regressed rank 1 → 2, deterministically: verified across five
+pre-round-4 runs and three round-4 runs, so it is not the run-to-run reordering `§ S22`
+catalogued.
+
+**Reverted on the criterion.** One fixture regressed, the criterion said no fixture may,
+and the criterion was written down first. The revert is explicitly to avoid a close call
+being settled by whoever most wanted the result — every aggregate was neutral, which is
+precisely the condition under which a pre-registered rule earns its keep.
+
+**Standing decision:** `drop_pages: [3, 4, 41, 42]` in
+`ingestion/mothership/system.json`. The reference cards stay in the index. Pages 3, 4, 41
+and 42 are excluded for unrelated reasons — see [[0016-character-creation-content-is-excluded-from-the-rules-index]].
+
+**What would settle it properly, and why it is not scoped here.** The real conclusion is
+that this fixture set can no longer discriminate at this level: 36 of 37 passing leaves one
+fixture of headroom, so any change is being judged on a single data point. `§ S28.4` records
+the remedy — re-run round 4 once the fixture set is extended with equipment coverage. That
+extension is retrieval-fixture work, and was deliberately left outside M7.5's scope.
 
 ---
 
@@ -914,6 +1000,24 @@ cause — nothing reconciles sheet and pools after creation:**
 - The `assertNoActiveAdventure` guard on update and delete blocks only `synthesizing`,
   `ready`, and `in_progress` — sheets are editable once an adventure is `completed`,
   `aborted`, or `failed`.
+
+**Addendum, 2026-08-15 — a standing constraint on read-side validation, recorded because
+the thing that makes it safe today is deliberate and undocumented.**
+
+M7.6 reconciled the pools with the character-creation rework and added **no** read-side
+validation of `character_sheet.data`. That was a choice, and it has a tripwire attached:
+
+**Do not add read-side validation of `character_sheet.data` without changing the harness
+seed in the same change.** `harness-runner.ts:326` writes 1 of 9 required fields
+deliberately, and the eval harness works only because no read path parses the sheet. A
+validator added on its own turns every fixture into a seeding error, and the failure will
+present as a corpus problem rather than as this.
+
+**What M7.6 settled alongside it.** Pools nest by owner, eleven per character. The stress
+pool carries the three-axis correction — seeds 2, floors at Minimum Stress by prompt
+instruction, no ceiling, because the 20 cap converts overflow rather than rejecting it.
+Below-`min` deltas are rejected rather than clamped, and `hp` exercises that path now that
+it carries `min: 0`.
 
 ### [ADR-0037](decisions/0037-synthesis-prompts-are-system-specific-no-driver-registry-yet.md) — Synthesis prompts are system-specific; no driver registry yet
 
@@ -2401,6 +2505,37 @@ presenting as a stable mid-range rate — the failure this file catalogues as "a
 fixture rather than the corpus", arrived from the third direction. Re-authoring or retiring `turn16`
 goes with M7.7's fixture work; the class goes to M7.8.
 
+**Addendum, 2026-08-23 — `turn16` is retired, and a removal turns out to be a third kind of
+corpus bump.**
+
+The addendum above settled why `turn16-narrating-past-a-block` could never pass and left the
+choice between re-authoring and retiring it to M7.7. **Retirement chosen.**
+
+**The two options were not equivalent.** Re-authoring the block against something a player
+character can actually be blocked on keeps a third instance but needs a fresh capture.
+Retiring costs a corpus bump and no Warden spend. Retirement stops the fixture gating the
+playtest, and the tag no longer rests on it alone — `turn21` and the `5c34991b-turn10`
+capture both pass every rep, so the rate should read 1.00 on a smaller denominator. What
+made this cheaper than it was in M7.6 is that second instance arriving.
+
+[[0100-npc-crew-role-skills]] has since made the underlying category error explicit rather
+than interpretive: Instinct is a rolled field on `npc` entities and on nothing else, and
+`mothership-m7.txt`'s NPC instruction is now conditional on the snapshot actually carrying
+one. The fixture asked a player character for a field the schema gives only to NPCs.
+
+**Retired 2026-08-23.** Fixture removed, 22 → 21. Corpus `abbce198026c` →
+`ead033182d6a`.
+
+**That bump is a third kind, and naming it was the general lesson.** A removal is neither
+input-affecting nor scoring-only: survivors' inputs and grading are untouched, so
+`eval:rescore` is legitimate, but the denominators move. `docs/eval-methodology.md § Two
+kinds of corpus bump` had no name for it, and its "re-run when the kind is unclear" default
+would have bought a full Warden run to answer a question arithmetic answers. The kind is now
+named there.
+
+The checker's comments keep the `turn16` evidence as history, with a pointer recording that
+the fixture is gone.
+
 ### [ADR-0083](decisions/0083-applicability-is-reported-alongside-every-rate-and-errors-ar.md) — Applicability is reported alongside every rate, and errors are not in its denominator
 
 `eval-methodology.md` already argued that a rate moving because its denominator moved looks identical to a rate moving because behaviour moved, and that reporting applicability is the only thing that separates them. The reports now do: `App` on the per-fixture and per-tag tables, `App A`/`App B`/`ΔApp` on every compare row, and an `Applicability shifts` section peer to Regressions/Improvements.
@@ -2882,6 +3017,35 @@ stub refusal *"is currently in force for the whole corpus"* is stale: `STUB_CHEC
 been empty since 2026-08-20 and `assertNoStubCheckers` no longer blocks a full run. Correct
 at the source rather than patching around it.
 
+### [ADR-0108](decisions/0108-no-identity-for-the-structural-checkers.md) — Structural checkers get no identity hash — the repair hatch is what makes them different
+
+**Decided 2026-08-22, and recorded so the omission reads as a decision rather than an
+oversight.**
+
+**The gap is real.** `corpusVersion` hashes fixture *files*, so it answers "did the inputs
+change" and says nothing about the code that grades them. Adding `TOOL-SYNTAX-LEAK` left
+`corpusVersion` at `1c2a418cf68c` while the runs began measuring something they had not
+measured before. [[0099-the-code-built-prompt-surfaces-get-their-own-identity-separa]] named
+this and declined it — *"extending this mechanism to the checker registry is a reasonable
+next step and is not taken here"* — and spec 020 covers only the judged half, via
+`judgeContractHash` ([[0102-the-judge-contract-gets-its-own-identity-and-the-verdict-fol]]).
+The structural half (`system-rolled-player-action`, `out-of-order-resolution`,
+`tool-syntax-leak`) still carries no identity. `harnessVersion` cannot serve as one, for the
+reason it never could: it is the git short SHA and would fire on every comparison
+([[0066-harnessversion-is-the-git-short-sha-not-a-hand-maintained-co]]).
+
+**Decision: no hash. The reason is repair cost, not severity.** Structural checkers are
+deterministic and `eval:rescore` regrades them for free — no Warden calls, no judge calls.
+A run mislabelled by a checker edit is therefore repairable after the fact at zero spend,
+by rescoring both sides under today's registry and comparing those.
+
+**The judged half has no such hatch.** That is precisely why the two known data corrections
+in `docs/eval-methodology.md` are still prose corrections rather than repaired numbers. The
+two halves look symmetrical and are not, and that asymmetry is the whole justification.
+
+**Revisit if** a structural checker edit ever lands that `eval:rescore` cannot undo. A
+checker that reads something no longer present in the archived artifact would be that case.
+
 ---
 
 ## Monorepo, Tooling & Deployment
@@ -2913,6 +3077,159 @@ No `main`/`develop` split. The value of a develop branch is protecting a stable 
 **Why they stay, as observable from how they are used rather than as remembered rationale.** Decisions entries and specs cite plan files by path, so removing them would break references that the validator now enforces. A CC session loads them as working context; they are a substantial part of what makes a fresh thread productive. And a plan's git history is the record of how a milestone was actually sequenced, which the milestone's own commits do not capture.
 
 **What this does not settle.** Whether plans and specs are *public* artifacts is a separate question and stays open in the M9 bullet, which notes that `decisions.md` is arguably the most valuable thing to publish and `docs/plans/` the least. Tracked in the repo and published to a `v0.1.0` audience are different commitments; this entry makes only the first.
+
+### [ADR-0106](decisions/0106-handoff-format.md) — Cross-Context Handoff Format
+
+## Purpose
+
+Zoltar development runs across two Claude contexts: **Claude Code** (CC), which
+has repo and database access and — as of this experiment — authors decisions,
+ADRs, eval methodology, and implementation; and **Claude Web** (CW), which
+reviews CC's work. Work moves between them by copy/paste of individual turns.
+
+This format exists so that a pasted turn is unambiguously a handoff, states what
+response is wanted, and bounds what the receiver should do. Its main job is
+keeping review substantive: CC authors from inside the code, so the risk is not
+factual error but unexamined framing — alternatives never considered, principles
+that cost effort now to save it later, reasoning that evaporates with the session.
+
+## Envelope
+
+Every handoff opens with a fenced `handoff` block containing the header, followed
+by unfenced body sections.
+
+    ```handoff
+    from: CC | to: CW
+    re: ADR-0107 draft
+    ask: review-decision
+    scope: reasoning only — implementation plan is settled
+    limit: 300 words
+    ```
+
+### Header fields
+
+| Field | Required | Meaning |
+|---|---|---|
+| `from` / `to` | yes | `CW` or `CC`. |
+| `re` | yes | Subject. Prefer a stable identifier (`ADR-NNNN`, spec number, milestone). |
+| `ask` | yes | What response is wanted. Closed set, below. |
+| `scope` | no | Explicit bound on what the receiver should do. |
+| `limit` | no | Word cap on the response. |
+
+### `ask` values
+
+- `review-decision` — argue with the reasoning. The primary path.
+- `verify-claims` — check the stated claims against the code; report verdicts only.
+- `sanity-check` — open-ended; flag anything that looks wrong.
+- `fyi` — no response needed.
+
+Anything not on this list means the sender hasn't decided what they want.
+
+---
+
+## Primary path: `review-decision` (CC → CW)
+
+### Outbound body
+
+    DECISION
+    <what was decided, in one or two sentences>
+
+    REASONING
+    <why — the argument, not a restatement of the decision>
+
+    ALTERNATIVES
+    A1. <option considered> — rejected because <reason>
+    A2. <option considered> — rejected because <reason>
+
+    PRESSURE
+    <what CW should push hardest on, or "open">
+
+`ALTERNATIVES` is the section most likely to be skipped and the one most worth
+keeping. An implementer writing from inside the code records what was chosen and
+drops what was dismissed, because the dismissal happened in a session that then
+evaporates. `decisions.md` is supposed to hold both.
+
+`PRESSURE` names the part the author is least sure of. Without it, review
+gravitates to whatever is easiest to comment on.
+
+### Return body
+
+    BLOCKING — <the decision does not hold as written; say why>
+    CONCERN  — <the decision holds but something is unaddressed>
+    NOTE     — <minor, take it or leave it>
+    UNCHECKED — <a premise CW cannot verify without the code; CC should confirm>
+
+    VERDICT: proceed / revise / blocked
+
+Severity first, one entry per line, no preamble. `UNCHECKED` is the reviewer's
+counterpart to a wrong claim: CW cannot see the repo, so any point resting on
+what the code actually does is flagged and handed back rather than asserted.
+
+An empty return is a legitimate outcome. `VERDICT: proceed` with no entries above
+it means the reasoning holds.
+
+---
+
+## Secondary path: `verify-claims` (CW → CC)
+
+For the cases where CW does draft something — an ADR, a methodology note — that
+rests on assertions about the current codebase.
+
+### Outbound body
+
+    CLAIMS
+    C1. `session.validator.ts` seeds entity writes from a hand-enumerated field list.
+    C2. The advisory lock spans `applyTurnAtomic` only, not the full turn cycle.
+
+    BODY
+    <the ADR, decision, or question>
+
+Each claim is one checkable assertion about the code, stated separately from the
+reasoning that depends on it. Separating them makes verification mechanical and
+makes the document honest about what it assumes.
+
+More than three or four claims means the artifact should have been drafted in CC,
+where the code is. This format is for checking work, not transmitting specs.
+
+### Return body
+
+    C1 CONFIRMED — `entity.merge.ts:88`, list at L40–52.
+    C2 WRONG — lock acquired in `turn.service.ts:210`, released after event
+       emit. Spans the full cycle.
+    C3 (unstated) — `judgeContext` renderer is invoked before the lock.
+
+    VERDICT: revise C2, then proceed.
+
+One line per claim. Verdict first (`CONFIRMED` / `WRONG` / `PARTIAL` / `UNVERIFIABLE`),
+then `file:line` evidence. `PARTIAL` and `UNVERIFIABLE` carry a one-line reason.
+
+`(unstated)` entries are for premises the sender got wrong that do not block the
+plan. Without a slot for them they go unmentioned, and false premises accumulate
+in the record reading as settled fact.
+
+---
+
+## Rules
+
+1. **Correct at the source.** A `BLOCKING` or `WRONG` verdict means the originating
+   document is edited. Working around it downstream leaves the record wrong.
+2. **Do not exceed `scope`.** If the scope looks mistaken, say so in the return
+   rather than acting outside it.
+3. **`fyi` means no reply.** Returning a review to an `fyi` handoff is noise.
+4. **Review is not comprehensive.** CW sees what it is shown. A decision whose
+   reasoning is not written down cannot be reviewed, and framing that both
+   contexts share will not be caught by either.
+
+## Open questions
+
+- Whether `review-decision` returns stay useful without code access, or degrade
+  into restating the argument back. This is the load-bearing question for the
+  experiment; `UNCHECKED` is the early-warning signal — if most entries are
+  `UNCHECKED`, review is running on guesses.
+- Whether `ALTERNATIVES` survives contact with implementer-authored ADRs, or has
+  to be reconstructed after the fact.
+- Whether the block should be recorded in `decisions.md` when a verdict changes an
+  ADR, or whether the corrected ADR is sufficient record.
 
 ---
 
