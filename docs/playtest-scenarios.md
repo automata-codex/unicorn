@@ -59,7 +59,11 @@ applied nothing. **That cap is gone** — the guard now sits inside the tool loo
 occurrence costs one abandoned turn rather than every turn after it. Expect a usable
 capture across the whole session this time.
 
-## Capture discipline for this session
+## Capture discipline
+
+The first three are **standing conventions**, not specific to this session — they
+apply to every capture-driven playtest, and `docs/roadmap.md` no longer carries them.
+The fourth is a settled question kept for readers of the older material.
 
 - **One adventure in the campaign, start to finish.** Fixtures freeze whatever
   `campaignState` exists at authoring time, and adventure-scoped state is not yet

@@ -16,9 +16,9 @@
  * of what was true when written, and editing them to cite an identifier that
  * did not exist at the time makes the record less honest, not more.
  *
- * `decisions.md` is absent on purpose. It is generated from `docs/decisions/`
- * after the split, so a rewrite applied to it is discarded by the next build.
- * The ADR source files are inventoried separately.
+ * `decisions.md` and `decisions-summary.md` are absent on purpose. Both are
+ * generated from `docs/decisions/`, so a rewrite applied to either is discarded
+ * by the next build. The ADR source files are inventoried separately.
  */
 export const IN_SCOPE_DOCS = [
   'roadmap.md',

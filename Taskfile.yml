@@ -23,12 +23,12 @@ tasks:
       - docker compose down
 
   docs:decisions:build:
-    desc: Regenerate docs/decisions.md from the per-decision files in docs/decisions/. Run after editing any ADR file.
+    desc: Regenerate docs/decisions.md (full text) and docs/decisions-summary.md (each entry's summary, falling back to full text) from the per-decision files in docs/decisions/. Run after editing any ADR file.
     cmds:
       - npx tsx docs/tooling/build-index.ts
 
   docs:decisions:check:
-    desc: Validate the ADR corpus — identifiers, front matter, and whether the generated docs/decisions.md is stale.
+    desc: Validate the ADR corpus — identifiers, front matter, and whether either generated view (docs/decisions.md, docs/decisions-summary.md) is stale.
     cmds:
       - npx tsx docs/tooling/check.ts
 

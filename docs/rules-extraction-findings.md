@@ -369,7 +369,14 @@ information** — each cost real time.
 
 ## Open questions
 
-- **Fallback chapter for the remaining 5 footer-less pages** (physical 0,
+- **RESOLVED 2026-08-26 — `ADR-0111`.** Physical 0 and 2 are dropped (cover,
+  credits); 1 and 43 carry no chapter by design as reference cards outside the
+  book's chapter structure; 10 inherits `EQUIPMENT` from physical 9.
+  Physical 11 and 12 are dropped as restatements of the inside-cover card,
+  closing [S3.2](#32-new-finding--14-of-32-table-blocks-carry-no-text) with
+  them. The original question, kept for the reasoning that led here:
+
+- ~~**Fallback chapter for the remaining 5 footer-less pages**~~ (physical 0,
   1, 2, 10, 43 — down from 8: page 4 and its duplicates 41–42 are dropped
   outright, not resolved, per [S2](#s2--2026-08-05--character-creation-is-unreachable-to-the-warden)).
   Page 10 (equipment continuation) is body content the Warden would

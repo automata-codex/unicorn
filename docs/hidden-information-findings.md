@@ -293,7 +293,8 @@ other rejectable field this is theoretical. `ADR-0101` adds `revealed` and
 *"`status`-field-overload prompt fix: `status` is strictly the
 `'alive'|'dead'|'unknown'` enum; tactical and narrative detail moves to
 `npcState`"*. **Superseded 2026-08-21:** that bullet moved from M8.1 to M7.7
-and folds into spec 019 § Part 4, because M8.1 is prompt-only and because
+and folds into spec 019 § Part 4 — it no longer appears in the roadmap under
+either milestone — because M8.1 is prompt-only and because
 `npcState` — its stated destination — turned out to have no write path at
 all. The applier-side half is spec 019 § Part 5, and is a reporting-
 completeness fix rather than the partial-application one this paragraph

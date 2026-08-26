@@ -13,6 +13,8 @@ export const REPO_ROOT = join(import.meta.dirname, '..', '..');
 export const DOCS_DIR = join(REPO_ROOT, 'docs');
 export const ADR_DIR = join(DOCS_DIR, 'decisions');
 export const INDEX_PATH = join(DOCS_DIR, 'decisions.md');
+/** The same corpus rendered through each entry's `summary`, where one exists. */
+export const SUMMARY_INDEX_PATH = join(DOCS_DIR, 'decisions-summary.md');
 export const INDEX_HEADER_PATH = join(ADR_DIR, '_index-header.md');
 
 /** Zod's default message is a JSON dump; reduce it to the failing keys. */

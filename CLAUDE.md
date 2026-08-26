@@ -68,6 +68,30 @@ Packages are internal workspace packages — they are not published to npm.
 
 For all frontend work, read `docs/design-system.md` before writing any code. It covers the token architecture, semantic token reference, and component conventions.
 
+## Where Things Get Written Down
+
+Each kind of record has one home. Putting a thing in the wrong one is how
+`docs/roadmap.md` grew to 22,000 words before being refactored back on 2026-08-26.
+
+| Kind of thing | Home |
+|---|---|
+| A decision — its alternatives, its reasoning, what would reverse it | `docs/decisions/`, one file per ADR. Run `task docs:decisions:build` after editing, and `task docs:decisions:check` to validate |
+| A measurement, diagnosis, or defect writeup | the relevant findings doc: `docs/rules-extraction-findings.md`, `docs/eval-methodology.md`, `docs/hidden-information-findings.md` |
+| How a feature is designed and built | `docs/specs/` and `docs/plans/` |
+| Product and tooling scope, and the milestone sequence | `docs/roadmap.md` |
+| Outstanding work at task granularity, and its status | Workflowy — hand it over in the format at `docs/workflowy-template.md` |
+
+**`docs/roadmap.md` tracks status at milestone granularity only.** It carries no
+per-item checkboxes. A milestone entry states what the milestone delivers; it does
+not narrate how the work went. The test for whether a line belongs there: **a
+roadmap deliverable is a stable noun, and does not change as the work progresses.**
+Anything that churns is a Workflowy item.
+
+**`docs/specs/`, `docs/plans/` and `docs/milestones/` are frozen** — they are dated
+accounts of what was true when written. Never rewrite a reference inside them to
+cite an identifier that did not exist at the time. This is enforced by
+`docs/tooling/references.core.ts`.
+
 ## Testing Standards
 
 Testing expectations apply uniformly across all milestones — they are not tracked per-feature in the roadmap.

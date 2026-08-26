@@ -54,3 +54,21 @@ cause — nothing reconciles sheet and pools after creation:**
 - The `assertNoActiveAdventure` guard on update and delete blocks only `synthesizing`,
   `ready`, and `in_progress` — sheets are editable once an adventure is `completed`,
   `aborted`, or `failed`.
+
+**Addendum, 2026-08-15 — a standing constraint on read-side validation, recorded because
+the thing that makes it safe today is deliberate and undocumented.**
+
+M7.6 reconciled the pools with the character-creation rework and added **no** read-side
+validation of `character_sheet.data`. That was a choice, and it has a tripwire attached:
+
+**Do not add read-side validation of `character_sheet.data` without changing the harness
+seed in the same change.** `harness-runner.ts:326` writes 1 of 9 required fields
+deliberately, and the eval harness works only because no read path parses the sheet. A
+validator added on its own turns every fixture into a seeding error, and the failure will
+present as a corpus problem rather than as this.
+
+**What M7.6 settled alongside it.** Pools nest by owner, eleven per character. The stress
+pool carries the three-axis correction — seeds 2, floors at Minimum Stress by prompt
+instruction, no ceiling, because the 20 cap converts overflow rather than rejecting it.
+Below-`min` deltas are rejected rather than clamped, and `hp` exercises that path now that
+it carries `min: 0`.

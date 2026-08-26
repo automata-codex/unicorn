@@ -75,8 +75,8 @@ calibrated *against*, so the calibration basis above is now historical and the s
 comparison point is:
 
 - Model: **`claude-sonnet-5`** — `claude-sonnet-4-6` was retired from baselining rather
-  than re-run, a recorded scope deviation (`docs/roadmap.md § M7.5`,
-  `docs/plans/014-turn19-roll-ownership.md`). Both-model baselines no longer exist
+  than re-run, a recorded scope deviation
+  (`docs/plans/014-turn19-roll-ownership.md`). Both-model baselines no longer exist
 - Prompt hash: **`c45a142a`**
 - Corpus version: **`83fe9ee82341`**
 - Run directory: **`claude-sonnet-5__c45a142a__2026-08-10T19-45-15Z`**
@@ -129,7 +129,7 @@ check because someone authored it there, so it can go wrong again the same way.
   and the `<entities>` block therefore gained a `player_character` line it did not have
 - Run directory: **`claude-sonnet-5__fa4e6e2f__2026-08-21T11-05-26Z`**
 - Full corpus (22 fixtures), 10 reps, **four errored turns** — not zero, and all four attributed
-  before any number was read. Closeout and category calls in `docs/roadmap.md § M7.7`
+  before any number was read. The closeout and category calls for this run are below
 
 **Correction, 2026-08-21: this run's `ROLL-RESULT-INVERSION` is 1.00, not the 0.90 its report
 renders.** Its single failure is a judge contradicting its own rationale — the text closes on
@@ -138,7 +138,7 @@ renders.** Its single failure is a judge contradicting its own rationale — the
 that one is genuine, so this is 1 of 2. **Anything compared against this baseline on that tag must
 use 1.00**, and the first comparison to hit it already went wrong: spec 019's `eval:compare` listed
 `ROLL-RESULT-INVERSION` under *Unchanged* at 0.90 → 0.90, when the truth is 1.00 → 0.90. See
-`§ Before trusting any judged rate from this corpus` and `docs/roadmap.md § M7.7`.
+`§ Before trusting any judged rate from this corpus`.
 
 **Settled 2026-08-23: that −0.10 was not a real regression, and the record
 below is superseded.** Both runs were re-scored under judge contract
@@ -260,7 +260,7 @@ M7.6's re-baseline:
   pools appear, so `campaignState` changed for all 15 fixtures. The bump to `1c2a418cf68c` is
   **scoring-only** and is graded off this run's frozen artifacts (see the note below)
 - Run directory: **`claude-sonnet-5__ccac7d1c__2026-08-16T12-38-30Z`**
-- Full corpus, 10 reps, zero errors. Closeout and category calls in `docs/roadmap.md § M7.6`
+- Full corpus, 10 reps, zero errors. The closeout and category calls for this run are below
 
 **Superseded `claude-sonnet-5__c45a142a__2026-08-10T19-45-15Z` (corpus `83fe9ee82341`).** That run
 stays the correct comparison point for anything measured before M7.6's snapshot changes. It is not
@@ -725,8 +725,8 @@ narration states raw roll totals, which the rubric prohibits independently of th
 recorded artifact is a genuine contradiction and 1.00 stands on its own terms — but the inference behind it
 ("the rationale says no violation, so the failure is the grader") does not hold for this artifact, and the
 re-grades that disagree are disagreeing about **rubric scope** rather than showing the grader
-malfunctioned. That ambiguity is now its own item in `docs/roadmap.md § M7.7`; revisit this figure when
-the rubric says which reading it means.
+malfunctioned. That ambiguity was tracked as its own item until the rubric was
+disambiguated on 2026-08-22 — see `§ 2. HIDDEN-INFO-LEAK's rubric disambiguated` below.
 
 `eval:judge-variance` against both new rubrics, per step 1 of the comparison procedure
 above. New rubric, grader stability unverified, and the two structural halves changed what
@@ -917,11 +917,12 @@ two tags:
 is the whole of what is left. **This is a denominator change, not a Warden
 improvement, and must not be read as one.**
 
-**A correction to the roadmap's figure, found while checking this:** M7.7's
-bullet cites 0.66 "on the 2026-08-21 re-baseline", but 0.66 is `fa4e6e2f`
-(the 11-05 run, four errored turns) and the spec 019 re-baseline is
-`6717347d` (21-14) at 0.70. Two runs share the date and the bullet conflated
-them.
+**A correction to a figure then on the roadmap, found while checking this:**
+the M7.7 entry cited 0.66 "on the 2026-08-21 re-baseline", but 0.66 is
+`fa4e6e2f` (the 11-05 run, four errored turns) and the spec 019 re-baseline is
+`6717347d` (21-14) at 0.70. Two runs share the date and the entry conflated
+them. **0.70 is the correct figure**, and it is recorded here rather than
+there: the roadmap no longer carries run figures.
 
 **The prediction below was too strong, and this is the correction rather than
 a quiet fix.** "No third tag moves" is right about *rates* and wrong about

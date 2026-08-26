@@ -19,6 +19,7 @@ import {
   INDEX_PATH,
   loadCorpus,
   REPO_ROOT,
+  SUMMARY_INDEX_PATH,
 } from './corpus';
 import { renderIndex } from './render-index';
 
@@ -72,17 +73,16 @@ for (const adr of corpus) {
   }
 }
 
-// Exactly one open entry — asserted so a mechanical mis-classification during
-// the migration fails rather than passing quietly. See spec Done When 8.
-const open = corpus.filter((a) => a.frontMatter.status === 'open');
-if (open.length !== 1) {
-  fail(
-    `expected exactly one entry with status: open, found ${open.length}` +
-      (open.length > 0
-        ? ` (${open.map((a) => a.frontMatter.id).join(', ')})`
-        : ''),
-  );
-}
+// Unsettled entries are reported, not constrained. This was once an assertion
+// that exactly one entry carried `status: open` — a guard against a mechanical
+// mis-classification during the spec 017 split, when exactly one entry in the
+// legacy log was open. That migration is done, and the count was never a policy
+// about how many questions may be open at a time. Listing them keeps them
+// visible without inventing a limit nobody chose.
+const unsettled = corpus.filter(
+  (a) =>
+    a.frontMatter.status === 'open' || a.frontMatter.status === 'provisional',
+);
 
 // Every ADR token anywhere under docs/ must resolve.
 for (const path of allDocsMarkdown()) {
@@ -94,10 +94,20 @@ for (const path of allDocsMarkdown()) {
   }
 }
 
-// The committed index must match what the compiler produces.
-const expected = renderIndex(readFileSync(INDEX_HEADER_PATH, 'utf8'), corpus);
-if (readFileSync(INDEX_PATH, 'utf8') !== expected) {
-  fail('docs/decisions.md is stale — run `task docs:decisions:build`');
+// Both committed views must match what the renderer produces. Checked
+// separately so a summary added without a rebuild is caught on the file it
+// actually changed, rather than reported against the other one.
+const indexHeader = readFileSync(INDEX_HEADER_PATH, 'utf8');
+const views = [
+  ['docs/decisions.md', INDEX_PATH, 'full'],
+  ['docs/decisions-summary.md', SUMMARY_INDEX_PATH, 'summary'],
+] as const;
+for (const [label, path, variant] of views) {
+  if (
+    readFileSync(path, 'utf8') !== renderIndex(indexHeader, corpus, variant)
+  ) {
+    fail(`${label} is stale — run \`task docs:decisions:build\``);
+  }
 }
 
 if (errors.length > 0) {
@@ -107,3 +117,8 @@ if (errors.length > 0) {
 }
 
 console.log(`ADR corpus OK — ${corpus.length} entries, index up to date.`);
+for (const adr of unsettled) {
+  console.log(
+    `  ${adr.frontMatter.status}: ${adr.frontMatter.id} — ${adr.frontMatter.title}`,
+  );
+}

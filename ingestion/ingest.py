@@ -344,7 +344,12 @@ def build_chunks(
         system_dir / "templates",
     )
 
-    page_chapters = extract.read_page_chapters(args.pdf, page_offset=page_offset)
+    page_chapters = extract.read_page_chapters(
+        args.pdf,
+        page_offset=page_offset,
+        chapterless_pages=frozenset(config.get("chapterless_pages", ())),
+        expected=config.get("expected_chapter_pages"),
+    )
 
     # Marker's emitted order is not reading order on multi-column pages; the
     # curated path skips this because its file is in reading order already.
@@ -494,6 +499,11 @@ def write_manifest(
         "overlapTokens": list(chunking["overlap_tokens"]),
         "droppedPages": sorted(chunking["drop_pages"]),
         "includeSectionHeaders": chunking["include_section_headers"],
+        # Attribution changes chunk *text*, not just metadata: `chunk_blocks`
+        # prefixes each chunk with a `chapter` breadcrumb. So which pages carry
+        # a chapter is a lever like the four above, and a score is only
+        # comparable against a build with the same value.
+        "chapterlessPages": sorted(config.get("chapterless_pages", ())),
     }
     MANIFEST_PATH.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     logger.info("wrote index provenance to %s", MANIFEST_PATH)
@@ -509,7 +519,15 @@ def print_dry_run(chunks: list[Chunk]) -> None:
     with_chapter = sum(1 for c in chunks if c.section_path)
     chapters = {c.section_path[0] for c in chunks if c.section_path}
     print(f"chunks with a chapter: {with_chapter} ({len(chapters)} distinct chapters)")
-    print(f"chunks with no chapter: {len(chunks) - with_chapter}")
+    # Naming the pages, not just counting them: a count cannot distinguish
+    # "the reference cards are chapterless by design" from "a body page lost
+    # its footer and inherited nothing", which is the whole distinction
+    # `chapterless_pages` exists to draw.
+    chapterless = sorted(
+        {page for c in chunks if not c.section_path for page in c.pages}
+    )
+    pages = ", ".join(f"p.{page}" for page in chapterless) or "none"
+    print(f"chunks with no chapter: {len(chunks) - with_chapter} (on {pages})")
     print()
     print("--- first chunk ---")
     first = chunks[0]

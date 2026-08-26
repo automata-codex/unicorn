@@ -466,15 +466,20 @@ Your `page_offset` is wrong, or the book's footer format differs. See
 - **No pre-built indexes ship.** Not for any system, SRD or otherwise, in this
   phase.
 - **Some tables extract empty.** On the PSG, 14 of 32 `Table` blocks come out
-  with no text, which removes printed pages 12–13 (FIREARMS, INDUSTRIAL
-  EQUIPMENT) from the index entirely. Equipment stat queries will miss. This
-  is a known, unresolved gap — see `docs/rules-extraction-findings.md § S3.2`.
-  Two routes out of it, both available and neither taken yet: a fixup patch
-  supplying the missing table text, or `--markdown` for the affected pages.
-  `§ S19` measured a third (indexing section headings, which recovers p.12 as
-  a side effect) and rejected it for costing more elsewhere than it recovers.
-- **Five pages resolve no chapter** and are indexed with a page citation but
-  no chapter breadcrumb.
+  with no text — see `docs/rules-extraction-findings.md § S3.2`. This is a real
+  weakness of the extractor and the first thing to check on a new book. On the
+  PSG itself it no longer costs coverage: it emptied printed pp. 12–13
+  (FIREARMS, INDUSTRIAL EQUIPMENT), which restate the inside-cover reference
+  card and are now dropped deliberately (`ADR-0111`), and printed p.33
+  (SURVIVAL), which survives on its non-table blocks. Where a genuinely
+  unique table does extract empty, the routes out are a fixup patch supplying
+  the text — four are in `mothership/fixups.json` — or `--markdown` for the
+  affected pages.
+- **Chapter attribution comes from the running footer**, which parses on 36 of
+  44 PSG pages. Pages that do not parse inherit the preceding page's chapter.
+  Pages listed in `chapterless_pages` opt out and carry no breadcrumb, because
+  they sit outside the book's chapter structure — on the PSG that is the
+  inside-cover and back-cover reference cards. See `ADR-0111`.
 - **No web UI.** The CLI is the supported path.
 - **Chunking parameters are partly validated now.** `drop_pages` was swept in
   M7.5 and the character-creation and character-profile pages are excluded as

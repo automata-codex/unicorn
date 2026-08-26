@@ -86,7 +86,7 @@ Each chunk is stored with:
 - `section_path` — chapter-level label only, footer-derived. Not full heading ancestry, which marker's structural output cannot reliably provide for this class of book. Retained for forensic and debugging use rather than as a citation the runtime response depends on
 - `system_id` — FK to the game system record
 
-**Known gap.** A portion of `Table` blocks extract with no text at all, which drops the pages they cover from the index entirely. This is exactly the class of defect Step 2's fixup mechanism exists to correct, but is not yet resolved for Mothership as of this writing — see `docs/rules-extraction-findings.md § S3.2` for current extent, and `roadmap.md` M7.2 for status.
+**Known weakness.** A portion of `Table` blocks extract with no text at all, which drops the pages they cover from the index entirely — see `docs/rules-extraction-findings.md § S3.2` for current extent. This is exactly the class of defect Step 2's fixup mechanism exists to correct, and four such patches ship for Mothership in `ingestion/mothership/fixups.json`. On the PSG the remaining empty tables cost no coverage: the pages they emptied either restate a reference card that is itself in the index, and are dropped deliberately, or survive on their non-table blocks (`ADR-0111`). Expect to check this first on any new book.
 
 ### Step 5 — Embedding
 
@@ -140,7 +140,7 @@ The `rules_lookup` tool handler in `GmService`:
 3. Runs a cosine similarity search against `rules_chunk` filtered to the active `system_id`
 4. Returns the top N chunks (default 3, max 5) with `content`, `source`, and `similarity` score
 
-There is currently no similarity floor — the tool always returns top N chunks regardless of match quality, including for questions the indexed book cannot answer at all. A meaningful share of real Warden queries ask about mechanics a given system's rulebook doesn't contain (e.g. asking a roll-under-stat system for a difficulty number), for which returning nothing is the correct behavior rather than three confidently wrong chunks. Deriving a floor from the score distribution of answerable vs. unanswerable queries is tracked in `roadmap.md` M7.5, and should land before any full-corpus Warden evaluation is treated as representative.
+There is currently no similarity floor — the tool always returns top N chunks regardless of match quality, including for questions the indexed book cannot answer at all. A meaningful share of real Warden queries ask about mechanics a given system's rulebook doesn't contain (e.g. asking a roll-under-stat system for a difficulty number), for which returning nothing is the correct behavior rather than three confidently wrong chunks. Deriving a floor from the score distribution of answerable vs. unanswerable queries was attempted in M7.5 and **no honest floor exists at current retrieval quality** — the answerable and unanswerable distributions overlap and interleave (`ADR-0020`, `docs/rules-extraction-findings.md § S20`). The absence is therefore a measured finding rather than an outstanding task.
 
 The Voyage API call is synchronous in the GM turn hot path and is effectively the entire latency budget — measured at ~98% of the ~100–200ms end-to-end cost, with the pgvector scan itself contributing only 1–3ms regardless of index size at Phase 1 scale. If it becomes a bottleneck, common query strings (panic table, wound results, etc.) can be pre-embedded and cached — the query space for a slim system like Mothership is small enough to cache exhaustively.
 
