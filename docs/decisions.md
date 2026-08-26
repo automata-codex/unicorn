@@ -2598,15 +2598,16 @@ Two things kept honest rather than tidied away. `hidden-info-leak`'s flip rate m
 
 ### [ADR-0104](decisions/0104-spatial-errors-two-failure-modes.md) — Spatial narration errors are two failure modes, not one
 
-**The 2026-08-24 playtest narrated ship movement wrongly five times, and the five look
+**The 2026-08-24 playtest narrated ship movement wrongly six times, and the six look
 like one failure mode.** Adventure `2c0ba938-ea80-4138-a95a-dc13e417bf2b`, 52 turns.
 Turn 8 has Danny leave the bridge and climb *down to the deck below* to reach the
 engineering records terminal, which `worldFacts.ship_layout` places on the upper deck aft
 of the bridge. Turn 14 takes him from that terminal *past mid-deck and on toward the
 lower deck* to Mara's berth; berths are mid. Turn 18 repeats it. Turn 21 places the cryo
 bay *two decks from here* and the bridge *two decks up* in one sentence, which cannot both
-hold from one position. Turn 28 puts the cryo bay *two decks away* from a scene explicitly
-set in the mess hall, which is the same deck.
+hold from one position. Turn 24 places Petrov *two decks from the engine room* when
+`worldFacts.crew_roster` puts him in it. Turn 28 puts the cryo bay *two decks away* from a
+scene explicitly set in the mess hall, which is the same deck.
 
 **They are two, and the line between them is whether the fixture contains the answer.**
 `worldFacts.ship_layout` states which deck each place is on and renders verbatim in all
@@ -2647,7 +2648,9 @@ fixture, which is what makes the tag gradeable at all. Two subtypes are attested
 contradictions against `ship_layout` (turns 8, 14, 18), and a timeline contradiction at
 turn 1, which places the mid-deck lighting failure *since day four* against a seeded
 opening narration saying the fixtures went dark *two nights ago*, aboard a ship three weeks
-out. Four instances across two kinds of case. Registering `DECK-LOOKUP-ERROR` and a
+out. A third subtype appears at turn 24, where the contradicted value is where a *person*
+is (`crew_roster`) rather than where a *place* is (`ship_layout`). Five instances across
+three kinds of case. Registering `DECK-LOOKUP-ERROR` and a
 timeline sibling separately would mean generalising later against a corpus already
 committed to the narrow shape, and the standing defer-until-a-second-case principle is
 satisfied here by a second *kind* rather than a repeat.
@@ -2684,7 +2687,7 @@ are, and what needs coverage is the renderer's behaviour rather than its output.
 
 **Considered and rejected.**
 
-- **One tag covering all five errors.** Rejected on the causal argument above: it
+- **One tag covering all six errors.** Rejected on the causal argument above: it
   double-counts turn 14 as turn 21 and hides which fix comes first.
 - **A narrow `SEEDED-CANON-CONTRADICTION` restricted to spatial claims.** Rejected because
   the turn 1 timeline case has the identical gradeable property and would force the
@@ -2718,8 +2721,9 @@ attribution unreachable by construction.
 
 **Cost.** New fixtures are a set-membership `corpusVersion` bump — survivors' artifacts
 stay valid and no Warden call is owed for them — and because both tags are new, no existing
-tag's denominator moves. The three fixtures × N reps are owed whenever they are captured, so
-deferring saves nothing and forfeits the coverage. The provisional rubric's first figures
+tag's denominator moves. The fixtures × N reps are owed whenever they are captured, so
+deferring saves nothing and forfeits the coverage — and the candidate set is larger than the
+three the roadmap bullet names, since turns 18 and 24 are also fail-direction instances. The provisional rubric's first figures
 become citable, so a bump note is written when the rubric is authored rather than when it is
 first revised.
 
@@ -2772,8 +2776,13 @@ reads those annotations, and the 2026-08-16 report already carries unregistered 
 **One correction to the body above, applied in place.** The third layout contradiction is
 **turn 18**, not turn 19 — *"You head back down to the lower deck ... and rap a knuckle
 against Mara's hatch"* — and turn 19 contains no deck claim at all. The same error is in the
-M7.7 roadmap bullet and in the capture list, which name turn 19 for this instance. The count
-of five stands otherwise, and the enumeration in the opening paragraph is correct.
+M7.7 roadmap bullet and in the capture list, which name turn 19 for this instance; the
+roadmap bullet has since been corrected. Two further counts moved when turn 24 was added to
+the body as a third subtype, and are corrected in place: the playtest narrated ship movement
+wrongly **six** times rather than five, and the opening paragraph now enumerates turn 24
+alongside the other five. `SEEDED-CANON-CONTRADICTION` stands at five instances across three
+subtypes; the six counts all spatial errors including the two that belong to the deferred
+tag.
 
 ### [ADR-0105](decisions/0105-judgecontext-golden-not-hash.md) — `judgeContext` output is covered by a golden, not a hash
 
