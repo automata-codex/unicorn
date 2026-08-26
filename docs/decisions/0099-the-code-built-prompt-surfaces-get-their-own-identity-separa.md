@@ -61,3 +61,38 @@ That run recorded `harnessVersion 1458aaf` and `assemblyHash 8e332e38`. The same
 - **The goldens would have caught it and were not run.** `session.assembly.spec.ts` asserts the rendered surfaces match the committed files; against a stale `@uv/*` build it fails. A green `npm test` on the eval host is therefore a precondition for a run being labelled, and nothing enforces that today.
 
 **Not fixed here.** The obvious candidates — fold resolved `@uv/*` versions into the hash, or have `eval:run` refuse to start unless the assembly goldens pass — are a change with its own design questions, and the entry that records the requirement should not also invent the mechanism. Tracked in `roadmap.md § M7.7`.
+
+**Addendum, 2026-08-23 — the playtest-telemetry gap is closed, and the shape this entry
+proposed for it was wrong.**
+
+This entry left the GM context render *"only half recoverable for a playtest"* and suggested
+*"a per-turn hash plus the full text once per adventure."* That shape assumed the blob is
+essentially static. Spec 019 Part 4a established that it is not.
+
+**Recomputing after the fact does not work either.** `gm_context` (`db/schema.ts:202`) is a
+single mutable row with an `updatedAt` and no history: turn 0 survives in
+`adventure_synthesis_snapshots`, the current value is live, and every intermediate state is
+gone. Nine of 58 turns of the 2026-08-16 playtest wrote `npcStates`, which destroyed the
+cartographer's authored agenda ([[0101-visible-is-line-of-sight-not-discovery-only-position-is-stru]]),
+and nothing can now say which turns read the original and which read the mood note that
+replaced it.
+
+**So the once-per-adventure copy would have been actively misleading.** The hash would tell
+you the text changed while the single stored copy is the wrong text — leaving a reader
+certain they had lost something and unable to recover it.
+
+**Store-on-change instead, and that is what shipped.** `adventure_telemetry.payload` is
+JSONB, so the render lands as `originalRequest.gmContext: { hash, text? }` — hash every turn,
+`text` only when it moves off the previous turn, and always on a turn whose predecessor is
+unknown, which is the safe direction. The previous hash is read inside the same transaction
+before the insert (`latestGmContextHash`), in the repository layer. `systemBlocks` stays as a
+count beside it; it answers a different question. **Absent `text` means identical to the last
+turn that carried text, never unknown**, and that is asserted rather than assumed.
+
+One copy on a quiet adventure, ten on the 2026-08-16 playtest, and this entry's 7.5 KB × 58
+worst case only for an adventure that genuinely rewrote its context every turn — which would
+itself be worth seeing.
+
+**The asymmetry this closes was backwards.** Eval runs archive the whole assembled request in
+`warden-request.json` and are replays of things that already happened; the playtest is what
+fixture capture reads *from*, so the artifact needing the most provenance had the least.
