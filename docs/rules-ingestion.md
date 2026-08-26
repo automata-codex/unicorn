@@ -86,7 +86,7 @@ Each chunk is stored with:
 - `section_path` — chapter-level label only, footer-derived. Not full heading ancestry, which marker's structural output cannot reliably provide for this class of book. Retained for forensic and debugging use rather than as a citation the runtime response depends on
 - `system_id` — FK to the game system record
 
-**Known gap.** A portion of `Table` blocks extract with no text at all, which drops the pages they cover from the index entirely. This is exactly the class of defect Step 2's fixup mechanism exists to correct, but is not yet resolved for Mothership as of this writing — see `docs/rules-extraction-findings.md § S3.2` for current extent. M7.2 shipped this knowingly rather than by oversight (`docs/roadmap.md § M7.2`).
+**Known weakness.** A portion of `Table` blocks extract with no text at all, which drops the pages they cover from the index entirely — see `docs/rules-extraction-findings.md § S3.2` for current extent. This is exactly the class of defect Step 2's fixup mechanism exists to correct, and four such patches ship for Mothership in `ingestion/mothership/fixups.json`. On the PSG the remaining empty tables cost no coverage: the pages they emptied either restate a reference card that is itself in the index, and are dropped deliberately, or survive on their non-table blocks (`ADR-0111`). Expect to check this first on any new book.
 
 ### Step 5 — Embedding
 
