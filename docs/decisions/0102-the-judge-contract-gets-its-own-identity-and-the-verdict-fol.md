@@ -48,7 +48,8 @@ Two things kept honest rather than tidied away. `hidden-info-leak`'s flip rate m
 
 ## What this deliberately does not cover
 
-**The structural checkers.** `corpusVersion` hashes fixture files and says nothing about the code that grades them; this covers the judged half only. Declined on repair cost rather than severity — `eval:rescore` regrades deterministic checkers for free, so a structural mislabelling is undoable at zero spend, where the judged half has no such hatch. `docs/roadmap.md § M7.7`.
+**The structural checkers.** `corpusVersion` hashes fixture files and says nothing about the code that grades them; this covers the judged half only. Declined on repair cost rather than severity — `eval:rescore` regrades deterministic checkers for free, so a structural mislabelling is undoable at zero spend, where the judged half has no such hatch. Recorded in full as
+[[0108-no-identity-for-the-structural-checkers]].
 
 **Accuracy.** Flip rate measures grader stability against frozen input; a judge that is stably wrong scores perfectly on it. Nothing here establishes that a verdict is *correct*, which is `§ M7.8`'s remit and needs known answers.
 

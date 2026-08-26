@@ -78,9 +78,9 @@ transactional one.** `validateStateChanges` accumulates across every
 correction's applied set that is used, round one's being discarded entirely. So
 nothing reaches the applier on rejection and transaction atomicity never comes
 into it. Recorded rather than left implicit, per
-`roadmap.md § Prerequisite — turn-path lock audit`: a guarantee that holds by
-accident is one refactor away from not holding, and that item exists because
-exactly this went unrecorded once already.
+`roadmap.md § M8 — Multiplayer Foundation`, whose turn-path lock audit exists for
+this reason: a guarantee that holds by accident is one refactor away from not
+holding, and that item exists because exactly this went unrecorded once already.
 
 **Still open:** whether a pool rejection should also abort `entities`, `flags`,
 `scenarioState` and `worldFacts`. It does not today, and there is a test

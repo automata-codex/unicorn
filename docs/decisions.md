@@ -1097,9 +1097,9 @@ transactional one.** `validateStateChanges` accumulates across every
 correction's applied set that is used, round one's being discarded entirely. So
 nothing reaches the applier on rejection and transaction atomicity never comes
 into it. Recorded rather than left implicit, per
-`roadmap.md § Prerequisite — turn-path lock audit`: a guarantee that holds by
-accident is one refactor away from not holding, and that item exists because
-exactly this went unrecorded once already.
+`roadmap.md § M8 — Multiplayer Foundation`, whose turn-path lock audit exists for
+this reason: a guarantee that holds by accident is one refactor away from not
+holding, and that item exists because exactly this went unrecorded once already.
 
 **Still open:** whether a pool rejection should also abort `entities`, `flags`,
 `scenarioState` and `worldFacts`. It does not today, and there is a test
@@ -1867,7 +1867,7 @@ Deferred under uncertainty, consistent with the project's general bias against f
 
 **Two costs, both accepted.**
 
-- **A re-baseline.** `visible` gaining a description, `revealed` appearing, and `<entities>` changing shape are all Warden-visible, so `assemblyHash` and `promptHash` both move (`ADR-0099`). This does not buy its own run: it batches, per `ADR-0094`. It is the natural occupant of "the next tool-schema batch" that `roadmap.md § M8.1` refers to twice and never allocates.
+- **A re-baseline.** `visible` gaining a description, `revealed` appearing, and `<entities>` changing shape are all Warden-visible, so `assemblyHash` and `promptHash` both move (`ADR-0099`). This does not buy its own run: it batches, per `ADR-0094`. It was the natural occupant of the tool-schema batch M8.1 deferred to twice and never allocated; M7.7 paid for it instead.
 - **`applyEntity` reports only the first bad field on an entity, and there is one correction shot.** A failed `status` returns before any other field is examined (`session.validator.ts:613-621`). This is *not* data loss — `ADR-0038 § D4`'s validate-all-then-apply guarantee discards the whole `applied` set whenever any rejection exists, and `SessionService` runs a correction round rather than committing a partial turn — but it does mean a Warden that fixes the reported problem can fail on an unreported sibling, and the correction path is single-shot, so the turn is then thrown. Adding `revealed` makes a second rejectable field on the same entity, which is what turns this from theoretical into likely.
 
 **Scheduled into M7.7**, against the open bullet this finding already had there. M8.1 was the wrong home twice over — it is prompt-only by its own preamble, and the tool-schema batch it defers to has never been allocated. M7.7 is already paying for a re-baseline and already owns the playtest this was found in. The spec at `docs/specs/zoltar/019-entity-visibility-and-entity-write-path.md` carries the work.
@@ -2681,7 +2681,7 @@ That run recorded `harnessVersion 1458aaf` and `assemblyHash 8e332e38`. The same
 - **The hash absorbed a dependency version silently, which is the failure mode this entry exists to prevent, one level out.** `ADR-0099` reasoned about edits to *our* source moving the hash. It did not consider that the same source can render two different surfaces depending on what `node_modules` and the workspace `dist` hold, and a hash that varies with the build cannot serve as run identity — `eval:compare` pairs on it and will call two runs incomparable, or comparable, for reasons no commit explains.
 - **The goldens would have caught it and were not run.** `session.assembly.spec.ts` asserts the rendered surfaces match the committed files; against a stale `@uv/*` build it fails. A green `npm test` on the eval host is therefore a precondition for a run being labelled, and nothing enforces that today.
 
-**Not fixed here.** The obvious candidates — fold resolved `@uv/*` versions into the hash, or have `eval:run` refuse to start unless the assembly goldens pass — are a change with its own design questions, and the entry that records the requirement should not also invent the mechanism. Tracked in `roadmap.md § M7.7`.
+**Not fixed here.** The obvious candidates — fold resolved `@uv/*` versions into the hash, or have `eval:run` refuse to start unless the assembly goldens pass — are a change with its own design questions, and the entry that records the requirement should not also invent the mechanism. **Resolved in M7.7 by the second candidate** — `assertAssemblyGoldensCurrent` refuses `eval:run` against a stale workspace build; see the addendum below and [[0102-the-judge-contract-gets-its-own-identity-and-the-verdict-fol]].
 
 **Addendum, 2026-08-23 — the playtest-telemetry gap is closed, and the shape this entry
 proposed for it was wrong.**
@@ -2760,7 +2760,8 @@ Two things kept honest rather than tidied away. `hidden-info-leak`'s flip rate m
 
 ## What this deliberately does not cover
 
-**The structural checkers.** `corpusVersion` hashes fixture files and says nothing about the code that grades them; this covers the judged half only. Declined on repair cost rather than severity — `eval:rescore` regrades deterministic checkers for free, so a structural mislabelling is undoable at zero spend, where the judged half has no such hatch. `docs/roadmap.md § M7.7`.
+**The structural checkers.** `corpusVersion` hashes fixture files and says nothing about the code that grades them; this covers the judged half only. Declined on repair cost rather than severity — `eval:rescore` regrades deterministic checkers for free, so a structural mislabelling is undoable at zero spend, where the judged half has no such hatch. Recorded in full as
+[[0108-no-identity-for-the-structural-checkers]].
 
 **Accuracy.** Flip rate measures grader stability against frozen input; a judge that is stably wrong scores perfectly on it. Nothing here establishes that a verdict is *correct*, which is `§ M7.8`'s remit and needs known answers.
 
