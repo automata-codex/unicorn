@@ -545,6 +545,7 @@ Target: UVG and OSE support, remaining campaign creation modes, synchronous mult
 - Caller transfer UI polish
 - Campaign canon — second promotion step at adventure completion; `campaign_canon` table; synthesis reads campaign canon alongside oracle results for subsequent adventures
 - Campaign canon review UI — surfaces `campaign_canon` entries with `pending` status to the appropriate reviewer at adventure completion
+- E2E tests or something for the frontend
 
 ---
 
