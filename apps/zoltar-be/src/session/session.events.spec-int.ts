@@ -77,7 +77,7 @@ const baseGmResponse: SubmitGmResponse = {
       { owner: 'dr_chen', pool: 'hp', delta: -1, reason: 'grazed by debris' },
     ],
   },
-  gmUpdates: { npcStates: {}, proposedCanon: [] },
+  gmUpdates: { npcAgendas: {}, proposedCanon: [] },
   diceRequests: [],
   adventureMode: null,
 };

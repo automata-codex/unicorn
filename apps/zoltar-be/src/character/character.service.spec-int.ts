@@ -231,6 +231,7 @@ describe('CharacterService.create (integration) — starting ceilings reconcile'
       .characterState;
     expect(state.vasquez).toEqual({
       conditions: [],
+      rollModifiers: [],
       skills: [],
       equipment: [],
       wornArmor: null,
@@ -238,6 +239,67 @@ describe('CharacterService.create (integration) — starting ceilings reconcile'
       bleeding: 0,
       pendingDeathSave: null,
     });
+  });
+
+  it('seeds the starting skills into campaign state', async () => {
+    const campaignId = await seedCampaign();
+    await service.create(campaignId, 'u1', sheetFor('marine'), {
+      startingSkills: [
+        { skill: 'Military Training', tier: 'trained' },
+        { skill: 'Firearms', tier: 'expert' },
+      ],
+    });
+
+    const db = getTestDb();
+    const [row] = await db
+      .select()
+      .from(schema.campaignStates)
+      .where(eq(schema.campaignStates.campaignId, campaignId));
+    const state = (row.data as { characterState: Record<string, unknown> })
+      .characterState as Record<string, { skills: unknown[] }>;
+
+    expect(state.vasquez.skills).toEqual([
+      { skill: 'Military Training', tier: 'trained' },
+      { skill: 'Firearms', tier: 'expert' },
+    ]);
+  });
+
+  /**
+   * `seedCharacterState` is preserve-on-conflict at the entity level, so a
+   * later write cannot rewrite skills — the same shape as
+   * `mergePlayerResourcePools`, and for the same reason: a sheet edit must not
+   * reset a character's live state mid-adventure. Asserted rather than assumed,
+   * because "edited the character and nothing happened" is the failure this
+   * shape produces and it is silent.
+   */
+  it('does not let a re-seed overwrite skills that already exist', async () => {
+    const campaignId = await seedCampaign();
+    await service.create(campaignId, 'u1', sheetFor('marine'), {
+      startingSkills: [{ skill: 'Military Training', tier: 'trained' }],
+    });
+
+    await campaignRepo.seedCharacterState(campaignId, 'vasquez', {
+      conditions: [],
+      rollModifiers: [],
+      skills: [{ skill: 'Hacking', tier: 'master' }],
+      equipment: [],
+      wornArmor: null,
+      minimumStress: 2,
+      bleeding: 0,
+      pendingDeathSave: null,
+    });
+
+    const db = getTestDb();
+    const [row] = await db
+      .select()
+      .from(schema.campaignStates)
+      .where(eq(schema.campaignStates.campaignId, campaignId));
+    const state = (row.data as { characterState: Record<string, unknown> })
+      .characterState as Record<string, { skills: unknown[] }>;
+
+    expect(state.vasquez.skills).toEqual([
+      { skill: 'Military Training', tier: 'trained' },
+    ]);
   });
 
   it('removes both the pools and the state when the sheet is deleted', async () => {

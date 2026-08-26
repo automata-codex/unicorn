@@ -32,6 +32,7 @@ import {
   SessionPreconditionError,
   SessionService,
   SessionToolLoopError,
+  SessionToolSyntaxError,
 } from './session.service';
 
 import type { AuthUser } from '@uv/auth-core';
@@ -179,6 +180,16 @@ export class SessionController {
         error: 'gm_correction_failed',
         message:
           'GM re-narration was rejected by the validator. Try sending your action again.',
+      });
+    }
+    if (err instanceof SessionToolSyntaxError) {
+      this.logger.error(
+        `GM leaked tool-call syntax unrecoverably for adventure=${adventureId}: ${err.message}`,
+      );
+      throw new BadGatewayException({
+        error: 'gm_tool_syntax_unrecoverable',
+        message:
+          'The GM could not format its response correctly. Try sending your action again.',
       });
     }
     if (err instanceof SessionToolLoopError) {

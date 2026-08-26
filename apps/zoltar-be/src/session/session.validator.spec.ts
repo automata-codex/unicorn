@@ -448,6 +448,109 @@ describe('validateStateChanges — characterState', () => {
     });
   }
 
+  describe('roll modifiers', () => {
+    const skullFracture = {
+      op: 'roll_modifier_add' as const,
+      entityId: 'dr_chen',
+      effect: 'disadvantage' as const,
+      scope: 'all_rolls' as const,
+      source: 'Wounds Table: skull fracture',
+    };
+
+    const run = (changes: unknown[], current = stateWithCharacter()) =>
+      validateStateChanges({
+        proposed: { characterState: changes as never },
+        currentData: current,
+        poolDef,
+      });
+
+    /**
+     * The 2026-08-16 playtest lost exactly this. The Warden read "Skull
+     * fracture. [-] on all rolls" off the Wounds Table, found no match among
+     * the eight Panic Conditions, correctly declined to invent one, and
+     * recorded it in notes where nothing downstream could apply it.
+     */
+    it('records a lasting [-] on all rolls', () => {
+      const result = run([skullFracture]);
+      expect(result.rejections).toEqual([]);
+      expect(result.applied.characterState.dr_chen.rollModifiers).toEqual([
+        {
+          effect: 'disadvantage',
+          scope: 'all_rolls',
+          source: 'Wounds Table: skull fracture',
+        },
+      ]);
+    });
+
+    it('records a scoped modifier with its target', () => {
+      const result = run([
+        {
+          op: 'roll_modifier_add',
+          entityId: 'dr_chen',
+          effect: 'advantage',
+          scope: 'save',
+          target: 'body',
+          source: 'Automed',
+        },
+      ]);
+      expect(result.rejections).toEqual([]);
+      expect(
+        result.applied.characterState.dr_chen.rollModifiers[0],
+      ).toMatchObject({ scope: 'save', target: 'body' });
+    });
+
+    it('rejects all_rolls carrying a target', () => {
+      const result = run([{ ...skullFracture, target: 'combat' }]);
+      expect(result.rejections).toHaveLength(1);
+    });
+
+    it('rejects a scoped modifier with no target', () => {
+      const result = run([{ ...skullFracture, scope: 'stat' }]);
+      expect(result.rejections).toHaveLength(1);
+    });
+
+    /** `source` is the key a removal names, so it has to be unique. */
+    it('rejects a second modifier from the same source', () => {
+      const result = run([skullFracture, skullFracture]);
+      expect(result.rejections).toHaveLength(1);
+    });
+
+    it('removes a modifier by source', () => {
+      const current = stateWithCharacter({
+        rollModifiers: [
+          {
+            effect: 'disadvantage',
+            scope: 'all_rolls',
+            source: 'Wounds Table: skull fracture',
+          },
+        ],
+      });
+      const result = run(
+        [
+          {
+            op: 'roll_modifier_remove',
+            entityId: 'dr_chen',
+            source: 'Wounds Table: skull fracture',
+          },
+        ],
+        current,
+      );
+      expect(result.rejections).toEqual([]);
+      expect(result.applied.characterState.dr_chen.rollModifiers).toEqual([]);
+    });
+
+    it('rejects removing a modifier that is not there', () => {
+      const result = run([
+        {
+          op: 'roll_modifier_remove',
+          entityId: 'dr_chen',
+          source: 'Wounds Table: broken jaw',
+        },
+      ]);
+      expect(result.rejections).toHaveLength(1);
+    });
+  });
+
   describe('conditions', () => {
     it('adds a condition that takes no parameter', () => {
       const result = validateStateChanges({
@@ -1026,7 +1129,12 @@ describe('validateStateChanges — entities', () => {
       proposed: { entities: { dr_chen: { status: 'dead' } } },
       currentData: stateWith({
         entities: {
-          dr_chen: { visible: true, status: 'alive', npcState: 'Stressed' },
+          dr_chen: {
+            visible: true,
+            revealed: true,
+            status: 'alive',
+            npcState: 'Stressed',
+          },
         },
         resourcePools: { dr_chen: { hp: { current: 5, max: 10 } } },
       }),
@@ -1035,29 +1143,241 @@ describe('validateStateChanges — entities', () => {
     expect(result.rejections).toEqual([]);
     expect(result.applied.entities.dr_chen).toEqual({
       visible: true,
+      revealed: true,
       status: 'dead',
       npcState: 'Stressed',
     });
     expect(result.applied.resourcePools).toEqual({});
   });
 
-  it('initializes an absent entity with sensible defaults', () => {
+  it('rejects an unrecognized id instead of silently creating one', () => {
     const result = validateStateChanges({
       proposed: { entities: { corporate_spy_1: { status: 'alive' } } },
       currentData: emptyMothershipState(),
       poolDef,
     });
-    expect(result.applied.entities.corporate_spy_1).toEqual({
-      visible: true,
+    expect(result.applied.entities).toEqual({});
+    expect(result.rejections).toHaveLength(1);
+    expect(result.rejections[0].reason).toContain('newEntities');
+  });
+
+  it('reports every invalid field on one entity, not just the first', () => {
+    const result = validateStateChanges({
+      proposed: {
+        entities: {
+          dr_chen: { status: 'hibernating' as never, revealed: false },
+        },
+      },
+      currentData: stateWith({
+        entities: {
+          dr_chen: { visible: true, revealed: true, status: 'alive' },
+        },
+      }),
+      poolDef,
+    });
+    expect(result.applied.entities).toEqual({});
+    expect(result.rejections).toHaveLength(2);
+    expect(result.rejections.map((r) => r.reason).join(' ')).toContain(
+      'status',
+    );
+    expect(result.rejections.map((r) => r.reason).join(' ')).toContain(
+      'monotonic',
+    );
+  });
+
+  it('rejects un-revealing a discovered entity', () => {
+    const result = validateStateChanges({
+      proposed: { entities: { dr_chen: { revealed: false } } },
+      currentData: stateWith({
+        entities: {
+          dr_chen: { visible: true, revealed: true, status: 'alive' },
+        },
+      }),
+      poolDef,
+    });
+    expect(result.applied.entities).toEqual({});
+    expect(result.rejections[0].reason).toContain('monotonic');
+  });
+
+  it('accepts losing sight of a discovered entity — the point of the split', () => {
+    const result = validateStateChanges({
+      proposed: { entities: { dr_chen: { visible: false } } },
+      currentData: stateWith({
+        entities: {
+          dr_chen: { visible: true, revealed: true, status: 'alive' },
+        },
+      }),
+      poolDef,
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.applied.entities.dr_chen).toEqual({
+      visible: false,
+      revealed: true,
       status: 'alive',
     });
   });
 
+  it('accepts revealing a hidden entity', () => {
+    const result = validateStateChanges({
+      proposed: { entities: { ghost: { visible: true, revealed: true } } },
+      currentData: stateWith({
+        entities: {
+          ghost: { visible: false, revealed: false, status: 'unknown' },
+        },
+      }),
+      poolDef,
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.applied.entities.ghost).toEqual({
+      visible: true,
+      revealed: true,
+      status: 'unknown',
+    });
+  });
+  it('writes npcState, the field nothing could set until `ADR-0101`', () => {
+    const result = validateStateChanges({
+      proposed: {
+        entities: { dr_chen: { npcState: 'Panicked — fled the bay' } },
+      },
+      currentData: stateWith({
+        entities: {
+          dr_chen: {
+            visible: true,
+            revealed: true,
+            status: 'alive',
+            npcState: 'Cooperative',
+          },
+        },
+      }),
+      poolDef,
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.applied.entities.dr_chen.npcState).toBe(
+      'Panicked — fled the bay',
+    );
+  });
+
+  it('leaves npcState alone when the change does not mention it', () => {
+    const result = validateStateChanges({
+      proposed: { entities: { dr_chen: { visible: false } } },
+      currentData: stateWith({
+        entities: {
+          dr_chen: {
+            visible: true,
+            revealed: true,
+            status: 'alive',
+            npcState: 'Cooperative',
+          },
+        },
+      }),
+      poolDef,
+    });
+    expect(result.applied.entities.dr_chen.npcState).toBe('Cooperative');
+  });
+});
+
+describe('validateStateChanges — newEntities', () => {
+  it('creates an entity that is not in play', () => {
+    const result = validateStateChanges({
+      proposed: {
+        newEntities: {
+          corporate_spy_1: { visible: true, revealed: true, status: 'alive' },
+        },
+      },
+      currentData: emptyMothershipState(),
+      poolDef,
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.applied.entities.corporate_spy_1).toEqual({
+      visible: true,
+      revealed: true,
+      status: 'alive',
+    });
+  });
+
+  it('rejects creating an entity that already exists', () => {
+    const result = validateStateChanges({
+      proposed: {
+        newEntities: { dr_chen: { visible: true, revealed: true } },
+      },
+      currentData: stateWith({
+        entities: {
+          dr_chen: { visible: true, revealed: true, status: 'alive' },
+        },
+      }),
+      poolDef,
+    });
+    expect(result.applied.entities).toEqual({});
+    expect(result.rejections[0].reason).toContain('already in play');
+  });
+
+  it('rejects visible-but-undiscovered on create', () => {
+    const result = validateStateChanges({
+      proposed: {
+        newEntities: { ghost: { visible: true, revealed: false } },
+      },
+      currentData: emptyMothershipState(),
+      poolDef,
+    });
+    expect(result.applied.entities).toEqual({});
+    expect(result.rejections[0].reason).toContain('not a state that exists');
+  });
+
+  it('makes a created id a legal pool owner in the same turn', () => {
+    const result = validateStateChanges({
+      proposed: {
+        newEntities: { new_guard: { visible: true, revealed: true } },
+        resourcePools: [
+          { owner: 'new_guard', pool: 'hp', delta: 10, reason: 'bootstrap' },
+        ],
+      },
+      currentData: stateWith({
+        entities: {},
+        resourcePools: { alvarez: { hp: { current: 10, max: 10 } } },
+      }),
+      poolDef,
+      identifiers: { playerEntityIds: ['alvarez'], knownEntityIds: [] },
+    });
+    expect(result.rejections).toEqual([]);
+  });
+
+  /**
+   * Negative control for the test above. Without the create, the identical
+   * pool change is rejected as impersonation — an unknown owner bootstrapping
+   * a pool the player owns. That rejection is correct and stays; the point of
+   * widening the identifier set is that a create in the same payload is what
+   * separates "declared four lines ago" from "nobody declared this".
+   */
+  it('still rejects the same pool change when nothing created the owner', () => {
+    const result = validateStateChanges({
+      proposed: {
+        resourcePools: [
+          { owner: 'new_guard', pool: 'hp', delta: 10, reason: 'bootstrap' },
+        ],
+      },
+      currentData: stateWith({
+        entities: {},
+        resourcePools: { alvarez: { hp: { current: 10, max: 10 } } },
+      }),
+      poolDef,
+      identifiers: { playerEntityIds: ['alvarez'], knownEntityIds: [] },
+    });
+    expect(result.rejections).not.toEqual([]);
+  });
+
   it('rejects an invalid status string', () => {
     const result = validateStateChanges({
-      proposed: { entities: { dr_chen: { status: 'hibernating' } } },
+      // Cast: the tool schema now rejects this before the validator sees it
+      // (Part 6). The applier check stays as defence in depth for payloads
+      // that did not come through the schema — replayed history, direct calls
+      // — so it still needs exercising.
+      proposed: {
+        entities: { dr_chen: { status: 'hibernating' as never } },
+      },
       currentData: stateWith({
-        entities: { dr_chen: { visible: true, status: 'alive' } },
+        entities: {
+          dr_chen: { visible: true, revealed: true, status: 'alive' },
+        },
       }),
       poolDef,
     });
@@ -1213,5 +1533,79 @@ describe('validateStateChanges — mixed batch', () => {
       'flags.unknown_flag',
       'resourcePools[1] (xenomorph.hp)',
     ]);
+  });
+});
+
+describe('validateStateChanges — npcAgendas', () => {
+  const cartographer = {
+    entities: {
+      deep_space_cartographer: {
+        visible: true,
+        revealed: true,
+        status: 'alive' as const,
+      },
+    },
+  };
+
+  it('amends the agenda of an entity in play', () => {
+    const result = validateStateChanges({
+      proposed: {},
+      proposedNpcAgendas: {
+        deep_space_cartographer: 'Now wants off the ship at any cost.',
+      },
+      currentNpcAgendas: {
+        deep_space_cartographer: 'Wants to seal the forward sections.',
+      },
+      currentData: stateWith(cartographer),
+      poolDef,
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.npcAgendas).toEqual({
+      deep_space_cartographer: 'Now wants off the ship at any cost.',
+    });
+  });
+
+  it('amends an agenda synthesis authored for an entity not in campaign state', () => {
+    const result = validateStateChanges({
+      proposed: {},
+      proposedNpcAgendas: { probe_npc_two: 'Reconsiders leaving.' },
+      currentNpcAgendas: { probe_npc_two: 'Wants off the station.' },
+      currentData: stateWith({ entities: {} }),
+      poolDef,
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.npcAgendas.probe_npc_two).toBe('Reconsiders leaving.');
+  });
+
+  /**
+   * The `deep_space_cartographer_reyes_note` case from the 2026-08-16
+   * playtest: a key that is not an entity and has no prior agenda, invented to
+   * park a cross-cutting observation because this map was the only writable
+   * string store in reach.
+   */
+  it('rejects an invented key that names neither an entity nor an agenda', () => {
+    const result = validateStateChanges({
+      proposed: {},
+      proposedNpcAgendas: {
+        deep_space_cartographer_reyes_note: 'Reyes has revealed…',
+      },
+      currentNpcAgendas: {
+        deep_space_cartographer: 'Wants to seal the forward sections.',
+      },
+      currentData: stateWith(cartographer),
+      poolDef,
+    });
+    expect(result.npcAgendas).toEqual({});
+    expect(result.rejections).toHaveLength(1);
+    expect(result.rejections[0].reason).toContain('gmUpdates.notes');
+  });
+
+  it('leaves agendas untouched when the turn proposes none', () => {
+    const result = validateStateChanges({
+      proposed: { entities: {} },
+      currentData: stateWith(cartographer),
+      poolDef,
+    });
+    expect(result.npcAgendas).toEqual({});
   });
 });

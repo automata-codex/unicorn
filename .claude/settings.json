@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "permissions": {
+    "deny": [
+      "Bash(task eval:run:*)",
+      "Bash(npm run eval:*)",
+      "Bash(npm --prefix:* run eval:*)",
+      "Bash(npm --workspace:* run eval:*)",
+      "Bash(npx *tsx *scripts/eval-*)",
+      "Bash(node *scripts/eval-run.ts*)"
+    ],
+    "ask": [
+      "Bash(task eval:*)"
+    ]
+  }
+}

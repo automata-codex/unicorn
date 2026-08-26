@@ -127,6 +127,63 @@ export const MothershipWornArmorSchema = z.object({
 export type MothershipWornArmor = z.infer<typeof MothershipWornArmorSchema>;
 
 /**
+ * What a durable modifier applies to.
+ *
+ * `all_rolls` is the Wounds Table's Fatal Injury shape — "[-] on all rolls" —
+ * and needs no target. The others name one, which is why `target` is separate
+ * rather than folded into the scope string: a scope of `save` with a target of
+ * `sanity` is checkable, `"sanity_save"` is not.
+ */
+export const MothershipRollModifierScopeEnum = z.enum([
+  'all_rolls',
+  'stat',
+  'save',
+  'skill',
+]);
+
+export type MothershipRollModifierScope = z.infer<
+  typeof MothershipRollModifierScopeEnum
+>;
+
+/**
+ * A durable Advantage or Disadvantage on future rolls.
+ *
+ * **Not a number, and that is the whole point.** Mothership expresses
+ * difficulty only as Advantage `[+]` or Disadvantage `[-]` — roll twice, take
+ * the better or worse result — and has no additive roll bonus at all
+ * (`mothership-m7.txt`, "That is the entire system"). A `-10` modifier would be
+ * a mechanic this game does not have.
+ *
+ * **Why this is not a Condition.** The eight Conditions are the *Panic table's*
+ * and the enum is closed for good reason. The Wounds Table produces effects
+ * that are not Panic Conditions, which is why `bleeding` and `pendingDeathSave`
+ * are already dedicated fields — this is the third one, and its absence is why
+ * the 2026-08-16 playtest lost a Fatal Injury: the Warden read `Skull fracture.
+ * [-] on all rolls.`, found no match among the eight, correctly declined to
+ * invent one, and recorded the penalty in notes where nothing could apply it.
+ *
+ * **Lifetime: until something removes it.** Nothing here expires on its own,
+ * exactly like a Condition and unlike `bleeding`. There is no duration field
+ * because nothing in the system knows a round elapsed — the same reasoning
+ * `pendingDeathSave` records for its own countdown.
+ *
+ * `source` is the natural key: it is what a removal names, and it is what tells
+ * a Fatal Injury penalty apart from a later one of the same shape.
+ */
+export const MothershipRollModifierSchema = z.object({
+  effect: z.enum(['advantage', 'disadvantage']),
+  scope: MothershipRollModifierScopeEnum,
+  /** The Stat, Save or skill named, when `scope` is not `all_rolls`. */
+  target: z.string().max(100).optional(),
+  /** Where it came from: "Wounds Table: skull fracture". */
+  source: z.string().min(1).max(200),
+});
+
+export type MothershipRollModifier = z.infer<
+  typeof MothershipRollModifierSchema
+>;
+
+/**
  * The per-character state that is neither a pool nor immutable creation data.
  *
  * Everything here changes during play, so none of it can live on the sheet —
@@ -139,6 +196,14 @@ export type MothershipWornArmor = z.infer<typeof MothershipWornArmorSchema>;
  */
 export const MothershipCharacterStateSchema = z.object({
   conditions: z.array(MothershipConditionEntrySchema).default([]),
+
+  /**
+   * Durable Advantage/Disadvantage from sources that are not Conditions —
+   * today the Wounds Table's Fatal Injury row. See
+   * `MothershipRollModifierSchema`.
+   */
+  rollModifiers: z.array(MothershipRollModifierSchema).default([]),
+
   skills: z.array(MothershipSkillEntrySchema).default([]),
   equipment: z.array(MothershipEquipmentEntrySchema).default([]),
   wornArmor: MothershipWornArmorSchema.nullable().default(null),
@@ -176,6 +241,7 @@ export type MothershipCharacterState = z.infer<
 /** Fresh per-character state, as seeded at character creation. */
 export const emptyMothershipCharacterState = (): MothershipCharacterState => ({
   conditions: [],
+  rollModifiers: [],
   skills: [],
   equipment: [],
   wornArmor: null,

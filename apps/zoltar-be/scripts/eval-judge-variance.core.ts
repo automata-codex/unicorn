@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { evalChecks } from '../eval/checks/registry';
 import { runCheck } from '../eval/checks/run-check';
 import { loadFixtures } from '../eval/fixture-loader';
+import { assertJudgeContractGoldenCurrent } from '../eval/preflight';
 import { readTurnResultArtifact } from '../eval/runs/artifacts';
 import { envOnlyConfigService } from '../eval/runs/env-config-service';
 import { judgeVarianceDir, judgeVarianceOutputPath } from '../eval/runs/paths';
@@ -17,6 +18,14 @@ export const judgeVarianceRowSchema = z.object({
   fixtureId: z.string().min(1),
   checkId: z.string().min(1),
   rubricHash: z.string(),
+  /**
+   * The judge contract this trial was graded under. Load-bearing for a
+   * before/after study of the contract itself: the two variance files have to
+   * be distinguishable from their contents alone, not from which order they
+   * were produced in or what someone named them. Defaults to `''` so a file
+   * written before the field existed still parses; empty means unknown.
+   */
+  judgeContractHash: z.string().default(''),
   sourceRepIndex: z.number().int().positive(),
   trialIndex: z.number().int().positive(),
   verdict: verdictSchema,
@@ -25,6 +34,37 @@ export const judgeVarianceRowSchema = z.object({
    * discarded, so a stored variance file can be re-read later and still show
    * which rows were graded and which were gated. */
   judgeInvoked: z.boolean().default(true),
+  /**
+   * The judge's own reasoning for this trial.
+   *
+   * **Not decorative, and its absence was a hole.** The flip rate answers
+   * "does the grader agree with itself"; it cannot answer "does the grader
+   * agree with its own stated reasoning", which is a different defect and the
+   * one `docs/eval-methodology.md § Before trusting any judged rate from this
+   * corpus` documents — six verdicts in 1,341 that contradict their own
+   * rationale, every one a `fail` under a rationale arguing the turn was fine.
+   * That is checkable by reading one artifact against itself, and until now
+   * this command threw away the half you need to do it.
+   *
+   * Persisted for passes as well as failures. The 2026-08-21 scan established
+   * the asymmetry by scanning all 940 passes and finding none; keeping only
+   * failures would make that converse check impossible to repeat.
+   *
+   * Defaults to `''` so a variance file written before the field existed still
+   * parses. Empty means the rationale was not recorded, not that there was
+   * none.
+   */
+  rationale: z.string().default(''),
+  /**
+   * Why the trial errored, when it did. Same omission as `rationale` was and
+   * found the same way: the after-side run of spec 020 produced one `error`
+   * trial in 114, and the row recorded only `check "hidden-info-leak" threw`
+   * — enough to know something failed, not enough to say whether the judge
+   * returned malformed input (which a field-order change could plausibly
+   * cause) or the API call simply failed. An error a reader cannot attribute
+   * is an error they have to re-run to understand.
+   */
+  errorMessage: z.string().default(''),
   durationMs: z.number().nonnegative(),
 });
 
@@ -176,6 +216,12 @@ export async function runJudgeVariance(
   args: RunJudgeVarianceArgs,
   deps: RunJudgeVarianceDeps,
 ): Promise<RunJudgeVarianceSummary> {
+  // The command whose entire output is a statement about the grader, so
+  // grading under an unrecorded contract makes the result uninterpretable
+  // rather than merely mislabelled. No assembly gate: no assembly surface is
+  // rendered and no `assemblyHash` is written.
+  assertJudgeContractGoldenCurrent();
+
   const { rows: vouchedRows } = readVouchedRows(args.runDir);
   const { fixtures } = await loadFixtures(args.fixturesDir);
   const fixturesById = new Map(fixtures.map((f) => [f.id, f]));
@@ -309,10 +355,13 @@ export async function runJudgeVariance(
           // Empty string means "no rubric graded this"; `summarize` recovers
           // the hash for display from the check's judged rows.
           rubricHash: observation.rubricHash ?? '',
+          judgeContractHash: observation.judgeContractHash ?? '',
           sourceRepIndex,
           trialIndex,
           verdict: observation.verdict,
           judgeInvoked: observation.judgeInvoked,
+          rationale: observation.detail,
+          errorMessage: observation.errorMessage ?? '',
           durationMs: observation.durationMs,
         }),
       );

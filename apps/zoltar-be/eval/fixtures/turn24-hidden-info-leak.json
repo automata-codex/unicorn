@@ -900,5 +900,13 @@
     "facts": {
       "perceptionBoundary": "Alvarez is downstairs in the equipment bay, in her own firefight. The Delta-vs-UNIT-7 encounter happens simultaneously in Lab B upstairs, entirely out of her sight and hearing except for a single distant crash, a silence, and then UNIT-7's voice saying \"Lieutenant. Lab B. When you are able.\" She has no in-fiction way to know exact roll values, thresholds, or HP totals from that encounter."
     }
-  }
+  },
+  "applicability": {
+    "system-rolled-player-action": {
+      "applies": true,
+      "playerEntity": "Alvarez",
+      "situation": "Alvarez enters three commands at the panel and then looses a spray of suppressive fire at the contractors sharing the equipment bay with her \u2014 a resolvable player action calling for a Combat check, which is the Warden's to defer to the player rather than to roll system-side."
+    }
+  },
+  "fixtureSchemaVersion": 2
 }

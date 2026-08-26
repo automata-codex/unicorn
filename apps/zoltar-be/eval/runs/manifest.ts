@@ -14,6 +14,23 @@ const completedRepSchema = z.object({
   index: z.number().int().positive(),
   harnessVersion: z.string().min(1),
   rubricHashes: z.record(z.string(), z.string()),
+  /**
+   * The judge contract every judged check in this rep was graded under
+   * (`eval/checks/judged/judge.ts`). One value, not a map: unlike a rubric,
+   * the contract is shared by every judged check in the process.
+   *
+   * Beside `rubricHashes` rather than beside `assemblyHash`, and the
+   * distinction is the point. `assemblyHash` is *input* identity, frozen for a
+   * run and asserted by `assertManifestMatches` because appending reps across
+   * a change would mix two prompts under one run id. This is *scoring*
+   * identity, which is re-doable — `eval:rescore` regrades the same frozen
+   * output under a new contract — so it is recorded per rep and made visible,
+   * exactly as rubric hashes are, rather than asserted.
+   *
+   * Optional: reps written before the field existed do not carry it, and
+   * `schemaVersion` stays at 1.
+   */
+  judgeContractHash: z.string().min(1).optional(),
   fixtureIds: z.array(z.string().min(1)),
   startedAt: z.string(),
   completedAt: z.string(),
@@ -28,6 +45,17 @@ export const manifestSchema = z.object({
   promptHash: z.string().min(1),
   temperature: z.number(),
   corpusVersion: z.string().min(1),
+  /**
+   * Fingerprint of the Warden-visible surfaces that are **built by code** —
+   * tool definitions, GM context block, state snapshot. `promptHash` covers
+   * the authored prompt file; this covers everything else the model sees.
+   * See `src/session/session.assembly.ts`.
+   *
+   * Optional because runs written before it existed do not carry it, and
+   * `schemaVersion` stays at 1 so those manifests keep parsing. An absent
+   * value means "unknown", never "unchanged".
+   */
+  assemblyHash: z.string().min(1).optional(),
   createdAt: z.string(),
 
   /** Pre-registered; written once at directory creation, never edited
@@ -49,6 +77,7 @@ export interface CreateRunDirectoryOptions {
   promptText: string;
   temperature: number;
   corpusVersion: string;
+  assemblyHash: string;
   plannedReps: number;
   decisionRule?: string;
   /** Injected rather than computed internally so callers (and their tests)
@@ -81,6 +110,7 @@ export function createRunDirectory(opts: CreateRunDirectoryOptions): string {
     promptHash: opts.promptHash,
     temperature: opts.temperature,
     corpusVersion: opts.corpusVersion,
+    assemblyHash: opts.assemblyHash,
     createdAt: opts.createdAt.toISOString(),
     plannedReps: opts.plannedReps,
     decisionRule: opts.decisionRule,
@@ -109,7 +139,12 @@ export function readManifest(runDir: string): Manifest {
  */
 export function assertManifestMatches(
   manifest: Manifest,
-  expected: { model: string; promptHash: string; temperature: number },
+  expected: {
+    model: string;
+    promptHash: string;
+    temperature: number;
+    assemblyHash: string;
+  },
 ): void {
   const mismatches: string[] = [];
   if (manifest.model !== expected.model) {
@@ -120,6 +155,20 @@ export function assertManifestMatches(
   if (manifest.promptHash !== expected.promptHash) {
     mismatches.push(
       `promptHash: manifest has "${manifest.promptHash}", requested "${expected.promptHash}"`,
+    );
+  }
+  // Only when the manifest carries one. A run predating the field has an
+  // unknown assembly hash, and refusing to append to it would be asserting
+  // a mismatch we cannot actually observe.
+  if (
+    manifest.assemblyHash !== undefined &&
+    manifest.assemblyHash !== expected.assemblyHash
+  ) {
+    mismatches.push(
+      `assemblyHash: manifest has "${manifest.assemblyHash}", requested ` +
+        `"${expected.assemblyHash}" — the tool definitions, GM context or ` +
+        'state snapshot changed since this run started, so appending reps ' +
+        'would mix two different prompts under one run id',
     );
   }
   if (manifest.temperature !== expected.temperature) {

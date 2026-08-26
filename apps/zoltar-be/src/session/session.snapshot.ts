@@ -1,4 +1,13 @@
-import type { MothershipCampaignState } from '@uv/game-systems';
+import {
+  deriveMothershipInstinct,
+  emptyMothershipCharacterState,
+  resolveMothershipSkills,
+} from '@uv/game-systems';
+
+import type {
+  MothershipCampaignState,
+  MothershipCrewRole,
+} from '@uv/game-systems';
 
 /**
  * Shape of the `gm_context.blob` payload as the session module reads it. The
@@ -31,6 +40,7 @@ export interface GmContextBlob {
     type: 'npc' | 'threat' | 'feature';
     visible: boolean;
     tags: string[];
+    crewRole?: MothershipCrewRole;
   }>;
   structured?: {
     flags?: Record<string, { value: boolean; trigger: string }>;
@@ -143,7 +153,19 @@ function renderCharacterAttributes(
   const blocks: string[] = [];
 
   for (const entityId of Object.keys(characterState).sort()) {
-    const state = characterState[entityId];
+    /*
+     * Backfilled against the empty state, not read raw. `campaign_state.data`
+     * is JSONB and is read without re-parsing through the schema, so Zod's
+     * `.default([])` never runs for a row written before a field existed —
+     * a character created before `rollModifiers` was added has no such key,
+     * and `.length` on it takes down the whole turn. Merging with the empty
+     * state makes every field present for this render and for every field
+     * added after it.
+     */
+    const state = {
+      ...emptyMothershipCharacterState(),
+      ...characterState[entityId],
+    };
     const lines: string[] = [];
 
     const armor = state.wornArmor;
@@ -181,6 +203,19 @@ function renderCharacterAttributes(
       lines.push(`  loadout: ${rendered.join('; ')}`);
     }
 
+    // Skills, with suppression already applied by the shared accessor. A
+    // suppressed skill still renders — the training is not lost, the bonus is,
+    // and a Warden that sees the skill vanish will read it as never held.
+    const skills = resolveMothershipSkills({ characterState: state });
+    if (skills.length > 0) {
+      const rendered = skills.map((skill) =>
+        skill.suppressed
+          ? `${skill.skill} ${skill.tier} (suppressed)`
+          : `${skill.skill} ${skill.tier} (+${skill.bonus})`,
+      );
+      lines.push(`  skills: ${rendered.join(', ')}`);
+    }
+
     if (state.conditions.length > 0) {
       const rendered = state.conditions.map((entry) =>
         entry.parameter
@@ -188,6 +223,22 @@ function renderCharacterAttributes(
           : entry.condition,
       );
       lines.push(`  conditions: ${rendered.join(', ')}`);
+    }
+
+    // Durable Advantage/Disadvantage that is not a Condition — today the
+    // Wounds Table's Fatal Injury row. Rendered with its source, because the
+    // source is what a removal names and what tells two of the same shape
+    // apart.
+    if (state.rollModifiers.length > 0) {
+      const rendered = state.rollModifiers.map((mod) => {
+        const mark = mod.effect === 'advantage' ? '[+]' : '[-]';
+        const where =
+          mod.scope === 'all_rolls'
+            ? 'all rolls'
+            : `${mod.scope} ${mod.target}`;
+        return `${mark} on ${where} (${mod.source})`;
+      });
+      lines.push(`  roll modifiers: ${rendered.join('; ')}`);
     }
 
     // The three that change how a roll resolves, stated only when they are
@@ -231,6 +282,21 @@ function renderCharacterAttributes(
  * A player id absent from the map reports `status=unknown` — the same value
  * `buildEntityMap` gives every synthesized entity, and the honest one here:
  * nothing recorded a status. Live HP is in `<resource_pools>` regardless.
+ *
+ * **No entity is withheld** (`ADR-0101`). Every entity renders every turn,
+ * carrying its own `visible` and `revealed`.
+ *
+ * The filter this replaces looked like structural secrecy and was not.
+ * `formatGmContextBlob` already emits every entity in the GM context blob —
+ * hidden ones tagged `starts hidden` — into the first cached system block,
+ * ahead of this one, alongside a `hidden_truth` line carrying the mystery in
+ * prose. Existence, id, type and tags were already in the prompt; all the
+ * filter withheld was the current value of the flag, which is precisely what
+ * an adjudicator of line of sight cannot work without. Deciding whether the
+ * goblin steps out of the shadow requires knowing it is in one.
+ *
+ * Position is the thing that is structurally absent, and nothing here emits
+ * it. That is the claim the design doc keeps.
  */
 function renderEntities(
   entities: CampaignStateData['entities'],
@@ -238,15 +304,53 @@ function renderEntities(
 ): string | null {
   const playerLines = [...playerEntityIds].sort().map((id) => {
     const entity = entities[id];
-    if (!entity) return `${id}: visible, status=unknown, player_character`;
+    if (!entity) {
+      return `${id}: visible, revealed, status=unknown, player_character`;
+    }
     const visibility = entity.visible ? 'visible' : 'hidden';
-    return `${id}: ${visibility}, status=${entity.status}, player_character`;
+    const discovery = entity.revealed ? 'revealed' : 'undiscovered';
+    return `${id}: ${visibility}, ${discovery}, status=${entity.status}, player_character`;
   });
 
+  /*
+   * A visible NPC renders its Instinct and, where it has a role, the skills
+   * that role derives (`ADR-0100`). Both are Warden-facing target numbers: an
+   * NPC's check resolves as Instinct, plus a mapped skill's tier bonus where
+   * one applies, and the Warden cannot apply a bonus from a 20-row table it was
+   * never given — the same argument the Wounds Table instructions make.
+   *
+   * Entities with neither — threats, features, NPCs written before this — render
+   * exactly as they did.
+   */
   const otherLines = Object.keys(entities)
     .sort()
-    .filter((id) => !playerEntityIds.has(id) && entities[id].visible)
-    .map((id) => `${id}: visible, status=${entities[id].status}`);
+    .filter((id) => !playerEntityIds.has(id))
+    .map((id) => {
+      const entity = entities[id];
+      const visibility = entity.visible ? 'visible' : 'hidden';
+      const discovery = entity.revealed ? 'revealed' : 'undiscovered';
+      const bits = [
+        `${id}: ${visibility}, ${discovery}, status=${entity.status}`,
+      ];
+
+      const instinct = deriveMothershipInstinct(entity);
+      if (instinct !== null) bits.push(`instinct ${instinct}`);
+
+      if (entity.crewRole) {
+        const skills = resolveMothershipSkills({ entity })
+          .map((skill) => `${skill.skill} ${skill.tier} (+${skill.bonus})`)
+          .join(', ');
+        bits.push(`role ${entity.crewRole}`, `skills ${skills}`);
+      }
+
+      // Disposition, last because it is free text of unbounded length and
+      // everything before it is a fixed-width fact. Rendered at all because a
+      // field nothing shows back is a field the Warden stops writing — which
+      // is the state `npcState` was in from M7.6 until `ADR-0101`.
+      if (entity.npcState) bits.push(`state: ${entity.npcState}`);
+
+      return bits.join(', ');
+    });
 
   const lines = [...playerLines, ...otherLines];
   if (lines.length === 0) return null;

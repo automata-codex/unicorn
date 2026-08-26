@@ -6,6 +6,8 @@ import {
   SessionOutputError,
   SessionService,
   SessionToolLoopError,
+  SessionToolSyntaxError,
+  TOOL_SYNTAX_RETRY_BUDGET,
 } from './session.service';
 
 import type Anthropic from '@anthropic-ai/sdk';
@@ -804,5 +806,134 @@ describe('SessionService.runInnerToolLoop', () => {
       SessionToolLoopError,
     );
     expect(callSession).toHaveBeenCalledTimes(INNER_TOOL_LOOP_CAP);
+  });
+
+  // A payload that serialized its own parameters into `playerText` is
+  // schema-valid — `playerText` is the only required field — so before this
+  // guard it terminated the loop, shipped the markup to the player, and
+  // dropped every state change without a log line.
+  const LEAKED_PAYLOAD = {
+    playerText:
+      'The lever refuses to move.</playerText>\n' +
+      '<parameter name="stateChanges">{"resourcePools":[{"owner":"dr_kennedy","pool":"hp","delta":-12}]}</parameter>',
+  };
+
+  it('rejects a leaked payload and recovers on the retry', async () => {
+    callSession
+      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(
+        message([submitGmBlock({ playerText: 'The lever refuses to move.' })]),
+      );
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(result.iterations).toBe(2);
+    expect(result.finalParsed.playerText).toBe('The lever refuses to move.');
+  });
+
+  it('tells Claude to resend the parameters as parameters', async () => {
+    callSession
+      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(
+        message([submitGmBlock({ playerText: 'The lever holds.' })]),
+      );
+    const { service } = makeService(callSession);
+
+    await service.runInnerToolLoop(loopArgs);
+
+    const secondCall = callSession.mock.calls[1][0] as CallSessionParams;
+    const toolResult = (
+      secondCall.messages[secondCall.messages.length - 1] as {
+        content: Anthropic.ContentBlockParam[];
+      }
+    ).content[0] as Anthropic.ToolResultBlockParam;
+    expect(toolResult.is_error).toBe(true);
+    expect(toolResult.content).toMatch(/raw tool-call syntax/);
+    expect(toolResult.content).toMatch(/separate tool parameters/);
+  });
+
+  it('abandons the turn after one retry rather than spending the whole loop', async () => {
+    // The 2026-08-18 re-baseline produced ten consecutive leaked payloads on
+    // one turn and no recovery, so the retry budget is one — the number
+    // `ADR-0041` argues for everywhere else in the turn path.
+    callSession.mockResolvedValue(message([submitGmBlock(LEAKED_PAYLOAD)]));
+    const { service } = makeService(callSession);
+
+    await expect(service.runInnerToolLoop(loopArgs)).rejects.toBeInstanceOf(
+      SessionToolSyntaxError,
+    );
+    expect(callSession).toHaveBeenCalledTimes(TOOL_SYNTAX_RETRY_BUDGET + 1);
+  });
+
+  it('names the leak in the error rather than reporting cap exhaustion', async () => {
+    // The two 502s mean opposite things: one is "still working", this one is
+    // "finished the same wrong way twice".
+    callSession.mockResolvedValue(message([submitGmBlock(LEAKED_PAYLOAD)]));
+    const { service } = makeService(callSession);
+
+    await expect(service.runInnerToolLoop(loopArgs)).rejects.toThrow(
+      /leaked tool-call syntax 2 times in a row/,
+    );
+  });
+
+  it('does not spend the budget on a busy turn that leaks only once', async () => {
+    // Decoupling the two caps is half the point: a turn that has already
+    // spent iterations on legitimate rolls must not get fewer retries.
+    callSession
+      .mockResolvedValueOnce(
+        message([
+          toolUse('toolu_r1', 'roll_dice', {
+            notation: '1d100',
+            purpose: 'probe',
+            actingEntityId: 'alvarez',
+            rollType: 'check',
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(
+        message([submitGmBlock({ playerText: 'The lever holds.' })]),
+      );
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(result.finalParsed.playerText).toBe('The lever holds.');
+    expect(result.iterations).toBe(3);
+  });
+
+  it('gives a fresh budget when the failures alternate mode', async () => {
+    // leak → schema-invalid → leak is not the stuck shape, so the counter
+    // resets and the turn still gets its retry.
+    callSession
+      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(
+        message([submitGmBlock({ playerText: 1 as unknown as string })]),
+      )
+      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(
+        message([submitGmBlock({ playerText: 'Recovered.' })]),
+      );
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(result.finalParsed.playerText).toBe('Recovered.');
+  });
+
+  it('does not trip on narration that merely contains an angle bracket', async () => {
+    callSession.mockResolvedValueOnce(
+      message([
+        submitGmBlock({
+          playerText: 'Her pulse is < 40. The stencil reads <MANUAL OVERRIDE>.',
+        }),
+      ]),
+    );
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(result.iterations).toBe(1);
   });
 });

@@ -48,7 +48,7 @@ Packages are internal workspace packages — they are not published to npm.
 
 **Claude as consequence engine, not state holder.** The backend constructs a visibility-filtered state snapshot, sends it to Claude with each request, and Claude issues structured change requests via the `submit_gm_response` tool. The backend validates and applies all state changes. Claude never holds authoritative state between requests.
 
-**Two-mechanism hidden information model.** GM context secrets (NPC agendas, mystery answers, faction loyalties) are included in Claude's prompt and withheld behaviorally — Claude is playing the Warden role faithfully. Spatial secrets (entities outside the player's line of sight) are structurally absent from the state snapshot — Claude genuinely doesn't receive that data.
+**Two-mechanism hidden information model.** GM context secrets (NPC agendas, mystery answers, faction loyalties) are included in Claude's prompt and withheld behaviorally — Claude is playing the Warden role faithfully. **Entity existence is part of that half**: every entity is named in the prompt every turn, hidden ones included, because the Warden needs their stats to run them off-screen. Only an entity's *position* is structurally absent (`ADR-0101`), and in Phase 1 that is vacuous — nothing emits position yet. Entity `visible` is line of sight (transient, both directions); `revealed` is discovery (monotonic).
 
 **Typed envelope + JSONB.** Universal concepts (campaigns, sessions, grid) use proper relational tables. System-specific state uses JSONB with Zod validation. Adding a new game system means writing a Zod schema, not a migration.
 
@@ -85,6 +85,16 @@ Testing expectations apply uniformly across all milestones — they are not trac
 **General**
 - Do not mock what you own. Prefer thin integration tests over heavily mocked unit tests for code where the behavior is the integration.
 - Tests live adjacent to the code they test (`*.test.ts` or `*.spec.ts`), not in a separate top-level directory.
+
+## Running the Eval Harness
+
+**Every eval script goes through `task`, and none of them runs without the maintainer's explicit approval on that occasion.**
+
+- **Use `task eval:*`, never `npm run eval:*` or a direct `npx tsx scripts/eval-*.ts`.** The `task` targets carry the working directory, the env file, and — for `eval:run` — the `@swc-node/register` loader that plain `tsx` cannot substitute for. Their `desc:` fields in `Taskfile.yml` also carry the cost and precondition notes (which scripts hit the DB, which make real Anthropic or Voyage calls, and how many), which is the information a decision to run one should be based on. Going around `task` skips all of it.
+- **Ask before every run, every time.** Most of these spend real money — `eval:run` is N × a full-corpus pass, `eval:rescore` is one judge call per judged fixture-rep, `eval:retrieval-probe` is one Voyage call per distinct query. Approval to run one script once is not approval to run it again, and not approval for a different script. This holds even when a run is the obvious next step in a plan the maintainer already approved.
+- **`eval:run` is always run by the maintainer, by hand.** Never launch it, including in the background. Prepare everything it needs — the prompt edit committed, goldens regenerated, predictions pre-registered — and then hand over the full command with its `--decision-rule` string for them to run.
+
+Reading the artifacts a run has already produced is not running the harness: `ls`, `cat`, and parsing `scores.jsonl` under `$ZOLTAR_EVAL_ROOT` are free and need no approval. Prefer them. A surprising number of questions that look like they need a run — a tag's per-fixture breakdown, whether a denominator moved, what a judge actually said — are answerable from the archive at zero cost, and `docs/eval-methodology.md § Two kinds of corpus bump` decides when a re-run is genuinely owed rather than merely convenient.
 
 ## License
 

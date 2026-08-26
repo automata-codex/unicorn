@@ -1,4 +1,4 @@
-import { runJudgeCall } from './judged/judge';
+import { computeJudgeContractHash, runJudgeCall } from './judged/judge';
 import { structuralCheckers } from './structural/registry';
 
 import type { AnthropicService } from '../../src/anthropic/anthropic.service';
@@ -30,6 +30,21 @@ export interface CheckObservation {
   /** Set only when `judgeInvoked` — a rep the gate settled was graded by no
    * rubric, and stamping one on it would imply otherwise. */
   rubricHash?: string;
+  /**
+   * The judge contract that produced this verdict — tool schema, system
+   * prompt, closing instruction and model (`judged/judge.ts`). Set under
+   * exactly the rule `rubricHash` is: only when a judge was actually asked,
+   * because a gated verdict was reached by no contract at all.
+   *
+   * Recorded per observation rather than once per run because scoring is
+   * re-doable and run identity is not. `eval:rescore` re-grades frozen
+   * `warden-output.json` artifacts under whatever the registry holds today,
+   * writing rows into `rescore/<timestamp>/` while `manifest.json` keeps the
+   * values it was created with — so a manifest-level field would describe the
+   * original grading and silently mislabel every re-score. `harnessVersion`
+   * is already on the row for this reason.
+   */
+  judgeContractHash?: string;
   notApplicableReason?: string;
   /** Stable grouping key for `notApplicableReason` when the latter
    * interpolates per-rep-variable text — see `StructuralVerdict.actualCode`.
@@ -118,6 +133,7 @@ export async function runCheck(
       detail: judged.rationale,
       judgeInvoked: true,
       rubricHash: check.rubricHash?.(),
+      judgeContractHash: computeJudgeContractHash(),
       durationMs: Date.now() - start,
     };
   } catch (err) {

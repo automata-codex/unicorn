@@ -29,10 +29,18 @@ export interface ReconstructStateResult {
  * `gm_response`/`correction` row — see `gmPayloadFor`. `gmUpdates` is `null`,
  * not just possibly absent, when Claude's turn carried none. */
 interface GmResponseEventPayload {
-  gmUpdates: Pick<
-    NonNullable<SubmitGmResponse['gmUpdates']>,
-    'npcStates'
-  > | null;
+  gmUpdates:
+    | (Pick<NonNullable<SubmitGmResponse['gmUpdates']>, 'npcAgendas'> & {
+        /**
+         * Pre-`ADR-0101` rows carry the agenda map under this name. Replay
+         * reads persisted history, so the legacy key stays readable forever —
+         * including for the 2026-08-16 playtest, whose `npcStates` writes are
+         * what the split exists to prevent and which a replay must still
+         * reproduce faithfully rather than silently repair.
+         */
+        npcStates?: Record<string, string>;
+      })
+    | null;
 }
 
 /** Shape `writeTurnEvents` persists for a `state_update` row. */
@@ -100,10 +108,10 @@ export async function reconstructStateAsOfTurn(
   // Steps 2-3: fold every prior turn's validated deltas forward. Only two
   // event types carry data the applier needs — `state_update.payload.applied`
   // (the campaign-state half) and the *winning* `gm_response`/`correction`
-  // row's `payload.gmUpdates.npcStates` (the gm_context half). A correction,
+  // row's agenda map (the gm_context half). A correction,
   // when present, is always written immediately after its gm_response and
   // before the turn's state_update (`session.events.ts`), so simply
-  // overwriting `pendingNpcStates` on each gm_response/correction row and
+  // overwriting `pendingNpcAgendas` on each gm_response/correction row and
   // consuming it at state_update naturally picks the winning value.
   // `player_action` / `dice_roll` rows contribute nothing and are skipped.
   const events = await db
@@ -117,23 +125,24 @@ export async function reconstructStateAsOfTurn(
     )
     .orderBy(asc(schema.gameEvents.sequenceNumber));
 
-  let pendingNpcStates: Record<string, string> = {};
+  let pendingNpcAgendas: Record<string, string> = {};
   for (const event of events) {
     if (event.eventType === 'gm_response' || event.eventType === 'correction') {
       // jsonb boundary — payload is `gmPayloadFor`'s output at write time.
       const payload = event.payload as GmResponseEventPayload;
-      pendingNpcStates = payload.gmUpdates?.npcStates ?? {};
+      pendingNpcAgendas =
+        payload.gmUpdates?.npcAgendas ?? payload.gmUpdates?.npcStates ?? {};
     } else if (event.eventType === 'state_update') {
       const payload = event.payload as StateUpdateEventPayload;
       const { newCampaignState, newGmContextBlob } = applyValidatedTurn({
         priorCampaignState: campaignState,
         priorGmContextBlob: gmContextBlob,
         applied: payload.applied,
-        npcStates: pendingNpcStates,
+        npcAgendas: pendingNpcAgendas,
       });
       campaignState = newCampaignState;
       gmContextBlob = newGmContextBlob;
-      pendingNpcStates = {};
+      pendingNpcAgendas = {};
     }
   }
 

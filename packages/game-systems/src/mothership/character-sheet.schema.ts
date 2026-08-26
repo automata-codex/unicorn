@@ -66,6 +66,23 @@ export const MothershipCreationRollsSchema = z.object({
   // 2d10; ×10, or ×100 when forgoing a loadout (PSG §6.1).
   credits: DiceRollSchema,
 
+  /**
+   * `1d10` against the character's own class loadout table (PSG "Step 8").
+   *
+   * **Optional, and it is the one roll here that is.** Step 8 rolls Loadout,
+   * Trinket and Patch together, and this field was simply missing until 018 —
+   * two thirds of one creation step was recorded and the third was not, so a
+   * character's loadout was not reconstructable from their sheet even in
+   * principle. Sheets written before it existed cannot retroactively acquire a
+   * roll nobody made, and inventing one to satisfy a required field is exactly
+   * what this schema's own doc comment forbids. Same shape, and the same
+   * reason, as `creationChoices`.
+   *
+   * The table is indexed `00`–`09` and this stores the die as it fell — see
+   * `tableIndexForRoll`.
+   */
+  loadout: DiceRollSchema.optional(),
+
   // d100 each, against the trinket and patch tables.
   trinket: DiceRollSchema,
   patch: DiceRollSchema,
@@ -76,7 +93,8 @@ export type MothershipCreationRolls = z.infer<
 >;
 
 /**
- * The class adjustments that are a player *choice* rather than a constant.
+ * The creation-time decisions that are a player *choice* rather than a
+ * constant, and that later arithmetic reads as an input.
  *
  * The Android takes −10 to one Stat and the Scientist +5 to one Stat (PSG
  * "Step 3"). Without recording which, the reconciliation the milestone's
@@ -85,10 +103,44 @@ export type MothershipCreationRolls = z.infer<
  * audit, not a second copy of a value that lives elsewhere, which is the same
  * argument that admits `creationRolls`.
  *
- * Absent for Marine and Teamster, whose adjustments are entirely fixed.
+ * `adjustedStat` is absent for Marine and Teamster, whose class adjustments
+ * are entirely fixed. `forgoLoadout` is class-independent and may appear on
+ * any sheet.
  */
 export const MothershipCreationChoicesSchema = z.object({
   adjustedStat: MothershipStatEnum.optional(),
+
+  /**
+   * The player traded the starting loadout for cash, so starting credits are
+   * `2d10 × 100` rather than `2d10 × 10` (PSG §6.1).
+   *
+   * On the sheet by the same argument as `adjustedStat`: it is an input to the
+   * credits arithmetic, not a copy of its result. It lived as a
+   * `deriveMothershipCharacterResourcePools` *option* until it was found that
+   * nothing on the write path passed one — the creation form fed it to the
+   * preview and omitted it from the payload, so checking the box showed ×100
+   * and seeded ×10. An option a caller can forget is a divergence waiting to
+   * happen; read from the sheet it cannot be forgotten.
+   */
+  forgoLoadout: z.boolean().optional(),
+
+  /**
+   * Credits spent on gear at creation, beyond whatever the loadout supplied.
+   *
+   * **An input to the credits arithmetic, not a second copy of the balance.**
+   * The alternative — seeding the credits pool from the roll and then writing a
+   * lower number over it — would make `deriveMothershipCharacterResourcePools`
+   * disagree with the pool it seeded, which is the divergence this schema keeps
+   * being redesigned to prevent (`maxHp`, and `forgoLoadout` before it was moved
+   * here). Recording the spend lets the derivation stay the only authority:
+   * credits are `2d10 × rate − gearSpend`, and every term of that is visible on
+   * the creation screen.
+   *
+   * The item costs themselves are PSG content and do not ship, so this is the
+   * total the player arrived at from their own book — the same arrangement as
+   * the loadout tables.
+   */
+  gearSpend: z.number().int().min(0).optional(),
 });
 
 export type MothershipCreationChoices = z.infer<
@@ -165,6 +217,29 @@ export const MothershipCharacterSheetSchema =
           `A ${sheet.class}'s adjustments are entirely fixed, so no Stat is ` +
           'chosen at creation.',
       });
+    }
+
+    /*
+     * Gear cannot be bought on credit. The credits pool floors at zero
+     * (`pool-definitions.ts`), so an overspend would not produce a debt — it
+     * would be rejected at seed time, or clamped, long after the player chose
+     * the gear. Catching it on the sheet keeps the failure next to the
+     * decision that caused it.
+     */
+    const spend = sheet.creationChoices?.gearSpend ?? 0;
+    if (spend > 0) {
+      const rate = sheet.creationChoices?.forgoLoadout ? 100 : 10;
+      const available =
+        sheet.creationRolls.credits.reduce((a, b) => a + b, 0) * rate;
+      if (spend > available) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['creationChoices', 'gearSpend'],
+          message:
+            `Gear costing ${spend}cr against ${available}cr of starting ` +
+            'credits. A character cannot start in debt.',
+        });
+      }
     }
   });
 

@@ -7,6 +7,9 @@ import {
   deriveMothershipCharacterResourcePools,
   emptyMothershipCharacterState,
   type MothershipCharacterSheet,
+  type MothershipEquipmentEntry,
+  type MothershipSkillEntry,
+  type MothershipWornArmor,
 } from '@uv/game-systems';
 
 import { CampaignRepository } from '../campaign/campaign.repository';
@@ -31,6 +34,11 @@ export class CharacterService {
     campaignId: string,
     userId: string,
     data: MothershipCharacterSheet,
+    options: {
+      startingSkills?: MothershipSkillEntry[];
+      startingEquipment?: MothershipEquipmentEntry[];
+      wornArmor?: MothershipWornArmor | null;
+    } = {},
   ) {
     await this.campaignService.assertMember(campaignId, userId);
 
@@ -45,11 +53,12 @@ export class CharacterService {
 
     const playerPools = deriveMothershipCharacterResourcePools(data);
     await this.campaignRepo.mergePlayerResourcePools(campaignId, playerPools);
-    await this.campaignRepo.seedCharacterState(
-      campaignId,
-      data.entityId,
-      emptyMothershipCharacterState(),
-    );
+    await this.campaignRepo.seedCharacterState(campaignId, data.entityId, {
+      ...emptyMothershipCharacterState(),
+      skills: options.startingSkills ?? [],
+      equipment: options.startingEquipment ?? [],
+      wornArmor: options.wornArmor ?? null,
+    });
 
     return character;
   }
@@ -64,6 +73,14 @@ export class CharacterService {
    * HP reset by a sheet edit) but it is a trap for any future path that means
    * to change a ceiling — advancement, a house rule, a correction. Such a path
    * must write the pool directly. See M7.6 §1.4.
+   *
+   * **`seedCharacterState` behaves the same way and 018 gave it something to
+   * lose.** It returns early when the entity already has state, so the skills
+   * collected at creation cannot be changed by editing the sheet afterwards —
+   * the write silently does nothing, exactly as above. Same justification (a
+   * sheet edit must not reset conditions or bleeding mid-adventure) and the
+   * same trap: skill advancement, when it arrives, writes
+   * `characterState.skills` directly rather than re-seeding.
    */
 
   private async assertNoActiveAdventure(campaignId: string) {

@@ -45,7 +45,7 @@ sequenceDiagram
             SeshSvc->>Tools:Execute roll / lookup
             Tools-->>SeshSvc:Roll result / chunks
         else submit_gm_response
-            SeshSvc->>SeshSvc:Validate GM response<br/>(parse failure re-enters loop)
+            SeshSvc->>SeshSvc:Validate GM response<br/>(parse failure or leaked<br/>tool-call syntax re-enters loop)
         end
     end
 
@@ -75,6 +75,14 @@ sequenceDiagram
 - The player's message is written outside the `applyTurnAtomic` transaction so that if there's a failure, the action is retryable without forcing the player to re-enter the text.
 - The correction loop is capped at one retry because multiple retries just hide failures elsewhere in the system (see [The Correct Number of Retries is One](https://alexgs.me/posts/correct-number-of-retries-is-one)). In addition, the retry cannot re-enter the tool-loop. Otherwise the retry is a superset of the initial attempt. If correction could call `roll_dice` again, a rejected state change becomes an invitation to reroll until validation passes.
 - The backend owns the RNG because LLMs are not good at generating random numbers or remembering them accurately. 
+- A `submit_gm_response` payload that parses is not necessarily well-formed. `playerText` is the
+  only required field on the schema, so a response that serialized its remaining parameters as
+  text inside the narration validates cleanly and then silently drops every state change it
+  computed — the 2026-08-16 playtest lost 39 of 58 turns that way, with no correction event and
+  no log line. `session.tool-syntax.ts` rejects such a payload on structure (literal tool-call
+  tags plus a tag per top-level schema property, derived from the schema so the two cannot
+  drift). In the tool loop the rejection re-enters the loop like any parse failure, so the turn
+  usually recovers; on the correction path, which is single-shot by design, it throws.
 
 ## Queries inside `applyTurnAtomic`
 

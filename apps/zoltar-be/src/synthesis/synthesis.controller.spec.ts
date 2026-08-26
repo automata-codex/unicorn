@@ -14,12 +14,26 @@ import type { MothershipOracleSelections } from '@uv/game-systems';
 
 const fakeUser = { id: 'u1', email: 'a@x.test', name: 'Alice' };
 
+/**
+ * Real entry ids, not synthetic ones. `resolveActivePools` resolves every id in
+ * `activeEntryIds` against the shipped oracle tables and rejects one it does not
+ * recognise, so a fixture built on invented ids would 422 on the happy path.
+ */
 const validSelections: MothershipOracleSelections = {
-  survivor: makeOracleEntry('survivor_1'),
-  threat: makeOracleEntry('threat_1'),
-  secret: makeOracleEntry('secret_1'),
-  vessel_type: makeOracleEntry('vessel_1'),
-  tone: makeOracleEntry('tone_1'),
+  survivor: makeOracleEntry('corporate_spy'),
+  threat: makeOracleEntry('parasitic_organism'),
+  secret: makeOracleEntry('company_knew'),
+  vessel_type: makeOracleEntry('freight_hauler'),
+  tone: makeOracleEntry('creeping_dread'),
+};
+
+/** Two live entries per category, the selection above plus one alternative. */
+const validActiveEntryIds: Record<string, string[]> = {
+  survivor: ['corporate_spy', 'burned_out_medic'],
+  threat: ['parasitic_organism', 'corporate_asset'],
+  secret: ['company_knew', 'signal_origin'],
+  vessel_type: ['freight_hauler', 'research_station'],
+  tone: ['creeping_dread', 'paranoia'],
 };
 
 function mockReply() {
@@ -97,7 +111,10 @@ describe('SynthesisController', () => {
   });
 
   describe('POST synthesize', () => {
-    const dto = { oracleSelections: validSelections };
+    const dto = {
+      oracleSelections: validSelections,
+      activeEntryIds: validActiveEntryIds,
+    };
 
     it('returns 202 and kicks off async synthesis on the happy path', async () => {
       const reply = mockReply();
@@ -146,10 +163,117 @@ describe('SynthesisController', () => {
 
     it('returns 422 when oracle selections fail system-specific validation', async () => {
       const reply = mockReply();
-      const badDto = { oracleSelections: { survivor: 'not an entry' } };
+      const badDto = {
+        oracleSelections: { survivor: 'not an entry' },
+        activeEntryIds: validActiveEntryIds,
+      };
 
       await expect(
         controller.synthesize('c1', 'a1', badDto, fakeUser, reply as any),
+      ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    it('passes only the active entries as the reroll pool', async () => {
+      const reply = mockReply();
+
+      await controller.synthesize('c1', 'a1', dto, fakeUser, reply as any);
+
+      const passed = synthSvc.checkCoherence.mock.calls[0][0];
+      expect(Object.keys(passed.activePools).sort()).toEqual([
+        'secret',
+        'survivor',
+        'threat',
+        'tone',
+        'vessel_type',
+      ]);
+      // Two live entries, not the six the tone table actually ships.
+      expect(passed.activePools.tone.map((e: { id: string }) => e.id)).toEqual([
+        'creeping_dread',
+        'paranoia',
+      ]);
+    });
+
+    /**
+     * The playtest failure, as a test. `body_horror` deselected must not be
+     * reachable — before `activeEntryIds` existed the backend rebuilt the pool
+     * from every shipped entry, and a reroll substituted exactly this.
+     */
+    it('excludes a deselected entry from the reroll pool', async () => {
+      const reply = mockReply();
+
+      await controller.synthesize(
+        'c1',
+        'a1',
+        {
+          ...dto,
+          activeEntryIds: { ...validActiveEntryIds, tone: ['creeping_dread'] },
+        },
+        fakeUser,
+        reply as any,
+      );
+
+      const passed = synthSvc.checkCoherence.mock.calls[0][0];
+      expect(passed.activePools.tone.map((e: { id: string }) => e.id)).toEqual([
+        'creeping_dread',
+      ]);
+      expect(
+        passed.activePools.tone.some(
+          (e: { id: string }) => e.id === 'body_horror',
+        ),
+      ).toBe(false);
+    });
+
+    it('returns 422 when a category is missing from activeEntryIds', async () => {
+      const reply = mockReply();
+      const { tone: _tone, ...withoutTone } = validActiveEntryIds;
+
+      await expect(
+        controller.synthesize(
+          'c1',
+          'a1',
+          { ...dto, activeEntryIds: withoutTone },
+          fakeUser,
+          reply as any,
+        ),
+      ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    it('returns 422 on an entry id no oracle table ships', async () => {
+      const reply = mockReply();
+
+      await expect(
+        controller.synthesize(
+          'c1',
+          'a1',
+          {
+            ...dto,
+            activeEntryIds: { ...validActiveEntryIds, tone: ['tone_1'] },
+          },
+          fakeUser,
+          reply as any,
+        ),
+      ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    /**
+     * The two halves of the request disagreeing. Nothing here can tell which is
+     * right, and guessing produces a plausible adventure built on a filter the
+     * player never asked for.
+     */
+    it('returns 422 when the selection sits outside its own active pool', async () => {
+      const reply = mockReply();
+
+      await expect(
+        controller.synthesize(
+          'c1',
+          'a1',
+          {
+            ...dto,
+            activeEntryIds: { ...validActiveEntryIds, tone: ['paranoia'] },
+          },
+          fakeUser,
+          reply as any,
+        ),
       ).rejects.toThrow(UnprocessableEntityException);
     });
 

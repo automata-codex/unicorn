@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs';
 
+import { findRationaleToolSyntax } from '../eval/checks/judged/judge';
 import { selectChecksForFixture } from '../eval/checks/registry';
 import { runCheck } from '../eval/checks/run-check';
 import { computeCorpusVersion } from '../eval/corpus-version';
@@ -10,6 +11,7 @@ import {
   writeJudgeArtifactAt,
 } from '../eval/runs/artifacts';
 import { envOnlyConfigService } from '../eval/runs/env-config-service';
+import { assertJudgeContractGoldenCurrent } from '../eval/preflight';
 import { readManifest } from '../eval/runs/manifest';
 import {
   listRepDirsOnDisk,
@@ -144,6 +146,13 @@ export async function runRescore(
   args: RescoreArgs,
   deps: RescoreDeps,
 ): Promise<RescoreSummary> {
+  // Before anything is read or re-graded. A re-score spends judge calls on
+  // every judged check it touches, and doing that under a contract no commit
+  // produces buys a pass whose `judgeContractHash` is a lie. No assembly gate
+  // here: `eval:rescore` renders no assembly surface and writes no
+  // `assemblyHash`.
+  assertJudgeContractGoldenCurrent();
+
   const manifest = readManifest(args.runDir);
   const { rows: sourceRows, exclusions: sourceExclusions } = readVouchedRows(
     args.runDir,
@@ -292,6 +301,8 @@ export async function runRescore(
             verdict: observation.verdict,
             rationale: observation.detail,
             rubricHash: observation.rubricHash ?? '',
+            judgeContractHash: observation.judgeContractHash,
+            rationaleToolSyntax: findRationaleToolSyntax(observation.detail),
             judgeContext: check.judgeContext?.(turnResult, fixture),
           });
           artifactPath = relativeArtifactPath(args.runDir, path);
@@ -416,6 +427,10 @@ function buildRescoreRow(input: BuildRescoreRowInput): RescoreRow {
     judgeInvoked: observation.judgeInvoked,
     verdict: observation.verdict,
     rubricHash: observation.rubricHash,
+    // Re-score-time, like `corpusVersion`/`harnessVersion` above: this row
+    // was graded by the contract in the tree now, not the one the source run
+    // used. `carryForward` deliberately keeps the source's — see there.
+    judgeContractHash: observation.judgeContractHash,
     notApplicableReason: observation.notApplicableReason,
     notApplicableReasonCode: observation.notApplicableReasonCode,
     errorMessage: observation.errorMessage,
@@ -434,7 +449,11 @@ function buildRescoreRow(input: BuildRescoreRowInput): RescoreRow {
  * `corpusVersion`/`harnessVersion` keep the *source* values here, unlike
  * every other row this command writes: no current-code checker ran, so
  * stamping the re-score's versions on this verdict would claim a
- * measurement that never happened.
+ * measurement that never happened. `judgeContractHash` rides the spread for
+ * the same reason and must keep doing so — a carried-forward verdict was
+ * graded by the contract the source run used, and relabelling it with
+ * today's would make every re-score containing one look like it spanned two
+ * judge contracts.
  */
 function carryForward(
   row: ScoreRow,

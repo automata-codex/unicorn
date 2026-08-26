@@ -38,7 +38,7 @@ describe('EntityStatusSchema', () => {
 
 describe('EntitySchema', () => {
   it('accepts a minimal entity and defaults status to unknown', () => {
-    const result = EntitySchema.parse({ visible: true });
+    const result = EntitySchema.parse({ visible: true, revealed: true });
     expect(result.status).toBe('unknown');
     expect(result.npcState).toBeUndefined();
   });
@@ -46,6 +46,7 @@ describe('EntitySchema', () => {
   it('accepts a full entity', () => {
     const result = EntitySchema.parse({
       visible: false,
+      revealed: true,
       status: 'alive',
       npcState: 'Hostile — cornered, low ammo',
     });
@@ -53,8 +54,18 @@ describe('EntitySchema', () => {
     expect(result.npcState).toBe('Hostile — cornered, low ammo');
   });
 
+  it('accepts hidden-but-discovered — the case the two fields exist to express', () => {
+    const result = EntitySchema.parse({ visible: false, revealed: true });
+    expect(result.visible).toBe(false);
+    expect(result.revealed).toBe(true);
+  });
+
   it('rejects missing visible field', () => {
-    expect(() => EntitySchema.parse({ status: 'alive' })).toThrow();
+    expect(() => EntitySchema.parse({ status: 'alive', revealed: true })).toThrow();
+  });
+
+  it('rejects missing revealed field — required, not defaulted (`ADR-0101`)', () => {
+    expect(() => EntitySchema.parse({ visible: true })).toThrow();
   });
 });
 

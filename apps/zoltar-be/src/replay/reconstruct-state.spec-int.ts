@@ -79,7 +79,18 @@ function fakeTelemetry(playerMessage: string) {
     playerMessage,
     snapshotSent: 'n/a',
     originalRequest: { systemBlocks: [], messages: [] } as never,
-    originalResponse: { model: 'n/a', usage: {} } as never,
+    /*
+     * `content` is required, not decoration. `buildResponseShape` maps over it
+     * to record content-block types and tool names in `adventure_telemetry`
+     * (`ADR-0097`), so a fixture without it throws before the write and every
+     * test in this file fails on a TypeError that says nothing about replay.
+     */
+    originalResponse: {
+      model: 'n/a',
+      usage: {},
+      stop_reason: 'tool_use',
+      content: [{ type: 'tool_use', name: 'submit_gm_response' }],
+    } as never,
     originalParsed: { playerText: 'n/a' } as never,
     preTurnPlayerRolls: [],
     rulesLookups: [],
@@ -95,8 +106,15 @@ interface FakeTurnArgs {
   priorGmContextBlob: Record<string, unknown>;
   playerMessage: string;
   applied?: Partial<MothershipCampaignState>;
-  npcStates?: Record<string, string>;
-  correctionNpcStates?: Record<string, string>;
+  npcAgendas?: Record<string, string>;
+  correctionNpcAgendas?: Record<string, string>;
+  /**
+   * Persist the agenda map under the pre-`ADR-0101` key `npcStates` instead of
+   * `npcAgendas`. Replay reads persisted history and every row written before
+   * 2026-08-21 uses the old name, so the legacy read is permanent surface and
+   * gets its own case rather than being assumed.
+   */
+  legacyAgendaKey?: boolean;
   proposedCanon?: Array<{ summary: string; context: string }>;
 }
 
@@ -121,13 +139,15 @@ async function applyFakeTurn(args: FakeTurnArgs): Promise<{
     worldFacts: {},
     ...args.applied,
   };
-  const winningNpcStates = args.correctionNpcStates ?? args.npcStates ?? {};
+  const winningNpcAgendas = args.correctionNpcAgendas ?? args.npcAgendas ?? {};
   const { newCampaignState, newGmContextBlob } = applyValidatedTurn({
     priorCampaignState: args.priorCampaignState,
     priorGmContextBlob: args.priorGmContextBlob,
     applied,
-    npcStates: winningNpcStates,
+    npcAgendas: winningNpcAgendas,
   });
+
+  const agendaKey = args.legacyAgendaKey ? 'npcStates' : 'npcAgendas';
 
   await db.insert(schema.messages).values({
     adventureId: args.adventureId,
@@ -137,12 +157,12 @@ async function applyFakeTurn(args: FakeTurnArgs): Promise<{
 
   const gmResponse = {
     playerText: `GM: ${args.playerMessage}`,
-    gmUpdates: { npcStates: args.npcStates ?? {} },
+    gmUpdates: { [agendaKey]: args.npcAgendas ?? {} },
   } as never;
-  const correction = args.correctionNpcStates
+  const correction = args.correctionNpcAgendas
     ? ({
         playerText: `GM (corrected): ${args.playerMessage}`,
-        gmUpdates: { npcStates: args.correctionNpcStates },
+        gmUpdates: { [agendaKey]: args.correctionNpcAgendas },
       } as never)
     : undefined;
 
@@ -198,8 +218,8 @@ describe('reconstructStateAsOfTurn (integration)', () => {
       gridEntities: [],
     });
 
-    // Turn A (seq 1-3): resourcePools delta only — no npcStates change, no
-    // canon. Exercises "one turn with no npcStates change."
+    // Turn A (seq 1-3): resourcePools delta only — no agenda change, no
+    // canon. Exercises "one turn with no agenda change."
     const turnA = await applyFakeTurn({
       campaignId,
       adventureId,
@@ -209,7 +229,7 @@ describe('reconstructStateAsOfTurn (integration)', () => {
       applied: { resourcePools: { dr_chen: { hp: { current: 8, max: 10 } } } },
     });
 
-    // Turn B (seq 4-6): npcStates change + multiple proposed canon entries.
+    // Turn B (seq 4-6): agenda change + multiple proposed canon entries.
     // Exercises "one turn proposing multiple canon entries."
     const turnB = await applyFakeTurn({
       campaignId,
@@ -218,7 +238,7 @@ describe('reconstructStateAsOfTurn (integration)', () => {
       priorGmContextBlob: turnA.newGmContextBlob,
       playerMessage: 'I radio the bridge.',
       applied: { worldFacts: { bridge_status: 'unresponsive' } },
-      npcStates: { corporate_spy_1: 'Grows suspicious' },
+      npcAgendas: { corporate_spy_1: 'Grows suspicious' },
       proposedCanon: [
         { summary: 'Ship has a brig', context: 'Cell door found.' },
         { summary: 'Bridge crew missing', context: 'No response on comms.' },
@@ -226,7 +246,7 @@ describe('reconstructStateAsOfTurn (integration)', () => {
     });
 
     // Turn C (seq 7-10): a correction fires. The original gm_response
-    // proposes one npcStates value; the correction proposes a different
+    // proposes one agenda value; the correction proposes a different
     // one. Replay must fold the correction's value, not the original's.
     // Exercises "one turn with a correction."
     const turnC = await applyFakeTurn({
@@ -236,10 +256,12 @@ describe('reconstructStateAsOfTurn (integration)', () => {
       priorGmContextBlob: turnB.newGmContextBlob,
       playerMessage: 'I confront the spy.',
       applied: {
-        entities: { corporate_spy_1: { visible: true, status: 'unknown' } },
+        entities: {
+          corporate_spy_1: { visible: true, revealed: true, status: 'unknown' },
+        },
       },
-      npcStates: { corporate_spy_1: 'Rejected — invalid pool' },
-      correctionNpcStates: { corporate_spy_1: 'Panics and flees' },
+      npcAgendas: { corporate_spy_1: 'Rejected — invalid pool' },
+      correctionNpcAgendas: { corporate_spy_1: 'Panics and flees' },
     });
 
     // --- Ground truth from the live tables, captured right here ---------
@@ -277,7 +299,7 @@ describe('reconstructStateAsOfTurn (integration)', () => {
       priorCampaignState: turnC.newCampaignState,
       priorGmContextBlob: turnC.newGmContextBlob,
       applied: turnDApplied,
-      npcStates: {},
+      npcAgendas: {},
     });
     const turnDResult = await sessionRepo.applyTurnAtomic({
       adventureId,
@@ -287,7 +309,7 @@ describe('reconstructStateAsOfTurn (integration)', () => {
       playerAction: { content: turnDPlayerMessage },
       gmResponse: {
         playerText: 'GM: The spy breaks down and confesses.',
-        gmUpdates: { npcStates: {} },
+        gmUpdates: { npcAgendas: {} },
       } as never,
       applied: turnDApplied,
       thresholds: [],

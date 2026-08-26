@@ -88,6 +88,7 @@ describe('buildAdventureTelemetryPayload', () => {
         'notes',
         'originalRequest',
         'originalResponse',
+        'originalResponseShape',
         'playerMessage',
         'rulesLookups',
         'snapshotSent',
@@ -102,6 +103,9 @@ describe('buildAdventureTelemetryPayload', () => {
       messageCount: 2,
       promptTokens: 1500,
       completionTokens: 420,
+      // No `previousGmContextHash` was passed, so this turn stores the text.
+      // The store-on-change behaviour has its own describe block below.
+      gmContext: { hash: '2ee46409', text: 'gm context' },
     });
   });
 
@@ -369,5 +373,184 @@ describe('buildAdventureTelemetryPayload', () => {
       wardenPrompt: stubWardenPrompt,
     });
     expect(payload.rulesLookups).toEqual([]);
+  });
+});
+
+describe('buildAdventureTelemetryPayload — response shape', () => {
+  // The parsed payload cannot distinguish "Claude returned a clean tool_use
+  // block" from "Claude returned prose" from "the tool call stopped early".
+  // Recording the envelope is what makes a bad turn diagnosable from the
+  // archive instead of only from a live repro.
+  const toolUseBlock = {
+    type: 'tool_use',
+    id: 'toolu_1',
+    name: 'submit_gm_response',
+    input: {},
+  } as unknown as Anthropic.ContentBlock;
+  const textBlock = {
+    type: 'text',
+    text: 'thinking out loud',
+  } as unknown as Anthropic.ContentBlock;
+
+  it('records stop_reason, block types in wire order, and tool names', () => {
+    const payload = buildAdventureTelemetryPayload({
+      playerMessage: 'Open the hatch.',
+      snapshotSent: '<state_snapshot/>',
+      originalRequest: stubRequest(),
+      originalResponse: stubResponse({
+        stop_reason: 'tool_use',
+        content: [textBlock, toolUseBlock],
+      }),
+      originalParsed: stubParsed(),
+      applied: emptyApplied,
+      thresholds: [],
+      wardenPrompt: { filename: 'mothership-m7.txt', hash: 'ccac7d1c' },
+    });
+
+    expect(payload.originalResponseShape).toEqual({
+      stopReason: 'tool_use',
+      contentBlockTypes: ['text', 'tool_use'],
+      toolNames: ['submit_gm_response'],
+    });
+  });
+
+  it('normalizes a missing stop_reason to null rather than dropping the field', () => {
+    const payload = buildAdventureTelemetryPayload({
+      playerMessage: 'Wait.',
+      snapshotSent: '<state_snapshot/>',
+      originalRequest: stubRequest(),
+      originalResponse: stubResponse({
+        stop_reason: null,
+        content: [toolUseBlock],
+      }),
+      originalParsed: stubParsed(),
+      applied: emptyApplied,
+      thresholds: [],
+      wardenPrompt: { filename: 'mothership-m7.txt', hash: 'ccac7d1c' },
+    });
+
+    expect(payload.originalResponseShape?.stopReason).toBeNull();
+  });
+
+  it('records the correction round separately from the original', () => {
+    const payload = buildAdventureTelemetryPayload({
+      playerMessage: 'Shoot.',
+      snapshotSent: '<state_snapshot/>',
+      originalRequest: stubRequest(),
+      originalResponse: stubResponse({
+        stop_reason: 'tool_use',
+        content: [toolUseBlock],
+      }),
+      originalParsed: stubParsed(),
+      correction: {
+        rejections: [],
+        response: stubResponse({
+          stop_reason: 'max_tokens',
+          content: [textBlock],
+        }),
+        parsed: stubParsed(),
+      },
+      applied: emptyApplied,
+      thresholds: [],
+      wardenPrompt: { filename: 'mothership-m7.txt', hash: 'ccac7d1c' },
+    });
+
+    expect(payload.originalResponseShape?.stopReason).toBe('tool_use');
+    expect(payload.correction?.correctionResponseShape).toEqual({
+      stopReason: 'max_tokens',
+      contentBlockTypes: ['text'],
+      toolNames: [],
+    });
+  });
+});
+
+/**
+ * The GM context block used to survive as `systemBlocks: number`, an integer,
+ * so what the Warden read on a playtest turn was only three-quarters
+ * recoverable. `gm_context` is a mutable row with no history, so recomputing
+ * it after the fact does not work — nine of 58 turns of the 2026-08-16
+ * playtest overwrote it.
+ */
+describe('buildAdventureTelemetryPayload — GM context store-on-change', () => {
+  function build(previousGmContextHash?: string | null) {
+    return buildAdventureTelemetryPayload({
+      playerMessage: 'Open the door.',
+      snapshotSent: '<state_snapshot>...</state_snapshot>',
+      originalRequest: stubRequest(),
+      originalResponse: stubResponse(),
+      originalParsed: stubParsed(),
+      applied: emptyApplied,
+      thresholds: [],
+      wardenPrompt: stubWardenPrompt,
+      previousGmContextHash,
+    });
+  }
+
+  it('hashes the first system block, which is the GM context', () => {
+    const { gmContext } = build().originalRequest;
+    expect(gmContext?.hash).toMatch(/^[0-9a-f]{8}$/);
+    // Not the Warden prompt block, which already survives as `wardenPrompt`.
+    expect(gmContext?.text).toBe('gm context');
+  });
+
+  it('stores the text on the first turn, when there is nothing to compare', () => {
+    expect(build(null).originalRequest.gmContext?.text).toBe('gm context');
+    expect(build(undefined).originalRequest.gmContext?.text).toBe('gm context');
+  });
+
+  it('omits the text when the hash has not moved off the previous turn', () => {
+    const first = build(null).originalRequest.gmContext;
+    const second = build(first?.hash).originalRequest.gmContext;
+
+    expect(second?.hash).toBe(first?.hash);
+    expect(second?.text).toBeUndefined();
+    // Absent means "identical to the last turn that carried text", never
+    // unknown — the hash is still there to prove it.
+    expect(second).toEqual({ hash: first?.hash });
+  });
+
+  it('stores the text again as soon as the render moves', () => {
+    const first = build(null).originalRequest.gmContext;
+    const moved = buildAdventureTelemetryPayload({
+      playerMessage: 'Open the door.',
+      snapshotSent: '<state_snapshot>...</state_snapshot>',
+      originalRequest: {
+        ...stubRequest(),
+        systemBlocks: [
+          { type: 'text', text: 'gm context, with an amended agenda' },
+          { type: 'text', text: 'warden role' },
+        ],
+      },
+      originalResponse: stubResponse(),
+      originalParsed: stubParsed(),
+      applied: emptyApplied,
+      thresholds: [],
+      wardenPrompt: stubWardenPrompt,
+      previousGmContextHash: first?.hash,
+    }).originalRequest.gmContext;
+
+    expect(moved?.hash).not.toBe(first?.hash);
+    expect(moved?.text).toBe('gm context, with an amended agenda');
+  });
+
+  it('leaves gmContext off entirely when the request carries no system blocks', () => {
+    const payload = buildAdventureTelemetryPayload({
+      playerMessage: 'Open the door.',
+      snapshotSent: '<state_snapshot>...</state_snapshot>',
+      originalRequest: { ...stubRequest(), systemBlocks: [] },
+      originalResponse: stubResponse(),
+      originalParsed: stubParsed(),
+      applied: emptyApplied,
+      thresholds: [],
+      wardenPrompt: stubWardenPrompt,
+    });
+
+    expect(payload.originalRequest.gmContext).toBeUndefined();
+    // The count is untouched — it still answers a different question.
+    expect(payload.originalRequest.systemBlocks).toBe(0);
+  });
+
+  it('keeps systemBlocks as a count alongside the render', () => {
+    expect(build().originalRequest.systemBlocks).toBe(2);
   });
 });

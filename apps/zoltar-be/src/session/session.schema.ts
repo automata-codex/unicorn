@@ -1,4 +1,8 @@
-import { MothershipConditionEnum } from '@uv/game-systems';
+import {
+  EntityStatusSchema,
+  MOTHERSHIP_CHARACTER_POOL_NAMES,
+  MothershipConditionEnum,
+} from '@uv/game-systems';
 import { z } from 'zod';
 
 /**
@@ -42,11 +46,21 @@ const resourcePoolChangeSchema = z.object({
   pool: z
     .string()
     .min(1)
-    .describe('The bare pool name: "hp", "stress", "combat". Never a prefix.'),
+    .describe(
+      'The bare pool name, never a prefix. A player character carries ' +
+        `exactly these: ${MOTHERSHIP_CHARACTER_POOL_NAMES.join(', ')}. ` +
+        'Other owners may carry pools outside that set — NPC timers, station ' +
+        'subsystems, anything synthesis created.',
+    ),
   delta: z
     .number()
     .int()
-    .describe("Signed change to the pool's current value."),
+    .describe(
+      "Signed change to the pool's current value. Taking a Wound is " +
+        '`{ pool: "wounds", delta: 1 }` — the wounds pool counts up from ' +
+        'zero toward its maximum, and this is how a Wound is recorded. Do ' +
+        'not use `maxDelta` for it.',
+    ),
   maxDelta: z
     .number()
     .int()
@@ -54,7 +68,9 @@ const resourcePoolChangeSchema = z.object({
     .describe(
       "Signed change to the pool's ceiling. Only for effects that move the " +
         'ceiling itself — Maximum Health lost on the Death table, Maximum ' +
-        'Wounds lost to Panic 19. Omit it for ordinary damage and healing.',
+        'Wounds lost to Panic 19, which removes a Wound *slot*. Omit it for ' +
+        'ordinary damage and healing, and for taking a Wound: that is a ' +
+        '`delta` against the wounds pool, not a change to its maximum.',
     ),
   reason: z
     .string()
@@ -128,6 +144,46 @@ const characterStateChangeSchema = z.discriminatedUnion('op', [
       ),
   }),
   z.object({
+    op: z.literal('roll_modifier_add'),
+    entityId: z.string().min(1),
+    effect: z
+      .enum(['advantage', 'disadvantage'])
+      .describe(
+        'Mothership has no additive roll bonus. A durable penalty is ' +
+          'Disadvantage — roll twice, take the worse — and a durable boon is ' +
+          'Advantage. Never a number.',
+      ),
+    scope: z
+      .enum(['all_rolls', 'stat', 'save', 'skill'])
+      .describe(
+        'Use "all_rolls" for the Wounds Table\'s "[-] on all rolls". The ' +
+          'other three name what they apply to in `target`.',
+      ),
+    target: z
+      .string()
+      .max(100)
+      .optional()
+      .describe(
+        'The Stat, Save or skill this applies to. Omit for "all_rolls".',
+      ),
+    source: z
+      .string()
+      .min(1)
+      .max(200)
+      .describe(
+        'Where it came from: "Wounds Table: skull fracture". This is the key ' +
+          'a later roll_modifier_remove names, so make it specific.',
+      ),
+  }),
+  z.object({
+    op: z.literal('roll_modifier_remove'),
+    entityId: z.string().min(1),
+    source: z
+      .string()
+      .min(1)
+      .describe('The `source` of the modifier to clear, exactly as written.'),
+  }),
+  z.object({
     op: z.literal('bleeding_set'),
     entityId: z.string().min(1),
     value: z
@@ -176,7 +232,18 @@ export type CharacterStateChange = z.infer<typeof characterStateChangeSchema>;
  * to state — M6 owns validation and write).
  */
 export const submitGmResponseSchema = z.object({
-  playerText: z.string(),
+  playerText: z
+    .string()
+    .describe(
+      'The narration the player reads this turn, and nothing else: prose, ' +
+        'ending where the narration ends. Never write a closing tag, a ' +
+        'parameter tag, or any other tool-call markup inside this string — ' +
+        'that markup is how a call is transmitted, not something you author, ' +
+        'and a turn that appends it here loses everything after the ' +
+        'narration. Every other part of the response — state changes, ' +
+        'private notes, dice the player must roll — is a sibling parameter ' +
+        'on this tool, sent alongside this one rather than written into it.',
+    ),
 
   stateChanges: z
     .object({
@@ -206,11 +273,104 @@ export const submitGmResponseSchema = z.object({
         .record(
           z.string(),
           z.object({
-            visible: z.boolean().optional(),
-            status: z.string().optional(),
+            visible: z
+              .boolean()
+              .optional()
+              .describe(
+                'Line of sight: can a player character perceive this entity ' +
+                  'right now? Changes in both directions and often — the ' +
+                  'goblin ducks behind a column (false), then steps back out ' +
+                  '(true). It is NOT a record of whether the players know the ' +
+                  'entity exists; that is `revealed`, and losing sight of ' +
+                  'something does not un-discover it.',
+              ),
+            revealed: z
+              .boolean()
+              .optional()
+              .describe(
+                'Discovery: have the players found out this entity exists at ' +
+                  'all? One-way — once true it can never go back to false, ' +
+                  'and an attempt is rejected. Set it true on the turn the ' +
+                  'players first learn of the entity. To take an entity out ' +
+                  'of sight afterwards, set `visible: false` and leave this ' +
+                  'alone.',
+              ),
+            status: EntityStatusSchema.optional().describe(
+              'Whether the entity is living: `alive`, `dead`, or `unknown`. ' +
+                'Nothing else — it is not a place for what the entity is ' +
+                'doing, feeling, or has just done. That is `npcState`.',
+            ),
+            npcState: z
+              .string()
+              .optional()
+              .describe(
+                'Disposition: what this NPC is doing or feeling now, in your ' +
+                  'own words. "Hostile — cornered, low ammo", "Panicked, fled ' +
+                  'to the galley". Free text, replaced whole each time you ' +
+                  'write it, omitted when nothing changed. This is where ' +
+                  "tactical and narrative detail goes. It is NOT the NPC's " +
+                  'agenda — their durable motivation is ' +
+                  '`gmUpdates.npcAgendas`.',
+              ),
           }),
         )
-        .optional(),
+        .optional()
+        .describe(
+          'Changes to entities already in play, keyed by entity id. An id ' +
+            'that is not in play is rejected — introduce one with ' +
+            '`newEntities`.',
+        ),
+
+      /**
+       * Entities introduced during play, as a member of their own rather than
+       * an inferred side effect of naming an unrecognized id in `entities`
+       * (`ADR-0101`, spec 019 § Part 5).
+       *
+       * `entities` used to create an entity silently whenever it did not
+       * recognize the key, which made a genuine mid-adventure NPC and a
+       * mistyped or hallucinated id indistinguishable — the first is ordinary
+       * play and the second silently forks the entity into two records that
+       * drift apart. Creation is now stated. An id already in play is rejected
+       * here, and an id not in play is rejected in `entities`; each member has
+       * exactly one job.
+       *
+       * A create carries full initial state, so it needs no accompanying
+       * `entities` update, and its id becomes a legal resource-pool owner for
+       * the remainder of the same turn.
+       */
+      newEntities: z
+        .record(
+          z.string(),
+          z.object({
+            visible: z
+              .boolean()
+              .describe('Can a player character perceive it right now?'),
+            revealed: z
+              .boolean()
+              .describe(
+                'Do the players know it exists? An entity you are ' +
+                  'introducing into the scene in front of them is `true`; ' +
+                  'one moving unseen is `false`. `visible: true` with ' +
+                  '`revealed: false` is rejected — something in sight has ' +
+                  'been discovered.',
+              ),
+            status: EntityStatusSchema.optional().describe(
+              'Living or not; defaults to `unknown`.',
+            ),
+            npcState: z
+              .string()
+              .optional()
+              .describe('Starting disposition, if it has one.'),
+          }),
+        )
+        .optional()
+        .describe(
+          'Entities entering play this turn, keyed by a new entity id. Use ' +
+            'this for an NPC, threat or feature that did not exist before — ' +
+            'creating one is something a turn has to say out loud, so naming ' +
+            'an unknown id in `entities` is rejected rather than treated as ' +
+            'a create. An id already in play is rejected here.',
+        ),
 
       // Only flags introduced during play carry a trigger. For existing
       // flags, submit only the new value.
@@ -230,11 +390,52 @@ export const submitGmResponseSchema = z.object({
 
       worldFacts: z.record(z.string(), z.string()).optional(),
     })
+    .describe(
+      'Everything this turn changed about the world, as a proposal the ' +
+        'backend validates before applying: pool deltas, character state, ' +
+        'entity line of sight, discovery, status and disposition, new ' +
+        'entities, flags, scenario counters, world facts. Send it on any ' +
+        'turn that moved state, however small the move; omit it entirely on ' +
+        'a turn that moved none. A change described only in the narration is ' +
+        'a change that did not happen.',
+    )
     .optional(),
 
   gmUpdates: z
     .object({
-      npcStates: z.record(z.string(), z.string()).optional(),
+      /**
+       * Amendments to an NPC's **agenda** — what they want and why, the
+       * durable motivation synthesis authored. Replaces the prior value for
+       * that entity outright, because an explicit agenda write is a stated
+       * intent rather than an accumulation.
+       *
+       * This replaces `npcStates`, which was the same map under a name that
+       * described the wrong thing. It merged into `narrative.npcAgendas`
+       * (`ADR-0101`), so a turn recording that an NPC was rattled overwrote
+       * the conditions governing their central secret and every later turn
+       * read the mood note under an `npc_agendas:` heading. Nine of 58 turns
+       * in the 2026-08-16 playtest wrote it, and the cartographer's agenda did
+       * not survive.
+       *
+       * **Disposition — what an NPC is doing or feeling right now — is
+       * `stateChanges.entities[id].npcState`, not this.** The two are
+       * separately named and neither can reach the other's field.
+       */
+      npcAgendas: z
+        .record(z.string(), z.string())
+        .optional()
+        .describe(
+          "Amendments to an NPC's agenda — their durable motivation: what " +
+            'they want, why, and what would make them act differently. Keyed ' +
+            "by entity id, and replaces that NPC's agenda outright, so send " +
+            'the whole new agenda rather than a fragment. Only send one when ' +
+            'the motivation itself has genuinely changed. What an NPC is ' +
+            'doing or feeling right now is NOT this — that is ' +
+            '`stateChanges.entities[id].npcState`. An observation that is ' +
+            'not about one specific NPC belongs in `notes`; a key naming ' +
+            'neither an entity in play nor an NPC with an existing agenda is ' +
+            'rejected.',
+        ),
       notes: z.string().optional(),
       proposedCanon: z
         .array(
@@ -245,6 +446,12 @@ export const submitGmResponseSchema = z.object({
         )
         .optional(),
     })
+    .describe(
+      "Warden-private updates the player never sees: how an NPC's agenda " +
+        'shifted, notes for the reviewer reading this turn later, and canon ' +
+        'proposals. Use notes for a ruling you are unsure about or a gap you ' +
+        'had to work around — it is the only channel that reaches a human.',
+    )
     .optional(),
 
   // Player-facing dice prompts. Backend assigns IDs on receipt.
@@ -256,9 +463,24 @@ export const submitGmResponseSchema = z.object({
         target: z.number().int().nullable().optional(),
       }),
     )
+    .describe(
+      'Rolls the player makes themselves, one entry per roll, issued when ' +
+        'their own declared action needs resolving. The backend assigns ids ' +
+        'and the results arrive on a later turn. For a roll the world makes ' +
+        'rather than the player, call roll_dice instead and narrate the ' +
+        'result you get back.',
+    )
     .optional(),
 
-  adventureMode: z.enum(['freeform', 'initiative']).nullable().optional(),
+  adventureMode: z
+    .enum(['freeform', 'initiative'])
+    .nullable()
+    .optional()
+    .describe(
+      'The turn structure the adventure is running under. Send it only on a ' +
+        'turn that actually changes the structure — combat starting or ' +
+        'ending. Omit it on every other turn; it is not a field to restate.',
+    ),
 });
 
 export type SubmitGmResponse = z.infer<typeof submitGmResponseSchema>;
@@ -300,7 +522,34 @@ export type RollType = z.infer<typeof rollTypeSchema>;
 
 export const rollDiceInputSchema = z.object({
   notation: z.string(),
-  purpose: z.string(),
+  /**
+   * Carries the roll's meaning, not just its subject — and it is the only
+   * place that meaning is recorded.
+   *
+   * `UNAUDITABLE-MAPPING` grades this text and read 0.00 for three runs
+   * because the Warden wrote the subject alone ("gauge honesty vs
+   * deflection") and settled what the number meant after seeing it. Nothing
+   * had ever asked otherwise: this field had no description and
+   * `mothership-m7.txt` did not mention it
+   * (`docs/rules-extraction-findings.md § S36`).
+   *
+   * The GM roll path has no `target`, unlike the player path
+   * (`diceRequests` above), so a threshold stated here is the whole record
+   * of it. That asymmetry is real and out of scope for plan 021.
+   */
+  purpose: z
+    .string()
+    .describe(
+      'What the roll is for AND what its results mean, fixed before the die ' +
+        'is read. Being able to state a threshold is not permission to roll ' +
+        'something that belongs to the player — if the roll is theirs it is ' +
+        "still a diceRequest. Name the value an NPC's roll is measured " +
+        'against ("roll under the cartographer\'s Instinct 35"), the row or ' +
+        'range for a table, or the bands for anything decided by die ("1d6 ' +
+        'for what she notices: 1-2 nothing, 3-4 distant movement, 5-6 the ' +
+        'contractor"). A purpose naming only the subject leaves the number ' +
+        'meaning whatever the Warden decides after seeing it.',
+    ),
   /**
    * The entity this roll is *for*, by its state identifier (`dr_chen`,
    * `corporate_spy_1`).

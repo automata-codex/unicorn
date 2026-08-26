@@ -1,0 +1,36 @@
+<state_snapshot>
+
+<resource_pools>
+_scenario.probe_timer: 5
+probe_player.hp: 8/12
+probe_player.stress: 3/20
+</resource_pools>
+
+<character_attributes>
+probe_player:
+  armor: Standard Crew Attire — AP 1/3 — DR 0 — sealed
+  skills: Zero-G trained (+10), Piloting expert (suppressed)
+  conditions: frightened (probe_threat), loss_of_confidence (Piloting)
+  roll modifiers: [-] on all rolls (Wounds Table: skull fracture); [+] on save body (Automed)
+</character_attributes>
+
+<entities>
+probe_player: visible, revealed, status=unknown, player_character
+probe_hidden_npc: hidden, revealed, status=alive, instinct 48, role medic, skills Zoology trained (+10), Field Medicine expert (+15), state: Wary — has not been seen yet and knows it.
+probe_npc_one: visible, revealed, status=alive, instinct 49, role chief_engineer, skills Industrial Equipment trained (+10), Mechanical Repair expert (+15), Engineering master (+20), Jury-Rigging trained (+10), state: Cooperative — wants the reactor kept online.
+probe_threat: hidden, undiscovered, status=unknown
+</entities>
+
+<flags>
+probe_flag_set: true
+</flags>
+
+<scenario_state>
+probe_counter: 2/6
+</scenario_state>
+
+<world_facts>
+probe_fact: The aft airlock has been welded shut.
+</world_facts>
+
+</state_snapshot>

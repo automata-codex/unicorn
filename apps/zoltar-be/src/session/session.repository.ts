@@ -15,6 +15,7 @@ import {
 } from './session.events';
 import {
   buildAdventureTelemetryPayload,
+  latestGmContextHash,
   writeAdventureTelemetry,
 } from './session.telemetry';
 
@@ -658,6 +659,12 @@ export class SessionRepository {
           modifier: r.modifier,
           total: r.total,
         }));
+      // Read before the insert, inside the same transaction: the row this
+      // turn is about to write must not be the one it compares against.
+      const previousGmContextHash = await latestGmContextHash({
+        tx,
+        adventureId: args.adventureId,
+      });
       const telemetryPayload = buildAdventureTelemetryPayload({
         playerMessage: args.telemetry.playerMessage,
         snapshotSent: args.telemetry.snapshotSent,
@@ -671,6 +678,7 @@ export class SessionRepository {
         rulesLookups: args.telemetry.rulesLookups,
         toolLoopIterations: args.telemetry.toolLoopIterations,
         wardenPrompt: args.telemetry.wardenPrompt,
+        previousGmContextHash,
       });
       await writeAdventureTelemetry({
         tx,

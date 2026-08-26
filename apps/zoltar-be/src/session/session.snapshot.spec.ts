@@ -87,6 +87,7 @@ describe('buildStateSnapshot', () => {
   describe('<character_attributes>', () => {
     const armored = {
       conditions: [],
+      rollModifiers: [],
       skills: [],
       equipment: [],
       wornArmor: {
@@ -205,6 +206,7 @@ describe('buildStateSnapshot', () => {
         dr_chen: armored,
         xenomorph: {
           conditions: [],
+          rollModifiers: [],
           skills: [],
           equipment: [],
           wornArmor: null,
@@ -235,18 +237,56 @@ describe('buildStateSnapshot', () => {
     });
   });
 
-  it('elides hidden entities from the <entities> block', () => {
+  it('renders hidden entities rather than withholding them (`ADR-0101`)', () => {
     const snapshot = buildStateSnapshot({
       gmContextBlob: emptyBlob,
       campaignStateData: makeState({
         entities: {
-          engineer_kowalski: { visible: true, status: 'alive' },
-          shadow_threat: { visible: false, status: 'unknown' },
+          engineer_kowalski: { visible: true, revealed: true, status: 'alive' },
+          shadow_threat: { visible: false, revealed: false, status: 'unknown' },
         },
       }),
     });
-    expect(snapshot).toContain('engineer_kowalski: visible, status=alive');
-    expect(snapshot).not.toContain('shadow_threat');
+    expect(snapshot).toContain(
+      'engineer_kowalski: visible, revealed, status=alive',
+    );
+    expect(snapshot).toContain(
+      'shadow_threat: hidden, undiscovered, status=unknown',
+    );
+  });
+
+  it('renders npcState as the trailing `state:` bit', () => {
+    const snapshot = buildStateSnapshot({
+      gmContextBlob: emptyBlob,
+      campaignStateData: makeState({
+        entities: {
+          engineer_kowalski: {
+            visible: true,
+            revealed: true,
+            status: 'alive',
+            npcState: 'Hostile — cornered, low ammo',
+          },
+        },
+      }),
+    });
+    expect(snapshot).toContain(
+      'engineer_kowalski: visible, revealed, status=alive, state: Hostile — cornered, low ammo',
+    );
+  });
+
+  it('omits the `state:` bit entirely when npcState is unset', () => {
+    const snapshot = buildStateSnapshot({
+      gmContextBlob: emptyBlob,
+      campaignStateData: makeState({
+        entities: {
+          engineer_kowalski: { visible: true, revealed: true, status: 'alive' },
+        },
+      }),
+    });
+    expect(snapshot).toContain(
+      'engineer_kowalski: visible, revealed, status=alive',
+    );
+    expect(snapshot).not.toContain('state:');
   });
 
   it('always includes player entities even when hidden', () => {
@@ -257,13 +297,15 @@ describe('buildStateSnapshot', () => {
       },
       campaignStateData: makeState({
         entities: {
-          dr_chen: { visible: false, status: 'alive' },
-          shadow_threat: { visible: false, status: 'unknown' },
+          dr_chen: { visible: false, revealed: false, status: 'alive' },
+          shadow_threat: { visible: false, revealed: false, status: 'unknown' },
         },
       }),
     });
-    expect(snapshot).toContain('dr_chen: hidden, status=alive');
-    expect(snapshot).not.toContain('shadow_threat');
+    expect(snapshot).toContain('dr_chen: hidden, undiscovered, status=alive');
+    expect(snapshot).toContain(
+      'shadow_threat: hidden, undiscovered, status=unknown',
+    );
   });
 
   it('emits a player entity absent from the entities map', () => {
@@ -273,13 +315,17 @@ describe('buildStateSnapshot', () => {
     const snapshot = buildStateSnapshot({
       gmContextBlob: { ...emptyBlob, playerEntityIds: ['lt_alvarez'] },
       campaignStateData: makeState({
-        entities: { burned_out_medic: { visible: true, status: 'alive' } },
+        entities: {
+          burned_out_medic: { visible: true, revealed: true, status: 'alive' },
+        },
       }),
     });
     expect(snapshot).toContain(
-      'lt_alvarez: visible, status=unknown, player_character',
+      'lt_alvarez: visible, revealed, status=unknown, player_character',
     );
-    expect(snapshot).toContain('burned_out_medic: visible, status=alive');
+    expect(snapshot).toContain(
+      'burned_out_medic: visible, revealed, status=alive',
+    );
   });
 
   it('tags a player entity that is in the map and lists players first', () => {
@@ -287,13 +333,13 @@ describe('buildStateSnapshot', () => {
       gmContextBlob: { ...emptyBlob, playerEntityIds: ['dr_chen'] },
       campaignStateData: makeState({
         entities: {
-          apex_predator: { visible: true, status: 'unknown' },
-          dr_chen: { visible: true, status: 'alive' },
+          apex_predator: { visible: true, revealed: true, status: 'unknown' },
+          dr_chen: { visible: true, revealed: true, status: 'alive' },
         },
       }),
     });
     expect(snapshot).toContain(
-      'dr_chen: visible, status=alive, player_character',
+      'dr_chen: visible, revealed, status=alive, player_character',
     );
     // `apex_predator` sorts before `dr_chen`; the player must still come first.
     const block = snapshot.slice(snapshot.indexOf('<entities>'));
@@ -309,41 +355,65 @@ describe('buildStateSnapshot', () => {
     });
     expect(snapshot).toContain('<entities>');
     expect(snapshot).toContain(
-      'lt_alvarez: visible, status=unknown, player_character',
+      'lt_alvarez: visible, revealed, status=unknown, player_character',
     );
   });
 
-  it('omits the <entities> block when every entity is hidden and no player entities exist', () => {
+  it('emits the <entities> block when every entity is hidden (`ADR-0101`)', () => {
     const snapshot = buildStateSnapshot({
       gmContextBlob: emptyBlob,
       campaignStateData: makeState({
         entities: {
-          shadow_threat: { visible: false, status: 'unknown' },
+          shadow_threat: { visible: false, revealed: false, status: 'unknown' },
         },
       }),
+    });
+    expect(snapshot).toContain('<entities>');
+    expect(snapshot).toContain(
+      'shadow_threat: hidden, undiscovered, status=unknown',
+    );
+  });
+
+  it('omits the <entities> block only when there are no entities at all', () => {
+    const snapshot = buildStateSnapshot({
+      gmContextBlob: emptyBlob,
+      campaignStateData: makeState({ entities: {} }),
     });
     expect(snapshot).not.toContain('<entities>');
   });
 
-  it('drops an entity from the snapshot when its visibility toggles to false', () => {
-    const first = buildStateSnapshot({
+  /**
+   * Losing sight of a discovered NPC is the case the split exists for: the
+   * goblin ducks behind the column. It stays in the block, flips to `hidden`,
+   * and stays `revealed` — the crew does not forget it exists.
+   */
+  it('keeps a discovered entity in the block when it goes out of sight', () => {
+    const inSight = buildStateSnapshot({
       gmContextBlob: emptyBlob,
       campaignStateData: makeState({
         entities: {
-          engineer_kowalski: { visible: true, status: 'alive' },
+          engineer_kowalski: { visible: true, revealed: true, status: 'alive' },
         },
       }),
     });
-    const second = buildStateSnapshot({
+    const outOfSight = buildStateSnapshot({
       gmContextBlob: emptyBlob,
       campaignStateData: makeState({
         entities: {
-          engineer_kowalski: { visible: false, status: 'alive' },
+          engineer_kowalski: {
+            visible: false,
+            revealed: true,
+            status: 'alive',
+          },
         },
       }),
     });
-    expect(first).toContain('engineer_kowalski');
-    expect(second).not.toContain('engineer_kowalski');
+    expect(inSight).toContain(
+      'engineer_kowalski: visible, revealed, status=alive',
+    );
+    expect(outOfSight).toContain(
+      'engineer_kowalski: hidden, revealed, status=alive',
+    );
   });
 
   it('emits a flag trigger only for flags introduced during play', () => {
@@ -434,6 +504,7 @@ describe('buildStateSnapshot', () => {
         characterState: {
           dr_chen: {
             conditions: [{ condition: 'doomed' }],
+            rollModifiers: [],
             skills: [],
             equipment: [],
             wornArmor: null,
@@ -442,7 +513,9 @@ describe('buildStateSnapshot', () => {
             pendingDeathSave: null,
           },
         },
-        entities: { kowalski: { visible: true, status: 'alive' } },
+        entities: {
+          kowalski: { visible: true, revealed: true, status: 'alive' },
+        },
         flags: {
           adventure_complete: { value: false, trigger: 'Escape pod.' },
         },

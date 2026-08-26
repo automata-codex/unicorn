@@ -1,0 +1,8 @@
+Vasquez (marine)
+Entity ID: vasquez
+Stats: STR 55, SPD 40, INT 35, CMB 50/60
+Saves: Sanity 50, Fear 30, Body 40
+Health: 12/15   Wounds: 1/3   Stress: 4
+Trauma Response: When you Panic, everyone within earshot must make a Fear Save.
+Trinket: Bone Knife
+Patch: "I Void Warranties"

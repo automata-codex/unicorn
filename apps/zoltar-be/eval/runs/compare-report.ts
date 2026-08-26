@@ -210,6 +210,8 @@ function renderRunHeader(label: string, side: CompareSideInput): string[] {
   lines.push(`- Prompt hash: ${manifest.promptHash}`);
   lines.push(`- Temperature: ${manifest.temperature}`);
   lines.push(`- Corpus version: ${shortCorpusVersion(manifest.corpusVersion)}`);
+  lines.push(`- Assembly hash: ${manifest.assemblyHash ?? '(not recorded)'}`);
+  lines.push(`- Judge contract: ${describeJudgeContract(manifest)}`);
   lines.push(`- Decision rule: ${manifest.decisionRule ?? '(none recorded)'}`);
   lines.push(...renderScoringProvenance(side.scoring));
   lines.push('');
@@ -260,6 +262,100 @@ function scoringMismatchWarnings(
 }
 
 /**
+ * Warns when the two sides saw a different **code-built** prompt surface —
+ * the tool definitions, the GM context block, or the state snapshot
+ * (`src/session/session.assembly.ts`).
+ *
+ * `promptHash` does not cover any of those: it hashes `mothership-m7.txt`
+ * and nothing else, so a rewritten tool description or an added snapshot
+ * section leaves it untouched while changing what the Warden reads. Neither
+ * does `corpusVersion`, which hashes fixture bytes. Without this check the
+ * two runs pair cleanly on every field the report prints and the difference
+ * shows up only in the rates, attributed to the model.
+ *
+ * A missing hash on either side is reported separately and never as a
+ * match: runs predating the field carry no assembly identity at all, and
+ * "unknown" quietly rendered as "same" is the failure this exists to stop.
+ */
+function describeJudgeContract(manifest: Manifest): string {
+  const hashes = [
+    ...new Set(
+      manifest.completedReps
+        .map((rep) => rep.judgeContractHash)
+        .filter((h): h is string => h !== undefined),
+    ),
+  ].sort();
+  if (hashes.length === 0) return '(not recorded)';
+  if (hashes.length === 1) return hashes[0];
+  return `mixed: ${hashes.join(', ')}`;
+}
+
+/**
+ * The judge-contract counterpart to `assemblyMismatchWarnings`, and the same
+ * rule about absence: a run predating the field has an unknown grader, not a
+ * matching one.
+ *
+ * Kept separate rather than folded in, because the remedy differs. A moved
+ * `assemblyHash` means the two sides read different prompts and the fix is a
+ * fresh run; a moved `judgeContractHash` means the same Warden outputs were
+ * graded two different ways and the fix is `eval:rescore`, which costs judge
+ * calls but no Warden calls.
+ */
+function judgeContractMismatchWarnings(a: Manifest, b: Manifest): string[] {
+  const left = describeJudgeContract(a);
+  const right = describeJudgeContract(b);
+
+  if (left === '(not recorded)' || right === '(not recorded)') {
+    const missing =
+      left === '(not recorded)' && right === '(not recorded)'
+        ? 'Neither run records'
+        : `Run ${left === '(not recorded)' ? 'A' : 'B'} does not record`;
+    return [
+      `${missing} a judgeContractHash — that run predates the field, so ` +
+        'whether the two sides were graded by the same judge tool schema, ' +
+        'system prompt, closing instruction and model is unknown rather than ' +
+        'confirmed. `rubricHash` covers none of those and will look identical.',
+    ];
+  }
+  if (left !== right) {
+    return [
+      `Judge contracts differ between run A and run B (${left} vs ${right}) ` +
+        '— the same Warden output would be graded differently on each side, ' +
+        'so every judged \u0394 below mixes a grader change with whatever else ' +
+        'moved. Re-score one side under the other\u2019s contract to compare ' +
+        'like for like; that costs judge calls but no Warden calls.',
+    ];
+  }
+  return [];
+}
+
+function assemblyMismatchWarnings(a: Manifest, b: Manifest): string[] {
+  if (a.assemblyHash === undefined || b.assemblyHash === undefined) {
+    const missing =
+      a.assemblyHash === undefined && b.assemblyHash === undefined
+        ? 'Neither run records'
+        : `Run ${a.assemblyHash === undefined ? 'A' : 'B'} does not record`;
+    return [
+      `${missing} an assemblyHash — that run predates the field, so whether ` +
+        'the two sides saw the same tool definitions, GM context and state ' +
+        'snapshot is unknown rather than confirmed. Check it by hand before ' +
+        'reading any Δ as a model effect.',
+    ];
+  }
+  if (a.assemblyHash !== b.assemblyHash) {
+    return [
+      `Assembly hashes differ between run A and run B (${a.assemblyHash} vs ` +
+        `${b.assemblyHash}) — the tool definitions, GM context block or ` +
+        'state snapshot changed between them, so the Warden was reading a ' +
+        'different prompt on each side. `promptHash` does not cover those ' +
+        'surfaces and will look identical; this comparison is not ' +
+        'like-for-like.',
+    ];
+  }
+  return [];
+}
+
+/**
  * Renders a paired comparison as markdown. `pairs` is expected already
  * ordered by `orderForDisplay` (regressions first) — this function doesn't
  * re-sort, so the caller's ordering choice is exactly what's rendered.
@@ -294,6 +390,8 @@ export function renderCompareReport(
         'this comparison mixes prompt/model effect with fixture-corpus differences.',
     );
   }
+  warnings.push(...assemblyMismatchWarnings(a.manifest, b.manifest));
+  warnings.push(...judgeContractMismatchWarnings(a.manifest, b.manifest));
   for (const p of findApplicabilitySourceMismatches(pairs)) {
     warnings.push(
       `Check \`${p.checkId}\` (fixture ${p.fixtureId}) gates applicability on ` +

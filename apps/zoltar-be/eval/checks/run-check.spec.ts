@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { AnthropicService } from '../../src/anthropic/anthropic.service';
 
+import { computeJudgeContractHash } from './judged/judge';
 import { evalChecks } from './registry';
 import { runCheck } from './run-check';
 import { structuralCheckers } from './structural/registry';
@@ -201,6 +202,9 @@ describe('runCheck — judged checks', () => {
     expect(observation.verdict).toBe('pass');
     expect(observation.detail).toBe('fine');
     expect(observation.rubricHash).toMatch(/^[0-9a-f]{8}$/);
+    // The rubric is half the identity of a judged verdict; the contract that
+    // asked the question is the other half, and had none until now.
+    expect(observation.judgeContractHash).toBe(computeJudgeContractHash());
   });
 
   it('maps a passed:false verdict to fail', async () => {
@@ -271,6 +275,8 @@ describe('runCheck — judgeGate (structural pre-filter on a judged check)', () 
     // otherwise — and `eval:judge-variance` reads exactly this to decide
     // what belongs in a flip-rate denominator.
     expect(observation.rubricHash).toBeUndefined();
+    // Same rule, same reason: no judge was asked, so no contract graded this.
+    expect(observation.judgeContractHash).toBeUndefined();
     expect(observation.notApplicableReasonCode).toBe('no narration');
     expect(anthropic.callMessages).not.toHaveBeenCalled();
   });
@@ -291,6 +297,7 @@ describe('runCheck — judgeGate (structural pre-filter on a judged check)', () 
     expect(observation.verdict).toBe('pass');
     expect(observation.judgeInvoked).toBe(true);
     expect(observation.rubricHash).toBeDefined();
+    expect(observation.judgeContractHash).toBeDefined();
     expect(anthropic.callMessages).toHaveBeenCalledTimes(1);
   });
 

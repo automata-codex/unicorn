@@ -1,11 +1,17 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
+import { findRationaleToolSyntax } from '../eval/checks/judged/judge';
 import { rubricTextFor, selectChecksForFixture } from '../eval/checks/registry';
 import { runCheck } from '../eval/checks/run-check';
 import { computeCorpusVersion } from '../eval/corpus-version';
 import { loadFixtures } from '../eval/fixture-loader';
-import { assertRulesIndexPopulated } from '../eval/preflight';
+import {
+  assertAssemblyGoldensCurrent,
+  assertJudgeContractGoldenCurrent,
+  assertNoStubCheckers,
+  assertRulesIndexPopulated,
+} from '../eval/preflight';
 import {
   relativeArtifactPath,
   writeFixtureArtifacts,
@@ -30,6 +36,7 @@ import {
   wardenRequestPath,
 } from '../eval/runs/paths';
 import { ScoreWriter } from '../eval/runs/scores';
+import { computeAssemblyHash } from '../src/session/session.assembly';
 import { hashPromptText, promptsDir } from '../src/wardens/prompt-paths';
 
 import { getHarnessVersion } from './harness-version';
@@ -206,6 +213,17 @@ export async function runEval(
   // be appended weeks apart against a changed fixture corpus.
   const corpusVersion = await computeCorpusVersion(args.fixturesDir);
 
+  // Before the hash is taken, and before the run directory exists: a stale
+  // workspace build renders surfaces this commit does not, and the value
+  // below would then label the run with a hash no commit produces
+  // (`ADR-0099`, addendum). Not routed through `deps.assertPreflight` and not
+  // covered by `--skip-preflight`, for the reason `assertNoStubCheckers`
+  // gives — the subject is the repo and the label, not the environment.
+  assertAssemblyGoldensCurrent();
+  assertJudgeContractGoldenCurrent();
+
+  const assemblyHash = computeAssemblyHash();
+
   let runDir: string;
   if (args.runDir) {
     runDir = resolveRunDirArg(root, args.runDir);
@@ -214,6 +232,7 @@ export async function runEval(
       model: args.model,
       promptHash: prompt.hash,
       temperature: args.temperature,
+      assemblyHash,
     });
   } else {
     runDir = createRunDirectory({
@@ -223,6 +242,7 @@ export async function runEval(
       promptText: prompt.text,
       temperature: args.temperature,
       corpusVersion,
+      assemblyHash,
       plannedReps: args.reps,
       decisionRule: args.decisionRule,
       createdAt: deps.clock(),
@@ -248,6 +268,11 @@ export async function runEval(
   if (selectedFixtures.length === 0) {
     throw new Error('no fixtures selected to run');
   }
+
+  // Before the harness session exists, so a corpus carrying a stub checker
+  // costs nothing to reject. Not routed through `deps.assertPreflight` and
+  // not covered by `--skip-preflight`: see `assertNoStubCheckers`.
+  assertNoStubCheckers(selectedFixtures);
 
   // Per-fixture rep count, resolved once before rep 1 — nothing writes to
   // this map afterward. This is what makes "no adaptive mode" a structural
@@ -320,6 +345,7 @@ export async function runEval(
       const startedAt = deps.clock().toISOString();
       const attemptedFixtureIds: string[] = [];
       const rubricHashesThisRep: Record<string, string> = {};
+      const judgeContractHashesThisRep = new Set<string>();
 
       for (const [fixtureIndex, fixture] of fixturesForThisRep.entries()) {
         attemptedFixtureIds.push(fixture.id);
@@ -357,6 +383,7 @@ export async function runEval(
             writer,
             rowCounts,
             rubricHashesThisRep,
+            judgeContractHashesThisRep,
           });
         } finally {
           if (!args.keepScratch) {
@@ -385,6 +412,14 @@ export async function runEval(
         index: repIndex,
         harnessVersion,
         rubricHashes: rubricHashesThisRep,
+        // One value per rep, because the contract is process-wide. A rep
+        // whose judged checks somehow disagreed is a bug rather than a
+        // manifest shape to model, so it records as unknown rather than as
+        // one of the two — the rows still carry every value.
+        judgeContractHash:
+          judgeContractHashesThisRep.size === 1
+            ? [...judgeContractHashesThisRep][0]
+            : undefined,
         fixtureIds: attemptedFixtureIds,
         startedAt,
         completedAt: deps.clock().toISOString(),
@@ -429,6 +464,7 @@ interface RunFixtureAndScoreInput {
   writer: ScoreWriter;
   rowCounts: Record<Verdict, number>;
   rubricHashesThisRep: Record<string, string>;
+  judgeContractHashesThisRep: Set<string>;
 }
 
 /**
@@ -458,6 +494,7 @@ async function runFixtureAndScore(
     writer,
     rowCounts,
     rubricHashesThisRep,
+    judgeContractHashesThisRep,
   } = input;
 
   let turnResult;
@@ -528,6 +565,8 @@ async function runFixtureAndScore(
         verdict: observation.verdict,
         rationale: observation.detail,
         rubricHash: observation.rubricHash ?? '',
+        judgeContractHash: observation.judgeContractHash,
+        rationaleToolSyntax: findRationaleToolSyntax(observation.detail),
       });
       artifactPath = relativeArtifactPath(
         runDir,
@@ -535,6 +574,9 @@ async function runFixtureAndScore(
       );
       if (observation.rubricHash) {
         rubricHashesThisRep[check.id] = observation.rubricHash;
+      }
+      if (observation.judgeContractHash) {
+        judgeContractHashesThisRep.add(observation.judgeContractHash);
       }
     } else {
       artifactPath = relativeArtifactPath(
@@ -559,6 +601,7 @@ async function runFixtureAndScore(
       applicabilitySource: check.applicabilitySource,
       judgeInvoked: observation.judgeInvoked,
       rubricHash: observation.rubricHash,
+      judgeContractHash: observation.judgeContractHash,
       notApplicableReason: observation.notApplicableReason,
       // Was omitted here while every other layer carried it — the field is
       // set by `runCheck`, validated on the row, and read by

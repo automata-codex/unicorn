@@ -186,3 +186,57 @@ describe('MothershipCharacterSheetSchema', () => {
     });
   });
 });
+
+describe('gearSpend', () => {
+  const teamster = {
+    entityId: 'vasquez',
+    name: 'Vasquez',
+    class: 'teamster' as const,
+    creationRolls: {
+      strength: [3, 4],
+      speed: [3, 4],
+      intellect: [3, 4],
+      combat: [3, 4],
+      sanity: [3, 4],
+      fear: [3, 4],
+      body: [3, 4],
+      maxHp: [6],
+      credits: [3, 4],
+      trinket: [42],
+      patch: [17],
+    },
+  };
+
+  it('accepts a spend within the starting credits', () => {
+    const result = MothershipCharacterSheetSchema.safeParse({
+      ...teamster,
+      creationChoices: { gearSpend: 70 },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a spend beyond the starting credits — no starting in debt', () => {
+    const result = MothershipCharacterSheetSchema.safeParse({
+      ...teamster,
+      creationChoices: { gearSpend: 71 },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  /** Forgoing the loadout multiplies the budget by 100, so 700cr is affordable. */
+  it('measures the spend against the post-multiplier budget', () => {
+    const result = MothershipCharacterSheetSchema.safeParse({
+      ...teamster,
+      creationChoices: { forgoLoadout: true, gearSpend: 700 },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a negative spend', () => {
+    const result = MothershipCharacterSheetSchema.safeParse({
+      ...teamster,
+      creationChoices: { gearSpend: -1 },
+    });
+    expect(result.success).toBe(false);
+  });
+});

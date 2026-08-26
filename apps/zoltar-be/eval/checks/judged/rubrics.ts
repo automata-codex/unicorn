@@ -37,16 +37,96 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'reads as provenance.',
     requiredFacts: [],
   },
+  'MISSING-DELTA': {
+    template:
+      'A turn may narrate a change to the world — a flag flipping, a pool ' +
+      'moving, a condition landing — and must carry that change in ' +
+      '`stateChanges` for the backend to apply. Narration alone changes ' +
+      'nothing: the next turn is built from state, so a change that was ' +
+      'described and not emitted is simply lost, and the Warden will later ' +
+      'read a world in which it never happened.' +
+      '\n\n' +
+      'Question: does this turn describe a state change it did not emit? ' +
+      'Fail if the narration or the notes assert that something has changed ' +
+      '— "the beacon is now active", "she finally admits it", "the flag is ' +
+      'flipping now" — with no corresponding entry in the tool call. ' +
+      '**A turn that notices its own earlier omission and still does not ' +
+      'write the change is the same failure, not an excuse for it.**' +
+      '\n\n' +
+      'Do not fail a turn for describing something that is *about* to ' +
+      'happen, for foreshadowing, or for a change the fiction leaves ' +
+      'genuinely ambiguous. The test is whether the turn treats the change ' +
+      'as already true.',
+    requiredFacts: [],
+  },
+  'ROLL-RESULT-INVERSION': {
+    template:
+      'Mothership Stat Checks and Saves are **roll-under**: the roll ' +
+      'succeeds when it comes in LOWER than the target, and fails when it ' +
+      'is equal or higher. A 90-99 always fails whatever the target. Panic ' +
+      'Checks invert this and are the one exception — the Panic Die must ' +
+      'come in GREATER than current Stress to avoid the Panic Table.' +
+      '\n\n' +
+      'Question: does this turn adjudicate any roll backwards? Fail if the ' +
+      'narration treats a roll at or above its target as a success, treats ' +
+      'a roll under its target as a failure, or applies the Panic Check ' +
+      'direction to an ordinary Check or Save (or the reverse).' +
+      '\n\n' +
+      '**Grade the narration the player was shown, not the notes.** A turn ' +
+      'that narrates the inversion and then catches it in its own notes ' +
+      'has still shown the player a wrong outcome, and deferring the ' +
+      'correction to a later turn does not undo it. Judge what reached the ' +
+      'player.' +
+      '\n\n' +
+      'If the turn contains no roll whose target and outcome are both ' +
+      'stated, there is nothing to invert — say so rather than guessing at ' +
+      'an implied target.',
+    requiredFacts: [],
+  },
+  /**
+   * **The boundary scopes the whole question. Disambiguated 2026-08-23**
+   * (`rubricHash` `4cf7fda1` → see the bump note), because the previous
+   * wording admitted two defensible readings and a tag whose rate depends on
+   * which half a grader weights is not measuring the Warden.
+   *
+   * Found in spec 020's after-side variance run: `turn24-hidden-info-leak`
+   * rep 007 split 1 `fail` / 2 `pass` across three trials of one frozen
+   * input, and the three rationales did not disagree about the turn — they
+   * disagreed about **scope**. The narration disclosed raw roll totals (43,
+   * 73) from Alvarez's *own* firefight, which she is present for, while the
+   * fixture's boundary named the Lab B / Delta encounter. One trial applied
+   * the broad "specific roll values, numeric thresholds, or mechanical
+   * outcomes" prohibition and failed; two read it as scoped to the encounter
+   * the boundary names, and passed. Each verdict matched its own reasoning,
+   * so this was an ambiguity rather than grader noise.
+   *
+   * **Resolved toward scope, not because it is the softer reading but
+   * because the global one contradicts a sibling check.** `UNSURFACED-CHECK`
+   * fails a turn that resolves a player-facing roll *silently*, requiring
+   * the `dice_request` be surfaced so the player can roll it themselves. If
+   * narrating the value of a roll the player is party to were also a leak,
+   * the two checks would demand opposite things on the same turn. The
+   * numeric phrases were only ever illustrations of what a beyond-boundary
+   * leak looks like; they are restored to that role here.
+   */
   'HIDDEN-INFO-LEAK': {
     template:
       "The player character's actual perception boundary at this point in " +
       'the story is: {{perceptionBoundary}}\n\n' +
-      'Question: does the narration reveal anything to the player — ' +
-      'including specific roll values, numeric thresholds, or mechanical ' +
-      'outcomes — that lies beyond that perception boundary? Narrating a ' +
-      'vague impression ("you sense danger nearby") is fine; narrating a ' +
-      'specific fact the player has no in-story way to know ("the creature ' +
-      'has 3 HP left") is a leak.',
+      'Question: does the narration reveal anything to the player that lies ' +
+      'beyond that perception boundary? Narrating a vague impression ("you ' +
+      'sense danger nearby") is fine; narrating a specific fact the player ' +
+      'has no in-story way to know ("the creature has 3 HP left") is a ' +
+      'leak. Specific roll values, numeric thresholds and mechanical ' +
+      'outcomes are leaks when they concern something beyond the boundary — ' +
+      'a roll resolving an encounter the player cannot perceive, or a ' +
+      "hidden entity's stat.\n\n" +
+      'The boundary scopes this question entirely. Mechanical detail about ' +
+      'something the player character is present for is not a leak, however ' +
+      'numeric: this system surfaces player-facing rolls to the player by ' +
+      'design, so narrating the total of a roll they made, or one resolving ' +
+      'an action they are party to, is correct behaviour. Judge only ' +
+      'against the boundary.',
     requiredFacts: ['perceptionBoundary'],
   },
   'OVER-RESOLUTION': {
@@ -112,17 +192,60 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'If nothing was actually blocked this turn, that is a pass.',
     requiredFacts: ['blockDescription'],
   },
+  /**
+   * **The boundary is the player character, not the fiction.
+   * Disambiguated 2026-08-24** (`rubricHash` `ba1cff52` → see the bump note),
+   * for the same reason and by the same argument as `HIDDEN-INFO-LEAK`'s:
+   * the previous wording admitted two defensible readings, and one of them
+   * contradicted something else in the system.
+   *
+   * The old template forbade *"beginning a new NPC encounter"* and never said
+   * whether an off-screen thread the player can only **hear** counts as one.
+   * Narrow reading — an encounter the PC is *in* — passes those turns; broad
+   * reading — any encounter beginning anywhere — fails them. Judges split
+   * openly on it: 8 of 9 rationales on `f0753f86__14-39-39Z` and 6 of 10 on
+   * `e83e8aaa` flagged the boundary as *borderline*, *ambiguous* or
+   * *arguably*, in both directions, including passes. The tag read 0.88,
+   * 0.22, 0.30 and 0.50 across four runs, two of which used a byte-identical
+   * prompt. It was measuring the coin flip, not the Warden.
+   *
+   * **Resolved narrow, because the broad reading forbids what the
+   * architecture requires.** `CLAUDE.md` and `ADR-0101` have every entity
+   * named in the prompt every turn, hidden ones included, *"because the
+   * Warden needs their stats to run them off-screen."* A rule that fails the
+   * Warden for advancing an off-screen thread would prohibit the behaviour
+   * the design exists to enable. That is the same shape as
+   * `HIDDEN-INFO-LEAK`'s resolution, where the global reading contradicted
+   * `UNSURFACED-CHECK`.
+   *
+   * **Known consequence:** under this reading `turn24-scene-jump` will
+   * likely pass at or near 1.00 and stop discriminating — `ADR-0082`'s "a
+   * high rate is a blind rubric, not a pass". That is accepted here because
+   * an undiscriminating fixture is honest where a coin flip is not, and
+   * because the tag needs a second instance from the M7.7 playtest anyway.
+   * The instance to capture is the mode `docs/playtest-scenarios.md`
+   * describes — the player leaves ambiguously and the Warden skips the
+   * transit — which this fixture never tested.
+   */
   'SCENE-JUMP': {
     template:
       "This turn's player action justifies the following scope: {{expectedScope}}\n\n" +
-      'Question: does the narration advance the story beyond that scope — ' +
-      'relocating the player character to a new location, beginning a new ' +
-      'NPC encounter, or resolving subsequent plot beats — that the player ' +
-      'did not choose to pursue in their stated action? Narrating the ' +
-      'immediate, direct consequences of the stated action, at the ' +
-      "location where it's taken, is fine; advancing to a decision or " +
-      'event beyond it without the player choosing to make that next move ' +
-      'is a violation, even if the prose reads as a natural continuation.',
+      'Question: does the narration move the player character beyond that ' +
+      'scope — relocating them to a new location, drawing them into an ' +
+      'encounter they did not choose to enter, or resolving a beat of their ' +
+      'own story they have not yet acted on? Narrating the immediate, direct ' +
+      "consequences of the stated action, at the location where it's taken, " +
+      'is fine; advancing the player character to a decision or event beyond ' +
+      'it without them choosing that next move is a violation, even if the ' +
+      'prose reads as a natural continuation.\n\n' +
+      'The boundary is the player character. Events elsewhere in the fiction ' +
+      'may advance on their own, and the player character may see, hear or ' +
+      'infer that they have — a distant encounter beginning, a threat acting ' +
+      'off-screen, a timer running down. The Warden runs those threads, and ' +
+      'narrating them moving is correct behaviour rather than a violation, ' +
+      'provided the player character is neither relocated into them nor ' +
+      'committed to a response on their behalf. Judge whether the player ' +
+      'character was moved, not whether the world was.',
     requiredFacts: ['expectedScope'],
   },
 };

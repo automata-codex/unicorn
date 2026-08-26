@@ -534,9 +534,43 @@ identical from here. That gap is exactly what M7.8 closes and why the arm is tra
 permanent. The arm also says nothing about the judge, which is probabilistic by construction and
 characterised through `eval:judge-variance` against frozen input, not through a second generator.
 
+**Addendum — a Sonnet 5 behavioural regression this entry did not measure, and the reason the
+`max_tokens` instruction above was unfollowable.** Recorded 2026-08-17; see `ADR-0097` for the
+defect and the guard.
+
+Sonnet 5 intermittently terminates the `playerText` parameter with a fabricated closing tag and
+serializes the remaining parameters as text inside it, producing a schema-valid `submit_gm_response`
+that silently discards every state change. Across every eval run on disk the split is clean and
+tracks the model rather than the prompt: **4.6 leaked 0 of 245 outputs, Sonnet 5 48 of 916 (~5%)**,
+spanning all four prompt hashes since the earliest Sonnet 5 run on 2026-07-29. Prompt `0bdd1306`
+gives a same-fixture head-to-head at 0/106 against 12/150. Under a 5% rate, 0-of-245 has probability
+~2×10⁻⁶.
+
+This does not reopen the upgrade. Every gain in the tables above is real and none of it is an
+artifact of the defect — the leak suppresses `stateChanges`, and the structural checks that carried
+the largest gains read event structure that a leaked turn simply does not produce, so its effect on
+those rates is to *withhold* observations rather than to inflate them. It is recorded here because
+this is the entry that decided the model, the defect is a property of that model, and it went
+unnoticed through four baselines including M7.6's.
+
+**It also went unnoticed for a reason this entry is directly responsible for.** The closing paragraph
+above asks a reader to "watch for `stop_reason: 'max_tokens'` on long combat turns." That instruction
+was unfollowable from the day it was written: `adventure_telemetry` recorded only the *parsed*
+`SubmitGmResponse`, never the response envelope, so `stop_reason` existed nowhere in the archive.
+The M7.7 investigation could not settle whether the API had returned a malformed tool call or a text
+block from stored data at all, and had to answer it indirectly. `stop_reason`, content-block types
+and tool names are now recorded per turn for both the original and correction rounds. Watch
+instructions that name a field the telemetry does not keep are not watch instructions.
+
 ### [ADR-0024](decisions/0024-tool-use-over-prompt-instructions-for-structured-output.md) — Tool use over prompt instructions for structured output
 
 Claude is required to call `submit_gm_response` and `submit_gm_context` rather than producing structured JSON in plain text. Tool use enforces the schema at the API level and eliminates a whole category of malformed response runtime errors. Prompt instructions alone are not sufficient for this guarantee.
+
+**Addendum — the guarantee is narrower than this entry states, and the gap cost 39 turns.** Recorded 2026-08-17 on the evidence of the 2026-08-16 playtest (`ADR-0097`).
+
+Tool use enforces *the schema*. It does not enforce that the model put its content in the right field, and the category of malformed response this entry claims to eliminate did not disappear — it relocated inside a valid parameter, where schema enforcement cannot reach it by construction. `playerText` is the only required field on `submitGmResponseSchema`, so a response that serialized its remaining parameters as text inside the narration is a *valid* tool call carrying a malformed payload. The API accepted it, Zod accepted it, and the turn committed while discarding every state change the Warden had computed.
+
+The sentence above still holds against its actual alternative: prompt-instructed JSON in a text block would have failed more often and more visibly. What it must not be read as is a guarantee that a `tool_use` block is well-formed. Schema validity is a floor, not a proof, and the fields a schema marks optional are precisely where a malformed response can hide without tripping anything. Payload-level well-formedness is a separate check, and it now exists (`ADR-0097`).
 
 ### [ADR-0025](decisions/0025-hp-and-all-numeric-resources-in-resourcepools-not-a-separate.md) — HP and all numeric resources in `resourcePools`, not a separate `entities.hp` field
 
@@ -978,6 +1012,14 @@ AP 1 and replacement swaps the item — both are equipment operations, and
 equipment has no write path in M7.6. Armor can be damaged and destroyed this
 milestone, never restored.
 
+**Addendum — D4's granularity within an `entities` entry, stated because it was read as unstated.** Recorded 2026-08-21 while drafting `docs/specs/zoltar/019-entity-visibility-and-entity-write-path.md`, which first proposed applying the valid fields of a rejected entity change and was wrong to.
+
+D4 settles rejection granularity *across* `stateChanges` members and says nothing about granularity *within* one entry, so `applyEntity`'s behaviour looked like an open question. It is not: **within-entry rejection is all-or-nothing by inheritance.** `validateStateChanges` returns one pass/fail, `SessionService` discards the entire `applied` set whenever `rejections` is non-empty and runs a correction round (`session.service.ts:377-406`), so applying the valid fields of a rejected entry would be unreachable code. Verified by direct call: an entity carrying a valid `visible` and an invalid `status` yields the rejection with `applied.entities` empty.
+
+**What was genuinely wrong is reporting, not application.** `applyEntity` returned at the first invalid field without examining the rest, so a Warden told about `status`, fixing it, and failing on an unreported sibling received no second correction — the correction path is single-shot and the turn is thrown. With `status` the only rejectable field this was theoretical. Spec 019 adds `revealed` (monotonic) and `npcState` and rejects unknown ids, which makes an entry with two independently invalid fields ordinary. `applyEntity` now accumulates every field-level rejection before returning.
+
+The distinction is worth keeping in mind wherever D4 is cited: *validate-all-then-apply* is a claim about what reaches the database, not a licence to stop validating once one thing has failed.
+
 ### [ADR-0039](decisions/0039-the-m7-6-migration-drops-and-recreates-rather-than-transform.md) — The M7.6 migration drops and recreates rather than transforming
 
 **Confirmed 2026-08-14, built 2026-08-15.** `V19__character_sheet_m76_reset.sql`
@@ -1033,6 +1075,391 @@ and why `<character_attributes>` renders DR even at zero.
 Recorded here because a reader hitting the spec first will find the opposite
 claim, and because "subtract armor from each hit" is named in the S25.6 finding
 as the error a Warden defaults to — the code should not make the same one.
+
+### [ADR-0100](decisions/0100-npc-crew-role-skills.md) — Contractor NPCs get a rolled Instinct and a `crewRole`-mapped skill bonus — a Zoltar house rule, not RAW
+
+**Status:** accepted 2026-08-20, **M7.7** — riding 018's re-baseline rather than buying one (`ADR-0094`). Schema section amended the same day against the codebase; see `§ Amendment 2026-08-20`.
+
+## Context
+
+Mothership's Warden's Operations Manual resolves nearly every Contractor check against a single Instinct score. That's the right abstraction for disposable mooks and crew filler, but it breaks down for a scenario-critical specialist NPC — e.g. a solo player relying on an NPC engineer to do the job a party-slot specialist PC would normally cover. Instinct is a flat, undifferentiated number; a Contractor has no way to be *especially* good at anything the way a PC is via Stat + Skill. In solo/small-group play, where an NPC specialist is often standing in for a missing party role rather than just flavor, that gap is a real party-balance problem, not just a modeling nicety.
+
+**A second gap, found while planning 018: there is no Instinct.** `entitySchema` is `id`, `type`, `startingPosition`, `visible`, `tags` (`synthesis.schema.ts:3-15`). NPCs carry no mechanical stats at all, and the only occurrences of the word in the tree are a test fixture and a comment recording that `INST` must never be rendered for player characters (`synthesis.prompts.ts:55`). This entry cannot extend Instinct with a skill layer without first introducing Instinct.
+
+## Decision
+
+**Instinct.** Every `npc`-type entity gets an Instinct score, **rolled** — `2d10 + 25 + role adjustment`, the same shape as a player Stat (`character-pools.ts:22-24`). The dice are stored as they fell; the `+25` and the adjustment are arithmetic applied at derivation, stored nowhere.
+
+Rolled rather than assigned from `crewRole` for two reasons. **The mapping has to be total over `npc` entities and `crewRole` is not** — most NPCs carry a role, but a frightened passenger or a corporate observer is still an `npc` and still needs an Instinct, so assignment would need a default for the uncovered cases anyway. And **assignment gives two pilots on the same ship identical Instinct**, which is the flatness this entry exists to fix, reintroduced one level up.
+
+**`npc` is the carrier, and it is the whole of it.** There is no Contractor type in the schema and none is being added: `entitySchema`'s enum stays `npc | threat | feature`, and "Contractor-type NPC" throughout this entry means `type: 'npc'`. `threat` entities have no Instinct score and do not gain one here; `feature` entities are not actors at all.
+
+**The backend rolls it, not Claude.** `SYNTHESIS_TOOLS` is `[SUBMIT_GM_CONTEXT_TOOL]` (`synthesis.tools.ts:23`) — synthesis has no `roll_dice`. A number Claude puts in the payload is not a roll, it is a fabrication, and it is unauditable in exactly the way the dice-request infrastructure exists to prevent. Claude declares the NPC and its role; the backend rolls at synthesis-write time via `executeDiceRoll`, already used server-side by `DiceService` (`dice.service.ts:43`).
+
+**Skills.** A Contractor-type NPC may carry a `crewRole`, drawn from a fixed enum of 20 roles (below). Each role maps, via a static lookup table, to an ordered Mothership skill chain — Trained → Expert → Master, following each skill's real prerequisite chain per the PSG v1.2 skill tree. When the Warden calls for a check that falls within one of a Contractor's mapped skills' domain, the check resolves as **Instinct + that skill tier's bonus** (+10 / +15 / +20, standard Mothership tiers — holding a higher tier implies holding, and being able to use, the tiers below it). A check outside any mapped skill's domain resolves as Instinct alone, per RAW.
+
+This is **always-on** for the initial build — every Contractor is eligible for a `crewRole`, no RAW-strict/Instinct-only toggle yet.
+
+### Role → skill mapping
+
+| Crew Role          | Skill Chain (Trained → Expert → Master)                              |
+|--------------------|----------------------------------------------------------------------|
+| Captain            | Zero-G → Piloting → Command                                          |
+| Cargo Handler      | Zero-G; Athletics                                                    |
+| Chief Engineer     | Industrial Equipment → Mechanical Repair → Engineering; Jury-Rigging |
+| Comms Officer      | Computers → Hacking                                                  |
+| Corporate Liaison  | Linguistics → Psychology; Computers                                  |
+| Counselor          | Linguistics → Psychology                                             |
+| Doctor             | Zoology → Field Medicine → Surgery                                   |
+| Engineer           | Industrial Equipment → Mechanical Repair → Engineering               |
+| Executive Officer  | Zero-G → Piloting → Command                                          |
+| Geologist          | Geology → Asteroid Mining                                            |
+| Life Support Tech  | Industrial Equipment; Botany → Ecology                               |
+| Machinist/Mechanic | Jury-Rigging → Mechanical Repair                                     |
+| Medic              | Zoology → Field Medicine                                             |
+| Miner              | Geology → Asteroid Mining; Zero-G                                    |
+| Navigator          | Zero-G → Piloting → Hyperspace                                       |
+| Pilot              | Zero-G → Piloting                                                    |
+| Scientist          | Mathematics → Physics                                                |
+| Security Chief     | Military Training → Firearms → Command                               |
+| Security Officer   | Military Training → Firearms                                         |
+| Xenobiologist      | Zoology → Pathology → Exobiology                                     |
+
+Chief Engineer and Doctor (the senior half of each senior/junior pair) get the full three-tier chain; Engineer and Medic get the same chain truncated at Expert. Security Chief/Officer mirror this pattern via Command.
+
+### Role → Instinct adjustment
+
+**These numbers are invented, extrapolated from the Contractors rules rather than read out of them.** That is the same footing as the skill layer above, and it is deliberate — see `§ Deviation from RAW`. Nothing here should be cited as a PSG or WOM figure.
+
+`BASE` is **25**, matching a player Stat's `2d10 + 25` (`character-pools.ts:22-23`). Adjustment is by seniority tier rather than per role: twenty bespoke numbers would be twenty separate inventions, while three tiers reuse the senior/junior structure already implicit in the skill table above, where Chief Engineer/Engineer, Doctor/Medic and Security Chief/Security Officer are already paired.
+
+| Tier | Roles | Adjustment |
+|---|---|---|
+| Senior | Captain, Executive Officer, Chief Engineer, Doctor, Security Chief | **+15** |
+| Skilled | Pilot, Navigator, Engineer, Medic, Scientist, Geologist, Xenobiologist, Comms Officer, Corporate Liaison, Counselor, Machinist/Mechanic, Life Support Tech | **+10** |
+| Unskilled | Miner, Cargo Handler | **+5** |
+| *(no `crewRole`)* | — | **+0** |
+
+The `+0` row is deliberately distinct from Unskilled rather than merged into it. Miner and Cargo Handler are *roles* that happen to need no specialist training; a role-less NPC — a frightened passenger, a corporate observer — is not crew at all and is undifferentiated rather than unskilled.
+
+**Most `npc` entities carry a role**, so the tier adjustment is the common path and `+0` is the exception. What varies per adventure is which *roles* are filled, not whether NPCs have them: a given ship uses a handful of the twenty, and the rest simply never appear.
+
+## Schema
+
+**Amended 2026-08-20.** The original section placed `crewRole` in `initial_state` as a sibling of `instinct`. Neither exists; see `§ Amendment 2026-08-20` for why that location would have failed silently.
+
+`instinct` and `crewRole` live on the **entity record** — the per-entity structure that already exists and is already persisted per entity (`entitySchema` in `synthesis.schema.ts`, `EntitySchema` in campaign state). `crewRole` is Zod-enum-validated.
+
+```typescript
+// submit_gm_context, structured.entities[]
+{
+  id: string,
+  type: 'npc' | 'threat' | 'feature',
+  visible: boolean,
+  tags: string[],
+  instinctRoll?: number[],   // dice as they fell; backend-written, never Claude-written
+  crewRole?: CrewRole        // most npc entities carry one; optional because some NPCs are not crew
+}
+
+type CrewRole =
+  | 'captain' | 'executive_officer' | 'pilot' | 'navigator'
+  | 'chief_engineer' | 'engineer' | 'machinist_mechanic' | 'life_support_tech'
+  | 'doctor' | 'medic'
+  | 'scientist' | 'geologist' | 'miner' | 'xenobiologist'
+  | 'comms_officer' | 'corporate_liaison' | 'counselor'
+  | 'security_chief' | 'security_officer'
+  | 'cargo_handler'
+```
+
+### Store the role; never store the chain it implies
+
+The skill chain is **derived at read time and persisted nowhere.** `crewRole` is the input; the chain is arithmetic over it. Storing both would repeat the duplication M7.6 removed: `maxHp` was a stored copy of a derived ceiling — "one fact in two places, free to diverge, and it did" (`character-sheet.schema.ts:38-43`).
+
+The same rule puts the Instinct *roll* on the opposite side, and consistently so: a roll is an input nothing can recompute, so the dice are stored exactly as `creationRolls` stores a PC's. `BASE` and the role adjustment are derived and stored nowhere.
+
+**Player and Contractor skills share a reader, not a storage location.** A PC's skills are stored in `characterState.skills` because a player *chose* them and nothing can recompute a choice; a Contractor's are derived. One accessor returns `MothershipSkillEntry[]` for either, so `MOTHERSHIP_SKILL_BONUS`, the snapshot render, and `loss_of_confidence` each have one implementation. `loss_of_confidence` then works on Contractors for free.
+
+### The condition deriving carries
+
+Deriving at read time means an edit to the role table changes what the Warden sees **for frozen eval fixtures whose files did not change**. `corpusVersion` is a content hash over fixture files, so it does not move — the corpus looks identical and is not. That is the gap `assemblyHash` exists to close (`ADR-0099`), and `ASSEMBLY_PROBE`'s own rule already covers it: "a section this probe never populates is a section whose shape the hash cannot see" (`session.assembly.ts:48-50`).
+
+`probe_npc_one` today is `{ id, type: 'npc', visible: true, tags: ['crew'] }` (`session.assembly.ts:74`) — no role, no Instinct. **Both of these are required before the derivation ships**, not optional:
+
+1. `ASSEMBLY_PROBE` carries a Contractor with a `crewRole` and an Instinct roll.
+2. The whole role table folds into the hash — a golden rendering all 20 role → chain mappings. One probe NPC gives partial coverage only: with a `pilot` in the probe, editing `xenobiologist` still moves nothing.
+
+Without both, a table edit is an input-affecting change that moves no run identity at all.
+
+### Seeding
+
+`characterState` is seeded only by `CharacterService.create`, for the player; synthesis writes none (`campaign.repository.ts:165`). Rolling Instinct adds a stored per-NPC field, so NPC seeding at synthesis-write time is required work, not something a pure-derivation design could have skipped.
+
+**Rejected:** a free-text `crew_role:*` tag inside the generic `tags` array. A near-miss string (`crew_role:field_medic` vs. the enum's `medic`) wouldn't error — it would silently fail to match the lookup table, and the NPC would quietly revert to Instinct-only with nothing surfaced. An enum-validated field rejects a bad value at the schema boundary instead of failing silently at resolution time.
+
+## Prompt instructions — two separate surfaces
+
+- **Synthesis** (`submit_gm_context`): give a `crewRole` to any NPC who is crew, which is most of them. The optionality runs the other way from a checklist — **never invent an NPC to cover an unfilled role.** A given ship uses a handful of the twenty and the rest simply do not appear; an NPC exists for narrative reasons first and takes whichever role fits. Leave `crewRole` unset for an NPC who is not crew at all. **Never supply `instinctRoll`** — the backend rolls it.
+- **Play** (Warden prompt / `submit_gm_response`): when resolving a Contractor's check, look up `crewRole`'s mapped chain; if the check falls in a mapped skill's domain, add that skill's tier bonus to Instinct; otherwise roll Instinct alone.
+
+The Warden must not be expected to hold the 20-row table in memory — the derived skills and tiers render into the state snapshot, the same argument the Wounds Table instructions make ("YOU DO NOT KNOW THE WOUNDS TABLE FROM MEMORY", `mothership-m7.txt:304`). Today the snapshot renders no skills for anyone, player included, so that render is new work.
+
+Both halves change Warden-visible behavior and should ship together, on a re-baseline already scheduled rather than one bought for this alone (`ADR-0094`).
+
+## Deviation from RAW
+
+**Everything mechanical in this entry is invented.** It is built *from* the Contractors rules by extrapolation, not applied *from* them. Three separate deviations, listed so none of them can later be mistaken for a lookup:
+
+1. **The skill layer.** PSG Contractors resolve on Instinct alone; the 20-role table and its tier bonuses have no source.
+2. **Rolling Instinct.** The book assigns Contractor Instinct by role; rolling it `2d10 + 25` borrows the player Stat shape instead.
+3. **The seniority adjustment.** +15 / +10 / +5 / +0 is a scheme of this entry's own devising.
+
+Keep this entry, and any documentation derived from it, explicitly labeled as a Zoltar house rule. The failure mode this guards against is specific and cheap to fall into: a later reader lifting `2d10 + 25` or a tier bonus into player-facing text as though it were sourced, the way `INST` was once rendered for player characters until M7.6 removed it (`synthesis.prompts.ts:55`).
+
+## Rejected alternatives
+
+- **Assigning Instinct from `crewRole`** — the mapping is not total (a non-crew NPC has no role but still needs an Instinct), and it would give every pilot on a ship the same number, reintroducing at the role level exactly the flatness this entry exists to fix.
+- **Letting Claude supply Instinct at synthesis** — synthesis has no `roll_dice`, so the number would be fabricated and unauditable.
+- **Storing the derived skill chain** — see `§ Store the role`. Also costs a re-key of every Contractor-carrying fixture on a table edit, M7.6's D5 again.
+- **Placing `crewRole` in `initial_state`** — see `§ Amendment 2026-08-20`.
+- **Full PC-equivalent stat block for specialist NPCs** — disproportionate for a hireling; would require a second character-sheet-shaped schema path for what's still meant to be a disposable role.
+- **Free-text role tag** — see Schema above.
+- **Toggleable RAW-strict mode** — deferred, not rejected. Revisit if playtesting shows demand for a harsher, Instinct-only variant.
+
+## Amendment 2026-08-20 — why the original schema location does not exist
+
+Found while planning `docs/specs/zoltar/018-post-playtest-character-creation-and-mechanics.md`. Three findings, in increasing order of severity:
+
+1. **There is no `entities[].initial_state`.** `initialState` is a *sibling* of `entities` under `structured` (`synthesis.schema.ts:36`), and it is a flat map keyed by the two-part pool address `{owner}.{poolName}` whose values are `{current, max}` pools (`synthesis.prompts.ts:125`). It is not a per-entity object and has never held per-entity attributes.
+
+2. **There is no `instinct` field to be a sibling of.** See `§ Context`.
+
+3. **The chosen location has the exact failure mode this entry rejects the free-text tag for.** `synthesis.write.ts:43` records that non-pool entries in `initialState` are silently skipped at merge time. A `crew_role` string there would pass Zod (`z.unknown()`), pass `validateSubmitGmContextForWrite`, and then be **dropped with no error** — the NPC reverting to Instinct-only with nothing surfaced. That is this entry's own argument against the tag, arriving through a different door.
+
+## Resolved
+
+*All 2026-08-20.*
+
+- **Milestone placement: M7.7**, both halves together, per the M7.6 precedent that schema changes and prompt instructions ship together. It does not wait for M8.1 and it does not split schema-early / prompt-later. `ADR-0094` is satisfied without buying a run: 018 already owes a re-baseline for three other Warden-visible changes, and this rides it. The cost is the one 018 § Ordering already accepts — four Warden-visible changes on one run means no honest per-change delta, so predictions go in writing before the run (`ADR-0085`).
+- **`BASE` is 25 and the tier adjustments are +15 / +10 / +5 / +0**, all invented rather than sourced (`§ Role → Instinct adjustment`).
+- **`npc` is the only type that rolls Instinct**; `threat` does not, and no new enum value is added (`§ Decision`).
+
+### [ADR-0103](decisions/0103-entity-merge-preserves-schema-fields.md) — Entity merge preserves all schema fields rather than a hand-enumerated set
+
+## Context
+
+`session.validator.ts:861-882` builds the merged entity record for every
+`stateChanges.entities` write. The merged object is a fresh literal with a closed,
+hand-enumerated field list:
+
+```ts
+const merged: {
+  visible: boolean;
+  revealed: boolean;
+  status: EntityStatus;
+  npcState?: string;
+} = {
+  visible: change.visible ?? existing.visible,
+  revealed: change.revealed ?? existing.revealed,
+  status: proposedStatus ?? existing.status,
+};
+
+const nextNpcState = change.npcState ?? existing.npcState;
+if (nextNpcState !== undefined) merged.npcState = nextNpcState;
+
+result.applied.entities[entityId] = merged;
+```
+
+The merge-from-prior-state logic is present and correct — each field reads
+`change ?? existing` — but it operates only on the four fields the literal names.
+Any other field on the entity record is absent from `merged` and is therefore
+absent from `applied.entities`, and the TypeScript annotation declares those fields
+out of existence rather than surfacing their omission.
+
+`ADR-0100` (shipped 2026-08-21 as 018 Parts 9–10) introduced the first entity fields
+that only synthesis writes and the Warden never proposes: `crewRole` and
+`instinctRoll`. These are *authored-only* fields — the play loop has no path to set
+them and no reason to, so they never appear in a `change` object and were never added
+to the literal.
+
+The consequence is that **any `entities` write naming an entity destroys every field
+on that entity outside the enumerated four**, permanently, with no error and no log
+entry.
+
+### Evidence
+
+Observed in adventure `2c0ba938-ea80-4138-a95a-dc13e417bf2b` (playtest 2026-08-24,
+52 turns). `mara_odinsen` was authored at synthesis with
+`{crewRole: "cargo_handler", instinctRoll: [5,5]}`. Both fields rendered correctly to
+the Warden through turn 18 — the `<entities>` block showed `instinct 40, role
+cargo_handler, skills Zero-G trained (+10), Athletics trained (+10)`, and both numbers
+reconcile against `crew-roles.ts`.
+
+The adventure contains exactly four entity writes: seq 30, 66, 99, 122. Seq 99
+(turn 31) names `mara_odinsen` with an empty delta; the record emerges as
+`{status, visible, revealed}` and both authored fields are gone. Turns 32–52 ran with a
+statless Mara.
+
+Seq 122 (turn 38) is the decisive case. The Warden proposed a *partial* delta —
+`npcState` only — and the validator emitted the same four fields. Had a guard rejected
+the empty delta at seq 99, the authored fields would have survived seven further turns
+and been destroyed at seq 122 instead. The defect is not specific to empty deltas.
+
+Independent confirmation without reference to the code: `crewRole` and `instinctRoll`
+appear in **zero rows** of the adventure's `game_event` log — not in any proposal, not
+in any applied payload. The output shape cannot carry them.
+
+### The applier is not the cause
+
+The loss was initially attributed to `session.applier.ts:47`
+(`entities: { ...prior, ...applied.entities }`) and its documented replace-outright
+semantics. That attribution is wrong. The fields are absent from `applied.entities`
+before the applier runs; line 47 delivers faithfully what the validator produced. The
+rationale at `session.applier.ts:37-42` — that array-valued operations cannot be
+diffed without re-deriving the fold — stands and is not revisited here.
+
+### This is the second instance of the same defect
+
+`npcState` was added to the merge literal in M7.6 for this exact reason, and carries a
+comment recording it as "schema-defined, commented and preserved on merge since M7.6."
+The class has bitten before and was closed one field at a time. Under the standing
+principle of deferring generalization until a second concrete case justifies it, the
+second case has now occurred.
+
+## Decision
+
+The merged entity record is seeded from the prior record, overlaid with the validated
+fields, and parsed through `EntitySchema` before being written to
+`result.applied.entities`.
+
+```ts
+const merged = EntitySchema.parse({
+  ...existing,
+  visible: change.visible ?? existing.visible,
+  revealed: change.revealed ?? existing.revealed,
+  status: proposedStatus ?? existing.status,
+  ...(nextNpcState !== undefined ? { npcState: nextNpcState } : {}),
+});
+```
+
+Preservation becomes the default. A field added to `EntitySchema` survives entity
+writes without anyone remembering this call site. The `EntitySchema.parse` is
+load-bearing and not decoration: spreading `existing` alone would also preserve fields
+that have been *removed* from the schema, indefinitely and invisibly. Parsing converts
+that into a validation failure at the write, which is the same reasoning that types
+`structuralCheckers` as `Record<StructuralTag, ...>` so a missing entry is a
+compile-time error rather than a silent runtime `undefined`.
+
+The fix is forward-only. Records already stripped are not restored by it.
+
+## Alternatives considered
+
+**Reject or ignore empty entity deltas.** The narrow fix, and the one the initial
+applier-centric diagnosis suggested. Rejected on evidence: seq 122 demonstrates that a
+partial delta destroys the same fields, so the guard relocates the bug rather than
+closing it. Would have moved the observed loss from turn 31 to turn 38 and left the
+class live.
+
+**Add `crewRole` and `instinctRoll` to the merge literal.** Matches existing style and
+is the same patch `npcState` received in M7.6. Rejected because it is the third
+application of a one-field-at-a-time remedy to a defect whose shape is now clear, and
+it leaves every future `EntitySchema` field a live landmine until someone recalls this
+literal exists. The M7.6 precedent is the argument against repeating it, not for.
+
+**Deep-merge in the applier.** Rejected on two grounds: it addresses the wrong file,
+and `session.applier.ts:37-42` gives a sound reason why generic deep merge is unsafe
+for array-valued operations.
+
+## Consequences
+
+**Warden-visible.** Preserved fields render into the `<entities>` block, so the fix
+changes the Warden's input. Under the alpha code-freeze rule it is a cohort boundary
+requiring explicit tagging, and it is an input-affecting change for eval purposes —
+it belongs in the same re-baseline batch as any fixtures captured alongside it.
+
+**Regression coverage must span both shapes.** A test asserting only the empty-delta
+case would pass against the rejected narrow fix. Cover: empty delta preserves authored
+fields; partial delta preserves authored fields; complete delta still overwrites the
+validated four. Seq 99 and seq 122 supply concrete inputs and expected outputs for the
+first two.
+
+**Not an eval fixture.** The turn 31 / turn 32 pair is deterministic — fixed input,
+fixed expected output, no Warden in the loop — and belongs in unit tests beside the
+fix. Placing it in the eval corpus would spend Warden budget re-proving what a unit
+test asserts for free.
+
+**Replay is affected.** `reconstructStateAsOfTurn` folds `state_update` payloads
+through `applyValidatedTurn`, so the validator sits in the capture path as well as the
+harness path. Fixtures captured from folds that cross an entity write may resolve
+differently before and after the fix. See open item 1.
+
+## Open items
+
+1. **Fix-invariance of the pending captures has not been established.** Clean capture
+   candidates from the 2026-08-24 playtest (turns 19, 29, the 1/8/9/14 geography
+   sequence, and the 20/21 retcon pair) fold at most seq 30 and seq 66, both writes to
+   `falsified_maintenance_logs`. That entity carries neither `crewRole` nor
+   `instinctRoll`, so those two fields are not at stake. But the relocated diagnosis
+   puts *every* non-enumerated `EntitySchema` field at stake, not just those two, so
+   invariance now depends on the full schema field list rather than on `ADR-0100`'s
+   pair. Confirm that the four non-Mara entities carry no field outside
+   `{status, visible, revealed, npcState}` at synthesis before treating the captures as
+   fix-invariant.
+
+2. **There is no way to remove a field from an entity record, and this decision makes
+   that consequential.** The inability predates this ADR: `change.x ?? existing.x`
+   treats an omitted value and an explicit `null` identically as "no opinion," so
+   deletion is already inexpressible. For the three non-optional fields this is moot.
+   For `npcState` it is a real gap — once set, it can be overwritten but never cleared,
+   and the closest approximation is an empty string.
+
+   What changes is the visibility of the gap. Under copy-by-list, a field that should
+   no longer be present is indistinguishable from one that was silently dropped, because
+   both are simply absent. Under preserve-by-default, a stale field persists and is
+   observable. That is the better failure, but it means the question stops being
+   hypothetical the first time a field genuinely needs removing.
+
+   **No mechanism now**, per the standing principle of deferring generalization: no
+   current entity field requires deletion. `crewRole` and `instinctRoll` are
+   authored-once and must never be removed — preserving them is the entire point of
+   this ADR — and `npcState` is overwrite-in-place by nature. There is not yet a first
+   case, let alone a second.
+
+   **When one arrives, the shape is already established.** `characterState.rollModifiers`
+   uses explicit add/remove operations rather than inferring intent from payload
+   presence (`session.validator.ts:471-496`), and that is the precedent to follow.
+
+   **Explicitly rejected in advance: a sentinel value.** Treating `null` or `""` as
+   "delete" would require `null` to mean "no opinion" on some fields and "remove" on
+   others, and would make "the Warden omitted this" indistinguishable from "the Warden
+   wants this gone." That ambiguity is the precise shape of the defect this ADR exists
+   to close, and reintroducing it one field over would be a regression in reasoning even
+   where it happened to work.
+
+3. **`capture-fixture` cannot emit `playerEntityIds`, and the harness treats its
+   absence as `[]`.** `reconstructStateAsOfTurn` returns `gmContextBlob` from the
+   synthesis snapshot, where the field is never persisted; `harness-runner.ts:179`
+   reads it and resolves empty, which — per the comment in `seedScratchAdventure` —
+   silently disables `actingEntityId` validation and grades a code path production does
+   not take. All 21 existing fixtures carry hand-added values. This is a tooling defect
+   reproducing on every capture, not a discipline lapse, and it is the mechanism behind
+   the voided 2026-08-20 re-baseline. Two changes: `capture-fixture` should derive and
+   emit the field from `character_sheet.data->>'entityId'` as
+   `session.service.ts:280` already does, and `harness-runner` should fail loudly on an
+   empty resolution rather than proceed. Tracked separately from this ADR.
+
+4. **`gm_context_blob.entities` and `campaign_state.data->'entities'` disagree at
+   synthesis.** The duplicate copy carries `crewRole` for `mara_odinsen` but not
+   `instinctRoll`. Rendering reads `campaign_state`, so `ADR-0100` verified end-to-end
+   only because the complete copy is the one consumed. The synthesis write path
+   populates the two copies inconsistently, and a divergent duplicate of the same
+   record is the shape M7.6 was meant to have eliminated. Separate defect; separate
+   entry.
+
+5. **`ADR-0100` status.** Verified end-to-end in the negative direction only — turns 15
+   and 18 show the Warden correctly declining to apply Zero-G/Athletics out of domain,
+   and both the Instinct arithmetic and the role→skill mapping reconcile against
+   `crew-roles.ts`. The positive direction — an in-domain check where the tier bonus
+   appears in the roll target — remains unexercised by any turn or fixture.
 
 ---
 
@@ -1153,6 +1580,94 @@ The diagnosis was right: the model had no id to read and inferred one from pool 
 
 The claim that seeding fixtures "closes this for the eval" also understates what the harness already does. `seedScratchAdventure` seeds exactly one `character_sheet` row from the *first* declared id, and `SessionService` overwrites the seeded blob's `playerEntityIds` with the repository's answer — so a fixture declaring `['lt_alvarez', 'alvarez']` has always resolved to one id at run time. The two-id declaration is read only by the checker, deliberately, per "the checker tolerates aliases" above. Fixtures therefore need no cleanup for this change to be safe; what they still carry is the duplicate *pools*, which is a separate open question about seeded state.
 
+### [ADR-0097](decisions/0097-a-schema-valid-submit-gm-response-is-not-necessarily-well-fo.md) — A schema-valid `submit_gm_response` is not necessarily well-formed
+
+`playerText` is the only required field on `submitGmResponseSchema`. A response carrying nothing else validates cleanly, so a payload whose remaining parameters were serialized as *text inside the narration* is indistinguishable, to every consumer downstream of the Zod parse, from a turn that genuinely had no state changes. The turn commits, the markup reaches the player, and `stateChanges` / `gmUpdates` / `diceRequests` are discarded — with no rejection, no correction event, and no log line. There was no discard point to instrument: nothing in the code believed anything had gone wrong.
+
+The 2026-08-16 playtest applied state changes on 3 of 58 turns. On 39 it shipped raw tool-call markup inside `playerText` and dropped the payload. The anti-correlation is perfect across all 58 — every turn carrying markup applied nothing, and the discarded payloads were not junk: turn 52 lost an HP delta of −12, a carryover reset with `maxDelta: 0`, and `characterState: [{op: "death_save_pending", entityId: "dr_kennedy", roundsRemaining: 2}]`, all of it mechanically correct.
+
+**The defect is model-side, and the extraction path was never at fault.** The API returned a well-formed `tool_use` block whose only parameter was `playerText`. One response — eval rep `008/turn24-hidden-info-leak` on the `ccac7d1c` re-baseline — carried the markup inside `playerText` *and* a correctly structured `gmUpdates` parameter in the same tool call, which rules out a parameter-boundary parse failure: the parser demonstrably closed the parameter and parsed a subsequent real one. What the model did was write the tag as content.
+
+**It tracks the model, not the prompt, and predates the playtest by two and a half weeks.** Across every eval run on disk, `claude-sonnet-4-6` leaked 0 of 245 outputs and `claude-sonnet-5` 48 of 916 (~5%), spanning all four prompt hashes since 2026-07-29. Prompt `0bdd1306` gives a same-fixture head-to-head: 4.6 at 0/106, Sonnet 5 at 12/150. Under a 5% rate, 0-of-245 has probability ~2×10⁻⁶. `mothership-m7.txt` contains no tool-call examples to imitate, so prompt-induced mimicry is not the seed.
+
+**The playtest's 67% is amplification of that ~5%, not a second defect.** Leaked `playerText` is persisted to `message` verbatim and replayed as assistant history on the next turn, where the model imitates it. Turn 12 leaked with zero contaminated messages in window — the spontaneous seed — and the rate thereafter tracks in-window contamination density (8% at turn 13, 44% at turn 23, 87–100% from turn 42) rather than prompt tokens, which is why turn 13 leaked at 6,952 tokens while turn 50 stayed clean at 15,799. Any single-turn measurement of this defect will read ~5% and understate what a long session does with it.
+
+## Reject and retry, rather than fail the turn
+
+`ADR-0041` caps the correction loop at one re-prompt on the reasoning that a larger retry budget masks a validator-or-prompt bug. This guard retries and does not violate that, because the two are rejecting different things. `ADR-0041` governs *semantic* rejection — the Warden proposed a delta the validator disagrees with — where a second attempt papers over a real disagreement. This is *structural* malformation: the model computed the right payload and put it in the wrong place. Turn 52 is the proof. Retrying recovers a correct answer rather than negotiating for a different one, and there is no outcome to launder, because the guard reads no game state.
+
+So the inner tool loop hands back an error `tool_result` naming the failure and the corrective action, and re-enters — the same machinery a malformed payload already uses, bounded by the same `INNER_TOOL_LOOP_CAP`. A turn that never recovers exhausts the cap and 502s, which is loud. The correction pass throws instead: it is single-shot by construction (`ADR-0042`), so there is nowhere to retry to, and applying a response whose state changes were serialized into prose is worse than failing.
+
+The alternative — flag and pass through — was rejected outright. The whole defect is that a broken payload was indistinguishable from a valid one; preserving that indistinguishability while adding a log entry keeps the data loss and merely annotates it.
+
+## Structural matching, not a semantic classifier
+
+The detector (`apps/zoltar-be/src/session/session.tool-syntax.ts`) matches literal markup only: the canonical tool-call element names as whole tags, plus a tag built from each **top-level property name on the schema itself**. Deriving that half from `submitGmResponseSchema.shape` rather than listing it by hand is what stops the token set and the tool drifting apart when a field is added — a hand-maintained list would go stale silently, in a detector whose entire job is catching things that fail silently.
+
+A "looks like internals" heuristic was rejected. It would be non-deterministic against narration, and this check sits on the path of every turn: a false positive costs a real player a real turn. Deterministic matching also makes the check re-runnable against frozen artifacts, which is what lets the eval harness reuse it (`ADR-0096`) rather than reimplement it — `eval/` already imports from `src/`, so the shared boundary is a wrapper, not a port.
+
+Validated against every playtest turn and every eval `gm_response` on disk — 1,228 real responses — at 87 true positives and 1,141 true negatives, with zero false positives and zero false negatives.
+
+## Only `playerText` is scanned
+
+`gmUpdates.notes` is Warden-private reasoning where naming schema fields is legitimate and frequent — turn 52's notes discuss `resourcePools` and `characterState` by name at length, correctly. Scanning it would trade the real signal for false positives on the field most likely to produce them. The accepted consequence is that markup leaking into `notes` alone goes undetected; it is not player-visible and it does not discard state.
+
+## What this does not claim
+
+The guard catches the symptom. It does not stop the model emitting the markup, and it does not reduce the ~5% base rate — it converts those turns from silent data loss into an extra tool-loop iteration. Expect `toolLoopIterations` to rise slightly and `UNAUDITABLE-MAPPING` applicability to rise with it, since state changes that previously vanished now land; both are the defect clearing, not a regression.
+
+Mitigating the emission is Warden-visible and needs a re-baseline, so it is deferred to M8.1's backlog under `ADR-0085` unless the retry rate proves unacceptable in practice. Nothing here was measured against a model other than the two named above, and the Haiku 4.5 control arm's 9 outputs are far too few to say whether it exhibits the defect at all.
+
+The detector cannot see a leak that uses markup it does not know — a differently-shaped fabricated tag would pass. That is the accepted cost of matching on structure instead of guessing at intent, and the schema-derived half of the token set is what keeps the known surface from shrinking as the tool grows.
+
+**Addendum — the emission mitigation landed rather than being deferred, and the harness can now see the failure.** Recorded 2026-08-17, the same day, on the decision to put it in front of the next playtest rather than behind M8.1's backlog.
+
+The paragraph above routed the Warden-visible half to M8.1 under `ADR-0085` on the grounds that it needs a re-baseline. That reasoning was sound and the scheduling premise it rested on was wrong: a re-baseline was already owed and already being run by hand, so the prompt change rides it at no additional Warden spend, and shipping the guard alone would have meant playtesting a known ~5% emission rate with a recovery path instead of a reduced one. `ADR-0094`'s rule is not to pay twice; batching onto a run already scheduled is the shape it prescribes.
+
+`mothership-m7.txt` gains a `WHAT GOES IN playerText` block under `TOOLS`, and the prompt hash moves **`ccac7d1c` → `d8791e8d`** — Warden-visible, so `eval:compare` across that boundary is meaningless in the usual way. Two of its three paragraphs state the rule and its consequence; the third is the one carrying the load, and it exists only because of the amplification finding above: it tells the Warden that earlier turns in its own conversation may show narration ending in that markup, and that it is the defect rather than a format to copy. A prompt that only forbade emitting the markup would leave the contamination loop intact, since the model is imitating what it was shown rather than inventing it.
+
+The guard is unchanged and stays. Prompt work reduces a rate; it does not make a rate zero, and the failure mode is silent data loss — the case for a deterministic backstop is unaffected by how well the prompt performs.
+
+On the eval side, `TOOL-SYNTAX-LEAK` is registered as a **universal** check rather than the tag-independent one anticipated when this work was scoped: `applicability`'s `applies: true` branch requires a `playerEntity` the check has no use for, and `capture-fixture`'s fail-closed stub would ship it switched off on every new capture. See `ADR-0098`. The check imports this entry's detector rather than restating its token set.
+
+**The number to expect.** Re-scoring the frozen `ccac7d1c` baseline would put `TOOL-SYNTAX-LEAK` at 4 failures in 150 (~2.7%) — the four occurrences already identified in that run's artifacts, every one of which the existing checks scored `pass` or `not_applicable`. That is the pre-mitigation figure for the tag, available without a Warden run, though not without judge spend: `eval:rescore` re-grades every check on every row, judged ones included.
+
+**Addendum 2 — the prompt block did not work and has been removed; the mitigation moved to the tool schema.** Recorded 2026-08-18. Supersedes the paragraph in Addendum 1 describing the `WHAT GOES IN playerText` block and the `d8791e8d` prompt hash.
+
+The block shipped on 2026-08-17 and did not reduce the emission rate. It is deleted, and `mothership-m7.txt` is back to **`ccac7d1c`** byte-for-byte — the same prompt the last baseline ran, which makes the tool schema the only Warden-visible change going into the next run.
+
+**Adding a fourth statement to the prompt would have been volume, not signal.** `mothership-m7.txt` is ~19 KB and already forbade this in three places; stacking emphasis is the pattern that produces over-application rather than compliance. What the investigation had not checked was whether the model was being told anything *at the point where it generates the parameter* — and it was not. Dumping the generated `input_schema` showed all five top-level properties of `submit_gm_response` carrying **no description at all**:
+
+```
+playerText       *** NO DESCRIPTION ***
+stateChanges     *** NO DESCRIPTION ***
+gmUpdates        *** NO DESCRIPTION ***
+diceRequests     *** NO DESCRIPTION ***
+adventureMode    *** NO DESCRIPTION ***
+```
+
+All fourteen descriptions in the 6.4 KB schema were nested under `stateChanges` — the `resourcePools` and `characterState` fields M7.6 added. The model's entire view of the field it was leaking into was `"playerText": { "type": "string" }`. That is a gap, not a volume problem, which is why the same instruction is expected to behave differently here than it did in the prompt.
+
+The five properties now carry descriptions (via `.describe()` in `session.schema.ts`, which `zodToJsonSchema` carries into the tool definition; schema 6,402 → 8,126 bytes, 14 → 19 descriptions). **The boundary statement appears once**, in `playerText`'s own description, rather than repeated on all five — four copies of one prohibition is the repetition-as-reinforcement pattern that the prompt block already failed with. The other four state their content plainly and let the contrast carry it; `stateChanges` closes with "a change described only in the narration is a change that did not happen."
+
+**Two costs worth knowing.** Tool definitions render at position 0 of the cached prefix, ahead of both system blocks, so editing them invalidates every breakpoint — where a prompt edit keeps the tools cache. One extra prefix write per conversation, which for a fresh playtest adventure is nothing. And a tool-schema change is Warden-visible while leaving `promptHash` untouched, so two runs with materially different tool definitions would carry identical run identities. That gap is what `ADR-0099` closes.
+
+**Addendum 3 — the retry does not work, and the turn is now abandoned after one.** Recorded 2026-08-18 on the evidence of the re-baseline run `claude-sonnet-5__ccac7d1c__2026-08-18T11-48-47Z`. Supersedes the retry reasoning in the body of this entry.
+
+The body argued for handing the rejection back and re-entering the loop, on the grounds that Claude recovers from a malformed payload that way (the 2026-07-14 precedent) and that recovering a turn beats failing it. The first half of that is now falsified for this failure mode. On `turn24-scene-jump` rep 9 the same leaked payload came back **ten consecutive times** — the whole remaining loop budget — and the turn died on cap exhaustion regardless. Ten model calls at 13k+ prompt tokens each to reach the outcome the second call already predicted. Once Claude enters this mode within a turn, it stays there.
+
+So `TOOL_SYNTAX_RETRY_BUDGET` is **1**: one rejection is handed back, a second consecutive leak throws `SessionToolSyntaxError` (502 `gm_tool_syntax_unrecoverable`). That is the number `ADR-0041` already argues for on the correction loop, and the argument transfers intact — more attempts hide the failure rather than fixing it.
+
+**A separate error class rather than reusing `SessionToolLoopError`.** Both end at 502, and they mean opposite things: the loop error means Claude was still working and ran out of room, this one means it finished the same wrong way twice. Under one code, a genuinely stuck combat turn and an unrecoverable formatting failure are indistinguishable in the logs, and the operator response to each differs.
+
+**Failing here also decouples the two budgets, which matters more than it looks.** Riding `INNER_TOOL_LOOP_CAP` meant the retries available depended on how much legitimate work the turn had already done — the rep-9 turn had spent ten iterations on rolls and lookups before the first leak, so it got ten retries where a quiet turn would have got nineteen. A busy turn getting *fewer* attempts to recover is backwards, and the count is now independent of what came before it.
+
+The counter is consecutive rather than cumulative, resetting on a submit that fails some other way, so a turn alternating between a malformed payload and a leaked one still gets a fresh budget for each mode.
+
+**What the run says about the emission itself, stated carefully.** `TOOL-SYNTAX-LEAK` read 1.00 across 149 graded turns, and an independent scan of every `warden-output.json` with the original oracle regex found zero markup in 149 outputs — the guard did its job completely, and nothing reached a player or committed silently. But the check reads 1.00 partly *because* the one occurrence became an `error` row: a turn that never produces a `gm_response` leaves the denominator, so the rate is computed over the turns that survived the behaviour being measured. The honest figure is **emission 4/150 → 1/150**, suggestive at p≈0.09 rather than the clean sweep that would have settled it. The property descriptions look like a real improvement; they are not shown to have eliminated the emission, and this tag now belongs on `ADR-0082`'s list of rates to distrust at 1.00 for a reason of its own.
+
+This fix changes recovery, not what the Warden reads: `promptHash` stays `ccac7d1c` and `assemblyHash` stays `0bb41002`, so the run's numbers remain valid and the next run is comparable to it.
+
 ---
 
 ## Claude Integration — Continuity & Spatial
@@ -1221,6 +1736,130 @@ Two conditions would change that:
 - **Synchronous multiplayer with tight timing** (Phase 2 — Ably, live typing preview, initiative-mode combat), where sub-second sequencing might actually matter for narrative correctness in a way solo async play never surfaces.
 
 Deferred under uncertainty, consistent with the project's general bias against fixing failure modes that haven't been observed. Revisit — adding a per-adventure sequence key to `messages`, mirroring `game_events`' existing `(adventureId, sequenceNumber)` pattern — if or when multi-instance deployment or synchronous multiplayer work begins, rather than before.
+
+### [ADR-0101](decisions/0101-visible-is-line-of-sight-not-discovery-only-position-is-stru.md) — `visible` is line of sight, not discovery — only position is structurally withheld
+
+**Confirmed 2026-08-21.** `docs/hidden-information-findings.md` recorded an unplanned M7.7 finding and left five open questions, the first of which — *is the resource-pool leak a defect, or is the design doc's claim too strong?* — was framed as a binary. It resolves to neither. **`visible` is overloaded**, and once the two concepts inside it are separated, the leak stops being a leak and four of the five questions close with it.
+
+**`visible` means line of sight, and line of sight is transient and bidirectional.** The design doc's own example is a goblin that ducks behind a column: it was visible, now it is not, and it can be visible again next turn. That is a per-moment fact about what a player character can currently perceive. **What the playtest actually used the field for was discovery** — `signal_source_entity` sat `visible: false` for all 58 turns as a marker that the mystery had not been solved yet, which is a monotonic narrative gate and a different thing entirely. Under line-of-sight semantics that entity should have flipped `true` when Dr. Kennedy entered its chamber and `false` again on leaving.
+
+**The field is described nowhere, so both readings were available and the model picked one.** `visible` is a bare `z.boolean()` in the synthesis schema (`synthesis.schema.ts:25`) and a bare `z.boolean().optional()` in `submit_gm_response` (`session.schema.ts:275`); neither carries a `.describe()`, `mothership-m7.txt` never mentions visibility, and no synthesis prompt does either. Every model that reads or writes the field is inferring its meaning from the word. This is the shape `ADR-0097` addendum 2 named on the top-level response properties — an absent description is a gap, not brevity.
+
+**The synthesis model reconstructed the missing concept in the flags namespace.** The playtest campaign carries `secret_signal_origin_revealed: false` and `secret_cut_corners_revealed: true` alongside `signal_source_entity.visible: false`. It modelled discovery *and* perception, and the entity schema had a slot for only one, so discovery leaked into flags. A schema that makes its writers invent the same field twice is describing a shape it does not have.
+
+**Decision, in three parts.**
+
+- **`visible` is line of sight.** Transient, bidirectional, Warden-authored, meaningful only about entities a player character could perceive right now.
+- **A new `revealed` field carries discovery**, and it is monotonic — `false` to `true` and never back. Entity-scoped secrets live here; narrative secrets with no entity (`secret_cut_corners_revealed` is about a denied parts requisition, not a thing on the ship) stay flags. The two are complementary, not a migration of one into the other.
+- **The whole entity map is emitted to the Warden every turn, `visible` and `revealed` included.** `renderEntities`' visibility filter (`session.snapshot.ts:309`) is removed.
+
+**Removing that filter discloses far less than it appears to, because the structural mechanism was already not operating.** `formatGmContextBlob` (`session.prompt.ts:52`) emits every entity in the GM context blob — hidden ones tagged `starts hidden` in as many words — into the first cached system block on every turn, ahead of the state snapshot. The entity's existence, id, type and tags are already in the prompt, along with a `hidden_truth` line carrying the mystery in prose. The only genuinely new information the removal adds is **the current value of the flag**, which is precisely what a Warden adjudicating line of sight cannot work without: to decide whether the goblin steps out of the shadow it has to know the goblin is in one.
+
+**The design doc is amended rather than the code.** `docs/zoltar-design-doc.md § The Hidden Layer` (line 263) claims *"The goblin isn't in the prompt."* That is too strong about the entity's **existence** and exactly right about its **position**. The amended claim is narrower and survives contact with the code: an entity's existence, identity and state are GM context, withheld **behaviourally**; an entity's **position** is withheld **structurally**. The two-mechanism model stands — the boundary between the mechanisms moves.
+
+**Structural secrecy is narrowed, not abandoned, and the narrowing is deliberately forward-looking.** No renderer emits grid position and the M7 snapshot has no spatial block at all, so today the structural half is vacuous. It stops being vacuous when the 2D renderer ships: `grid_entity` already carries its own `visible` column, written at synthesis by `buildGridEntityRows` (`synthesis.write.ts:300`), and filtering position rows by line of sight is where structural secrecy will actually live. Stating the decision as "entity data is always visible" without this scoping would foreclose that.
+
+**Four of the five open questions in `hidden-information-findings.md` close as consequences, not as separate calls.** (2) — where does a pool filter belong — is moot, because there is no filter. (4) — the other unfiltered renderers — is answered: they are correct, and were never wrong. (5) — does the fixture corpus need re-capture — resolves to **no**, which is the most valuable consequence: the four fixtures freezing a hidden entity's pools are freezing correct behaviour, and no `corpusVersion` bump or re-scoring is owed. (3) was answered by measurement on 2026-08-21 and is recorded in that document.
+
+**Two costs, both accepted.**
+
+- **A re-baseline.** `visible` gaining a description, `revealed` appearing, and `<entities>` changing shape are all Warden-visible, so `assemblyHash` and `promptHash` both move (`ADR-0099`). This does not buy its own run: it batches, per `ADR-0094`. It is the natural occupant of "the next tool-schema batch" that `roadmap.md § M8.1` refers to twice and never allocates.
+- **`applyEntity` reports only the first bad field on an entity, and there is one correction shot.** A failed `status` returns before any other field is examined (`session.validator.ts:613-621`). This is *not* data loss — `ADR-0038 § D4`'s validate-all-then-apply guarantee discards the whole `applied` set whenever any rejection exists, and `SessionService` runs a correction round rather than committing a partial turn — but it does mean a Warden that fixes the reported problem can fail on an unreported sibling, and the correction path is single-shot, so the turn is then thrown. Adding `revealed` makes a second rejectable field on the same entity, which is what turns this from theoretical into likely.
+
+**Scheduled into M7.7**, against the open bullet this finding already had there. M8.1 was the wrong home twice over — it is prompt-only by its own preamble, and the tool-schema batch it defers to has never been allocated. M7.7 is already paying for a re-baseline and already owns the playtest this was found in. The spec at `docs/specs/zoltar/019-entity-visibility-and-entity-write-path.md` carries the work.
+
+**Addendum, 2026-08-21 — `gmUpdates.npcStates` destroys the agenda it merges into, and that is why `npcState` must exist on the entity.** The two are *not* the same concept under two names. `narrative.npcAgendas` holds durable authored motivation; `gmUpdates.npcStates` holds volatile per-turn disposition; and `session.applier.ts:57` merges the second over the first, keyed by entity id, silently. In the 2026-08-16 playtest the cartographer's synthesized agenda — *"withholding what they know out of guilt and fear of being blamed — they will only reveal it if pushed hard or if the situation becomes lethal enough that silence is worse than confession"* — was overwritten by *"Panic check passed (rolled 15 vs stress ~4) … shaken, voice thin, but still functional."* The conditions governing the NPC's central secret were replaced by a mood note, and every subsequent turn read the mood note under an `npc_agendas:` heading. Nine of 58 turns wrote `npcStates`. The original survives only in `adventure_synthesis_snapshots`. This makes the entity-scoped `npcState` field load-bearing rather than tidy: disposition needs a home that is not the agenda.
+
+**Addendum, 2026-08-25 — the structural half was vacuous for *grid* position and not for
+*narrative* position, and the entry did not distinguish them.**
+
+This entry narrowed structural secrecy to position and then observed that *"no renderer
+emits grid position and the M7 snapshot has no spatial block at all, so today the
+structural half is vacuous."* Every clause of that is still true of the grid.
+`grid_entity` holds five rows for the 2026-08-24 playtest campaign, all `z=0`, all
+synthesis-assigned, Danny among the absent — player entities never enter that map — and
+nothing reads any of it into the prompt. The 2D renderer remains the thing that makes
+grid position load-bearing, exactly as scoped.
+
+**What the entry did not anticipate is that Phase 1 already has a spatial model, and it
+is vertical, narrative, and load-bearing without a grid.** A three-deck ship with a
+single ladder shaft is a topology. The Warden narrates movement through it every turn,
+and in the 2026-08-24 playtest (adventure `2c0ba938-ea80-4138-a95a-dc13e417bf2b`, 52
+turns) it got that movement wrong five times. "Vacuous" was read off the absence of a
+grid; what it should have been read off is whether any position reasoning was occurring
+at all. It was.
+
+**The errors are two kinds, and conflating them points the fix at the smaller half.**
+
+*Destination-deck errors* — three instances — are failures to recall which deck a named
+place is on. Turn 8: Danny leaves the bridge, stated in the same paragraph, then climbs
+*down to the deck below* and arrives at the engineering records terminal, which
+`worldFacts.ship_layout` places on the upper deck aft of the bridge. Turn 14: from that
+same terminal alcove, *past mid-deck and on toward the lower deck* to Mara's berth;
+berths are mid. Turn 19: *back down to the lower deck* to Mara's hatch, two messages
+after correctly treating the cryo bay as above the lower deck. These need no position
+term. The layout was in the prompt — `ship_layout` renders verbatim in all 52 snapshots,
+`ladder shaft` and all — and the lookup failed against it.
+
+*Distance-computation errors* — two instances — genuinely require position and layout
+together. Turn 21 places the cryo bay *two decks from here* and the bridge *two decks
+up* in one sentence; both cannot hold from one spot. Turn 28 puts the cryo bay *two decks
+away* from a scene explicitly set in the mess hall, which is the same deck.
+
+**The first kind manufactures the false premises the second kind then reasons from
+correctly.** Turn 21 was narrated from Mara's berth — which turn 14 had wrongly placed
+on the lower deck seven turns earlier. From the lower deck, *bridge two decks up* is
+right. The distance arithmetic was sound; the position it operated on was a fiction the
+Warden had authored itself and never recorded. That ordering matters for the fix: the
+lookup failures are upstream.
+
+**Why the lookups fail is form, not absence.** `ship_layout` is a single ~700-character
+prose run carrying roughly fifteen spatial facts with no deck list and no adjacency
+structure, so answering "how many decks from the mess to the cryo bay" means re-parsing
+that paragraph on every turn. The errors cluster on the mid deck, which is the middle
+clause of the sentence. **Eviction is not the explanation for this class** — turns 8 and
+14 are early, and turn 19's error sits two messages after the same turn got the adjacent
+geometry right. It compounds the second class, where it is real: messages total 95.7 KB
+against a 40 KB window, prompt tokens plateau near 13.1k from turn 28 on, and
+`rolling_summary` is never read, so current deck is recoverable only by reading back
+through narration that is being dropped.
+
+**One field actively misleads.** `gm_context.narrative.location` ships in the cached
+system block every turn as a scenario-level descriptor fixed at synthesis — *"The colony
+transport ESV Halbrecht, three weeks out from the nearest relay beacon…"*. It occupies
+the slot a reader checks for *where are we* and answers *what is this scenario about*.
+An absent field would be less misleading than this one. Renaming it (`scenario_premise`
+or similar) is nearly free and should not wait for the rest.
+
+**Fix ordering, and one correction to the obvious fix.** Restructuring `ship_layout`
+from prose into a deck-indexed list comes first: no schema change, no snapshot section,
+no write path, and it addresses the larger error class and the upstream one. Adding a
+`current_location` the Warden writes through `stateChanges` — `scenarioState` is `{}`
+today and already in the snapshot pipeline — comes second, **but not for the reason it
+first appears.** The Warden authors that field, and no independent position source
+exists to validate it against, so at turn 14 it would have written *lower deck* and
+every subsequent turn would have read that back as authoritative. A wrong value in a
+structured field is worse than a wrong sentence in prose, because everything downstream
+treats structured fields as trustworthy — the same failure shape as a Warden supplying
+its own Instinct score. The field is still worth having, and what it buys is
+**auditability**: position becomes a visible value in the event log rather than an
+inference from narration, and a wrong one becomes a gradeable defect.
+
+**Consequence for the checker taxonomy.** The destination-deck class is judge-gradeable
+today — a named place, a claimed deck, and `ship_layout` as ground truth in the fixture —
+and becomes substantially more tractable once the layout is a lookup rather than a
+paragraph. The distance class is not gradeable at all, because the position term does not
+exist in state. It is a clean instance of the third structural-checker category: a
+question that would be structural if the tool schema recorded an additional field. The
+interim answer is `not_applicable` naming `current_location`, and if that field ships the
+tag converts from judged to structural — the first worked example of that category
+resolving in the direction it was defined for.
+
+**What this does not change.** `visible` as line of sight, `revealed` as monotonic
+discovery, the removal of `renderEntities`' filter, and the conclusion that no fixture
+needed re-capture all stand. The two-mechanism model stands. What moves is the claim that
+the structural half is presently vacuous: it is vacuous for the grid, and it was never
+vacuous for the vertical topology Phase 1 has been narrating since M1.
 
 ---
 
@@ -1814,6 +2453,434 @@ A graded re-baseline is the expensive instrument in this project — roughly 300
 **The practical form.** Schema changes, prompt changes, and index changes that move Warden-visible behaviour are batched onto the next re-baseline already on the calendar. When none is scheduled, the question becomes whether the change alone justifies buying one — usually it does not, and the change waits for company. The corollary, recorded in `ADR-0030`: an object that has already absorbed a batch of changes to amortise one re-baseline makes every later change to it expensive, which is an argument for watching it rather than for filing the concern away.
 
 **Why it took this long to write down.** The rule was legible enough in application that four entries leaned on it without anyone noticing it had no home. It surfaced only when a reference migration found the citation in `ADR-0085` resolving to nothing.
+
+### [ADR-0096](decisions/0096-a-check-may-be-attached-to-a-fixture-whose-tag-it-is-not-via.md) — A check may be attached to a fixture whose `tag` it is not, via fixture-authored `applicability`
+
+`selectChecksForFixture` returned exactly the check whose id matched the fixture's `tag`, so a check was measured only on fixtures named after it. `ADR-0073` had already made applicability fixture-authored and keyed by `checkId`, and the schema comment already said a fixture "can in principle carry more than one check" — but nothing consumed that, and the corpus stayed 1:1 by construction rather than by choice.
+
+The cost is recorded in `docs/rules-extraction-findings.md § S34`: the `c45a142a` re-baseline accepted `SYSTEM-ROLLED-PLAYER-ACTION` at 1.00 (20/20) while the same run's artifacts contain six turns where the Warden resolved the player's declared action system-side. Every one of them landed on a `turn24-*` fixture, which the check was not pointed at. **A tag rate is a claim about the fixtures carrying that check, and selection-by-tag made "which fixtures carry it" a consequence of what each fixture was named at capture time.** A fixture's `tag` records the failure mode it was captured to *reproduce*; it says nothing about which other failure modes its turn is capable of provoking.
+
+So selection is now the tag's check plus every **tag-independent** check the fixture authors an `applicability` entry for, and the three `turn24-*` fixtures carry `system-rolled-player-action` that way. Attaching a check stays a fixture-authoring act — the author states the scenario calls for it and names the player entity — which keeps `ADR-0073`'s rule intact: applicability is still declared before the model runs, never inferred from what it produced. `capture-fixture` writes a fail-closed stub for every tag-independent check into each new fixture, not just for the fixture's own tag, so the authoring act is prompted rather than remembered — a check that reaches fixtures only through authored entries is one omission away from the hole this entry closes.
+
+**`tagIndependent` is hand-declared on the check, not derived.** The load-bearing property is what the checker *reads*, which is a fact about checker code and derivable from nothing on the registry entry. `system-rolled-player-action` qualifies because `ADR-0073` already re-gated it purely onto `applicability[checkId]`; it reads no `assertion` at all. Every other check does: a judged check grades against `assertion.facts` (`perceptionBoundary`, `expectedScope`, ...), and `missing-canon-capture` parses `assertion.check` prose. Those exist only for the fixture's own tag, so attaching one to a foreign fixture would grade one question against another question's boundary text. The registry throws at build time if a judged check is ever listed, and `selectChecksForFixture` throws on an `applicability` key naming an unregistered or non-tag-independent check — silently skipping it would mean a fixture edit made to close a coverage hole opens no rows and reports nothing, which is the same failure shape as the hole.
+
+Deliberately **not** derived from `applicabilitySource === 'fixture'`, which the two values coincide with today. They answer different questions — where a check's `not_applicable` verdicts come from, versus whether it reads the fixture's assertion — and `out-of-order-resolution` separates them: it is `'artifact'` because it has an artifact-dependent branch, yet it reads no assertion and would be portable on the merits. Whether it should be attached to more fixtures is a corpus decision, and is not made here.
+
+**Three alternatives, and each is smaller on the page than in the corpus.**
+
+**Retagging the three `turn24-*` fixtures is not available at all.** It is the first thing to reach for, and the file stops loading: `tag` holds a single value, and `evalFixtureSchema`'s refine ties `assertion.mode` to it, so `SYSTEM-ROLLED-PLAYER-ACTION` on a fixture carrying a judged assertion fails validation outright. Making it parse means replacing that assertion with a structural one — discarding the `SCENE-JUMP` / `OVER-RESOLUTION` / `HIDDEN-INFO-LEAK` coverage the fixtures were captured for. One hole closed by opening three.
+
+**Capturing three new `turn24-system-rolled-player-action` fixtures** reaches the same coverage at three times the Warden spend per rep — the existing `turn24-*` trio already replays one captured turn, and a fourth copy of it would run on every rep of every future run — for files whose `seededState` is byte-identical to fixtures already on disk. It also leaves the underlying rule, a check is measured where its name appears, in place to be paid for again by the next check. And it saves less than it appears to: `system-rolled-player-action` calls `requireApplicability` and declares `requiresFixtureSchema: 2`, so a new fixture would need the same `applicability` block, naming the same `playerEntity`, that the existing three now carry. **The fixture-side work is common to both routes; the registry change is the whole of the difference between them.**
+
+**Selecting every check a fixture names in `applicability`, with no `tagIndependent` flag at all**, is about ten lines and works against today's corpus. Rejected on one case: `missing-canon-capture` guards its `assertion.check` read with a runtime `throw` on non-structural mode, so attaching it to a judged fixture type-checks, builds, and fails at eval time as one `error` row per rep — naming the checker, never the fixture that misdeclared it. The flag and its throws turn that into a single message at selection time carrying the fixture id, the tag, and the fix. `ADR-0046`, `ADR-0073` and `§ S30` are three tellings of one story — a check that cannot resolve its subject reporting something other than undecided — and the guard is priced against that history, not against the ten lines it replaces.
+
+### [ADR-0098](decisions/0098-a-check-may-run-on-every-fixture-with-no-applicability-entry.md) — A check may run on every fixture, with no applicability entry to author
+
+`ADR-0096` opened selection beyond the fixture's own `tag`, but kept every attachment an authoring act: a tag-independent check reaches a fixture only through an `applicability` entry someone wrote. That is right for the check it was built for and wrong for `tool-syntax-leak`, which grades whether the narration the player was shown contains raw tool-call markup. So selection is now the tag's check, plus tag-independent checks the fixture authors an entry for, plus every **universal** check unconditionally.
+
+The distinction is whether the check's subject is conditional. `system-rolled-player-action` is portable across tags but still scenario-conditional — it means nothing where the scenario has the player declare no action — so an author states that it applies and names the player entity. A universal check has no precondition to state: every turn has narration, and that narration either contains tool-call markup or it does not. There is no fixture for which the question is not asked, and no answer an author could supply that the turn output does not already contain.
+
+**Routing it through `applicability` anyway was the obvious move, and it fails three ways.** `applicabilityEntrySchema`'s `applies: true` branch requires `playerEntity` — a field a check about narration has no use for and would have to fabricate, in the one place the corpus records who the player is. `capture-fixture` stubs every attachable check **fail-closed** (`applies: false`), which is correct for a conditional check and exactly inverted for one that should always run: every new capture would arrive with it switched off, and `ADR-0096`'s own closing observation — that a check reaching fixtures only through authored entries is one omission away from the hole it closed — becomes a certainty rather than a risk. And an `applies: false` entry would let a single fixture opt out of a correctness check that has no scenario-shaped reason to be opted out of, which is not a knob the corpus should have.
+
+So `capture-fixture` deliberately does **not** stub universal checks, and `selectChecksForFixture` throws on an `applicability` key naming one. A silently-ignored entry is the worse failure here than in `ADR-0096`'s case: an author who wrote `applies: false` would believe they had opted out, and would be wrong in the direction that hides a defect.
+
+**What this costs: a universal check cannot be scoped to part of the corpus.** That is the intended trade rather than a limitation worked around. A leak rate is a claim about every turn the Warden takes, and a corpus-scoped denominator would understate it precisely where coverage was never authored — the same shape of error as `§ S34`, arriving through a different door. A check that genuinely needs scoping is evidence that it is conditional, which means it is tag-independent and belongs in the other list.
+
+**Universal and tag-independent are alternatives, not a spectrum, and the registry enforces that.** Listing an id in both throws at build time, as does listing a judged check as universal — a judge call grades against `assertion.facts`, which exists only for the fixture's own tag, so "runs on every fixture" and "grades against this fixture's assertion" cannot both hold. The guards are priced the same way `ADR-0096`'s are: the failure they prevent is a check reporting nothing while appearing to be registered.
+
+**Read `tool-syntax-leak`'s rate with its applicability, as always, but expect the two to be near-identical.** It declares `applicabilitySource: 'artifact'` rather than `'ungated'` under the weakest-link rule `out-of-order-resolution` established, because one branch reports `not_applicable`: a turn that produced no `gm_response` at all, which is the `diceResult`-without-auto-advance path. The selection hazard that label warns about is weak here — that branch means the turn did not happen, not that the Warden chose something — but `'ungated'` would assert a `not_applicable` is impossible, and it is not.
+
+**The check grades the same detector the turn path enforces** (`src/session/session.tool-syntax.ts`, `ADR-0097`), imported rather than reimplemented. A checker with its own copy of the token set would drift from the guard, and both directions of drift are bad: the harness reporting clean while production rejects, or the harness failing runs that production would accept, which reads as a Warden regression when it is a harness disagreement.
+
+### [ADR-0099](decisions/0099-the-code-built-prompt-surfaces-get-their-own-identity-separa.md) — The code-built prompt surfaces get their own identity, separate from `promptHash`
+
+Four things reach the Warden, and until now exactly one of them had a recorded identity. `promptHash` covers `mothership-m7.txt`. The tool definitions, the GM context block and the state snapshot are produced by `session.tools.ts`, `formatGmContextBlob` and `buildStateSnapshot` — nothing anywhere recorded what shape they were in when a run executed. A rewritten tool description, an added snapshot section, or a formatter that started emitting `openingNarration` would change what the model reads while every field the run manifest prints stayed identical, and the difference would surface only in the rates, attributed to the model.
+
+So `manifest.assemblyHash` now fingerprints those three, alongside `promptHash` rather than replacing it.
+
+**`harnessVersion` was already there and could not do this job.** It is the git SHA, so it moves on every commit; `eval:compare` warns on a mismatch and will therefore warn on essentially every pair of runs anyone ever compares. It can say "the repo differs", never "what the model sees differs", and a signal that fires every time is one people learn to skip. The distinction this entry exists to draw is the one a commit id cannot make: a pure refactor of a formatter must not move the identity, and a one-word edit to a tool description must.
+
+**Widening `promptHash` instead was rejected on the historical record.** `97feadbd`, `0bdd1306`, `c45a142a` and `ccac7d1c` appear in run directory names, in `ADR-0023`, in `ADR-0085`, and in roadmap prose going back to July. Redefining what that token covers would silently reinterpret every one of those values in hindsight — the `corpusVersion` trap from `§ S35`, applied retroactively across the whole record rather than to one comparison. The split is also principled rather than merely conservative: **hash the file when the thing is a file, use a golden when what you care about is what code produces.** The Warden prompt's content is its identity; a formatter's is not.
+
+## A frozen probe, three goldens, a live hash
+
+`ASSEMBLY_PROBE` (`apps/zoltar-be/src/session/session.assembly.ts`) is a synthetic adventure — two NPCs, a hidden threat, a set flag and an unset one, pools, armor, a condition, a scenario counter, a world fact. It is rendered through the real formatters, and the hash is taken over that render. Because the input is frozen, the output moves when and only when the *shape* moves. Fixture data changing is a different question and `corpusVersion` already answers it.
+
+The probe is parsed through `MothershipCampaignStateSchema` rather than asserted into the type. That makes it a valid state by construction — it rejected four wrong guesses about field shapes while it was being written — and it picks up any defaulted field a future schema version adds, which is correct, since a new default can change what the snapshot renders.
+
+The rendered text is committed as three `.txt` goldens and asserted by `session.assembly.spec.ts`. **The goldens are the reason to do this with a probe rather than by hashing source.** Two properties follow from them and from nothing else:
+
+- **It is loud at edit time, not only at compare time.** Changing any of the three surfaces fails a test, and the fix is committing an updated golden — so the change arrives in review as a diff of the text the Warden actually receives, rather than as a formatter edit whose effect a reviewer has to simulate. This is precisely the check that was missing when M7.6 added fourteen descriptions under `stateChanges` and nobody noticed the five properties above it had none (`ADR-0097`).
+- **A refactor that produces identical text moves nothing.** Rename a variable, reorder a function: hash stable, test green, nobody disturbed.
+
+Updating is an explicit `UPDATE_ASSEMBLY_GOLDENS=1` run rather than something the suite does for itself. A golden that self-heals asserts nothing.
+
+**The hash is computed live from the render, never read from the goldens**, so it cannot go stale relative to the code — the goldens are the human-readable artifact and the test is what keeps them honest. It is 8 hex chars from `hashPromptText`, matching `promptHash` so the two read alike in a manifest. Current value: `0bb41002`.
+
+Verified by mutation rather than by argument: adding four words to the `submit_gm_response` description moved the hash to `22d3aa3f` and failed the `tools.txt` golden by name.
+
+## Absent is reported as unknown, never as a match
+
+The manifest field is optional and `schemaVersion` stays at `1`, so the runs already on disk keep parsing. Every one of them predates the field, and `eval:compare` says so explicitly rather than pairing them silently — "whether the two sides saw the same tool definitions, GM context and state snapshot is unknown rather than confirmed". Rendering an absent value as agreement is the failure the field exists to prevent, arriving through the back door.
+
+`assertManifestMatches` checks it too, which is the smaller half of this entry and the one with teeth today: `--run-dir` appends reps to an existing run, and doing that after a tool-schema edit would put two different prompts under one run id. The guard already covered `model` and `promptHash`; this belongs beside them, and it is skipped — not failed — when the manifest carries no hash, because a mismatch that cannot be observed must not be asserted.
+
+## What it deliberately does not cover
+
+**The Warden prompt.** `promptHash`, unchanged. A golden of it would be a copy of the file.
+
+**Fixture data.** `corpusVersion`, unchanged — a content hash over fixture bytes. Note it does *not* move when a checker changes, which is why the `TOOL-SYNTAX-LEAK` addition left it at `1c2a418cf68c`; that gap is `harnessVersion`'s to fill and it fills it badly, for the reasons above. Extending this mechanism to the checker registry is a reasonable next step and is not taken here.
+
+**Playtest telemetry.** `adventure_telemetry` records `snapshotSent` but stores the GM context render as a *count* (`originalRequest.systemBlocks`), so the assembled prompt is only half recoverable for a playtest — where eval runs archive it in full in `warden-request.json`. That asymmetry is backwards, since the playtest is what fixture capture reads from, and it is left open rather than fixed here: the proportionate shape is probably a per-turn hash plus the full text once per adventure, not 7.5 KB × 58 turns.
+
+**Naming.** `assemblyHash`, not `promptShapeHash`. `buildSessionRequest` is the assembly step and that is exactly what is fingerprinted; a name beginning with `prompt` would read as a variant of `promptHash` when the two are "the file" and "everything else".
+
+**Addendum — `assemblyHash` is a function of the build, not of the commit, and a stale workspace package produces a hash no commit corresponds to.** Recorded 2026-08-21 from the spec 019 re-baseline, `claude-sonnet-5__6717347d__2026-08-21T21-14-59Z`.
+
+That run recorded `harnessVersion 1458aaf` and `assemblyHash 8e332e38`. The same commit produces **`6dc28608`** on a machine with a current workspace build, which is the value spec 019 pre-registered. The gap is `@uv/game-systems`: the eval host was running a `dist` built before `ADR-0101` added `revealed` to `EntitySchema`, and `ASSEMBLY_PROBE.campaignStateData` is constructed with `MothershipCampaignStateSchema.parse` — so Zod stripped the unknown key and the probe rendered `undiscovered` for entities that carry `revealed: true`. Reproduced exactly: deleting `revealed` from the probe's entities before rendering yields `8e332e38` to the character.
+
+**Nothing the Warden read was wrong, which is what makes this worth recording rather than merely fixing.** The probe feeds the hash and the goldens and is never sent; fixtures reach the turn path through a cast (`session.service.ts:282`) rather than a parse, so `revealed` rendered correctly in every request — verified against the archived `warden-request.json`, and the run's tool definitions are byte-identical to the committed `tools.txt`. The measurement stands. What is wrong is the label on it.
+
+**Two holes this exposes.**
+
+- **The hash absorbed a dependency version silently, which is the failure mode this entry exists to prevent, one level out.** `ADR-0099` reasoned about edits to *our* source moving the hash. It did not consider that the same source can render two different surfaces depending on what `node_modules` and the workspace `dist` hold, and a hash that varies with the build cannot serve as run identity — `eval:compare` pairs on it and will call two runs incomparable, or comparable, for reasons no commit explains.
+- **The goldens would have caught it and were not run.** `session.assembly.spec.ts` asserts the rendered surfaces match the committed files; against a stale `@uv/*` build it fails. A green `npm test` on the eval host is therefore a precondition for a run being labelled, and nothing enforces that today.
+
+**Not fixed here.** The obvious candidates — fold resolved `@uv/*` versions into the hash, or have `eval:run` refuse to start unless the assembly goldens pass — are a change with its own design questions, and the entry that records the requirement should not also invent the mechanism. Tracked in `roadmap.md § M7.7`.
+
+### [ADR-0102](decisions/0102-the-judge-contract-gets-its-own-identity-and-the-verdict-fol.md) — The judge contract gets its own identity, and the verdict follows the reasoning
+
+`ADR-0099` gave the code-built Warden surfaces an identity and, in its addendum, recorded that the identity varies with the build rather than the commit. Both halves of that entry turn out to be one defect with two faces, and the second face is on the grading side: **an identity that does not cover the surface it names.** `assemblyHash` missed the build; `rubricHash` missed the judge contract. Both were invisible in the same run, `claude-sonnet-5__6717347d__2026-08-21T21-14-59Z`.
+
+`rubricHashFor` (`eval/checks/registry.ts:595`) is `hashPromptText(rubricTextFor(checkId))` — the rubric template and nothing else. Outside it sat `JUDGE_VERDICT_TOOL`, the judge system prompt, `JUDGE_MODEL`, and the closing instruction, which no prior write-up listed and which states the order the model is asked to work in. Changing any of them changes how every judged tag is graded and moved **no identity at all**: `manifest.completedReps[].rubricHashes` unchanged, `eval:compare --filter-rubric CHECK=HASH` still matching, the "graded by different checker code" warning silent. A before/after boundary that reads as like-for-like and is not.
+
+## A separate hash, not a wider `rubricHash`
+
+`ADR-0099` rejected widening `promptHash` on the historical record. The case here is stronger, because rubric hashes are not merely quoted in prose — they are **filenames on disk** (`rubrics/<hash>.txt`, `eval/runs/paths.ts:91`) and the right-hand side of `--filter-rubric CHECK=HASH`. Redefining what the token covers would reinterpret every recorded value in hindsight *and* rename every artifact carrying one.
+
+`ADR-0099`'s rule settles which mechanism each half gets: **hash the file when the thing is a file, use a golden when what you care about is what code produces.** A rubric template is authored text and its content is its identity — `rubricHash`, unchanged. The tool schema, the system prompt and the closing instruction are assembled by `judge.ts`, so they get the `assemblyHash` treatment: a live hash over a labelled render, backed by a committed `.txt` golden. `JUDGE_MODEL` is folded in despite being neither a file nor a surface — it is the largest single determinant of a verdict, and a run graded by a different model is not comparable to one that was not.
+
+**This is a new entry rather than an `ADR-0099` addendum** because that entry's scope is *the code-built prompt surfaces* — what the Warden reads. The judge is the grader, and a reader looking for "which judge graded this run" would not search there. It extends `ADR-0099`'s reasoning rather than replacing it; neither is superseded.
+
+## Scoring identity is recorded, not asserted
+
+`judgeContractHash` lives on the score row, the completed rep, the judge artifact and the variance row — **not** at the manifest top level, and **not** in `assertManifestMatches`.
+
+`assemblyHash` is *input* identity: frozen for a run, and asserted, because appending reps across a change would mix two prompts under one run id. The judge contract is *scoring* identity, and scoring is re-doable — `eval:rescore` re-grades frozen artifacts into `rescore/<timestamp>/` while `manifest.json` keeps its creation-time values, so a manifest-level field would describe the original grading and mislabel every re-score. `harnessVersion` is already per-row for exactly this reason. `rubricHashes` set the precedent that scoring identity is made visible rather than asserted, and this follows it.
+
+Re-graded rows take the current contract; **carried-forward rows keep the source's**, or every re-score containing one would look like it spanned a judge change.
+
+`eval:compare` warns at **run level** rather than per check, and that asymmetry with the mixed-rubric warning is the point: the harness ships one rubric per judged check, so several rubric hashes in a run is normal. The contract is process-wide, so two of them means the whole run was graded two ways — no subset to filter to, and the remedy is `eval:rescore` rather than a flag. An absent hash reports as **unknown**, never as a match.
+
+## The goldens now gate the runs
+
+`ADR-0099`'s addendum left two candidate fixes for the build-varying hash and chose neither. The cheaper and more honest one is taken here: the goldens already detect a stale `@uv/*` build exactly, and nothing required them to have been run. `assertAssemblyGoldensCurrent` refuses `eval:run`; `assertJudgeContractGoldenCurrent` refuses `eval:run`, `eval:rescore` and `eval:judge-variance` — every entry point that can spend judge calls. Neither is covered by `--skip-preflight`, following `assertNoStubCheckers`: that flag is for assertions about the environment, and these are about whether the label being written is true.
+
+Folding resolved `@uv/*` versions into the hash was rejected. A hash that moves on every dependency bump reintroduces `harnessVersion`'s failure — a signal that fires every time is one people learn to skip.
+
+## `rationale` before `passed`
+
+The tool call is forced (`toolChoice: { type: 'any' }`) and a model emits an object's fields in schema order, so with `passed` first the boolean was produced before a word of reasoning existed and could not be retracted once the rationale talked its way out of it. A scan of all 1,341 `judge-*.json` on disk found six verdicts contradicting their own rationale — every one a `fail` under a rationale arguing the turn was fine, with **zero** in the converse direction across 940 passes. That asymmetry is the hypothesis showing up in the data.
+
+**Shipped on measurement rather than on the argument**, because it is not obviously a pure win: a verdict conditioned on reasoning is better calibrated, but a long rationale can also talk itself into a conclusion. `eval:judge-variance` ran on both sides of the change against 38 frozen inputs, 114 judge calls each, under a decision rule pre-registered before either run.
+
+**The result, and the single strongest piece of it.** `roll-result-inversion` rep 004 carried *both* contradictions on the before side, closing on *"there is nothing confirmable as inverted"* and *"this does not fail the rubric on the stated criteria"* — under `verdict: fail`. After the swap the same frozen input returns `pass` three times, reasoning the same way. Same argument, verdict now following it. Contradictions across the after side: **zero**, by direct read of the one failure and a converse scan of all 112 passes.
+
+Two things kept honest rather than tidied away. `hidden-info-leak`'s flip rate moved 0.00 → 0.10, passing the rule by exactly zero margin. And one trial in 114 errored where the before side had none — plausibly a model running long on the rationale and omitting the now-last `passed` field, equally plausibly a transient API failure, and one event cannot separate them. `judgeVarianceRowSchema` now persists `errorMessage` so the next run can attribute what this one could not.
+
+## What this deliberately does not cover
+
+**The structural checkers.** `corpusVersion` hashes fixture files and says nothing about the code that grades them; this covers the judged half only. Declined on repair cost rather than severity — `eval:rescore` regrades deterministic checkers for free, so a structural mislabelling is undoable at zero spend, where the judged half has no such hatch. `docs/roadmap.md § M7.7`.
+
+**Accuracy.** Flip rate measures grader stability against frozen input; a judge that is stably wrong scores perfectly on it. Nothing here establishes that a verdict is *correct*, which is `§ M7.8`'s remit and needs known answers.
+
+**The six other judged checks.** The change applies to all nine; the evidence covers three. The trigger for buying the rest is recorded in the spec rather than pre-emptively spent.
+
+### [ADR-0104](decisions/0104-spatial-errors-two-failure-modes.md) — Spatial narration errors are two failure modes, not one
+
+**The 2026-08-24 playtest narrated ship movement wrongly six times, and the six look
+like one failure mode.** Adventure `2c0ba938-ea80-4138-a95a-dc13e417bf2b`, 52 turns.
+Turn 8 has Danny leave the bridge and climb *down to the deck below* to reach the
+engineering records terminal, which `worldFacts.ship_layout` places on the upper deck aft
+of the bridge. Turn 14 takes him from that terminal *past mid-deck and on toward the
+lower deck* to Mara's berth; berths are mid. Turn 18 repeats it. Turn 21 places the cryo
+bay *two decks from here* and the bridge *two decks up* in one sentence, which cannot both
+hold from one position. Turn 24 places Petrov *two decks from the engine room* when
+`worldFacts.crew_roster` puts him in it. Turn 28 puts the cryo bay *two decks away* from a
+scene explicitly set in the mess hall, which is the same deck.
+
+**They are two, and the line between them is whether the fixture contains the answer.**
+`worldFacts.ship_layout` states which deck each place is on and renders verbatim in all
+52 snapshots, so it is seeded into any fixture captured from this adventure. Danny's
+current deck is stated nowhere in state at all — the snapshot emits four sections
+(`<resource_pools>`, `<entities>`, `<flags>`, `<world_facts>`) and none is spatial,
+`grid_entity` is unread and does not contain the player, and `narrative.location` is a
+scenario descriptor fixed at synthesis. A checker can compare a claimed deck against
+`ship_layout`. Nothing can evaluate *two decks from here* without knowing where *here* is.
+That is the difference between a gradeable tag and a category-three tag, and it is why one
+finding produces two registrations.
+
+**The first kind manufactures the false premises the second kind then reasons from
+correctly.** Turn 21 was narrated from Mara's berth, which turn 14 had wrongly placed on
+the lower deck seven turns earlier. From the lower deck, *bridge two decks up* is right.
+The arithmetic was sound and the position it operated on was a fiction the Warden had
+authored itself and never recorded. Scoring both under one tag would double-count one root
+cause and erase the ordering, which is the most actionable thing the playtest produced
+about this failure: the lookup errors are upstream, and fixing them removes some of the
+distance errors without touching distance reasoning at all.
+
+**Decision, in two parts.**
+
+- **`SEEDED-CANON-CONTRADICTION`** — narration asserts something contradicting a concrete
+  value resident in the fixture's seeded state or seeded opening narration. Judged, not
+  structural: extracting the claim from prose is classification, and structural checks may
+  read event and state structure only. A response making no such claim is
+  `not_applicable`, not a pass.
+- **`SPATIAL-RELATION-ERROR`** — the Warden asserts a relative spatial claim that is wrong
+  given the layout and the acting entity's actual position. Registered as **category
+  three**: a question that would be structural if the schema recorded an additional field.
+  Every rep returns `not_applicable` naming `current_location` as the missing field, until
+  that field exists.
+
+**`SEEDED-CANON-CONTRADICTION` is deliberately scoped wider than the spatial cases.** The
+unifying property is not that a claim is spatial; it is that its referent lives in the
+fixture, which is what makes the tag gradeable at all. Two subtypes are attested. Layout
+contradictions against `ship_layout` (turns 8, 14, 18), and a timeline contradiction at
+turn 1, which places the mid-deck lighting failure *since day four* against a seeded
+opening narration saying the fixtures went dark *two nights ago*, aboard a ship three weeks
+out. A third subtype appears at turn 24, where the contradicted value is where a *person*
+is (`crew_roster`) rather than where a *place* is (`ship_layout`). Five instances across
+three kinds of case. Registering `DECK-LOOKUP-ERROR` and a
+timeline sibling separately would mean generalising later against a corpus already
+committed to the narrow shape, and the standing defer-until-a-second-case principle is
+satisfied here by a second *kind* rather than a repeat.
+
+**The judge cannot see seeded state, so the ground truth has to be injected.**
+`runJudgeCall` builds the rubric text, the winning response's `playerText`, a dump of this
+turn's `gameEvents`, and an optional `judgeContext` block. No `seededState`, no
+`campaignState`, no `worldFacts` — and since `summarizeGameEvents` shows only what the turn
+*wrote*, a seeded value never appears there either. The mechanism is `judgeContext`, which
+receives the fixture and can render `fixture.seededState.campaignState.worldFacts` into the
+scope block; `unauditableMappingJudgeContext` is the existing precedent.
+
+**The rubric is authored with `requiredFacts: []`, and that is a durability decision
+rather than a shortcut.** Rubric text lives in `eval/checks/judged/rubrics.ts` and is
+outside `corpusVersion`, so a rubric revision is scoring-only — frozen artifacts stay valid
+and `eval:rescore` re-grades them in place. `assertion.facts` lives inside the fixture file
+and is not. Putting the contradicted value in `requiredFacts` would therefore pin the
+fixture files to the provisional rubric's fact set, so any later revision changing that set
+costs a `corpusVersion` bump. With an empty fact set and the ground truth injected through
+`judgeContext`, the first rubric is a revisable draft rather than a permanent commitment,
+and getting it wrong is cheap.
+
+**The injection sits in a hash blind spot, which is a separate defect and gets a separate
+entry.** `judgeContext` output is covered by neither `rubricHash` (which hashes the
+template alone) nor `judgeContractHash` (model, system prompt, closing instruction, verdict
+tool) nor `corpusVersion`. Two runs can therefore carry identical identities on every axis
+while the judge read different material — the shape `ADR-0099`'s addendum exists to
+prevent, and pre-existing, since `unauditable-mapping` already sits in it. Mitigated here by
+sourcing the injected data from `fixture.seededState`, so the *data* falls under
+`corpusVersion` and only the renderer is unhashed, plus a committed golden on the renderer.
+Hashing the output directly is the wrong instrument: it varies per fixture and per run, so
+it would not be a stable contract identity in the way `rubricHash` and `judgeContractHash`
+are, and what needs coverage is the renderer's behaviour rather than its output.
+
+**Considered and rejected.**
+
+- **One tag covering all six errors.** Rejected on the causal argument above: it
+  double-counts turn 14 as turn 21 and hides which fix comes first.
+- **A narrow `SEEDED-CANON-CONTRADICTION` restricted to spatial claims.** Rejected because
+  the turn 1 timeline case has the identical gradeable property and would force the
+  generalisation later at higher cost.
+- **Deferring `SPATIAL-RELATION-ERROR` until `current_location` exists.** Rejected because
+  registration is free — the registry is harness-side and moves neither `promptHash` nor
+  `assemblyHash` — and because registering it now means the tag converts when the field
+  ships rather than being invented late. Note the report must distinguish a tag gated by a
+  *declared* missing schema field from one gated by accident; `MISSING-CANON-CAPTURE`'s
+  three runs of 0/10 are the second kind, and reading them the same way at a glance is the
+  hazard.
+- **A third tag for turn 9's silent retcon.** Asked directly whether he had changed decks,
+  the Warden asserts Danny is on the upper deck and *never had to take the ladder shaft down
+  at all* — restoring `ship_layout` correctly while flatly denying turn 8's narration. The
+  correction is right; the failure is that it is unacknowledged. One instance, entangled
+  with a defensible behaviour, and a different mechanism from the turn 20/21 retcon defect
+  which is about state committed and not reversed. Logged, not registered. Revisit on a
+  second instance, and do not merge the two on the strength of both containing the word
+  retcon.
+
+**Measurement hazard this decision creates.** The `ADR-0101` addendum of the same date
+recommends restructuring `ship_layout` from a ~700-character prose run into a deck-indexed
+list — a Warden-visible intervention aimed at precisely what
+`SEEDED-CANON-CONTRADICTION` measures. If it lands in the same batch as the fixtures, the
+tag's first number is post-intervention with nothing to compare against, and the effect of
+the one intervention most worth knowing about is unrecoverable. The restructure is a
+`worldFacts` edit with no schema change and does not need to ride any particular milestone,
+so the cheap resolution is to measure first. Whichever order is chosen, the §6.3 prediction
+is written before the run: a prediction too loose to be violated makes category-2
+attribution unreachable by construction.
+
+**Cost.** New fixtures are a set-membership `corpusVersion` bump — survivors' artifacts
+stay valid and no Warden call is owed for them — and because both tags are new, no existing
+tag's denominator moves. The fixtures × N reps are owed whenever they are captured, so
+deferring saves nothing and forfeits the coverage — and the candidate set is larger than the
+three the roadmap bullet names, since turns 18 and 24 are also fail-direction instances. The provisional rubric's first figures
+become citable, so a bump note is written when the rubric is authored rather than when it is
+first revised.
+
+**Addendum — `SPATIAL-RELATION-ERROR` is not a category-three tag, and its registration is
+deferred.** Recorded 2026-08-25 while annotating the playtest report for fixture extraction.
+
+The claim above is that this tag "would be structural if the schema recorded an additional
+field," and that adding `current_location` converts it. `ADR-0074`'s third case does not
+admit it. The test that case sets is not that a field is missing; it is that once the field
+lands the check reads **no prose at all** — `out-of-order-resolution` compares a named gate's
+sequence number, `system-rolled-player-action` attributes through `actingEntityId` "without
+reading `purpose` at all," and both cleared it because the fact being graded already lived in
+the `roll_dice` payload and the new field completed it.
+
+The fact graded here does not. *"Four hundred and twelve people are asleep two decks away"*
+exists only in narration. `current_location` supplies where the acting entity stands; it does
+not supply the assertion, and extracting the assertion is classification — the same argument
+this entry makes one paragraph earlier to send `SEEDED-CANON-CONTRADICTION` to a judge. So
+the field moves this tag from ungradeable to *judged with a better fact injected*, which is
+not what category three means: every prior third-case example resolved into the first case,
+not into a better-informed judge call.
+
+**Two different checks were conflated.** Grading the prose claim is judged permanently, and
+`current_location` improves the `judgeContext` injection exactly as `worldFacts` does for the
+sibling tag. Grading the *state writes* — are consecutive `current_location` values
+adjacency-legal against `ship_layout` — is genuinely structural, but it is a narrower
+question that catches turn 14's misplacement and misses turns 21 and 28 entirely, because a
+prose distance claim need not correspond to any state write. Those two turns are the
+instances that motivated the tag. This entry describes the first and promises the second.
+
+**Registration is therefore deferred**, reversing the "considered and rejected" bullet above
+on its own terms. That bullet rejected deferral because registration is free. It is not free
+in the way that assumed: registering forces a choice between `structuralFailureModeTags` and
+`judgedFailureModeTags` now, and that is precisely the question that is unsettled. Registering
+structural and later moving to judged is the `MISSING-DELTA` / `ROLL-RESULT-INVERSION`
+migration, which required an `assertion.mode` edit inside every fixture file carrying the tag
+and therefore a `corpusVersion` bump.
+
+Deferral also keeps the guardrail mechanical rather than procedural. `capture-fixture`
+validates `--tag` against `failureModeTagSchema` and refuses an unregistered value, so while
+the tag is unregistered a fixture cannot be captured against it by accident. Registering it
+replaces that gate with a note asking people to remember. Nothing is lost by waiting: the
+`SEEDED-CANON-CONTRADICTION` fixtures are unaffected, and no fixture was planned for this tag
+in the same batch. Annotating the playtest report with the tag is safe and stays — nothing
+reads those annotations, and the 2026-08-16 report already carries unregistered tags.
+
+**`SEEDED-CANON-CONTRADICTION` is unaffected.** Register it, author the rubric with
+`requiredFacts: []`, and capture its fixtures as planned.
+
+**One correction to the body above, applied in place.** The third layout contradiction is
+**turn 18**, not turn 19 — *"You head back down to the lower deck ... and rap a knuckle
+against Mara's hatch"* — and turn 19 contains no deck claim at all. The same error is in the
+M7.7 roadmap bullet and in the capture list, which name turn 19 for this instance; the
+roadmap bullet has since been corrected. Two further counts moved when turn 24 was added to
+the body as a third subtype, and are corrected in place: the playtest narrated ship movement
+wrongly **six** times rather than five, and the opening paragraph now enumerates turn 24
+alongside the other five. `SEEDED-CANON-CONTRADICTION` stands at five instances across three
+subtypes; the six counts all spatial errors including the two that belong to the deferred
+tag.
+
+### [ADR-0105](decisions/0105-judgecontext-golden-not-hash.md) — `judgeContext` output is covered by a golden, not a hash
+
+**Four surfaces reach the judge and three of them have a recorded identity.** `runJudgeCall`
+assembles the rubric text (template plus `assertion.facts` interpolated), the winning
+`gm_response`'s `playerText`, a JSON dump of this turn's `gameEvents`, an optional
+`--- Scope of this check ---` block produced by the check's `judgeContext`, and the closing
+instruction. Of those, `rubricHashFor(checkId)` hashes `rubric.template` — the
+uninterpolated template alone; `corpusVersion` covers `assertion.facts`, since it is a field
+inside the fixture file; `serializeJudgeContract` covers the model, the system prompt, the
+closing instruction and the verdict tool; and narration and event summary are derived from
+the run itself. **`judgeContext` output is covered by nothing.**
+
+**The consequence is that two runs can carry identical identities on every axis while the
+judge read materially different material.** `judgeContext` is
+`(result: TurnExecutionResult, fixture: EvalFixture) => string` — it receives the fixture and
+can render anything it likes into the prompt, including seeded state the judge otherwise
+never sees. Editing that function changes what the grader reads and moves `rubricHash`,
+`judgeContractHash` and `corpusVersion` not at all. This is the shape `ADR-0099`'s addendum
+exists to prevent — a Warden-visible or judge-visible surface built by code and carrying no
+identity — reproduced inside the machinery built to prevent it.
+
+**The severity is not "a missing test."** `eval:compare` treats matching identity hashes as
+license to compare two runs, and reports a *missing* hash as unknown rather than as a match
+precisely so that license is not issued on absent evidence. A surface that is present, that
+varies, and that no hash covers means the license can be issued falsely: the comparison
+reports like-for-like and is not. Every other gap in the hash coverage produces a warning;
+this one produces silence.
+
+**Pre-existing rather than introduced.** `unauditableMappingJudgeContext` has sat in this
+gap since `UNAUDITABLE-MAPPING` shipped. It surfaced now because
+`SEEDED-CANON-CONTRADICTION` (`ADR-0104`, drafted 2026-08-25) is definitionally a comparison
+against seeded state, the judge cannot see seeded state, and `judgeContext` is therefore the
+only available injection point — which made the gap load-bearing for a new check rather than
+latent in an old one.
+
+**Partially mitigated already, in one direction only.** The rendered output is recorded
+per-run in the artifacts (`eval/runs/artifacts.ts:144-150`), so a reader of a given run can
+see exactly what was injected. That makes any single run **auditable**. It does not make two
+runs **comparable**, because nothing surfaces a difference between them without a manual
+read of both artifact sets — and comparability is the property `eval:compare` exists to
+assert.
+
+**Decision: a committed golden on the renderer, and no hash over its output.**
+
+Same instrument as `assemblyHash`'s three committed `.txt` goldens: a frozen input rendered
+through the real function, the result committed, and a refactor producing identical text
+moving nothing while a one-word edit fails a golden by name. Verified by mutation rather
+than by argument.
+
+**Hashing the output is the obvious move and it is wrong.** `judgeContext` output varies per
+fixture and per run by construction — it is a function of both. A hash over it would move
+whenever the corpus or the run moved, which is what `corpusVersion` and the run identity
+already express, and it would therefore not be a stable contract identity in the way
+`rubricHash` and `judgeContractHash` are. Those hash a *contract*: a thing that is fixed
+across fixtures and changes only when someone changes it. The renderer is the contract here;
+its output is not. What needs coverage is the renderer's behaviour, and a golden covers
+behaviour where a hash would only re-express variability that is already labelled.
+
+**Where the injected data should come from, as a corollary.** Data rendered from
+`fixture.seededState` falls under `corpusVersion`, because the fixture file is hashed. Data
+constructed inside the renderer does not fall under anything. So a `judgeContext` that
+*selects* from the fixture leaves only the selection logic uncovered, while one that
+*authors* content leaves the content uncovered too. Prefer selection, which is also what the
+field's own doc comment endorses — *"One implementation selects; the judge grades what it
+hands over."*
+
+**Alternatives considered.**
+
+- **Hash the rendered output.** Rejected above: not a contract identity, and re-expresses
+  variability already carried by `corpusVersion` and the run identity.
+- **Fold `judgeContext` into the rubric template.** Would inherit `rubricHash` coverage for
+  free, and is impossible: the template is static text and the whole purpose of
+  `judgeContext` is to render per-fixture data into the prompt.
+- **Move the injected values into `assertion.facts`.** Would inherit `corpusVersion`
+  coverage, and is rejected on a cost that falls elsewhere: `assertion.facts` lives inside
+  the fixture file, so pinning a check's ground truth there commits every fixture carrying
+  that tag to the current rubric's fact set, and any later revision changing that set costs
+  a `corpusVersion` bump on all of them. Recorded at length in `ADR-0104`, where the
+  `requiredFacts: []` decision for `SEEDED-CANON-CONTRADICTION` turns on exactly this.
+- **Leave it and rely on the artifacts.** Rejected: auditability after the fact is not
+  comparability, and the failure this gap produces is a silent false match rather than a
+  missing record.
+
+**Scope.** Two goldens are owed — one for the new `SEEDED-CANON-CONTRADICTION` renderer,
+landing with its capture work in M7.7 because it is a prerequisite for using the mechanism
+honestly there, and one for `unauditableMappingJudgeContext`, which is this entry's own work
+in M7.8. Any future check adding a `judgeContext` adds a golden with it. Whether that is
+enforceable by construction — the way `structuralCheckers` is typed
+`Record<StructuralTag, ...>` so a missing checker is a compile error rather than a silent
+`undefined` — is an open question worth answering while the goldens are being written, since
+a convention that depends on remembering is the same class of thing this entry is
+correcting.
+
+**Incidental, found in the same read.** The comment in `fixture.schema.ts` stating that the
+stub refusal *"is currently in force for the whole corpus"* is stale: `STUB_CHECK_IDS` has
+been empty since 2026-08-20 and `assertNoStubCheckers` no longer blocks a full run. Correct
+at the source rather than patching around it.
 
 ---
 

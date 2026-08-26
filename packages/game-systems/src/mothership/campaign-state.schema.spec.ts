@@ -28,7 +28,12 @@ describe('MothershipCampaignStateSchema', () => {
         _scenario: { hull_breach_timer: { current: 5, max: 5 } },
       },
       entities: {
-        dr_chen: { visible: true, status: 'alive', npcState: 'Cooperative' },
+        dr_chen: {
+          visible: true,
+          revealed: true,
+          status: 'alive',
+          npcState: 'Cooperative',
+        },
       },
       flags: {
         adventure_complete: { value: false, trigger: 'Escape the vessel.' },

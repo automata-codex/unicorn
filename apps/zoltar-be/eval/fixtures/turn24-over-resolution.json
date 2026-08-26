@@ -900,5 +900,13 @@
     "facts": {
       "resolutionLevel": "The Delta-vs-UNIT-7 encounter in Lab B is happening off-screen from Alvarez's perspective \u2014 she is downstairs in a separate firefight and cannot perceive it directly. An off-screen NPC-vs-NPC encounter like this should resolve as a single consolidated check or pure narrative summary, not multiple discrete rolls."
     }
-  }
+  },
+  "applicability": {
+    "system-rolled-player-action": {
+      "applies": true,
+      "playerEntity": "Alvarez",
+      "situation": "Alvarez enters three commands at the panel and then looses a spray of suppressive fire at the contractors sharing the equipment bay with her \u2014 a resolvable player action calling for a Combat check, which is the Warden's to defer to the player rather than to roll system-side."
+    }
+  },
+  "fixtureSchemaVersion": 2
 }

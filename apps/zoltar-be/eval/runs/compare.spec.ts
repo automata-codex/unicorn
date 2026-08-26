@@ -331,6 +331,58 @@ describe('orderForDisplay', () => {
 });
 
 describe('detectHeterogeneity', () => {
+  it('warns once for the run when judged rows span two judge contracts', () => {
+    // Run-level, not per-check. Unlike a rubric, the contract is shared by
+    // every judged check in the process, so there is no "every other check is
+    // unaffected" consolation and no per-check filter to offer.
+    const info = detectHeterogeneity(
+      [
+        scoreRow({
+          checkId: 'over-resolution',
+          rubricHash: 'aaaa1111',
+          judgeContractHash: 'fbbd8e46',
+        }),
+        scoreRow({
+          checkId: 'hidden-info-leak',
+          rubricHash: 'bbbb2222',
+          judgeContractHash: '9c1d40ab',
+        }),
+      ],
+      'run A',
+    );
+
+    expect(info.judgeContractHashes).toEqual(['9c1d40ab', 'fbbd8e46']);
+    expect(info.warnings.filter((w) => w.includes('judge contracts'))).toHaveLength(1);
+    expect(info.mixedRubricChecks).toEqual([]);
+  });
+
+  it('does not treat structural rows as a second, empty contract', () => {
+    // A structural row carries no contract because no judge graded it.
+    // Folding those in as a distinct value would report every mixed-mode run
+    // — which is every run — as spanning two contracts.
+    const info = detectHeterogeneity(
+      [
+        scoreRow({
+          checkId: 'over-resolution',
+          rubricHash: 'aaaa1111',
+          judgeContractHash: 'fbbd8e46',
+        }),
+        scoreRow({
+          checkId: 'system-rolled-player-action',
+          checkMode: 'structural',
+          rubricHash: undefined,
+          judgeContractHash: undefined,
+        }),
+      ],
+      'run A',
+    );
+
+    expect(info.judgeContractHashes).toEqual(['fbbd8e46']);
+    expect(info.warnings.filter((w) => w.includes('judge contracts'))).toEqual(
+      [],
+    );
+  });
+
   it('does not count carried-forward rows as harness drift', () => {
     // The regression this guards: a re-score with even one carried-forward
     // row looked like it spanned two harness versions, because such a row

@@ -1,0 +1,15 @@
+Survivor:
+{
+  "id": "survivor_1",
+  "player_text": "player view: survivor_1",
+  "claude_text": "seed text",
+  "interfaces": [
+    {
+      "condition": "threat",
+      "note": "linked"
+    }
+  ],
+  "tags": [
+    "demo"
+  ]
+}

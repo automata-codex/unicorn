@@ -64,3 +64,32 @@ export function executeDiceRoll(
   const total = results.reduce((a, b) => a + b, 0) + modifier;
   return { notation, results, modifier, total };
 }
+
+/**
+ * Converts a die result into the row index of a Mothership table.
+ *
+ * **Every table in the book is indexed from `00`** — Loadouts run `00`–`09`,
+ * Trinkets and Patches `00`–`99` — while `executeDiceRoll` returns `1`–`N`
+ * (`randomInt(sides) + 1`, above). A raw roll therefore cannot index the table
+ * it was rolled for, and the top result has no row at all.
+ *
+ * **The offset belongs here and not at the roll site.** A creation roll records
+ * what the dice showed and nothing may transform it before storage — that is
+ * the property the whole `creationRolls` design rests on
+ * (`character-sheet.schema.ts`). Subtracting one on the way in would store a
+ * number the player never saw on a die, and it would have to be added back to
+ * display the roll. So: store as rolled, offset at lookup, in one place.
+ *
+ * `trinket` and `patch` have carried the same 1-based roll since M7.6 without
+ * anything applying an offset, because the player resolves those two tables
+ * from their own copy of the book. This establishes the convention rather than
+ * repairing a live miscalculation.
+ */
+export function tableIndexForRoll(die: number): number {
+  if (!Number.isInteger(die) || die < 1) {
+    throw new DiceNotationError(
+      `Table lookups need a die result of 1 or more, got ${die}`,
+    );
+  }
+  return die - 1;
+}

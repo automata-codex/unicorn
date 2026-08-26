@@ -39,7 +39,12 @@ export interface ValidationResult {
     characterState: Record<string, MothershipCharacterState>;
     entities: Record<
       string,
-      { visible: boolean; status: EntityStatus; npcState?: string }
+      {
+        visible: boolean;
+        revealed: boolean;
+        status: EntityStatus;
+        npcState?: string;
+      }
     >;
     flags: Record<string, { value: boolean; trigger: string }>;
     scenarioState: Record<
@@ -48,12 +53,27 @@ export interface ValidationResult {
     >;
     worldFacts: Record<string, string>;
   };
+  /**
+   * Validated `gmUpdates.npcAgendas`. Kept beside `applied` rather than in it
+   * because `applied` is the campaign-state half and is persisted verbatim as
+   * `state_update.payload.applied`; agendas live in the `gm_context` blob.
+   */
+  npcAgendas: Record<string, string>;
   rejections: ValidationRejection[];
   thresholds: ThresholdCrossing[];
 }
 
 export function validateStateChanges(input: {
   proposed: SubmitGmResponse['stateChanges'];
+  /**
+   * `gmUpdates.npcAgendas`, validated here so an agenda amendment goes through
+   * the same validate-then-apply discipline as everything else. Until
+   * `ADR-0101` it bypassed validation entirely and was spread over the prior
+   * agendas in the applier.
+   */
+  proposedNpcAgendas?: Record<string, string>;
+  /** Prior `narrative.npcAgendas`, for the "does this key exist" check. */
+  currentNpcAgendas?: Record<string, string>;
   currentData: MothershipCampaignState;
   poolDef: (poolName: string) => PoolDefinition;
   /**
@@ -79,17 +99,48 @@ export function validateStateChanges(input: {
       scenarioState: {},
       worldFacts: {},
     },
+    npcAgendas: {},
     rejections: [],
     thresholds: [],
   };
 
   const proposed = input.proposed ?? {};
 
+  applyNpcAgendas(
+    input.proposedNpcAgendas ?? {},
+    input.currentNpcAgendas ?? {},
+    input.currentData,
+    result,
+  );
+
+  // **Creates run first, and widen the identifier set for the rest of the
+  // turn.** A newly introduced NPC is a legal resource-pool owner immediately
+  // — without this, `new_npc.hp` would trip `impersonatesPlayerPool`, which
+  // rejects an *unknown* owner whose pool name matches one the player owns.
+  // That is the correct rule for an id nobody declared and the wrong one for
+  // an id declared four lines earlier in the same payload.
+  const createdEntityIds = applyNewEntities(
+    proposed.newEntities ?? {},
+    input.currentData,
+    result,
+  );
+
+  const identifiers =
+    input.identifiers && createdEntityIds.length > 0
+      ? {
+          ...input.identifiers,
+          knownEntityIds: [
+            ...input.identifiers.knownEntityIds,
+            ...createdEntityIds,
+          ],
+        }
+      : input.identifiers;
+
   const pools = foldResourcePools(
     proposed.resourcePools ?? [],
     input.currentData,
     input.poolDef,
-    input.identifiers,
+    identifiers,
   );
   const characters = foldCharacterState(
     proposed.characterState ?? [],
@@ -383,8 +434,12 @@ function foldCharacterState(
       const existing = currentData.characterState?.[entityId];
       // Bootstrap for an entity with none. NPCs get no state at creation —
       // only player characters do — and an NPC can bleed.
+      // Spread over the empty state rather than cloning raw: `campaign_state`
+      // is JSONB read without re-parsing, so a row written before a field
+      // existed simply lacks the key and Zod's default never runs. Backfilling
+      // here covers `rollModifiers` and anything added after it.
       working[entityId] = existing
-        ? structuredClone(existing)
+        ? { ...emptyMothershipCharacterState(), ...structuredClone(existing) }
         : emptyMothershipCharacterState();
     }
     return working[entityId];
@@ -446,6 +501,52 @@ function foldCharacterState(
             ? { condition: change.condition }
             : { condition: change.condition, parameter: change.parameter },
         ];
+        break;
+      }
+
+      case 'roll_modifier_add': {
+        if (change.scope === 'all_rolls' && change.target !== undefined) {
+          return reject(
+            '"all_rolls" applies to everything, so it takes no target. ' +
+              `Received "${change.target}".`,
+          );
+        }
+        if (change.scope !== 'all_rolls' && !change.target) {
+          return reject(
+            `Scope "${change.scope}" names what it applies to, so target is ` +
+              'required.',
+          );
+        }
+        // `source` is the key a removal names, so two modifiers may not share
+        // one — otherwise a remove would clear an effect nobody asked to clear.
+        if (state.rollModifiers.some((m) => m.source === change.source)) {
+          return reject(
+            `A modifier from "${change.source}" already exists. Sources are ` +
+              'the key a removal names and must be distinct.',
+          );
+        }
+        state.rollModifiers = [
+          ...state.rollModifiers,
+          {
+            effect: change.effect,
+            scope: change.scope,
+            ...(change.target !== undefined ? { target: change.target } : {}),
+            source: change.source,
+          },
+        ];
+        break;
+      }
+
+      case 'roll_modifier_remove': {
+        if (!state.rollModifiers.some((m) => m.source === change.source)) {
+          return reject(
+            `No modifier from "${change.source}", so there is nothing to ` +
+              'remove.',
+          );
+        }
+        state.rollModifiers = state.rollModifiers.filter(
+          (m) => m.source !== change.source,
+        );
         break;
       }
 
@@ -554,42 +655,229 @@ function foldCharacterState(
   return { applied, rejections: [] };
 }
 
-function applyEntity(
-  entityId: string,
-  change: { visible?: boolean; status?: string },
+/**
+ * Validates `gmUpdates.npcAgendas`.
+ *
+ * **An agenda key must already name something.** Either an entity in play, or
+ * an agenda synthesis already authored — the second clause exists because
+ * synthesis may write an agenda for an NPC it never added to
+ * `campaign_state.entities`, and refusing to let the Warden amend one of those
+ * would make it unmaintainable.
+ *
+ * What it rejects is a key that names neither, which is how
+ * `deep_space_cartographer_reyes_note` came to exist in the 2026-08-16
+ * playtest: the Warden needed somewhere to park a cross-cutting observation
+ * and this map was the only writable string store in reach. That is what
+ * `gmUpdates.notes` is for.
+ */
+function applyNpcAgendas(
+  proposed: Record<string, string>,
+  currentAgendas: Record<string, string>,
   currentData: MothershipCampaignState,
   result: ValidationResult,
 ): void {
-  if (change.status !== undefined) {
-    const parsed = EntityStatusSchema.safeParse(change.status);
-    if (!parsed.success) {
+  for (const [entityId, agenda] of Object.entries(proposed)) {
+    const namesSomething =
+      currentData.entities[entityId] !== undefined ||
+      Object.hasOwn(currentAgendas, entityId);
+
+    if (!namesSomething) {
       result.rejections.push({
-        path: `entities.${entityId}`,
-        reason: "status must be 'alive', 'dead', or 'unknown'",
+        path: `gmUpdates.npcAgendas.${entityId}`,
+        reason:
+          `"${entityId}" is neither an entity in play nor an NPC with an ` +
+          'existing agenda. An agenda belongs to a specific NPC; for an ' +
+          'observation that is not about one, use `gmUpdates.notes`.',
+        received: { [entityId]: agenda },
+      });
+      continue;
+    }
+
+    result.npcAgendas[entityId] = agenda;
+  }
+}
+
+/**
+ * Validates `stateChanges.newEntities` and returns the ids actually created.
+ *
+ * Creation used to be a side effect of naming an unrecognized id in
+ * `entities`, which made a genuine mid-adventure NPC indistinguishable from a
+ * typo — the first is ordinary play, the second silently forks one entity into
+ * two records that then drift apart. `ADR-0101` made creation something a turn
+ * has to say out loud.
+ *
+ * Runs before the resource-pool fold so a created id is a legal pool owner for
+ * the rest of the turn; the returned ids are what widen that set.
+ */
+function applyNewEntities(
+  proposed: Record<
+    string,
+    {
+      visible: boolean;
+      revealed: boolean;
+      status?: EntityStatus;
+      npcState?: string;
+    }
+  >,
+  currentData: MothershipCampaignState,
+  result: ValidationResult,
+): string[] {
+  const created: string[] = [];
+
+  for (const [entityId, change] of Object.entries(proposed)) {
+    if (currentData.entities[entityId] !== undefined) {
+      result.rejections.push({
+        path: `newEntities.${entityId}`,
+        reason:
+          `an entity with id "${entityId}" is already in play. ` +
+          'Use `entities` to change one that exists; `newEntities` is only ' +
+          'for introducing one that does not.',
         received: change,
       });
-      return;
+      continue;
+    }
+
+    // The same invariant the synthesis schema enforces: an entity in line of
+    // sight has necessarily been discovered.
+    if (change.visible && !change.revealed) {
+      result.rejections.push({
+        path: `newEntities.${entityId}`,
+        reason:
+          'an entity in line of sight has been discovered — `visible: true` ' +
+          'with `revealed: false` is not a state that exists. An entity the ' +
+          'players cannot see yet is `visible: false`.',
+        received: change,
+      });
+      continue;
+    }
+
+    const entity: {
+      visible: boolean;
+      revealed: boolean;
+      status: EntityStatus;
+      npcState?: string;
+    } = {
+      visible: change.visible,
+      revealed: change.revealed,
+      status: change.status ?? 'unknown',
+    };
+    if (change.npcState !== undefined) entity.npcState = change.npcState;
+
+    result.applied.entities[entityId] = entity;
+    created.push(entityId);
+  }
+
+  return created;
+}
+
+/**
+ * Validates and merges one entity change.
+ *
+ * **Every invalid field on the entry is reported, and none of them are
+ * applied.** The two halves are independent and both deliberate.
+ *
+ * *All-or-nothing within the entry* is inherited from `ADR-0038 § D4` rather
+ * than chosen here: a non-empty `rejections` array makes `SessionService`
+ * discard the whole `applied` set and run a correction round, so applying the
+ * valid fields of a rejected entry would be unreachable code. The local
+ * accumulator is not a step toward partial application.
+ *
+ * *Reporting every field* is the part that changed. This function used to
+ * return at the first bad field, so a Warden told about `status`, fixing it,
+ * and failing on an unreported sibling got no second correction — the
+ * correction path is single-shot and the turn is thrown. With one rejectable
+ * field that was theoretical; it stops being theoretical as soon as the entry
+ * carries more than one.
+ */
+function applyEntity(
+  entityId: string,
+  change: {
+    visible?: boolean;
+    revealed?: boolean;
+    status?: string;
+    npcState?: string;
+  },
+  currentData: MothershipCampaignState,
+  result: ValidationResult,
+): void {
+  const rejections: ValidationRejection[] = [];
+
+  let proposedStatus: EntityStatus | undefined;
+  if (change.status !== undefined) {
+    const parsed = EntityStatusSchema.safeParse(change.status);
+    if (parsed.success) {
+      proposedStatus = parsed.data;
+    } else {
+      rejections.push({
+        path: `entities.${entityId}`,
+        reason:
+          "status must be 'alive', 'dead', or 'unknown' — it records whether " +
+          'an entity is living, not what it is doing. Tactical and narrative ' +
+          'detail goes in `npcState`, which takes free text.',
+        received: change,
+      });
     }
   }
 
-  const proposedStatus = change.status as EntityStatus | undefined;
-  const existing = currentData.entities[entityId];
+  // An entity created earlier in this same payload is a legitimate target.
+  const existing =
+    currentData.entities[entityId] ?? result.applied.entities[entityId];
 
   if (!existing) {
-    result.applied.entities[entityId] = {
-      visible: change.visible ?? true,
-      status: proposedStatus ?? 'unknown',
-    };
+    // Joins the accumulator rather than returning directly, so a change that
+    // is both misaddressed *and* carries a bad field reports both. The single
+    // correction shot is the reason that matters.
+    rejections.push({
+      path: `entities.${entityId}`,
+      reason:
+        `no entity with id "${entityId}" is in play. ` +
+        '`entities` updates an entity that already exists; introducing one ' +
+        'during play is `newEntities`, which takes `visible` and `revealed`. ' +
+        'If this id was meant to name an existing entity, check its spelling ' +
+        'against the entity list in the state snapshot.',
+      received: change,
+    });
+    result.rejections.push(...rejections);
     return;
   }
 
-  const merged: { visible: boolean; status: EntityStatus; npcState?: string } =
-    {
-      visible: change.visible ?? existing.visible,
-      status: proposedStatus ?? existing.status,
-    };
-  if (existing.npcState !== undefined) {
-    merged.npcState = existing.npcState;
+  // **`revealed` is monotonic** (`ADR-0101`): discovery does not un-happen. A
+  // gate that can be reopened is not a gate, and enforcing it here rather than
+  // by convention is three lines.
+  if (change.revealed === false && existing.revealed) {
+    rejections.push({
+      path: `entities.${entityId}`,
+      reason:
+        '`revealed` is monotonic — once the players have discovered an ' +
+        'entity it cannot become undiscovered. To take an entity out of ' +
+        'sight, set `visible: false` and leave `revealed` alone.',
+      received: change,
+    });
+  }
+
+  if (rejections.length > 0) {
+    result.rejections.push(...rejections);
+    return;
+  }
+
+  const merged: {
+    visible: boolean;
+    revealed: boolean;
+    status: EntityStatus;
+    npcState?: string;
+  } = {
+    visible: change.visible ?? existing.visible,
+    revealed: change.revealed ?? existing.revealed,
+    status: proposedStatus ?? existing.status,
+  };
+
+  // Disposition: what this NPC is currently doing or feeling. Writable from
+  // this turn (`ADR-0101`) — it was schema-defined, commented and preserved on
+  // merge since M7.6 with nothing able to set it, which is why narrative
+  // detail kept arriving in `status` instead.
+  const nextNpcState = change.npcState ?? existing.npcState;
+  if (nextNpcState !== undefined) {
+    merged.npcState = nextNpcState;
   }
   result.applied.entities[entityId] = merged;
 }

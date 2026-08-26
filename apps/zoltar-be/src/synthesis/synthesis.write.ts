@@ -1,10 +1,12 @@
 import {
   emptyMothershipState,
+  executeDiceRoll,
   isInvalidReservedPoolOwner,
   MothershipCampaignStateSchema,
   ResourcePoolSchema,
 } from '@uv/game-systems';
 
+import type { MothershipCrewRole } from '@uv/game-systems';
 import type { SubmitGmContext } from './synthesis.schema';
 
 export class SynthesisWriteValidationError extends Error {
@@ -149,17 +151,54 @@ export function buildResourcePools(
   return { pools: merged, skipped };
 }
 
+export type BuiltEntity = {
+  visible: boolean;
+  revealed: boolean;
+  status: 'unknown';
+  crewRole?: MothershipCrewRole;
+  instinctRoll?: number[];
+};
+
 /**
  * Builds the `entities` map stored under `campaign_state.data.entities` from
  * the synthesis tool input. This is the per-entity visibility and disposition
  * record — positions are stored in `grid_entity`, not here.
+ *
+ * **This is also where a Contractor's Instinct is rolled** (`ADR-0100`).
+ * Synthesis declares the NPC and its role; the dice are thrown here, by the
+ * backend, because `SYNTHESIS_TOOLS` carries no `roll_dice` and a number the
+ * model supplied would be a fabrication rather than a roll. The dice are stored
+ * because nothing can recompute them; the `2d10 + 25 + role adjustment` total
+ * and the role's skill chain are derived at read time and stored nowhere.
+ *
+ * Only `type: 'npc'`. A `threat` has no Instinct and a `feature` is not an
+ * actor — `entitySchema`'s enum has no Contractor member and none is being
+ * added, so `npc` is the whole of the carrier.
+ *
+ * **The field list here is exhaustive on purpose and was the bug risk.** This
+ * function rebuilds each entity rather than spreading it, so a field added to
+ * the tool schema and not added here is dropped silently — which is exactly the
+ * failure mode `ADR-0100` rejects a free-text role tag for.
  */
 export function buildEntityMap(
   entities: SubmitGmContext['structured']['entities'],
-): Record<string, { visible: boolean; status: 'unknown' }> {
-  const map: Record<string, { visible: boolean; status: 'unknown' }> = {};
+  rollInstinct: () => number[] = () => executeDiceRoll('2d10').results,
+): Record<string, BuiltEntity> {
+  const map: Record<string, BuiltEntity> = {};
   for (const entity of entities) {
-    map[entity.id] = { visible: entity.visible, status: 'unknown' };
+    // `revealed` defaults to `visible`: at synthesis an entity in sight has
+    // been discovered, and one that starts hidden has not — unless the author
+    // said otherwise, which is the `visible: false, revealed: true` case.
+    const built: BuiltEntity = {
+      visible: entity.visible,
+      revealed: entity.revealed ?? entity.visible,
+      status: 'unknown',
+    };
+    if (entity.type === 'npc') {
+      built.instinctRoll = rollInstinct();
+      if (entity.crewRole) built.crewRole = entity.crewRole;
+    }
+    map[entity.id] = built;
   }
   return map;
 }
@@ -182,7 +221,7 @@ export function buildCampaignStateData(
   const existingEntities =
     (
       base as {
-        entities?: Record<string, { visible: boolean; status: 'unknown' }>;
+        entities?: Record<string, BuiltEntity>;
       }
     ).entities ?? {};
   const existingScenarioState =

@@ -4,6 +4,7 @@ import {
   DiceNotationError,
   executeDiceRoll,
   parseDiceNotation,
+  tableIndexForRoll,
   webCryptoRandomInt,
 } from './dice';
 
@@ -133,5 +134,30 @@ describe('webCryptoRandomInt', () => {
     expect(buckets.every((count) => count > 0)).toBe(true);
     // No bucket more than 3× the mean — catches gross distribution failures.
     expect(Math.max(...buckets)).toBeLessThan(mean * 3);
+  });
+});
+
+describe('tableIndexForRoll', () => {
+  it('maps a 1-based die onto a 0-based table row', () => {
+    expect(tableIndexForRoll(1)).toBe(0);
+    expect(tableIndexForRoll(10)).toBe(9);
+    expect(tableIndexForRoll(100)).toBe(99);
+  });
+
+  /**
+   * The bug this exists to prevent: a raw `1d10` against a `00`–`09` table
+   * skips row `00` entirely and asks for a row `10` that does not exist.
+   */
+  it('covers every row of a d10 table exactly once', () => {
+    const rows = Array.from({ length: 10 }, (_, i) => i + 1).map(
+      tableIndexForRoll,
+    );
+    expect(rows).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  });
+
+  it('rejects a die result that cannot have come from a die', () => {
+    expect(() => tableIndexForRoll(0)).toThrow(DiceNotationError);
+    expect(() => tableIndexForRoll(-1)).toThrow(DiceNotationError);
+    expect(() => tableIndexForRoll(1.5)).toThrow(DiceNotationError);
   });
 });

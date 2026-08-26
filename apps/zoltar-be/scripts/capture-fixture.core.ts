@@ -1,6 +1,8 @@
 import { and, asc, eq, gte, isNull, lt, or } from 'drizzle-orm';
 
+import { tagIndependentCheckIds } from '../eval/checks/registry';
 import {
+  type Applicability,
   type EvalFixture,
   type FailureModeTag,
   FIXTURE_SCHEMA_VERSION,
@@ -55,6 +57,58 @@ async function pendingDiceRequestsAsOfTurn(
 }
 
 /**
+ * The fail-closed `applicability` stub every newly captured fixture carries.
+ *
+ * Two kinds of entry, and the second is the one that is easy to forget:
+ *
+ * - **The fixture's own `tag`** — the check it was captured to exercise.
+ * - **Every tag-independent check** (`EvalCheck.tagIndependent`), which
+ *   attaches to a fixture through `applicability` rather than through `tag`
+ *   and so has no other route onto one. Omitting these is exactly how the
+ *   corpus acquired the hole `ADR-0096` closed: `system-rolled-player-action`
+ *   was measured only on fixtures named after it, and read 1.00 (20/20) on a
+ *   run whose artifacts contain six violations of it. A stub does not answer
+ *   the question — it makes the question unavoidable at authoring time, which
+ *   is the only point at which anyone knows the scenario.
+ *
+ * Every entry is `applies: false`, matching the `playerInput`/`assertion`
+ * placeholder convention: an unedited stub must read as "not yet confirmed"
+ * rather than silently asserting the situation applies. **Prefer editing a
+ * stub to `applies: false` with a real reason over deleting it** — a recorded
+ * non-applicability surfaces in the report's `fixture-gated-never-applies`
+ * finding, while a deleted entry surfaces nowhere and is indistinguishable
+ * from never having considered the check.
+ *
+ * Pure, and exported separately from `captureFixture` so it is unit-testable
+ * without a database.
+ */
+export function placeholderApplicability(tag: FailureModeTag): Applicability {
+  const tagCheckId = tag.toLowerCase();
+  const applicability: Applicability = {
+    [tagCheckId]: {
+      applies: false,
+      situation:
+        `TODO: does this fixture's scenario call for the "${tag}" check? State why ` +
+        'or why not — see the doc comment on applicabilitySchema in eval/fixture.schema.ts.',
+    },
+  };
+
+  for (const checkId of tagIndependentCheckIds) {
+    if (checkId === tagCheckId) continue;
+    applicability[checkId] = {
+      applies: false,
+      situation:
+        `TODO: does this fixture's scenario call for the "${checkId}" check? It attaches ` +
+        'by applicability rather than by tag, so every capture is asked regardless of its ' +
+        'own tag. If it does, set applies: true and name the playerEntity; if not, replace ' +
+        'this with the reason the scenario does not call for it.',
+    };
+  }
+
+  return applicability;
+}
+
+/**
  * Wraps M7.3's `reconstructStateAsOfTurn` plus file-shape assembly — no
  * other logic of its own, same spirit as `save-synthesis`'s old role, just
  * producing a richer artifact (spec §"Seeded state is captured once").
@@ -70,10 +124,9 @@ async function pendingDiceRequestsAsOfTurn(
  * *correct* one. The placeholder `assertion.mode` matches what `tag`
  * actually requires (per `evalFixtureSchema`'s tag/mode refinement) so the
  * written file passes `loadFixtures` validation as-is, ready to be
- * hand-edited rather than hand-restructured. `applicability`'s placeholder
- * defaults to `applies: false` — fail-closed, since a check that reads it
- * (`requiresFixtureSchema: 2`) treats an unedited stub as "not yet
- * confirmed" rather than silently assuming the situation applies.
+ * hand-edited rather than hand-restructured. `applicability` gets one
+ * fail-closed stub per check the fixture could carry — its own tag plus every
+ * tag-independent check — see `placeholderApplicability`.
  */
 export async function captureFixture(
   db: Db,
@@ -120,16 +173,9 @@ export async function captureFixture(
         `(source adventure ${args.adventureId}, sequence ${args.targetSequenceNumber})`,
     },
     /** Keyed by check id (`toCheckId` in `eval/checks/registry.ts` — lower-
-     * cased `tag`) so a checker can look itself up by its own id without
-     * this tool needing to import that registry. */
-    applicability: {
-      [args.tag.toLowerCase()]: {
-        applies: false,
-        situation:
-          `TODO: does this fixture's scenario call for the "${args.tag}" check? State why ` +
-          'or why not — see the doc comment on applicabilitySchema in eval/fixture.schema.ts.',
-      },
-    },
+     * cased `tag`), one fail-closed stub per check this fixture could carry.
+     * See `placeholderApplicability`. */
+    applicability: placeholderApplicability(args.tag),
     assertion: isJudgedTag(args.tag)
       ? {
           mode: 'judged',

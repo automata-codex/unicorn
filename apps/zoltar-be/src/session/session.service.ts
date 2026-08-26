@@ -24,6 +24,11 @@ import {
   submitGmResponseSchema,
 } from './session.schema';
 import { buildStateSnapshot } from './session.snapshot';
+import {
+  describeToolCallSyntax,
+  detectToolCallSyntax,
+  toolCallSyntaxRetryInstruction,
+} from './session.tool-syntax';
 import { SESSION_TOOLS } from './session.tools';
 import { validateStateChanges } from './session.validator';
 import { buildMessageWindow } from './session.window';
@@ -81,6 +86,25 @@ export class SessionCorrectionError extends Error {
   ) {
     super(message);
     this.name = 'SessionCorrectionError';
+  }
+}
+
+/**
+ * Thrown when Claude re-emits a payload carrying leaked tool-call syntax
+ * after being told once not to (`session.tool-syntax.ts`). Translated to 502
+ * with body error code `gm_tool_syntax_unrecoverable`.
+ *
+ * Distinct from `SessionToolLoopError` on purpose. Both end the turn at 502,
+ * but they mean opposite things: the loop error means Claude was working and
+ * did not finish, while this one means it finished the same wrong way twice
+ * and more attempts will not help. Collapsing them would put a genuinely
+ * stuck combat turn and an unrecoverable formatting failure under one error
+ * code, and the operator response to each is different.
+ */
+export class SessionToolSyntaxError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SessionToolSyntaxError';
   }
 }
 
@@ -167,6 +191,26 @@ export interface SendMessageResult {
  * runaway Claude cost.
  */
 export const INNER_TOOL_LOOP_CAP = 20;
+
+/**
+ * How many times a `submit_gm_response` carrying leaked tool-call syntax is
+ * handed back before the turn is abandoned. One, per the same reasoning
+ * `ADR-0041` applies to the correction loop: more retries hide the failure
+ * rather than fixing it.
+ *
+ * `ADR-0097` originally let this ride the shared `INNER_TOOL_LOOP_CAP` on the
+ * assumption that Claude would recover the way it does from a malformed
+ * payload. The 2026-08-18 re-baseline falsified that: on
+ * `turn24-scene-jump` rep 9 the same leaked payload came back **ten**
+ * consecutive times and the turn died on cap exhaustion anyway — ten model
+ * calls at 13k+ prompt tokens each, to reach the outcome the second call
+ * already predicted. Once Claude enters this mode it stays there.
+ *
+ * Failing here rather than at the cap also decouples the two: a busy turn
+ * that has already spent fifteen iterations on legitimate rolls would
+ * otherwise get fewer retries than a quiet one, which is backwards.
+ */
+export const TOOL_SYNTAX_RETRY_BUDGET = 1;
 
 interface InnerToolLoopResult {
   finalRequest: CallSessionParams;
@@ -312,8 +356,19 @@ export class SessionService {
     const originalParsed = innerLoop.finalParsed;
 
     // 5. Validate first-round state changes.
+    // Prior agendas, for the "does this key name anything" check. Read from
+    // `rawBlob` rather than the prompt-building `gmContextBlob` for the same
+    // reason step 8 does: the latter carries a per-request `playerEntityIds`
+    // addition that is not persisted state.
+    const currentNpcAgendas =
+      ((rawBlob.narrative as Record<string, unknown> | undefined)?.npcAgendas as
+        | Record<string, string>
+        | undefined) ?? {};
+
     let validation = validateStateChanges({
       proposed: originalParsed.stateChanges,
+      proposedNpcAgendas: originalParsed.gmUpdates?.npcAgendas,
+      currentNpcAgendas,
       currentData: campaignStateData,
       poolDef: getMothershipPoolDefinition,
       identifiers: {
@@ -345,6 +400,8 @@ export class SessionService {
 
       validation = validateStateChanges({
         proposed: parsed.stateChanges,
+        proposedNpcAgendas: parsed.gmUpdates?.npcAgendas,
+        currentNpcAgendas,
         currentData: campaignStateData,
         poolDef: getMothershipPoolDefinition,
         identifiers: {
@@ -365,11 +422,11 @@ export class SessionService {
     // 7. The final narration/state-change payload sent to the player is
     //    always the corrected one when a correction fired, otherwise the
     //    original. Computed here (not just at bundling time below) because
-    //    `gmUpdates.npcStates` feeds the gm_context blob merge that follows.
+    //    `gmUpdates.npcAgendas` feeds the gm_context blob merge that follows.
     const finalParsed = correctionParsed ?? originalParsed;
 
     // 8. Compute the final campaign state and gm_context blob by merging
-    //    this turn's applied deltas / npcStates. `rawBlob` — not the
+    //    this turn's applied deltas / agenda amendments. `rawBlob` — not the
     //    `playerEntityIds`-augmented `gmContextBlob` above — is the correct
     //    prior value here: `playerEntityIds` is a per-request prompt-
     //    building addition (session.snapshot.ts), never persisted state.
@@ -378,7 +435,7 @@ export class SessionService {
       priorCampaignState: campaignStateData,
       priorGmContextBlob: rawBlob,
       applied: validation.applied,
-      npcStates: finalParsed.gmUpdates?.npcStates ?? {},
+      npcAgendas: validation.npcAgendas,
     });
 
     // 9. Snapshot the prompt that was sent — stored in telemetry for
@@ -706,6 +763,16 @@ export class SessionService {
         `submit_gm_response failed validation for adventure=${adventureId}: ${parsed.error.message}`,
       );
     }
+    // Schema-valid is not the same as well-formed — see the leak check in
+    // `runInnerToolLoop`. The correction pass is single-shot by design
+    // (docs/turn-path.md), so there is nowhere to retry to: fail loud rather
+    // than apply a response whose state changes were serialized into prose.
+    const leaked = detectToolCallSyntax(parsed.data);
+    if (leaked) {
+      throw new SessionOutputError(
+        `submit_gm_response leaked tool-call syntax for adventure=${adventureId}: ${describeToolCallSyntax(leaked)}`,
+      );
+    }
     return { response, parsed: parsed.data };
   }
 
@@ -754,6 +821,11 @@ export class SessionService {
     // distinguishes a dice-heavy turn from a genuinely stuck retry loop,
     // without having to correlate scattered per-iteration warn logs.
     const iterationLog: string[] = [];
+    // Reset by a submit that fails for some *other* reason, so a turn that
+    // alternates between a malformed payload and a leaked one still gets a
+    // fresh budget for each mode. Only back-to-back leaks — the shape the
+    // 2026-08-18 run produced ten of — burn it.
+    let consecutiveToolSyntaxRejections = 0;
 
     while (iteration < INNER_TOOL_LOOP_CAP) {
       const response = await this.anthropic.callSession(request);
@@ -770,30 +842,61 @@ export class SessionService {
       );
       let submitGmError: string | undefined;
       let submitGmErrorPaths: string | undefined;
+      let submitGmRetryInstruction: string | undefined;
       if (submitGmCall) {
         const parsed = submitGmResponseSchema.safeParse(submitGmCall.input);
         if (parsed.success) {
-          return {
-            finalRequest: request,
-            finalResponse: response,
-            finalParsed: parsed.data,
-            executedRolls,
-            rulesLookups,
-            iterations: iteration + 1,
-          };
+          // Schema-valid is not the same as well-formed. `playerText` is the
+          // only required field, so a response that serialized its remaining
+          // parameters into the narration validates perfectly and then loses
+          // every state change it computed — silently, which is how the
+          // 2026-08-16 playtest lost 39 of 58 turns. Reject it before the
+          // markup reaches the player, and retry through the same machinery
+          // a malformed payload already uses.
+          const leaked = detectToolCallSyntax(parsed.data);
+          if (!leaked) {
+            return {
+              finalRequest: request,
+              finalResponse: response,
+              finalParsed: parsed.data,
+              executedRolls,
+              rulesLookups,
+              iterations: iteration + 1,
+            };
+          }
+          consecutiveToolSyntaxRejections += 1;
+          submitGmError = describeToolCallSyntax(leaked);
+          submitGmErrorPaths = `${leaked.field}:tool-syntax`;
+          submitGmRetryInstruction = toolCallSyntaxRetryInstruction(leaked);
+
+          if (consecutiveToolSyntaxRejections > TOOL_SYNTAX_RETRY_BUDGET) {
+            throw new SessionToolSyntaxError(
+              `submit_gm_response leaked tool-call syntax ` +
+                `${consecutiveToolSyntaxRejections} times in a row for ` +
+                `adventure=${args.adventureId}; abandoning the turn rather ` +
+                `than spending the rest of the loop on it. ${submitGmError}`,
+            );
+          }
+
+          // error, not warn: this is data loss that used to be invisible.
+          this.logger.error(
+            `submit_gm_response leaked tool-call syntax for adventure=${args.adventureId}, retrying: ${submitGmError}`,
+          );
+        } else {
+          consecutiveToolSyntaxRejections = 0;
+          // Malformed payload — e.g. gmUpdates sent as a string instead of an
+          // object, which tends to happen right after a dice roll. Treat it
+          // like any other malformed tool call below and retry, bounded by
+          // the same INNER_TOOL_LOOP_CAP as every other iteration, rather
+          // than failing the whole turn on the first bad response.
+          submitGmError = parsed.error.message;
+          submitGmErrorPaths = parsed.error.issues
+            .map((i) => i.path.join('.') || '(root)')
+            .join(',');
+          this.logger.warn(
+            `submit_gm_response failed schema validation for adventure=${args.adventureId}, retrying: ${submitGmError}`,
+          );
         }
-        // Malformed payload — e.g. gmUpdates sent as a string instead of an
-        // object, which tends to happen right after a dice roll. Treat it
-        // like any other malformed tool call below and retry, bounded by
-        // the same INNER_TOOL_LOOP_CAP as every other iteration, rather
-        // than failing the whole turn on the first bad response.
-        submitGmError = parsed.error.message;
-        submitGmErrorPaths = parsed.error.issues
-          .map((i) => i.path.join('.') || '(root)')
-          .join(',');
-        this.logger.warn(
-          `submit_gm_response failed schema validation for adventure=${args.adventureId}, retrying: ${submitGmError}`,
-        );
       }
 
       if (toolUses.length === 0) {
@@ -833,7 +936,9 @@ export class SessionService {
             type: 'tool_result',
             tool_use_id: use.id,
             is_error: true,
-            content: `Invalid submit_gm_response input: ${submitGmError}. Call submit_gm_response again with a valid payload matching the tool schema.`,
+            content:
+              submitGmRetryInstruction ??
+              `Invalid submit_gm_response input: ${submitGmError}. Call submit_gm_response again with a valid payload matching the tool schema.`,
           });
           continue;
         }

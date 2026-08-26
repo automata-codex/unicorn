@@ -1,0 +1,90 @@
+# system
+You are checking oracle table selections for a Mothership RPG adventure for hard contradictions.
+
+# user
+Check the following oracle selections for a Mothership adventure for hard contradictions — combinations the adventure cannot narratively support without rewriting the seed content.
+
+SELECTIONS:
+Survivor:
+{
+  "id": "survivor_1",
+  "player_text": "player view: survivor_1",
+  "claude_text": "seed text",
+  "interfaces": [
+    {
+      "condition": "threat",
+      "note": "linked"
+    }
+  ],
+  "tags": [
+    "demo"
+  ]
+}
+
+Threat:
+{
+  "id": "threat_1",
+  "player_text": "player view: threat_1",
+  "claude_text": "seed text",
+  "interfaces": [
+    {
+      "condition": "threat",
+      "note": "linked"
+    }
+  ],
+  "tags": [
+    "demo"
+  ]
+}
+
+Secret:
+{
+  "id": "secret_1",
+  "player_text": "player view: secret_1",
+  "claude_text": "seed text",
+  "interfaces": [
+    {
+      "condition": "threat",
+      "note": "linked"
+    }
+  ],
+  "tags": [
+    "demo"
+  ]
+}
+
+Vessel Type:
+{
+  "id": "vessel_1",
+  "player_text": "player view: vessel_1",
+  "claude_text": "seed text",
+  "interfaces": [
+    {
+      "condition": "threat",
+      "note": "linked"
+    }
+  ],
+  "tags": [
+    "demo"
+  ]
+}
+
+Tone:
+{
+  "id": "tone_1",
+  "player_text": "player view: tone_1",
+  "claude_text": "seed text",
+  "interfaces": [
+    {
+      "condition": "threat",
+      "note": "linked"
+    }
+  ],
+  "tags": [
+    "demo"
+  ]
+}
+
+Use the interfaces arrays to understand how entries are meant to connect. Only flag conflicts that cannot be resolved through ordinary narrative synthesis. Call report_coherence with your findings.
+
+Resolution guide: "proceed" if the selections are coherent or the tension is resolvable through narrative means; "reroll" if one specific category could be swapped to resolve the conflict (set rerollCategory); "surface" if the conflict is unresolvable and the player must adjust their filters.

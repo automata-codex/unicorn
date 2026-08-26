@@ -124,6 +124,23 @@ export interface JudgeArtifactInput {
   rationale: string;
   rubricHash: string;
   /**
+   * Set when the rationale itself carries leaked tool-call markup — see
+   * `findToolCallSyntax`. **Recorded, never fatal.** A rationale that leaks
+   * markup still reached a verdict consistent with itself, so all seven known
+   * cases corrupt the audit trail rather than the score; turning one into an
+   * `error` row would discard a usable grade to punish a cosmetic defect.
+   * That is the opposite of the `TOOL-SYNTAX-LEAK` case, where the leak
+   * destroyed the payload.
+   */
+  rationaleToolSyntax?: string;
+  /**
+   * The judge contract this verdict was graded under. Optional for the same
+   * reason the row's is — artifacts written before the field existed do not
+   * carry it, and an absent value means unknown. Both `eval:run` and
+   * `eval:rescore` write through this shape, so they pick it up together.
+   */
+  judgeContractHash?: string;
+  /**
    * The check's `judgeContext` output, when it has one — the events the
    * structural half narrowed the question to. Without it, a rationale about
    * "the rolls under review" can't be tied back to which rolls those were,

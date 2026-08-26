@@ -16,6 +16,10 @@ import { SessionGuard } from '../auth/session.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 import { CharacterService } from './character.service';
+import {
+  type CreateCharacterRequestDto,
+  CreateCharacterRequestSchema,
+} from './dto/create-character.dto';
 
 import type { AuthUser } from '@uv/auth-core';
 import type { MothershipCharacterSheet } from '@uv/game-systems';
@@ -36,14 +40,19 @@ export class CharacterController {
   @Post()
   async create(
     @Param('campaignId') campaignId: string,
-    @Body(new ZodValidationPipe(MothershipCharacterSheetSchema))
-    data: MothershipCharacterSheet,
+    @Body(new ZodValidationPipe(CreateCharacterRequestSchema))
+    body: CreateCharacterRequestDto,
     @CurrentUser() user: AuthUser,
   ) {
     const character = await this.characterService.create(
       campaignId,
       user.id,
-      data,
+      body.sheet,
+      {
+        startingSkills: body.startingSkills,
+        startingEquipment: body.startingEquipment,
+        wornArmor: body.wornArmor,
+      },
     );
     return {
       id: character.id,

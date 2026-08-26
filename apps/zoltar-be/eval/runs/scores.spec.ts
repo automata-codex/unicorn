@@ -285,6 +285,7 @@ describe('readVouchedRows', () => {
       promptText: 'prompt',
       temperature: 1.0,
       corpusVersion: 'abc',
+      assemblyHash: 'a55e3b19',
       plannedReps: 3,
       createdAt: CREATED_AT,
     });
@@ -315,6 +316,7 @@ describe('readVouchedRows', () => {
       promptText: 'prompt',
       temperature: 1.0,
       corpusVersion: 'abc',
+      assemblyHash: 'a55e3b19',
       plannedReps: 1,
       createdAt: CREATED_AT,
     });
@@ -343,6 +345,7 @@ describe('readVouchedRows', () => {
       promptText: 'prompt',
       temperature: 1.0,
       corpusVersion: 'abc',
+      assemblyHash: 'a55e3b19',
       plannedReps: 1,
       createdAt: CREATED_AT,
     });
