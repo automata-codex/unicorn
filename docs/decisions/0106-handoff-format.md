@@ -2,7 +2,7 @@
 id: ADR-0106
 title: 'Cross-Context Handoff Format'
 area: monorepo-tooling-deployment
-status: open
+status: provisional
 superseded_by: null
 milestone: M7.7
 summary: null

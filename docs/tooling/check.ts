@@ -72,17 +72,16 @@ for (const adr of corpus) {
   }
 }
 
-// Exactly one open entry — asserted so a mechanical mis-classification during
-// the migration fails rather than passing quietly. See spec Done When 8.
-const open = corpus.filter((a) => a.frontMatter.status === 'open');
-if (open.length !== 1) {
-  fail(
-    `expected exactly one entry with status: open, found ${open.length}` +
-      (open.length > 0
-        ? ` (${open.map((a) => a.frontMatter.id).join(', ')})`
-        : ''),
-  );
-}
+// Unsettled entries are reported, not constrained. This was once an assertion
+// that exactly one entry carried `status: open` — a guard against a mechanical
+// mis-classification during the spec 017 split, when exactly one entry in the
+// legacy log was open. That migration is done, and the count was never a policy
+// about how many questions may be open at a time. Listing them keeps them
+// visible without inventing a limit nobody chose.
+const unsettled = corpus.filter(
+  (a) =>
+    a.frontMatter.status === 'open' || a.frontMatter.status === 'provisional',
+);
 
 // Every ADR token anywhere under docs/ must resolve.
 for (const path of allDocsMarkdown()) {
@@ -107,3 +106,6 @@ if (errors.length > 0) {
 }
 
 console.log(`ADR corpus OK — ${corpus.length} entries, index up to date.`);
+for (const adr of unsettled) {
+  console.log(`  ${adr.frontMatter.status}: ${adr.frontMatter.id} — ${adr.frontMatter.title}`);
+}

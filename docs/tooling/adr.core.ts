@@ -71,7 +71,7 @@ export const frontMatterSchema = z
     id: z.string().regex(ADR_ID_PATTERN, 'id must look like ADR-0001'),
     title: z.string().min(1),
     area: z.enum(AREA_SLUGS),
-    status: z.enum(['accepted', 'open', 'superseded']),
+    status: z.enum(['accepted', 'provisional', 'open', 'superseded']),
     superseded_by: z.string().regex(ADR_ID_PATTERN).nullable(),
     milestone: z.string().min(1),
     summary: z.string().min(1).nullable(),

@@ -28,10 +28,27 @@ function entryHeading(adr: LoadedAdr): string {
 export function renderIndex(header: string, corpus: LoadedAdr[]): string {
   const parts: string[] = [header.trimEnd(), '', BANNER, ''];
 
-  const open = corpus.filter((a) => a.frontMatter.status === 'open');
-  if (open.length > 0) {
-    parts.push('---', '', '## Open', '');
-    for (const adr of open) {
+  // Unsettled entries surface above the area sections so a reader meets them
+  // before relying on anything. `open` and `provisional` are different claims
+  // and are listed separately: an open entry has decided nothing, while a
+  // provisional one is in force and merely unproven.
+  const unsettled: [string, 'open' | 'provisional', string][] = [
+    [
+      '## Open',
+      'open',
+      'No decision yet. Nothing here is safe to rely on.',
+    ],
+    [
+      '## Provisional',
+      'provisional',
+      'Decided and in force, but on trial — follow it, and expect it may change.',
+    ],
+  ];
+  for (const [heading, status, gloss] of unsettled) {
+    const entries = corpus.filter((a) => a.frontMatter.status === status);
+    if (entries.length === 0) continue;
+    parts.push('---', '', heading, '', `*${gloss}*`, '');
+    for (const adr of entries) {
       parts.push(
         `- [${adr.frontMatter.id}](decisions/${adr.filename}) — ${adr.frontMatter.title}`,
       );

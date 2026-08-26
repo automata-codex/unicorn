@@ -102,6 +102,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - Correction mechanic (`superseded_by` write path)
 - `adventure_telemetry` write path — per-turn record of player input, full `submit_gm_response` payload, all `roll_dice` calls with purpose annotations and results, prompt and completion token counts
 - Entity write path — `visible` (line of sight), `revealed` (discovery), `npcState` (disposition)
+- Adventure completion detected and recorded — the `adventure_complete` flag acted on, and `adventures.status` transitioned
 - Frontend: play view (message log, input field, character status strip, threshold banner)
 
 #### Tools

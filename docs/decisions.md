@@ -22,7 +22,16 @@ Each entry records what was decided, what the alternatives were, and why.
 
 ## Open
 
+*No decision yet. Nothing here is safe to rely on.*
+
 - [ADR-0080](decisions/0080-open-the-undecided-discipline-has-never-been-extended-to-jud.md) — OPEN — the undecided discipline has never been extended to judged checks, and `turn24-over-resolution` is the case that shows it should be
+
+---
+
+## Provisional
+
+*Decided and in force, but on trial — follow it, and expect it may change.*
+
 - [ADR-0106](decisions/0106-handoff-format.md) — Cross-Context Handoff Format
 
 ---
