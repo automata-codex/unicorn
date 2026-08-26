@@ -19,7 +19,7 @@ Each entry records what was decided, what the alternatives were, and why.
   `task docs:decisions:check` fails if either is stale.
 -->
 
-**This is the full log** — every entry in its entirety. For the short version, see [`decisions-summary.md`](decisions-summary.md).
+**This is the summary log.** No entry has a summary yet, so this file is currently identical to the full log. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
 
 ---
 

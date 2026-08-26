@@ -1,7 +1,11 @@
 # Decisions
 
-One file per decision. `../decisions.md` is generated from this directory and
-is the reading view — do not edit it by hand.
+One file per decision. Two reading views are generated from this directory —
+do not edit either by hand:
+
+- `../decisions.md` — every entry in full.
+- `../decisions-summary.md` — each entry's `summary` where one is written,
+  falling back to its full text where none is.
 
 ## How to add a decision
 
@@ -38,8 +42,8 @@ is the reading view — do not edit it by hand.
    not plainly state one — do not guess. `summary` may stay `null`.
 3. Write the body beneath the front matter. Do not repeat the title as an H1;
    the generated index supplies the heading.
-4. Run `task docs:decisions:build`, then commit the new file and the
-   regenerated `../decisions.md` together.
+4. Run `task docs:decisions:build`, then commit the new file and both
+   regenerated views together.
 
 ## Referring to a decision
 

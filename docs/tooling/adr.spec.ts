@@ -9,8 +9,10 @@ import {
   slugify,
   splitDecisionsLog,
 } from './adr.core';
+import { renderIndex } from './render-index';
 
 import type { FrontMatter } from './adr.core';
+import type { LoadedAdr } from './corpus';
 
 // Annotated rather than inferred: without it `area` and `status` widen to
 // `string`, and every use that feeds an `AdrFile` fails to typecheck. The
@@ -241,4 +243,68 @@ describe('splitDecisionsLog', () => {
       splitDecisionsLog('## Brand New Section\n\n### Entry\n\nBody.\n'),
     ).toThrow(/unknown section heading/);
   });
+});
+
+describe('renderIndex', () => {
+  const adr = (
+    id: string,
+    body: string,
+    summary: string | null,
+  ): LoadedAdr => ({
+    filename: `${id.slice(4)}-fixture.md`,
+    frontMatter: { ...validFrontMatter, id, summary },
+    body,
+  });
+
+  it('renders the full body in the full view even when a summary exists', () => {
+    const out = renderIndex('# Log', [adr('ADR-0001', 'THE BODY', 'THE GIST')]);
+
+    expect(out).toContain('THE BODY');
+    expect(out).not.toContain('THE GIST');
+  });
+
+  it('renders the summary in the summary view', () => {
+    const corpus = [adr('ADR-0001', 'THE BODY', 'THE GIST')];
+
+    const out = renderIndex('# Log', corpus, 'summary');
+
+    expect(out).toContain('THE GIST');
+    expect(out).not.toContain('THE BODY');
+  });
+
+  it('falls back to the body in the summary view when no summary exists', () => {
+    const out = renderIndex(
+      '# Log',
+      [adr('ADR-0001', 'THE BODY', null)],
+      'summary',
+    );
+
+    expect(out).toContain('THE BODY');
+  });
+
+  it('produces identical views while no entry has a summary', () => {
+    /* The stated starting condition: the split is additive, so the two files
+       diverge only as summaries get written. */
+    const corpus = [adr('ADR-0001', 'ONE', null), adr('ADR-0002', 'TWO', null)];
+
+    const full = renderIndex('# Log', corpus, 'full');
+    const summary = renderIndex('# Log', corpus, 'summary');
+
+    expect(stripViewNote(full)).toBe(stripViewNote(summary));
+  });
+
+  it('is deterministic — the stale check diffs its own output', () => {
+    const corpus = [adr('ADR-0001', 'ONE', 'GIST')];
+
+    expect(renderIndex('# Log', corpus, 'summary')).toBe(
+      renderIndex('# Log', corpus, 'summary'),
+    );
+  });
+
+  /** The one line that names which view you have open, and must differ. */
+  const stripViewNote = (text: string): string =>
+    text
+      .split('\n')
+      .filter((line) => !line.startsWith('**This is the'))
+      .join('\n');
 });

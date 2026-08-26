@@ -19,6 +19,7 @@ import {
   INDEX_PATH,
   loadCorpus,
   REPO_ROOT,
+  SUMMARY_INDEX_PATH,
 } from './corpus';
 import { renderIndex } from './render-index';
 
@@ -93,10 +94,20 @@ for (const path of allDocsMarkdown()) {
   }
 }
 
-// The committed index must match what the compiler produces.
-const expected = renderIndex(readFileSync(INDEX_HEADER_PATH, 'utf8'), corpus);
-if (readFileSync(INDEX_PATH, 'utf8') !== expected) {
-  fail('docs/decisions.md is stale — run `task docs:decisions:build`');
+// Both committed views must match what the renderer produces. Checked
+// separately so a summary added without a rebuild is caught on the file it
+// actually changed, rather than reported against the other one.
+const indexHeader = readFileSync(INDEX_HEADER_PATH, 'utf8');
+const views = [
+  ['docs/decisions.md', INDEX_PATH, 'full'],
+  ['docs/decisions-summary.md', SUMMARY_INDEX_PATH, 'summary'],
+] as const;
+for (const [label, path, variant] of views) {
+  if (
+    readFileSync(path, 'utf8') !== renderIndex(indexHeader, corpus, variant)
+  ) {
+    fail(`${label} is stale — run \`task docs:decisions:build\``);
+  }
 }
 
 if (errors.length > 0) {
