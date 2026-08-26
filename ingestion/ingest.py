@@ -348,6 +348,7 @@ def build_chunks(
         args.pdf,
         page_offset=page_offset,
         chapterless_pages=frozenset(config.get("chapterless_pages", ())),
+        expected=config.get("expected_chapter_pages"),
     )
 
     # Marker's emitted order is not reading order on multi-column pages; the

@@ -244,6 +244,15 @@ settles the remaining five.
   is nothing for it to say. **They carry no chapter, by design**, recorded as
   `chapterless_pages` in `ingestion/mothership/system.json`. They stay in the
   index per [[0107-reference-cards-stay-in-the-rules-index]].
+
+  **Why this is not just `drop_pages`.** The two keys answer different questions.
+  `drop_pages` says *this content should not be findable* — it is unreachable,
+  or actively harmful to ranking. `chapterless_pages` says *this content is
+  findable and has no chapter*. The cards are retrieved and useful: printed p.2
+  and p.44 both appear in top-3 results across the fixture set. Dropping them to
+  avoid an attribution question would discard content to tidy up metadata.
+
+**On naming each footer-less page's chapter in config instead** — rejected, though **not** because it is per-page manual data that goes stale, which is exactly what `chapterless_pages` is. What separates them is what each asserts: a chapter name is a positive claim that must track the book's contents, while non-membership is a negative one that survives reorganization. The volume argument was carrying nothing either — inheritance serves exactly one page.
 - **Physical 10** — equipment continuation, printed p.11. Genuine body content
   mid-chapter that happens to have lost its running footer, and reachable
   content the Warden queries. **Inherits the preceding page's chapter**, which
@@ -253,11 +262,44 @@ settles the remaining five.
 an explicit list rather than "inherit everywhere" is that a future footer-parsing
 regression should present as a gap, not as plausible-looking wrong attributions.
 `read_page_chapters` logs the resolved count before filling — 36 of 44 on this
-edition — and warns below half. Taken after filling, that number would read a
-clean 44 of 44 on a book whose footers had stopped parsing entirely.
+edition — because taken after filling that number would read a clean 44 of 44 on
+a book whose footers had stopped parsing entirely.
 
-**A chapterless page also stops the carry**, so the back-cover card cannot hand
-the last chapter of the book to anything following it.
+**That diagnostic needed hardening, and this is the change review forced.** Once
+pages inherit, the index no longer shows the gap and the log is the only place it
+survives — so the log's threshold has to be worth something. It was "warn below
+half", which on a 44-page book tolerates 36 resolving pages falling to 22 without
+a word. `expected_chapter_pages` now pins the count per edition beside the PDF
+hash, and any deviation warns. The old fraction remains as the fallback for a
+system that has not pinned one, and says so.
+
+**Enumeration rather than derivation, and this is settled rather than open.** The
+obvious alternative — classify front and back matter by position — is the same
+shape as trusting a block's page attribute: plausible, wrong on the next book,
+and silent about being wrong. It is not even coextensive, since an errata insert
+or fold-out plate is chapterless mid-book while front matter can sit inside
+chapter 1. An explicit list fails visibly, which is the property being bought. A
+book with no such pages carries an empty key, and that is the correct cost.
+
+**Honest scope: inheritance serves exactly one page today.** Of the eight
+footer-less pages, five are dropped and two are the cards, leaving physical 10.
+The rule is still the right one — it is the general answer to "a body page lost
+its footer" — but it should not be read as covering a class.
+
+**A chapterless page is skipped, not a barrier.** It takes no chapter itself and
+does not reset the carry.
+
+*This entry originally said the opposite — that a chapterless page stops the
+carry — and was corrected on review the same day.* The argument that killed it:
+a chapterless page either sits at a chapter boundary, where the next page
+resolves its own footer and stopping changes nothing, or it sits mid-chapter —
+an errata insert, a fold-out plate — where stopping strips a correct attribution
+off the next page. **No-op or wrong, with no third case.** The justification
+offered here (*"the back-cover card cannot hand the last chapter to anything
+following it"*) described a situation that cannot arise: nothing follows the back
+cover. Simulated across all 44 PSG pages, the two behaviours differ on **zero**
+pages — the original rule was unfalsifiable against the only book we have, which
+is precisely why it survived authoring.
 
 **Implementation.** `fill_chapter_gaps` in `ingestion/pipeline/extract.py`, pure
 and unit-tested without a PDF; called from `read_page_chapters` so the document

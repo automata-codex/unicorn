@@ -154,18 +154,20 @@ class TestFillChapterGaps:
 
         assert filled == {0: "EQUIPMENT"}
 
-    def test_a_chapterless_page_stops_the_carry(self) -> None:
-        """A card between two chapters must not leak the earlier one past itself.
+    def test_a_chapterless_page_is_skipped_not_a_barrier(self) -> None:
+        """A mid-book card must not strip the chapter off the page after it.
 
-        Without this, physical 43 (back cover) would hand `SURVIVAL` to
-        anything following it, and a reader would be told the back-cover
-        reference card is part of the last chapter of the book.
+        This asserted the opposite until 2026-08-26. The earlier behaviour —
+        terminating the carry — is either a no-op (the card sits at a chapter
+        boundary, so the next page resolves its own footer) or actively wrong
+        (the card sits mid-chapter, and the next footer-less page loses a
+        correct attribution). There is no case where it helps.
         """
         filled = fill_chapter_gaps(
             {0: "COMBAT"}, 4, chapterless_pages=frozenset({1})
         )
 
-        assert filled == {0: "COMBAT"}
+        assert filled == {0: "COMBAT", 2: "COMBAT", 3: "COMBAT"}
 
     def test_a_later_chapter_resumes_the_carry(self) -> None:
         filled = fill_chapter_gaps({0: "COMBAT", 2: "SURVIVAL"}, 4)

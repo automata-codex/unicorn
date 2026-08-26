@@ -262,6 +262,16 @@ def fill_chapter_gaps(
     would present as plausible-looking wrong chapters rather than as the sharp
     drop in resolved count :func:`read_page_chapters` already logs. Blank stays
     a signal; inherited is a claim.
+
+    **A chapterless page is skipped, not a barrier.** It takes no chapter itself
+    and does not reset the carry, so a page after it still inherits from the last
+    page that resolved one. Terminating instead was considered and is wrong: a
+    chapterless page either sits at a chapter boundary, where the next page
+    resolves its own footer and stopping changes nothing, or it sits mid-chapter
+    — an errata insert, a fold-out plate — where stopping strips a correct
+    attribution off the next page. No-op or wrong, with no third case. Treating
+    one as a structural break would be asserting something about books that this
+    book cannot test, since both of its cards are at the covers.
     """
     filled = dict(chapters)
     carried: str | None = None
@@ -269,7 +279,7 @@ def fill_chapter_gaps(
         if index in chapters:
             carried = chapters[index]
         elif index in chapterless_pages:
-            carried = None
+            continue
         elif carried is not None:
             filled[index] = carried
     return filled
@@ -280,6 +290,7 @@ def read_page_chapters(
     *,
     page_offset: int = 1,
     chapterless_pages: frozenset[int] = frozenset(),
+    expected: int | None = None,
 ) -> dict[int, str]:
     """Physical page index -> chapter name, read from the running footer.
 
@@ -315,11 +326,25 @@ def read_page_chapters(
         len(chapters),
         page_count,
     )
-    if page_count and len(chapters) < page_count // 2:
+    if expected is not None and len(chapters) != expected:
         logger.warning(
-            "fewer than half the pages resolved a chapter. The footer format "
-            "is edition-specific; a new book or printing needs its own check "
-            "before its page and chapter attribution can be trusted."
+            "expected %d pages to resolve a chapter for this edition, got %d. "
+            "The footer format is edition-specific; a new book or printing "
+            "needs its own check before its page and chapter attribution can "
+            "be trusted. If this is a deliberate change, update "
+            "`expected_chapter_pages` in the system config.",
+            expected,
+            len(chapters),
+        )
+    elif expected is None and page_count and len(chapters) < page_count // 2:
+        # Fallback for a system with no pinned count. Deliberately loose, and
+        # that looseness is why the pin exists: on a 44-page book this tolerates
+        # 36 resolving pages dropping to 22 without a word.
+        logger.warning(
+            "fewer than half the pages resolved a chapter, and this system "
+            "pins no `expected_chapter_pages` to check against. The footer "
+            "format is edition-specific; a new book or printing needs its own "
+            "check before its page and chapter attribution can be trusted."
         )
     return fill_chapter_gaps(
         chapters, page_count, chapterless_pages=chapterless_pages
