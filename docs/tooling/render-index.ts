@@ -33,11 +33,7 @@ export function renderIndex(header: string, corpus: LoadedAdr[]): string {
   // and are listed separately: an open entry has decided nothing, while a
   // provisional one is in force and merely unproven.
   const unsettled: [string, 'open' | 'provisional', string][] = [
-    [
-      '## Open',
-      'open',
-      'No decision yet. Nothing here is safe to rely on.',
-    ],
+    ['## Open', 'open', 'No decision yet. Nothing here is safe to rely on.'],
     [
       '## Provisional',
       'provisional',

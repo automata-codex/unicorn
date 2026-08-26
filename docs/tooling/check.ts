@@ -107,5 +107,7 @@ if (errors.length > 0) {
 
 console.log(`ADR corpus OK — ${corpus.length} entries, index up to date.`);
 for (const adr of unsettled) {
-  console.log(`  ${adr.frontMatter.status}: ${adr.frontMatter.id} — ${adr.frontMatter.title}`);
+  console.log(
+    `  ${adr.frontMatter.status}: ${adr.frontMatter.id} — ${adr.frontMatter.title}`,
+  );
 }
