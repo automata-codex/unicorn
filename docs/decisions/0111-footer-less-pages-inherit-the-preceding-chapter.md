@@ -63,9 +63,25 @@ topic labels with no table body, which is the false-positive shape
 [[0016-character-creation-content-is-excluded-from-the-rules-index]]'s addendum
 describes for physical page 3. This closes M7.2's other known gap.
 
-**Cost, and what is owed.** The index does not change until `task ingest` runs —
-real Voyage calls, and it replaces the system's rows. `drop_pages` goes from 4
-pages to 8 and every chunk on physical 10 gains a breadcrumb, so the M7.5
-retrieval baseline (`recall@3` 97.3%, MRR 0.883, `§ S28`) is measured against an
-index that will no longer exist. Re-measure with `task eval:retrieval` after
-re-ingesting, and treat the current figures as superseded rather than comparable.
+**Cost, and what it turned out to be.** Re-ingested and re-measured 2026-08-26
+(`mothership__2026-08-26T13-46-20Z`). The caution written here in advance — that
+`drop_pages` going from 4 pages to 8, plus a breadcrumb on every physical-10
+chunk, would leave the M7.5 baseline measuring an index that no longer exists —
+was worth stating and did not come true.
+
+**Every aggregate reproduced the baseline exactly:** `recall@3` 97.3%,
+`recall@5` 97.3%, MRR 0.883, `authored` 100.0%, `warden-observed` 95.7%. Not one
+rank moved — an identical MRR to three decimals across 37 answerable queries is
+what no rank changing looks like. The corpus went 61 → 60 chunks.
+
+**That is the result the change was designed to have, and it is worth saying why
+rather than filing it as luck.** The four newly dropped pages were a 23-character
+cover, a credits page, and two pages whose `Table` blocks all extract empty — they
+were contributing nothing to drop. The breadcrumb added to physical 10 is a short
+prefix on a ~400-token chunk, and no fixture's expected page is printed p.11. So
+the attribution gap closed at zero retrieval cost, and `§ S28`'s figures stand
+rather than being superseded.
+
+**The similarity distributions still overlap** — answerable-correct-hit
+0.330–0.601 against unanswerable 0.271–0.426 — so [[0020-no-similarity-floor-for-rules-lookup-the-distributions-overl]]
+is unchanged by this.

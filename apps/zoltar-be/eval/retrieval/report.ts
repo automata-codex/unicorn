@@ -16,6 +16,7 @@ export interface IndexProvenance {
   targetTokens?: number;
   overlapTokens?: number[];
   droppedPages?: number[];
+  chapterlessPages?: number[];
   includeSectionHeaders?: boolean;
   pdfSha256?: string;
 }
@@ -96,6 +97,20 @@ export function renderRetrievalReport(args: {
         provenance.droppedPages?.length
           ? provenance.droppedPages.join(', ')
           : 'none'
+      }`,
+    );
+    // Attribution changes chunk *text* — each chunk carries a chapter
+    // breadcrumb — so which pages carry one is a lever like the four above,
+    // and a score is only comparable against a build with the same value.
+    // Absent means a pre-`ADR-0111` ingest, where every unresolved page was
+    // blank and none of them said so deliberately.
+    lines.push(
+      `- Chapterless pages: ${
+        provenance.chapterlessPages === undefined
+          ? '— (not recorded by this ingest)'
+          : provenance.chapterlessPages.length
+            ? `${provenance.chapterlessPages.join(', ')} (by design; every other footer-less page inherits)`
+            : 'none'
       }`,
     );
     // Absent means "written by a pre-M7.5 ingest", which is not the same as
