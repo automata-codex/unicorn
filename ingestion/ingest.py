@@ -518,7 +518,15 @@ def print_dry_run(chunks: list[Chunk]) -> None:
     with_chapter = sum(1 for c in chunks if c.section_path)
     chapters = {c.section_path[0] for c in chunks if c.section_path}
     print(f"chunks with a chapter: {with_chapter} ({len(chapters)} distinct chapters)")
-    print(f"chunks with no chapter: {len(chunks) - with_chapter}")
+    # Naming the pages, not just counting them: a count cannot distinguish
+    # "the reference cards are chapterless by design" from "a body page lost
+    # its footer and inherited nothing", which is the whole distinction
+    # `chapterless_pages` exists to draw.
+    chapterless = sorted(
+        {page for c in chunks if not c.section_path for page in c.pages}
+    )
+    pages = ", ".join(f"p.{page}" for page in chapterless) or "none"
+    print(f"chunks with no chapter: {len(chunks) - with_chapter} (on {pages})")
     print()
     print("--- first chunk ---")
     first = chunks[0]
