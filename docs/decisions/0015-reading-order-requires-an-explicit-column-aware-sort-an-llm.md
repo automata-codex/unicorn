@@ -5,7 +5,12 @@ area: rules-ingestion
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Marker's emitted block order is not reading order on multi-column pages — roughly
+  half the body pages would concatenate backwards. Settles on a deterministic
+  column-aware sort in `ingest.py`, with the boundary that an LLM may validate the
+  result and never perform the reordering. The coverage caveat stands: the test
+  validating the sort sees 16 of 44 pages.
 ---
 
 Marker's emitted block order is not reading order on multi-column pages. Of the 16 pages carrying two or more numbered section headers, 8 emit them out of order, including full reversals (`docs/rules-extraction-findings.md § S6.2`); the true rate is plausibly higher since that test can't see unnumbered headings. A chunker that merges blocks in emitted order — the design doc's implicit assumption — would concatenate roughly half the book's body pages backwards.

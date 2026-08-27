@@ -5,7 +5,12 @@ area: rules-ingestion
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Why the character-creation pages leave the rules index, and why page 3 leaves it for
+  an entirely different reason — structural unreachability, read off the tool array,
+  versus measured harm to answerable queries. That distinction is the entry's real
+  content. Carries a method note on a pre-registered criterion that turned out to
+  point at the wrong fixtures.
 ---
 
 Physical pages 4, 41, and 42 cover Mothership character creation. Confirmed via tool-array and query-log inspection that `rules_lookup` is wired only into the play-loop tool array — character creation runs its own flow and makes no Anthropic calls at all, so nothing the Warden does can retrieve these pages regardless of what the index contains (`docs/rules-extraction-findings.md § S2`).

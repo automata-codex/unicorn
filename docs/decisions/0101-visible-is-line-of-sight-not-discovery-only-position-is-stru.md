@@ -5,7 +5,12 @@ area: claude-continuity-spatial
 status: accepted
 superseded_by: null
 milestone: M7.7
-summary: null
+summary: >-
+  Splits the overloaded `visible` into line of sight plus a monotonic `revealed`,
+  removes `renderEntities`' filter, and narrows the design doc's structural-secrecy
+  claim to position alone. Two addenda carry weight: `npcState` on the entity, and the
+  correction that 'structurally vacuous' held only for the grid — Phase 1's vertical
+  ship topology was already producing position errors.
 ---
 
 **Confirmed 2026-08-21.** `docs/hidden-information-findings.md` recorded an unplanned M7.7 finding and left five open questions, the first of which — *is the resource-pool leak a defect, or is the design doc's claim too strong?* — was framed as a binary. It resolves to neither. **`visible` is overloaded**, and once the two concepts inside it are separated, the leak stops being a leak and four of the five questions close with it.

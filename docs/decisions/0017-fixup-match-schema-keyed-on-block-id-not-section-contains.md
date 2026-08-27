@@ -5,7 +5,11 @@ area: rules-ingestion
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Why fixup entries match on block `id` rather than the `{section, contains}` pair the
+  ingestion doc specifies — neither key can express the confirmed defect, which is
+  tables extracting empty with no text to match on. This fixes the schema those fixups
+  will use, not the defects; `fixups.json` is still empty.
 ---
 
 `docs/rules-ingestion.md § Step 2` specifies fixup entries matched by `{section, contains}` — e.g. `{"section": ["Combat", "Panic"], "contains": "1-10Roll"}`. Neither key can express the confirmed extraction defects. `contains` needs text to match against, and the defect is 14 of 32 `Table` blocks extracting as empty (`<p></p>`) — there's nothing there to match on. `section` was meant to derive from `section_hierarchy`, already rejected above as unreliable ancestry.

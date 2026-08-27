@@ -5,7 +5,12 @@ area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
 milestone: M7.6
-summary: null
+summary: >-
+  Why the M7.6 migration deletes every `character_sheet` and `campaign_state` row
+  rather than transforming them, and the three facts that made that safe. Recorded
+  because the migration file is disposable — the pre-`v0.1.0` Flyway consolidation
+  discards it — and this reasoning is not. A defensive transform could not have worked
+  anyway: the old sheet stored sums, never the rolls.
 ---
 
 **Confirmed 2026-08-14, built 2026-08-15.** `V19__character_sheet_m76_reset.sql`

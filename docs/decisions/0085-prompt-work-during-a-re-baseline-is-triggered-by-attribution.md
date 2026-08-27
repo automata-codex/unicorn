@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: M7.6
-summary: null
+summary: >-
+  The four-way classification for whether a number that moved during a re-baseline is
+  this milestone's work or M8.1's backlog — written before M7.6's numbers were
+  readable, which is the point. Category 2 is the hard one: with six Warden-visible
+  changes on one run there is no honest delta, so a regression has to be argued from a
+  violated prediction.
 ---
 
 Recorded 2026-08-16, while M7.6's re-baseline was still running and before any of its numbers were readable. That ordering is the point, and it is the same one as `ADR-0022`: a trigger written after the results are in is indistinguishable from picking the trigger that licenses what you already wanted to do.

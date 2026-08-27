@@ -5,7 +5,12 @@ area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Structured output goes through forced tool calls rather than prompt-instructed JSON.
+  The addendum narrows the guarantee substantially: tool use enforces the schema, not
+  that the model put its content in the right field, and the category of malformed
+  response this entry claims to eliminate relocated inside a valid parameter. Schema
+  validity is a floor, not a proof.
 ---
 
 Claude is required to call `submit_gm_response` and `submit_gm_context` rather than producing structured JSON in plain text. Tool use enforces the schema at the API level and eliminates a whole category of malformed response runtime errors. Prompt instructions alone are not sufficient for this guarantee.

@@ -5,7 +5,11 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  The mixed-rubric warning fired on every multi-check run by construction, and
+  following its printed remedy silently dropped every judged check but one. Groups
+  rubric hashes per `checkId` instead and scopes `--filter-rubric` to `CHECK=HASH`.
+  Records why `checkId` rather than `tag` is the grouping key.
 ---
 
 `detectHeterogeneity` originally counted distinct `rubricHash` values across an entire run and warned whenever there was more than one. Since `rubricHashFor(checkId)` hashes one rubric template per judged check, any run covering more than one judged check spans more than one hash by construction — the warning fired on every multi-check run, unconditionally, and named nothing useful. Worse, `--filter-rubric <hash>` filtered every judged row in both runs against a single hash, so following the printed remedy silently dropped every judged check except one.

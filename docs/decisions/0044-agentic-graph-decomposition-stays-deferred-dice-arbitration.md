@@ -5,7 +5,12 @@ area: claude-turn-loop-correction
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Why a LangGraph-style decomposition of the turn loop stays deferred, and how the
+  dice-arbitration evidence for it has moved. The criterion is on its third iteration
+  — the 0.90 the deferral rested on halved once the index was populated, the
+  structural `roll_dice` fields did not fix it, and the current test is prompt
+  placement, measured against `UNSURFACED-CHECK` as a pair.
 ---
 
 The standing deferral on a LangGraph-style decomposition of the turn loop carried a falsifiable criterion: harness results should first show which failure categories resist prompt-level fixes. Dice arbitration reliability was the lead candidate for a category that would, on the theory that reliable sequencing of request → resolution → narration is a control-flow problem a single prompt can't be made to solve.

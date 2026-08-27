@@ -5,7 +5,12 @@ area: architecture-backend
 status: accepted
 milestone: M7.7
 superseded_by: null
-summary: null
+summary: >-
+  Dice are stored as they fell and the 0-indexed table offset is applied at lookup, in
+  one place, so a recorded roll still means what the player saw on the table.
+  `trinket` and `patch` have carried the same 1-based roll since M7.6: a convention to
+  establish going forward rather than a bug to repair, since nothing reads those
+  tables.
 ---
 
 **Convention decided 2026-08-20, shipped 2026-08-21 as spec 018 Part 3.**

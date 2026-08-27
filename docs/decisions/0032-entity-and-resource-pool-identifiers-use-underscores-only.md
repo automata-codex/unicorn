@@ -5,7 +5,11 @@ area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Identifiers carry underscores only, and why dots and hyphens were rejected. The
+  addendum retires the `{entity_id}_{pool_name}` composite key in favour of
+  owner-nested pools without disturbing the rule itself, and records the cost that is
+  easy to miss: merges must become deep, where two existing merge points are shallow.
 ---
 
 Dots in identifier strings cause subtle bugs when code uses dot-notation property access on JSON keys. Hyphens are legal but inconsistent with TypeScript naming conventions. Underscores are unambiguous. Resource pools follow the pattern `{entity_id}_{pool_name}`: `dr_chen_hp`, `vasquez_stress`.

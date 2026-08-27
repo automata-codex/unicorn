@@ -5,7 +5,11 @@ area: rules-ingestion
 status: accepted
 milestone: M7.7
 superseded_by: null
-summary: null
+summary: >-
+  The trinket and patch tables extract garbled — reassembly damage rather than loss,
+  with all 100 indices present in each — and are deliberately not repaired, because
+  nothing in the app resolves a d100 against them. Corrects `§ S11.2`'s 'intact'
+  claim, which holds at the token level and not at the row level.
 ---
 
 **Found 2026-08-20, not fixed by decision the same day.**

@@ -5,7 +5,10 @@ area: api-data-model
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Why campaign-level facts get their own `campaign_canon` home rather than being fed
+  into synthesis as prior-adventure blobs, and why promotion into it is a second
+  deliberate editorial step at adventure completion rather than something automatic.
 ---
 
 Adventure GM context blobs are scoped to a single narrative arc. Promoted canon within an adventure is correct at that scope. But facts with campaign-level significance — an overarching antagonist's scheme, a surviving NPC, a faction relationship — need a persistent home that synthesis for future adventures can read.

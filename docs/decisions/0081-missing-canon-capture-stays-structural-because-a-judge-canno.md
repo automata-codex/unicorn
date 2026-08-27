@@ -5,7 +5,11 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  The one check reviewed for its prose dependency where the conclusion ran the other
+  way. A judge asked about a detail the narration never introduces answers 'it didn't'
+  and, the verdict being binary, returns a pass — turning an honest zero denominator
+  into a spurious 1.00. The real defect is in the fixture, tracked separately.
 ---
 
 Reviewed on the same grounds as the others — its marker-phrase gate is a prose dependency, and it had produced zero verdicts across 20 reps — and it is the one case where the conclusion runs the other way.

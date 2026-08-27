@@ -5,7 +5,12 @@ area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
 milestone: M7.6
-summary: null
+summary: >-
+  Armor Points are a threshold, not a pool: a hit below AP is not a state change at
+  all, and a single hit at or above it destroys the armor. Recorded because the M7.6
+  spec and implementation plan both say the opposite, and because 'subtract armor from
+  each hit' is the error a Warden defaults to. Damage Reduction is a separate field
+  for the same reason.
 ---
 
 **Found during implementation, 2026-08-15.** The M7.6 spec §1.3 and the

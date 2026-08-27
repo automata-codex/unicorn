@@ -6,10 +6,10 @@ status: accepted
 superseded_by: null
 milestone: M7.7
 summary: >-
-  Introduces Instinct for `npc` entities and a `crewRole` → skill-chain layer over
-  it: the roll, where it is stored, and the `assemblyHash` precondition a role-table
-  edit would otherwise slip past. Everything mechanical in it is invented — a Zoltar
-  house rule, not RAW.
+  Introduces Instinct for `npc` entities and a `crewRole` → skill-chain layer over it:
+  the roll, where it is stored, and the `assemblyHash` precondition a role-table edit
+  would otherwise slip past. Everything mechanical in it is invented — a Zoltar house
+  rule, not RAW.
 ---
 
 **Status:** accepted 2026-08-20, **M7.7** — riding 018's re-baseline rather than buying one (`ADR-0094`). Schema section amended the same day against the codebase; see `§ Amendment 2026-08-20`.

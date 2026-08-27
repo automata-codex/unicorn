@@ -5,7 +5,13 @@ area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Player pools are written when the character sheet is created, not by synthesis.
+  Three later notes qualify it: the 'two writers never race' claim was false and
+  produced duplicate pool prefixes for one character, the derivation is one-way so
+  sheet edits never reach live pools, and read-side validation of
+  `character_sheet.data` cannot be added without changing the harness seed in the same
+  change.
 ---
 
 Player HP and stress pools (e.g. `vasquez_hp`, `vasquez_stress`) are written into `campaign_state.data.resourcePools` at the moment the character sheet is created — not later, and not re-derived by synthesis. The derivation is a pure function in `@uv/game-systems` (`deriveMothershipCharacterResourcePools`) that maps `{ currentHp, maxHp, stress }` from the sheet onto the canonical `{entity_id}_{pool_name}` naming convention. `CharacterService.create` calls `CampaignRepository.mergePlayerResourcePools` immediately after inserting the sheet; the merge is transactional and preserves any existing pools on key conflict.

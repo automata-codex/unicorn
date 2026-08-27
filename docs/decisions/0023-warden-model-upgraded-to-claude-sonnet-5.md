@@ -5,7 +5,11 @@ area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  The 4.6 → Sonnet 5 upgrade and the baseline tables behind it. Several figures here
+  have since been retired — the `SYSTEM-ROLLED-PLAYER-ACTION` ceiling, everything
+  graded before `actingEntityId` — and the judged rows are self-graded. Addenda cover
+  the Haiku control arm's narrowing job and the Sonnet 5 markup-leak defect.
 ---
 
 Declared 2026-08-03 on the evidence of the 4.6 → Sonnet 5 full-corpus baseline, re-scored under the migrated checkers. Sonnet 5 improves on every axis the harness measures where either model is passable at all, and the two axes where it doesn't are axes where *neither* model is acceptable — which makes them prompt targets rather than arguments against the swap.

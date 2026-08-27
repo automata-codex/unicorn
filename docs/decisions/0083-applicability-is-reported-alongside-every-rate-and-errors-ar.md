@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Applicability is reported beside every rate, and errors are excluded from its
+  denominator — an errored rep never reached the question. The same number reads
+  differently by `applicabilitySource`, which is why reports render it alongside: a
+  partial value means a harness defect for a fixture-gated check and a real
+  behavioural measure for an artifact-gated one.
 ---
 
 `eval-methodology.md` already argued that a rate moving because its denominator moved looks identical to a rate moving because behaviour moved, and that reporting applicability is the only thing that separates them. The reports now do: `App` on the per-fixture and per-tag tables, `App A`/`App B`/`ΔApp` on every compare row, and an `Applicability shifts` section peer to Regressions/Improvements.

@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  The dividing line for structural checkers — they may read event and state structure,
+  never classify prose — and the three-case taxonomy built on it. The third case
+  closed in M7.5, though one residual false FAIL survives in
+  `out-of-order-resolution`'s deferred-gate branch. The addendum records why the
+  harness deliberately writes a `character_sheet` row the schema would reject.
 ---
 
 Structural checkers began as regexes over `purpose` and `playerText` because the alternative

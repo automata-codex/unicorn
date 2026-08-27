@@ -5,7 +5,11 @@ area: claude-turn-loop-correction
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Closed — the three `roll_dice` fields landed in M7.5 on the schedule this entry set;
+  the title is the original question, not the outcome. Records what `gatedByRollId`
+  and `actingEntityId` bought the checks waiting on them, that `rollType` never had a
+  measurement role, and a provenance note on a reversal that was itself reversed.
 ---
 
 > **Status: closed 2026-08-07.** The fields landed in M7.5, on the schedule this entry set.

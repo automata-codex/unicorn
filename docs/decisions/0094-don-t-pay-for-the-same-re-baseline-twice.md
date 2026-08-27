@@ -5,7 +5,11 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  The rule that a change forcing a re-baseline waits for one already being bought
+  rather than triggering its own. Records a rule that had been operating in three
+  other entries before it had a home, and bounds it: this is not a reason to defer a
+  fix worth measuring on its own.
 ---
 
 A graded re-baseline is the expensive instrument in this project — roughly 300 Warden turns plus judge calls (2 models × 15 fixtures × N=10). The rule: a change that will force a re-baseline waits for one that is already being bought, rather than triggering its own.

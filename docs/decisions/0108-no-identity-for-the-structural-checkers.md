@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 milestone: M7.7
 superseded_by: null
-summary: null
+summary: >-
+  Why the structural checkers get no identity hash while the judged half does. The gap
+  is real; the reason is repair cost — `eval:rescore` regrades deterministic checkers
+  for free, so a run mislabelled by a checker edit is repairable after the fact at
+  zero spend, where the judged half has no such hatch. Names the case that would
+  reverse it.
 ---
 
 **Decided 2026-08-22, and recorded so the omission reads as a decision rather than an

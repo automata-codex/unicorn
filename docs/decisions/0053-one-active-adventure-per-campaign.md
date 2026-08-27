@@ -5,7 +5,12 @@ area: api-data-model
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  One active adventure per campaign — and the addendum withdraws even the
+  completed-adventure allowance for `v0.1.0`, because nothing behind that door works:
+  no campaign canon, no rolling summary, no adventure-scoped state. The constraint is
+  a data guarantee that keeps the Phase 2 migration mechanical, and carries an
+  explicit reversal condition.
 ---
 
 Campaigns are limited to one adventure in a non-completed, non-failed state at a time. A new adventure cannot be created while another is `synthesizing`, `ready`, or `in progress`. This matches solo play conventions and simplifies the state model. Completed and failed adventures remain visible (toggled by default) but do not block new adventure creation.

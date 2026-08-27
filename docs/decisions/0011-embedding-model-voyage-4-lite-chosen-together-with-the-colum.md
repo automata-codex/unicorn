@@ -5,7 +5,12 @@ area: architecture-backend
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  The `voyage-3-lite` default never matched the `vector(1024)` column, and an empty
+  index meant pgvector never evaluated a comparison to say so. Settles on
+  `voyage-4-lite`, and names the two constraints nothing in the type system enforces:
+  ingestion and runtime must be the same model, not merely two of the same width, and
+  a swap is checked against the column before ingesting.
 ---
 
 M7 shipped with `VOYAGE_EMBED_MODEL` defaulting to `voyage-3-lite` on the stated assumption that it matched the `vector(1024)` declaration on `rules_chunk.embedding`. It does not — `voyage-3-lite` emits 512 dimensions; `voyage-3` is the 1024-dimensional model of that generation. The error was invisible for the whole of M7 because the index is empty: `RulesRepository.findByCosineSimilarity` filters `embedding IS NOT NULL`, so pgvector never evaluated `<=>` against a row and never raised the dimension mismatch. It would have surfaced on the first M7.2 ingestion run.
