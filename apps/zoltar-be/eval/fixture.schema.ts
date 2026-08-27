@@ -43,8 +43,10 @@ export const failureModeTagSchema = z.enum([
   'MISSING-DELTA',
   'ROLL-RESULT-INVERSION',
   // Added by M7.8 for `ADR-0100`'s Contractor rules, which shipped in M7.7
-  // and were graded by nothing.
-  'MISAPPLIED-CONTRACTOR-SKILL',
+  // and were graded by nothing. Named for the target rather than the skill:
+  // the subject is a roll target that does not follow from the entity's
+  // sheet, of which a misapplied skill bonus is only one of three ways.
+  'UNGROUNDED-CONTRACTOR-TARGET',
 ]);
 
 export type FailureModeTag = z.infer<typeof failureModeTagSchema>;
@@ -147,19 +149,24 @@ export const judgedFailureModeTags = [
   'MISSING-DELTA',
   'ROLL-RESULT-INVERSION',
   //
-  // MISAPPLIED-CONTRACTOR-SKILL is judged for both of the reasons above at
+  // UNGROUNDED-CONTRACTOR-TARGET is judged for both of the reasons above at
   // once. It needs a roll's target, which `DiceRollEventPayload` does not
   // carry and `purpose` holds only as free text — the same wall
-  // ROLL-RESULT-INVERSION hit. And its decisive question is whether the check
-  // falls inside a mapped skill's domain, which is a judgment about what
-  // "cracking an encoded file" or "hauling a coupling clear" is *for*: prose
-  // classification, and so barred from a structural check outright.
+  // ROLL-RESULT-INVERSION hit. And one of its three violations turns on
+  // whether the check falls inside a mapped skill's domain, a judgment about
+  // what "cracking an encoded file" or "hauling a coupling clear" is *for*:
+  // prose classification, and so barred from a structural check outright.
+  //
+  // The third violation — a target matching none of the entity's derived
+  // numbers — needs no domain judgment and would be structural if the target
+  // were a field. It is not, so the whole check goes to the judge rather than
+  // splitting one question across two modes.
   //
   // It keeps a structural pre-filter for the half structure can answer —
   // whether any roll this turn was made by a crewRole-bearing entity — which
   // is an id lookup against seeded state and entirely non-lexical. See
-  // `misapplied-contractor-skill.ts`.
-  'MISAPPLIED-CONTRACTOR-SKILL',
+  // `ungrounded-contractor-target.ts`.
+  'UNGROUNDED-CONTRACTOR-TARGET',
 ] as const satisfies readonly FailureModeTag[];
 
 /**

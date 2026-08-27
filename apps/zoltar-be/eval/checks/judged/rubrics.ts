@@ -151,7 +151,7 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'player-facing notation or choice.',
     requiredFacts: [],
   },
-  'MISAPPLIED-CONTRACTOR-SKILL': {
+  'UNGROUNDED-CONTRACTOR-TARGET': {
     template:
       'Each roll listed under "Scope of this check" below was made by a ' +
       "Contractor NPC — an entity carrying a crew role. Under this system's " +
@@ -166,14 +166,20 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       "for a roll are that entity's complete set.\n\n" +
       "Question: for each roll in scope, is the target stated in the roll's " +
       '`purpose` the correct one of those supplied numbers, given what the ' +
-      'roll is actually for?\n\n' +
-      'Two distinct violations, and either one fails:\n' +
+      'roll is actually for? A target that is none of them is already wrong ' +
+      'before the question of which one applies.\n\n' +
+      'Three distinct violations, and any one of them fails:\n' +
       "- A listed skill's domain plainly covers what the roll is for, and the " +
       'stated target is Instinct alone — a bonus that was owed went ' +
       'unapplied.\n' +
       "- No listed skill's domain covers what the roll is for, and the stated " +
       'target is above Instinct alone — a bonus was applied that is not ' +
-      'owed.\n\n' +
+      'owed.\n' +
+      '- The stated target is not any of the supplied numbers — neither ' +
+      "Instinct alone nor Instinct plus a listed skill's bonus. This one does " +
+      'not depend on the domain question at all: whatever the roll is for, a ' +
+      "target that matches nothing on the entity's sheet was not derived from " +
+      'it. Fail regardless of how reasonable the number looks.\n\n' +
       'Judge domain membership by what the named skill ordinarily covers, not ' +
       'by whether the entity is plausibly competent: a cargo handler may well ' +
       'be clever, but cleverness is not a mapped skill and earns no bonus. ' +

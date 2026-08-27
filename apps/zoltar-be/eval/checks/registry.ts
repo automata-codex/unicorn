@@ -5,15 +5,15 @@ import {
 } from '../fixture.schema';
 
 import { judgeRubrics } from './judged/rubrics';
-import {
-  misappliedContractorSkillGate,
-  misappliedContractorSkillJudgeContext,
-} from './structural/misapplied-contractor-skill';
 import { narratingPastABlockGate } from './structural/narrating-past-a-block';
 import {
   unauditableMappingGate,
   unauditableMappingJudgeContext,
 } from './structural/unauditable-mapping';
+import {
+  ungroundedContractorTargetGate,
+  ungroundedContractorTargetJudgeContext,
+} from './structural/ungrounded-contractor-target';
 
 import type { EvalFixture, FailureModeTag } from '../fixture.schema';
 import type { TurnExecutionResult } from '../turn-result';
@@ -267,7 +267,7 @@ const APPLICABILITY_SOURCE: Record<string, EvalCheck['applicabilitySource']> = {
   // Contractor acted is an honest exclusion; a turn whose rolls are simply
   // unattributed is not, and the gate reports the two separately so the
   // second stays countable.
-  'misapplied-contractor-skill': 'artifact',
+  'ungrounded-contractor-target': 'artifact',
   // Judged as of 2026-08-20, having been stubbed since capture. `'ungated'`
   // — the question "did this turn describe a change it did not emit" is
   // answerable of any turn that produced a response, so there is no gate and
@@ -352,13 +352,13 @@ const STUB_CHECK_IDS: ReadonlySet<string> = new Set([]);
 const JUDGE_GATES: Partial<Record<string, EvalCheck['judgeGate']>> = {
   'narrating-past-a-block': narratingPastABlockGate,
   'unauditable-mapping': unauditableMappingGate,
-  'misapplied-contractor-skill': misappliedContractorSkillGate,
+  'ungrounded-contractor-target': ungroundedContractorTargetGate,
 };
 
 /** Extra judge-prompt context by check id — see `EvalCheck.judgeContext`. */
 const JUDGE_CONTEXTS: Partial<Record<string, EvalCheck['judgeContext']>> = {
   'unauditable-mapping': unauditableMappingJudgeContext,
-  'misapplied-contractor-skill': misappliedContractorSkillJudgeContext,
+  'ungrounded-contractor-target': ungroundedContractorTargetJudgeContext,
 };
 
 function buildChecks(): Record<string, EvalCheck> {

@@ -96,18 +96,32 @@ describe('evalChecks', () => {
     // (it only ever FAILs or falls through), so it needs no context.
     expect(evalChecks['unauditable-mapping'].judgeContext).toBeDefined();
     expect(
-      evalChecks['misapplied-contractor-skill'].judgeContext,
+      evalChecks['ungrounded-contractor-target'].judgeContext,
     ).toBeDefined();
     expect(evalChecks['narrating-past-a-block'].judgeContext).toBeUndefined();
   });
 
-  it('wires misapplied-contractor-skill as judged, artifact-gated, with both halves', () => {
+  it('names all three ungrounded-contractor-target violations in its rubric', () => {
+    // The third one is why the check is named for the target rather than the
+    // skill, and it is the one a rubric can lose silently: judgeContext hands
+    // the judge every derived number, so the main question already catches a
+    // target matching none of them — but a judge working down an enumerated
+    // list of skill mistakes has a fair reading in which a fabricated Instinct
+    // matches no bullet and passes.
+    const rubric = rubricTextFor('ungrounded-contractor-target');
+    expect(rubric).toContain('Three distinct violations');
+    expect(rubric).toContain('a bonus that was owed went unapplied');
+    expect(rubric).toContain('a bonus was applied that is not owed');
+    expect(rubric).toContain('not any of the supplied numbers');
+  });
+
+  it('wires ungrounded-contractor-target as judged, artifact-gated, with both halves', () => {
     // The check depends on all three being present together: the gate picks
     // the Contractor rolls, the context computes their derived targets, and
     // the rubric decides which target each roll should have used. A missing
     // context in particular would not fail loudly — the judge would simply
     // grade with no numbers in front of it.
-    const check = evalChecks['misapplied-contractor-skill'];
+    const check = evalChecks['ungrounded-contractor-target'];
     expect(check.mode).toBe('judged');
     expect(check.applicabilitySource).toBe('artifact');
     expect(check.judgeGate).toBeDefined();

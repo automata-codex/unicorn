@@ -92,7 +92,7 @@ function unattributedRolls(result: TurnExecutionResult): GameEventRow[] {
 }
 
 /**
- * MISAPPLIED-CONTRACTOR-SKILL's structural pre-filter. Decides *whether a
+ * UNGROUNDED-CONTRACTOR-TARGET's structural pre-filter. Decides *whether a
  * Contractor rolled at all*; whether the target it rolled against was the
  * right one goes to the rubric.
  *
@@ -111,7 +111,7 @@ function unattributedRolls(result: TurnExecutionResult): GameEventRow[] {
  * `summarizeExclusions` collects each branch into one row whose size is the
  * signal, rather than splintering by how many rolls a rep happened to make.
  */
-export function misappliedContractorSkillGate(
+export function ungroundedContractorTargetGate(
   result: TurnExecutionResult,
   fixture: EvalFixture,
 ): StructuralVerdict | null {
@@ -170,15 +170,19 @@ export function misappliedContractorSkillGate(
  * code or restated as a 20-row table in prose for the model to re-apply. The
  * second is a second implementation of `CREW_ROLE_SKILLS`, free to drift from
  * the first the moment anyone edits the table, in a check whose entire
- * subject is whether that table was applied correctly. `judgeContext`'s own
+ * subject is whether the Warden's target followed from that table.
+ * `judgeContext`'s own
  * doc comment names this: one implementation selects, the judge grades what
  * it hands over.
  *
- * Every target the judge could need is therefore precomputed. What is left
- * for it is the one genuinely semantic question — which of the supplied
- * numbers this roll should have used.
+ * Every target the judge could need is therefore precomputed. That leaves the
+ * judge two questions rather than one, and only the first is semantic: which
+ * of the supplied numbers this roll should have used, and — needing no
+ * judgment at all — whether the stated target is any of them. The second is
+ * the violation that would be structural if a GM-side roll carried a `target`
+ * field, and the one a rubric enumerating only skill mistakes would miss.
  */
-export function misappliedContractorSkillJudgeContext(
+export function ungroundedContractorTargetJudgeContext(
   result: TurnExecutionResult,
   fixture: EvalFixture,
 ): string {

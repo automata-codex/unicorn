@@ -3,16 +3,16 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
-  contractorRollsInScope,
-  misappliedContractorSkillGate,
-  misappliedContractorSkillJudgeContext,
-} from './misapplied-contractor-skill';
-import {
   fakeDiceRoll,
   fakeFixture,
   fakeGameEvent,
   fakeTurnExecutionResult,
 } from './test-helpers';
+import {
+  contractorRollsInScope,
+  ungroundedContractorTargetGate,
+  ungroundedContractorTargetJudgeContext,
+} from './ungrounded-contractor-target';
 
 import type { EvalFixture } from '../../fixture.schema';
 
@@ -115,9 +115,9 @@ describe('contractorRollsInScope', () => {
   });
 });
 
-describe('misappliedContractorSkillGate', () => {
+describe('ungroundedContractorTargetGate', () => {
   it('excludes a turn that rolled nothing, naming the Warden as the reason', () => {
-    const verdict = misappliedContractorSkillGate(
+    const verdict = ungroundedContractorTargetGate(
       fakeTurnExecutionResult({
         gameEvents: [
           fakeGameEvent({ sequenceNumber: 1, eventType: 'gm_response' }),
@@ -134,7 +134,7 @@ describe('misappliedContractorSkillGate', () => {
     // The split is the deliverable. An attributed turn with no Contractor is
     // an honest exclusion; an unattributed one may be hiding the very thing
     // this check grades, and the two must not aggregate into one row.
-    const attributed = misappliedContractorSkillGate(
+    const attributed = ungroundedContractorTargetGate(
       fakeTurnExecutionResult({
         gameEvents: [
           fakeDiceRoll({
@@ -147,7 +147,7 @@ describe('misappliedContractorSkillGate', () => {
       fixtureWithContractor(),
     );
 
-    const unattributed = misappliedContractorSkillGate(
+    const unattributed = ungroundedContractorTargetGate(
       fakeTurnExecutionResult({
         gameEvents: [
           fakeDiceRoll({ sequenceNumber: 1, purpose: 'ambient hull groan' }),
@@ -165,13 +165,13 @@ describe('misappliedContractorSkillGate', () => {
   it('groups exclusions on a code that carries no roll count', () => {
     // `summarizeExclusions` groups on `actualCode`; interpolating a count
     // there splinters one failure mode into a row per rep.
-    const one = misappliedContractorSkillGate(
+    const one = ungroundedContractorTargetGate(
       fakeTurnExecutionResult({
         gameEvents: [fakeDiceRoll({ sequenceNumber: 1, purpose: 'a' })],
       }),
       fixtureWithContractor(),
     );
-    const three = misappliedContractorSkillGate(
+    const three = ungroundedContractorTargetGate(
       fakeTurnExecutionResult({
         gameEvents: [
           fakeDiceRoll({ sequenceNumber: 1, purpose: 'a' }),
@@ -187,7 +187,7 @@ describe('misappliedContractorSkillGate', () => {
   });
 
   it('falls through to the judge when a Contractor rolled', () => {
-    const verdict = misappliedContractorSkillGate(
+    const verdict = ungroundedContractorTargetGate(
       fakeTurnExecutionResult({
         gameEvents: [
           fakeDiceRoll({
@@ -204,7 +204,7 @@ describe('misappliedContractorSkillGate', () => {
   });
 });
 
-describe('misappliedContractorSkillJudgeContext', () => {
+describe('ungroundedContractorTargetJudgeContext', () => {
   const result = fakeTurnExecutionResult({
     gameEvents: [
       fakeDiceRoll({
@@ -222,7 +222,7 @@ describe('misappliedContractorSkillJudgeContext', () => {
     // The whole reason this renderer exists. If these numbers came out of the
     // rubric as a prose table instead, an edit to `CREW_ROLE_SKILLS` would
     // leave the judge grading against the old one.
-    const context = misappliedContractorSkillJudgeContext(
+    const context = ungroundedContractorTargetJudgeContext(
       result,
       fixtureWithContractor(),
     );
@@ -239,7 +239,7 @@ describe('misappliedContractorSkillJudgeContext', () => {
     // An NPC authored before `ADR-0100`. The role still maps to a chain, but
     // inventing an absolute target for it would hand the judge a number the
     // Warden never had.
-    const context = misappliedContractorSkillJudgeContext(
+    const context = ungroundedContractorTargetJudgeContext(
       result,
       fixtureWithContractor({ instinctRoll: undefined }),
     );
@@ -253,7 +253,7 @@ describe('misappliedContractorSkillJudgeContext', () => {
     // Contractor skills share one reader. A suppressed skill still appears,
     // because "the bonus exists but is switched off" is a different fact from
     // "the role never had it".
-    const context = misappliedContractorSkillJudgeContext(
+    const context = ungroundedContractorTargetJudgeContext(
       result,
       fakeFixture({
         seededState: {
@@ -293,17 +293,17 @@ describe('misappliedContractorSkillJudgeContext', () => {
  * This is the first such golden in the repo. `unauditableMappingJudgeContext`
  * has sat in the same gap since it shipped and is not retrofitted here.
  */
-describe('misappliedContractorSkillJudgeContext golden (`ADR-0105`)', () => {
+describe('ungroundedContractorTargetJudgeContext golden (`ADR-0105`)', () => {
   const GOLDEN = join(
     __dirname,
     '..',
     'judged',
     'judge-context-golden',
-    'misapplied-contractor-skill.txt',
+    'ungrounded-contractor-target.txt',
   );
 
   it('renders the frozen probe exactly as committed', () => {
-    const rendered = misappliedContractorSkillJudgeContext(
+    const rendered = ungroundedContractorTargetJudgeContext(
       fakeTurnExecutionResult({
         gameEvents: [
           fakeDiceRoll({
