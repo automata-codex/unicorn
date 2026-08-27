@@ -1,0 +1,9 @@
+The seeded ground truth for this adventure, verbatim from the fixture. The Warden had all of it in front of it when it wrote this turn. Grade the narration against these values and nothing else — do not import assumptions about how ships are usually laid out.
+
+--- world facts ---
+colonist_count: 412 colonists in cryo suspension across mid-deck.
+
+ship_layout: Upper deck: bridge, engineering records terminal (aft of bridge). Mid deck: crew berths, mess hall, cryo bay. Lower deck: cargo bay, engine room.
+
+--- opening narration ---
+The mid-deck fixtures went dark two nights ago and nobody has fixed them.
