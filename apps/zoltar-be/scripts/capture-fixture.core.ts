@@ -57,6 +57,74 @@ async function pendingDiceRequestsAsOfTurn(
 }
 
 /**
+ * What the last committed turn before the target turn wrote — the winning
+ * `gm_response`/`correction` payload's `stateChanges`, paired with the
+ * `applied` block of the `state_update` that committed it.
+ *
+ * **Paired by walking, not by two independent "last row" queries.** The two
+ * halves have to come from the same turn or they describe different writes,
+ * and `writeTurnEvents` guarantees only the *ordering* — gm_response, then an
+ * optional correction, then the state_update. Walking forward and committing
+ * a candidate when the `state_update` arrives reproduces that ordering
+ * exactly, and inherits `reconstructStateAsOfTurn`'s handling of corrections
+ * for free: a correction overwrites the pending candidate, so the winning row
+ * is the one paired, not the superseded original.
+ *
+ * "Committed", not "preceding", is what this returns. A `gm_response` with no
+ * `state_update` after it is a turn that did not commit — the fold ignores it
+ * and so does this, which means the answer can skip back more than one turn.
+ * That is the intended reading for a check about state a turn *committed*.
+ *
+ * `null` when nothing before the target turn committed, which is the ordinary
+ * answer for a fixture capturing turn 1.
+ */
+async function precedingCommittedTurnFor(
+  db: Db,
+  adventureId: string,
+  targetSequenceNumber: number,
+): Promise<EvalFixture['seededState']['precedingCommittedTurn']> {
+  const events = await db
+    .select({
+      sequenceNumber: schema.gameEvents.sequenceNumber,
+      eventType: schema.gameEvents.eventType,
+      payload: schema.gameEvents.payload,
+    })
+    .from(schema.gameEvents)
+    .where(
+      and(
+        eq(schema.gameEvents.adventureId, adventureId),
+        lt(schema.gameEvents.sequenceNumber, targetSequenceNumber),
+      ),
+    )
+    .orderBy(asc(schema.gameEvents.sequenceNumber));
+
+  let pending: { sequenceNumber: number; stateChanges: unknown } | null = null;
+  let committed: EvalFixture['seededState']['precedingCommittedTurn'] = null;
+
+  for (const event of events) {
+    if (event.eventType === 'gm_response' || event.eventType === 'correction') {
+      // jsonb boundary — `gmPayloadFor`'s output at write time, which always
+      // carries the key, as `null` when the turn changed nothing.
+      const payload = event.payload as { stateChanges?: unknown };
+      pending = {
+        sequenceNumber: event.sequenceNumber,
+        stateChanges: payload.stateChanges ?? null,
+      };
+    } else if (event.eventType === 'state_update' && pending) {
+      const payload = event.payload as { applied?: unknown };
+      committed = {
+        sequenceNumber: pending.sequenceNumber,
+        stateChanges: pending.stateChanges as Record<string, unknown> | null,
+        applied: (payload.applied ?? {}) as Record<string, unknown>,
+      };
+      pending = null;
+    }
+  }
+
+  return committed;
+}
+
+/**
  * A capture that cannot produce a usable fixture. Distinct from `ReplayError`
  * (which reports a bad target turn) — the fold succeeded, but the adventure
  * lacks something the harness will need.
@@ -214,6 +282,12 @@ export async function captureFixture(
     args.targetSequenceNumber,
   );
 
+  const precedingCommittedTurn = await precedingCommittedTurnFor(
+    db,
+    args.adventureId,
+    args.targetSequenceNumber,
+  );
+
   const playerEntityIds = await playerEntityIdsForAdventure(
     db,
     args.adventureId,
@@ -254,6 +328,10 @@ export async function captureFixture(
       >[],
       messages: reconstructed.messages as unknown as Record<string, unknown>[],
       pendingDiceRequests,
+      /** Read directly from `game_event` rather than folded: the fold is what
+       * destroys the delta this records. See the field's doc comment in
+       * `eval/fixture.schema.ts`. */
+      precedingCommittedTurn,
       capturedAt: new Date().toISOString(),
     },
     playerInput: {

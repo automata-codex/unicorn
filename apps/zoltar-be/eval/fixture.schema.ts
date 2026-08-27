@@ -190,6 +190,24 @@ export const judgedFailureModeTags = [
 ] as const satisfies readonly FailureModeTag[];
 
 /**
+ * One turn's committed write, as `capture-fixture` records it for the turn
+ * preceding a fixture's own — see `seededState.precedingCommittedTurn`.
+ *
+ * `stateChanges` is nullable because `gmPayloadFor` persists
+ * `r.stateChanges ?? null`: a turn that changed nothing writes the key as
+ * `null` rather than omitting it, and that is a real answer (the turn
+ * committed nothing) rather than a missing one.
+ */
+const precedingCommittedTurnSchema = z.object({
+  /** The winning `gm_response`/`correction` event's sequence number. */
+  sequenceNumber: z.number().int().nonnegative(),
+  /** As the Warden emitted it — deltas, each with its `reason`. */
+  stateChanges: z.record(z.string(), z.unknown()).nullable(),
+  /** As the validator committed it — resulting values, per `state_update`. */
+  applied: z.record(z.string(), z.unknown()),
+});
+
+/**
  * `campaignState`/`gmContextBlob`/`pendingCanon`/`messages` are captured
  * once at fixture-authoring time by `capture-fixture` (a thin wrapper
  * around M7.3's `reconstructStateAsOfTurn`) and written into the fixture
@@ -223,6 +241,37 @@ const seededStateSchema = z.object({
    * parse.
    */
   pendingDiceRequests: z.array(z.record(z.string(), z.unknown())).default([]),
+  /**
+   * What the **preceding committed turn** wrote — the last `gm_response` (or
+   * its winning `correction`) before this fixture's turn, paired with the
+   * `state_update` that actually committed it. `null` when the fixture's turn
+   * is the adventure's first, or when nothing before it committed.
+   *
+   * **Captured because the fold destroys it.** Everything else under
+   * `seededState` is state *as of* the target turn, which is the fold of every
+   * prior delta — by construction it records where the world ended up and not
+   * who moved it there. A check asking whether a reversal undid what the
+   * reversed turn committed needs the delta itself: the folded state carries
+   * `stress: 3` and no trace that a turn added 1 of it, for a reason that no
+   * longer applies.
+   *
+   * **Both halves, because they answer different questions.** `stateChanges`
+   * is what the Warden emitted — deltas, and the `reason` text attached to
+   * each, which is where the causal link to the reversed outcome lives
+   * ("failed Intellect+Computers check cracking insurance file encoding").
+   * `applied` is what the validator committed — resulting values, which is
+   * what "committed" means and what a rejected change would be missing from.
+   * The prior value is the difference between them, which is why neither is
+   * hand-authored: `ADR-0105`'s corollary wants a `judgeContext` that selects
+   * from the fixture rather than one that computes and asserts.
+   *
+   * Defaults to `null` so every fixture captured before this field existed
+   * still parses. A check that needs it declares `requiresFixtureSchema: 3`
+   * rather than treating the default as an answer — `null` from a v2 fixture
+   * means "never captured", not "nothing was committed", and only the version
+   * separates the two.
+   */
+  precedingCommittedTurn: precedingCommittedTurnSchema.nullable().default(null),
   /** Provenance only — never read at eval-run time. */
   capturedAt: z.string(),
 });
@@ -313,13 +362,14 @@ export type Applicability = z.infer<typeof applicabilitySchema>;
 /**
  * Describes *what was captured*, not the current checker logic. Bumped only
  * when `capture-fixture` starts recording a field it didn't before — v2
- * added `applicability` (see above) — never when a checker's interpretation
- * of existing fields changes. A check that needs a field newer fixtures
- * don't yet have declares `requiresFixtureSchema`, and the runner reports
- * `not_applicable` rather than a false regression (see
+ * added `applicability` (see above), v3 added
+ * `seededState.precedingCommittedTurn` — never when a checker's
+ * interpretation of existing fields changes. A check that needs a field newer
+ * fixtures don't yet have declares `requiresFixtureSchema`, and the runner
+ * reports `not_applicable` rather than a false regression (see
  * `eval/checks/registry.ts`).
  */
-export const FIXTURE_SCHEMA_VERSION = 2;
+export const FIXTURE_SCHEMA_VERSION = 3;
 
 /**
  * The version every fixture predating this field is deemed to be — frozen

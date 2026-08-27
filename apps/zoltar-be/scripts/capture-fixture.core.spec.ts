@@ -90,6 +90,7 @@ describe('placeholderApplicability', () => {
         pendingCanon: [],
         messages: [],
         pendingDiceRequests: [],
+        precedingCommittedTurn: null,
         capturedAt: '2026-08-16T00:00:00.000Z',
       },
       playerInput: { type: 'message', content: 'TODO' },

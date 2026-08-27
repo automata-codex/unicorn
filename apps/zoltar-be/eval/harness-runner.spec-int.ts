@@ -79,6 +79,7 @@ function fixture(overrides: Partial<EvalFixture> = {}): EvalFixture {
         },
       ],
       pendingDiceRequests: [],
+      precedingCommittedTurn: null,
       capturedAt: '2026-07-15T00:00:00.000Z',
     },
     playerInput: { type: 'message', content: 'I check the airlock seal.' },
