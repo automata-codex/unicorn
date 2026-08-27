@@ -5105,15 +5105,12 @@ belong to the same run. They do not, and the distinction matters here: the
 fixture this entry attaches the check to shows nothing at all on the run
 `§ S34` accepted.
 
-#### Predicted from frozen artifacts, not re-scored
+#### Re-scored, after being predicted first
 
-Numbers below come from running `checkSystemRolledPlayerAction` directly
-against the archived `warden-output.json` files with the new `applicability`
-block injected. **No `eval:rescore` pass was run and no re-score rows were
-written**, so these are a prediction of what a re-score would produce, not a
-recorded measurement. Both fixtures select only structural checks, so the
-prediction is deterministic and a re-score would cost no Anthropic calls if one
-is ever wanted.
+The two runs carrying failures were re-scored under the widened corpus
+(`corpusVersion` `8ac47a8296f8`, `harnessVersion` `81575df`); rows are in each
+run's `rescore/2026-08-27T18-0[67]-*.jsonl`. Both fixtures select only
+structural checks, so the pass made **no Anthropic calls**.
 
 | Run | As scored | Widened | New failures |
 |---|---|---|---|
@@ -5122,9 +5119,21 @@ is ever wanted.
 | `ccac7d1c` 12-38-30Z (M7.6) | 0.94 (47/50, re-scored) | **0.93 (65/70)** | 2 reps, all `turn19` |
 | `e83e8aaa` 2026-08-24 (current) | 1.00 (79/79) | 1.00 (99/99) | none |
 
-A widened rate must not be read against a narrow-corpus one. If an official
-figure is wanted, re-score both sides as `§ S35` did, so the before-side carries
-the same denominator.
+The middle two rows are recorded measurements; the first and last remain
+predictions, computed by running the checker against the frozen artifacts
+without writing rows, because both are all-passes and re-scoring them would pad
+a denominator without answering anything.
+
+**The prediction and the re-score agree exactly** — 7/3 on `turn19` and 10/0 on
+`turn21` for `12-18-32Z`, 8/2 and 10/0 for `ccac7d1c`. That is worth one line
+rather than none: the local prediction and the harness are the same checker over
+the same files, so agreement proves nothing about the *rate*, but it does
+establish that a scoped `--fixtures` re-score selects the checks the corpus edit
+intended and no others.
+
+A widened rate must not be read against a narrow-corpus one. `§ S35`'s treatment
+applies: restrict per-tag movement to fixtures present on both sides before
+reading it.
 
 #### `§ S34`'s hand count reconciles, once the unit is watched
 
@@ -5150,6 +5159,33 @@ re-deriving: widening a check's corpus is not a way to make a rate fall, it is a
 way to make the rate mean the corpus. What changes is that `§ S34`'s four
 hand-counted occurrences are now rows a future regression would surface without
 anyone reading artifacts by hand.
+
+#### A harness defect the re-score exposed: `sourceVerdict` on a check with no source row
+
+Every row in both re-score files reports `sourceVerdict` equal to its own
+`verdict` — including the `system-rolled-player-action` and `tool-syntax-leak`
+rows, which the same pass warned had **no row in the source run**. The two
+statements contradict each other, and the file is the one that survives.
+
+The cause is at `scripts/eval-rescore.core.ts:417`:
+`sourceVerdict: sourceRow?.verdict ?? observation.verdict`. The persisted schema
+types the field `verdictSchema`, which is not nullable, so a check that was never
+scored before is written as though it had been scored identically.
+
+**The in-flight accounting is honest and only the record is not.** The progress
+event at line 341 uses `sourceVerdict: sourceRow?.verdict ?? null` and sets
+`changed: false` explicitly when there is no source row, so the CLI never prints
+a false transition and the stderr warning names each affected row. Impact today
+is bounded — nothing reads `sourceVerdict` back except that live line — but the
+field's own doc comment states its purpose as "kept so a diff never needs both
+files open", which is exactly the use it quietly breaks: a reader diffing the
+file six months from now sees `pass → pass` for a check that had no prior
+measurement at all.
+
+This is the shape `ADR-0067` and `ADR-0078` both legislate against in other
+places — an absent answer given a confident value rather than its own one. Filed
+as its own item rather than fixed here; the fix is a persisted-format change and
+wants the reasoning written down with it.
 
 #### Still open
 
