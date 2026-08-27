@@ -5078,3 +5078,91 @@ fixture-authoring bullet records — but it is not what holds this tag at 0.00.
 - Widening the tag's coverage — the bullet's second half — is worth doing
   regardless, but widening it before the instruction exists buys more fixtures
   measuring a Warden that was never told.
+
+---
+
+### S37 — 2026-08-27 · `SYSTEM-ROLLED-PLAYER-ACTION` attached to the two `-out-of-order-resolution` fixtures
+
+`§ S35`'s "Still open" item, closed on the same evidence and by the same
+mechanism. `turn19-out-of-order-resolution` and `turn21-out-of-order-resolution`
+now carry a `system-rolled-player-action` `applicability` block, taking the check
+from 8 fixtures to 10.
+
+A **scoring-only** bump under `§ Two kinds of corpus bump`: two `applicability`
+blocks, no `seededState`, `playerInput` or `assertion` touched, no
+`fixtureSchemaVersion` moved (both fixtures were already v2, which is what
+`requiresFixtureSchema` asks for). Every `warden-output.json` on disk remains
+exactly as valid as it was.
+
+#### One correction to `§ S34`'s citation
+
+The ten occurrences are in the run `§ S34` compares **against**
+(`claude-sonnet-5__c45a142a__2026-08-10T12-18-32Z`, `§ S33`), not in the run it
+reports. The reported run had six, all on `turn24-*`, which is exactly what
+`§ S34` says — but "the baseline carries ten of them, including four on
+`turn19-out-of-order-resolution`" has been read since as though both counts
+belong to the same run. They do not, and the distinction matters here: the
+fixture this entry attaches the check to shows nothing at all on the run
+`§ S34` accepted.
+
+#### Predicted from frozen artifacts, not re-scored
+
+Numbers below come from running `checkSystemRolledPlayerAction` directly
+against the archived `warden-output.json` files with the new `applicability`
+block injected. **No `eval:rescore` pass was run and no re-score rows were
+written**, so these are a prediction of what a re-score would produce, not a
+recorded measurement. Both fixtures select only structural checks, so the
+prediction is deterministic and a re-score would cost no Anthropic calls if one
+is ever wanted.
+
+| Run | As scored | Widened | New failures |
+|---|---|---|---|
+| `c45a142a` 12-18-32Z (`§ S33`) | 1.00 (20/20) | **0.93 (37/40)** | 3 reps, all `turn19` |
+| `c45a142a` 19-45-15Z (`§ S34`) | 1.00 (20/20) | 1.00 (40/40) | none |
+| `ccac7d1c` 12-38-30Z (M7.6) | 0.94 (47/50, re-scored) | **0.93 (65/70)** | 2 reps, all `turn19` |
+| `e83e8aaa` 2026-08-24 (current) | 1.00 (79/79) | 1.00 (99/99) | none |
+
+A widened rate must not be read against a narrow-corpus one. If an official
+figure is wanted, re-score both sides as `§ S35` did, so the before-side carries
+the same denominator.
+
+#### `§ S34`'s hand count reconciles, once the unit is watched
+
+`§ S34` counted **four occurrences** on `turn19-out-of-order-resolution`; the
+checker reports **three failing reps**. Both are right. Rep 004 of the
+`12-18-32Z` run contains two system-generated rolls resolving Alvarez's declared
+attack — the Combat to-hit at sequence 2 and the damage roll at sequence 3 —
+and a structural checker returns one verdict per rep. Four rolls, three reps.
+
+That agreement is the only evidence available that the attachment grades the
+thing it was attached for, which is the test `§ S35` applied to the `turn24-*`
+attachment and passed by a different route (there, six occurrences fell in six
+distinct reps and the two numbers matched outright).
+
+#### What it buys, stated honestly
+
+**Denominator, not a rate.** The behaviour does not occur on the current
+baseline: the widening adds 20 rows to `e83e8aaa` and all 20 pass. `turn21`
+contributes no failures in any archived run and is denominator only.
+
+That is the same shape `§ S35` recorded and worth restating rather than
+re-deriving: widening a check's corpus is not a way to make a rate fall, it is a
+way to make the rate mean the corpus. What changes is that `§ S34`'s four
+hand-counted occurrences are now rows a future regression would surface without
+anyone reading artifacts by hand.
+
+#### Still open
+
+`turn19-out-of-order-resolution` and `turn19-system-rolled-player-action` are the
+same turn — identical `playerInput`, and `seededState` differing only in
+`capturedAt`, which is provenance and never read at eval time. The turn21 pair is
+the same at seq 95. Both pairs predate `ADR-0096`, when duplication was the only
+way to cover two tags on one turn.
+
+The obvious reading is waste — two Warden turns per rep for one scenario. The
+opposite reading has better support: each fixture seeds its own scratch
+adventure, so the pair is two independent draws, N=20 rather than N=10 for that
+scenario, and `turn19` is the only scenario in the corpus that has ever produced
+a `SYSTEM-ROLLED-PLAYER-ACTION` failure. Consolidating would halve the sample
+exactly where the signal is. Recorded as a decision to make rather than work to
+schedule.
