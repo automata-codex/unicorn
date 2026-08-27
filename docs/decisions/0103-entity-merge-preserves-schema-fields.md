@@ -8,9 +8,9 @@ milestone: M7.7
 summary: >-
   The hand-enumerated entity merge that silently destroyed authored fields —
   `crewRole`, `instinctRoll` — the playtest evidence for it, and the
-  parse-through-`EntitySchema` fix. Carries five open items: pending captures are not
-  confirmed fix-invariant, and there is still no way to remove a field from an entity
-  record.
+  parse-through-`EntitySchema` fix, which has not yet landed. Carries five open items,
+  two of them since resolved: the 2c0ba938 captures are confirmed fix-invariant below
+  seq 99, and there is still no way to remove a field from an entity record.
 ---
 
 ## Context
@@ -172,6 +172,29 @@ differently before and after the fix. See open item 1.
    pair. Confirm that the four non-Mara entities carry no field outside
    `{status, visible, revealed, npcState}` at synthesis before treating the captures as
    fix-invariant.
+
+   **Resolved 2026-08-27 (M7.7), and by a stronger route than this item asked for.**
+   The check as written passes: at synthesis `cryo_bay_feature`,
+   `falsified_maintenance_logs`, `hull_breach_cascade` and `parasitic_organism` carry
+   exactly `{status, visible, revealed}` — nothing outside the enumerated set, and no
+   `npcState` yet. But the decisive fact is about the *writes* rather than the records.
+   The adventure contains four committed entity writes in total: seq 30 and seq 66
+   (`falsified_maintenance_logs`) and seq 99 and seq 122 (`mara_odinsen`). Every write
+   below seq 99 targets an entity with nothing non-enumerated to lose, so a capture
+   folding only below it is fix-invariant whatever the full schema field list turns out
+   to be. The five fixtures taken from this adventure — turns 8 (seq 22), 14 (seq 40),
+   15 (seq 43), 21 (seq 64) and 29 (seq 90) — all qualify.
+
+   **The two writes where the fields are at stake are seq 99 and seq 122**, which is
+   the turn 31/32 pair this entry already names as its diagnosis and consigns to unit
+   tests rather than the corpus. A capture folding past seq 99 re-opens the question and
+   should not be taken before the fix lands.
+
+   **The fix has not landed**, and this resolution does not depend on it having landed.
+   The merge in `session.validator.ts` is still the closed literal
+   `{visible, revealed, status, npcState?}`. `mara_odinsen`'s `crewRole` and
+   `instinctRoll` survive in the captured fixtures because nothing wrote her below
+   seq 99 — not because the merge preserves them.
 
 2. **There is no way to remove a field from an entity record, and this decision makes
    that consequential.** The inability predates this ADR: `change.x ?? existing.x`

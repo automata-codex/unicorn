@@ -19,7 +19,7 @@ Each entry records what was decided, what the alternatives were, and why.
   `task docs:decisions:check` fails if either is stale.
 -->
 
-**This is the summary log.** 76 of 111 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
+**This is the summary log.** 77 of 112 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
 
 ---
 
@@ -241,7 +241,7 @@ Introduces Instinct for `npc` entities and a `crewRole` → skill-chain layer ov
 
 ### [ADR-0103](decisions/0103-entity-merge-preserves-schema-fields.md) — Entity merge preserves all schema fields rather than a hand-enumerated set
 
-The hand-enumerated entity merge that silently destroyed authored fields — `crewRole`, `instinctRoll` — the playtest evidence for it, and the parse-through-`EntitySchema` fix. Carries five open items: pending captures are not confirmed fix-invariant, and there is still no way to remove a field from an entity record.
+The hand-enumerated entity merge that silently destroyed authored fields — `crewRole`, `instinctRoll` — the playtest evidence for it, and the parse-through-`EntitySchema` fix, which has not yet landed. Carries five open items, two of them since resolved: the 2c0ba938 captures are confirmed fix-invariant below seq 99, and there is still no way to remove a field from an entity record.
 
 ---
 
@@ -486,6 +486,10 @@ Splits the 2026-08-24 playtest's spatial narration errors into a gradeable seede
 ### [ADR-0108](decisions/0108-no-identity-for-the-structural-checkers.md) — Structural checkers get no identity hash — the repair hatch is what makes them different
 
 Why the structural checkers get no identity hash while the judged half does. The gap is real; the reason is repair cost — `eval:rescore` regrades deterministic checkers for free, so a run mislabelled by a checker edit is repairable after the fact at zero spend, where the judged half has no such hatch. Names the case that would reverse it.
+
+### [ADR-0112](decisions/0112-unreversed-retcon-is-judged-and-the-reversed-turn-s-committe.md) — `UNREVERSED-RETCON` is judged, and the reversed turn's committed deltas are captured
+
+The turn 20/21 retcon pair, registered as a tag on one instance. Judged rather than structural, because detecting a reversal means reading prose; graded against a new captured field (`seededState.precedingCommittedTurn`, fixture schema v3) rather than hand-authored facts, because the fold destroys the delta the check needs. Carries the rejected structural design and the `ADR-0105` golden that ships with the renderer.
 
 ---
 
