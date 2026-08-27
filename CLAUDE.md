@@ -75,7 +75,7 @@ Each kind of record has one home. Putting a thing in the wrong one is how
 
 | Kind of thing | Home |
 |---|---|
-| A decision — its alternatives, its reasoning, what would reverse it | `docs/decisions/`, one file per ADR. Run `task docs:decisions:build` after editing, and `task docs:decisions:check` to validate |
+| A decision — its alternatives, its reasoning, what would reverse it | `docs/decisions/`, one file per ADR. `docs/decisions.md` (full text) and `docs/decisions-summary.md` (one summary per entry — the index to search first) are **generated views**: edit the file in `docs/decisions/`, then run `task docs:decisions:build`, and `task docs:decisions:check` to validate |
 | A measurement, diagnosis, or defect writeup | the relevant findings doc: `docs/rules-extraction-findings.md`, `docs/eval-methodology.md`, `docs/hidden-information-findings.md` |
 | How a feature is designed and built | `docs/specs/` and `docs/plans/` |
 | Product and tooling scope, and the milestone sequence | `docs/roadmap.md` |
