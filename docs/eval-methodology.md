@@ -1227,3 +1227,54 @@ twenty lines with no dependency, and it slots into `isRankable` alongside the ex
 It is not built today. The reason to write this down rather than build it now is that the gate
 only matters once comparisons are run often enough that nobody re-derives each headline by hand,
 and at present they still are.
+
+---
+
+## A fixture cannot grade what the seed already contains (2026-08-27)
+
+`turn02-missing-canon-capture` reported `not_applicable` on **157 reps across 16 runs** — both
+models, every prompt revision between 2026-07-29 and 2026-08-24. It never once graded. The
+audit on `checkMissingCanonCapture` had already established, at 20 reps, that the exclusions
+were *correct*: the marker phrase the fixture waits for genuinely never appears. What it did
+not establish is why, and the why generalises past this fixture.
+
+**The turn asks about something the fixture itself seeds.** The player asks whether Alvarez has
+a map of the station; `worldFacts.station_layout_overview` already carries the layout — the
+central hub, four radial modules, habitat ring, ladder shaft, Lab C's quarantine notice. The
+Warden reads it back. That is correct behaviour, it introduces nothing, and there is nothing to
+capture.
+
+**Which makes the obvious repair a trap.** The natural fix is to re-author the marker to a
+phrase the narration *does* produce every rep — "habitat ring", "ladder shaft". Both are
+restated seeded canon, so the check would then fail the turn on every rep for not durably
+writing a fact that was already durable. An honest zero denominator traded for a manufactured
+0.00. `ADR-0081` rejects the judged migration for the mirror-image reason (a spurious 1.00);
+this is the same trade in the other direction, and it is worth naming because the marker looks
+like the defect right up until you check what the fixture seeds.
+
+**The general rule.** A fixture that grades whether a turn wrote something down must seed a
+world in which that something is *absent*. Nothing in the authoring path checks this: the
+marker phrase, the `expects:` text and the seeded state are authored independently, and
+`capture-fixture` cannot know which world fact the author has in mind. Until it does, the
+question belongs on the authoring checklist — **is the expected detail absent from
+`seededState.campaignState.worldFacts`, and absent from the seeded message window?** If it is
+present in either, the fixture is measuring the Warden's willingness to duplicate itself.
+
+**What replaced it.** `turn02` is retired rather than repaired — its source adventure
+(`18be155e`) is no longer in the database to recapture from — in favour of two fixtures from
+`2c0ba938`, one per direction. `turn21` is the fail side: the insurance file's contents live in
+`gmContextBlob.narrative`, invisible to the player and absent from `worldFacts`, so narrating
+them moves a GM secret into shared canon and owes a durable write. `turn23` is the pass side and
+exists because the `worldFacts`-diff branch had never executed against real output across those
+157 reps; the player asks who the crew are, five of the six are unnamed in the seeded context,
+and the original turn wrote `crew_roster`.
+
+**Marker stability is now an authoring criterion, not an accident.** A phrase the Warden invents
+fresh each rep gates on a coin flip. Both replacements are pinned instead: `hazard multiplier`
+is vocabulary the Warden reads off its own seeded context, and `bridge crew` is echoed from the
+player's own question. Neither is a guess at how a model might word something — which is the
+property `turn02`'s `RESTRICTED — VERIDIAN INTERNAL` lacked.
+
+**Still unexercised: the `pending_canon` branch.** `2c0ba938` proposes canon on no turn at all,
+and the only rows in any source adventure are `5c34991b` seq 14 and seq 34. A fixture for that
+branch has to come from there.
