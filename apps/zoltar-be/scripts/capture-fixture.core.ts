@@ -57,6 +57,72 @@ async function pendingDiceRequestsAsOfTurn(
 }
 
 /**
+ * A capture that cannot produce a usable fixture. Distinct from `ReplayError`
+ * (which reports a bad target turn) — the fold succeeded, but the adventure
+ * lacks something the harness will need.
+ */
+export class CaptureError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CaptureError';
+  }
+}
+
+/**
+ * The player-character entity ids for the adventure's campaign, read from
+ * `character_sheet.data.entityId` — the same source
+ * `SessionRepository.getPlayerEntityIds` reads at run time, so a captured
+ * fixture declares exactly who production would have said the player was.
+ *
+ * **This is not decoration on the blob; the harness cannot work without it.**
+ * `seedScratchAdventure` seeds a `character_sheet` row from the *first*
+ * declared id, and `SessionService.sendMessage` then *overwrites*
+ * `gmContextBlob.playerEntityIds` with the repository's answer — so the blob
+ * survives the round trip only if a sheet was seeded. A fixture that declares
+ * none seeds no sheet,
+ * resolves `[]`, and silently disables `actingEntityId` validation in the tool
+ * loop — the run grades a code path production does not take. That is the
+ * mechanism behind the voided 2026-08-20 re-baseline (`ADR-0103` open item 3),
+ * and it reproduced on every capture because this tool never emitted the field.
+ *
+ * Ordered by `user_id` rather than left to the planner: the result is frozen
+ * into a JSON file, and the first entry is canonical — the only id the running
+ * Warden is allowed to use (`harness-runner.ts`). An unordered read would make
+ * two captures of the same adventure disagree about who that is.
+ *
+ * **Aliases stay a hand-edit.** A few fixtures declare a second id
+ * (`['alvarez', 'lt_alvarez']`) so the checker can grade older artifacts that
+ * used the alias. That leniency is a grading concern with no counterpart in
+ * `character_sheet`, so derivation cannot and should not reproduce it.
+ */
+async function playerEntityIdsForAdventure(
+  db: Db,
+  adventureId: string,
+): Promise<string[]> {
+  const rows = await db
+    .select({
+      userId: schema.characterSheets.userId,
+      data: schema.characterSheets.data,
+    })
+    .from(schema.characterSheets)
+    .innerJoin(
+      schema.adventures,
+      eq(schema.adventures.campaignId, schema.characterSheets.campaignId),
+    )
+    .where(eq(schema.adventures.id, adventureId))
+    .orderBy(asc(schema.characterSheets.userId));
+
+  const ids: string[] = [];
+  for (const row of rows) {
+    const entityId = (row.data as { entityId?: unknown } | null)?.entityId;
+    if (typeof entityId === 'string' && entityId.length > 0) {
+      ids.push(entityId);
+    }
+  }
+  return ids;
+}
+
+/**
  * The fail-closed `applicability` stub every newly captured fixture carries.
  *
  * Two kinds of entry, and the second is the one that is easy to forget:
@@ -118,6 +184,11 @@ export function placeholderApplicability(tag: FailureModeTag): Applicability {
  * unchanged — the CLI wrapper's `main()` already knows how to report a
  * plain `Error`'s message to stderr, no need to re-wrap it here.
  *
+ * `seededState.gmContextBlob.playerEntityIds` is the one field this tool
+ * derives rather than folds, and it is not optional: see
+ * `playerEntityIdsForAdventure` for why an empty answer is a `CaptureError`
+ * instead of an empty array.
+ *
  * `playerInput`, `assertion`, and `applicability` are filled with
  * placeholder values the fixture author is expected to replace by hand —
  * this tool only knows enough to produce a *validly-shaped* fixture, not a
@@ -143,6 +214,21 @@ export async function captureFixture(
     args.targetSequenceNumber,
   );
 
+  const playerEntityIds = await playerEntityIdsForAdventure(
+    db,
+    args.adventureId,
+  );
+  if (playerEntityIds.length === 0) {
+    throw new CaptureError(
+      `no character_sheet with a data.entityId for adventure ${args.adventureId}'s ` +
+        'campaign, so the fixture cannot declare playerEntityIds. Capturing anyway ' +
+        'would write a fixture that seeds no character sheet, resolves ' +
+        'playerEntityIds to [] at run time, and silently grades a code path ' +
+        'production does not take (ADR-0103 open item 3). Fix the source ' +
+        'adventure rather than the fixture.',
+    );
+  }
+
   return {
     id: args.id,
     tag: args.tag,
@@ -154,10 +240,14 @@ export async function captureFixture(
         string,
         unknown
       >,
-      gmContextBlob: reconstructed.gmContextBlob as unknown as Record<
-        string,
-        unknown
-      >,
+      /** Derived, not folded: `reconstructStateAsOfTurn` returns the blob as
+       * synthesis wrote it, and synthesis never persists `playerEntityIds`
+       * — it is a per-request addition `SessionService` makes from a
+       * character-sheet lookup. See `playerEntityIdsForAdventure`. */
+      gmContextBlob: {
+        ...(reconstructed.gmContextBlob as unknown as Record<string, unknown>),
+        playerEntityIds,
+      },
       pendingCanon: reconstructed.pendingCanon as unknown as Record<
         string,
         unknown

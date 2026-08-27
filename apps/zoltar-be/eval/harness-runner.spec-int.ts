@@ -64,7 +64,12 @@ function fixture(overrides: Partial<EvalFixture> = {}): EvalFixture {
         scenarioState: {},
         worldFacts: {},
       },
-      gmContextBlob: { openingNarration: 'The airlock cycles.' },
+      // `playerEntityIds` is a precondition, not decoration — see the guard
+      // at the top of `seedScratchAdventure`.
+      gmContextBlob: {
+        openingNarration: 'The airlock cycles.',
+        playerEntityIds: ['dr_chen'],
+      },
       pendingCanon: [],
       messages: [
         {
@@ -118,6 +123,61 @@ describe('seedScratchAdventure', () => {
     expect(messages).toHaveLength(1);
     expect(messages[0].role).toBe('player');
     expect(messages[0].content).toBe('I check the airlock seal.');
+  });
+
+  it('seeds a character_sheet from the fixture\'s canonical player entity id', async () => {
+    // Without this row `SessionService.sendMessage` resolves `playerEntityIds`
+    // to `[]` and the tool loop stops validating `actingEntityId` — a run that
+    // scores normally while grading a code path production does not take.
+    await seedPrereqs();
+    const db = getTestDb();
+    const base = fixture();
+    const f = fixture({
+      seededState: {
+        ...base.seededState,
+        // Two declared ids, as the `alvarez`/`lt_alvarez` fixtures carry: the
+        // alias exists for the checker's benefit when grading old artifacts,
+        // and must not reach the runtime. One sheet, canonical id only.
+        gmContextBlob: {
+          openingNarration: 'The airlock cycles.',
+          playerEntityIds: ['alvarez', 'lt_alvarez'],
+        },
+      },
+    });
+
+    const seeded = await seedScratchAdventure(db, f, { runId: 'run-sheet' });
+
+    const sheets = await db
+      .select()
+      .from(schema.characterSheets)
+      .where(eq(schema.characterSheets.campaignId, seeded.campaignId));
+    expect(sheets).toHaveLength(1);
+    expect(sheets[0].data).toEqual({ entityId: 'alvarez' });
+  });
+
+  it('refuses a fixture that declares no playerEntityIds, before writing anything', async () => {
+    // The consumption half of `ADR-0103` open item 3. `capture-fixture` now
+    // derives the field, so no new capture can arrive empty — but the corpus
+    // is hand-edited, and this is the path that turned one editing slip into
+    // a voided re-baseline nobody could see from the report.
+    await seedPrereqs();
+    const db = getTestDb();
+    const base = fixture();
+    const f = fixture({
+      seededState: {
+        ...base.seededState,
+        gmContextBlob: { openingNarration: 'The airlock cycles.' },
+      },
+    });
+
+    await expect(
+      seedScratchAdventure(db, f, { runId: 'run-no-ids' }),
+    ).rejects.toThrow(/playerEntityIds/);
+
+    // Loud *and* early: a run that cannot be valid should not have left a
+    // scratch campaign behind to be torn down.
+    const campaigns = await db.select().from(schema.campaigns);
+    expect(campaigns).toHaveLength(0);
   });
 
   it('seeds pendingCanon and pendingDiceRequests rows verbatim', async () => {

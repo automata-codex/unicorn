@@ -1682,8 +1682,9 @@ differently before and after the fix. See open item 1.
    where it happened to work.
 
 3. **`capture-fixture` cannot emit `playerEntityIds`, and the harness treats its
-   absence as `[]`.** `reconstructStateAsOfTurn` returns `gmContextBlob` from the
-   synthesis snapshot, where the field is never persisted; `harness-runner.ts:179`
+   absence as `[]`.** *(Resolved 2026-08-27 (M7.7) — see below.)*
+   `reconstructStateAsOfTurn` returns `gmContextBlob` from the synthesis snapshot,
+   where the field is never persisted; `harness-runner.ts:179`
    reads it and resolves empty, which — per the comment in `seedScratchAdventure` —
    silently disables `actingEntityId` validation and grades a code path production does
    not take. All 21 existing fixtures carry hand-added values. This is a tooling defect
@@ -1692,6 +1693,24 @@ differently before and after the fix. See open item 1.
    emit the field from `character_sheet.data->>'entityId'` as
    `session.service.ts:280` already does, and `harness-runner` should fail loudly on an
    empty resolution rather than proceed. Tracked separately from this ADR.
+
+   **Resolved 2026-08-27 (M7.7).** Both changes landed, and they close different
+   populations rather than the same one twice. `capture-fixture` derives the field
+   from `character_sheet.data.entityId` — joined through the adventure's campaign,
+   ordered by `user_id` so a frozen file's canonical-first ordering does not depend
+   on the planner — and refuses the capture outright when the answer is empty, since
+   writing `[]` is what produced the defect. That closes the production side: no new
+   capture can arrive without it. It cannot reach the corpus that already exists,
+   which is hand-authored and hand-edited, so `seedScratchAdventure` now also rejects
+   a fixture declaring none, as a precondition before any row is written. All 21
+   fixtures already carry values, so the guard changes no current run.
+
+   Two details worth keeping. **Aliases stay a hand-edit**: derivation yields the
+   canonical id only, because the second id in `['alvarez', 'lt_alvarez']` exists for
+   the checker's leniency toward old artifacts and has no counterpart in
+   `character_sheet`. And the seeding path **had no test coverage at all** before
+   this, which is a fair part of why one editing slip became a voided re-baseline
+   nobody could see from the report; it has some now.
 
 4. **`gm_context_blob.entities` and `campaign_state.data->'entities'` disagree at
    synthesis.** The duplicate copy carries `crewRole` for `mara_odinsen` but not

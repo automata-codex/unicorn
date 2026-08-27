@@ -256,6 +256,38 @@ export async function seedScratchAdventure(
 ): Promise<ScratchAdventure> {
   const warnings: string[] = [];
 
+  // A fixture that declares no player entity id cannot be run, and the
+  // failure it produces instead is silent. Without a declared id no
+  // `character_sheet` gets seeded below; `SessionService.sendMessage` then
+  // resolves `playerEntityIds` to `[]` and *overwrites* the seeded blob with
+  // it, which switches off `actingEntityId` validation in the tool loop. The
+  // run completes, scores, and reports — having graded a code path production
+  // never takes. Nothing in the output says so.
+  //
+  // That is the mechanism behind the voided 2026-08-20 re-baseline
+  // (`ADR-0103` open item 3), and it was reachable because `capture-fixture`
+  // emitted the field for nobody: all 21 fixtures of the era carried
+  // hand-added values, so one omission was one unremarkable editing slip.
+  // `capture-fixture` now derives and requires it, which closes the
+  // production side; this guard closes the consumption side, for the
+  // hand-authored and hand-edited fixtures derivation cannot reach.
+  //
+  // Loud and early, before any row is written: a run that cannot be valid
+  // should cost nothing and stop at the fixture that is wrong, rather than
+  // report a number nobody can act on.
+  const declaredPlayerEntityIds = seededPlayerEntityIds(fixture);
+  if (declaredPlayerEntityIds.length === 0) {
+    throw new Error(
+      `fixture "${fixture.id}" declares no ` +
+        'seededState.gmContextBlob.playerEntityIds. Seeding it would leave the ' +
+        'scratch campaign without a character_sheet, which resolves ' +
+        'playerEntityIds to [] at run time and silently disables ' +
+        'actingEntityId validation in the tool loop — the run would grade a ' +
+        'code path production does not take (ADR-0103 open item 3). Add the ' +
+        "player's entity id to the fixture, canonical id first.",
+    );
+  }
+
   const [systemRow] = await db
     .select({ id: schema.gameSystems.id })
     .from(schema.gameSystems)
@@ -360,16 +392,16 @@ export async function seedScratchAdventure(
     //
     // The id is not guessed: the fixture declares it (see
     // `attributionContext`), which is what makes this seeding possible now
-    // and did not before.
-    const [canonicalPlayerEntityId] = seededPlayerEntityIds(fixture);
-    if (canonicalPlayerEntityId !== undefined) {
-      await tx.insert(schema.characterSheets).values({
-        campaignId: campaign.id,
-        userId,
-        system: 'mothership',
-        data: { entityId: canonicalPlayerEntityId },
-      });
-    }
+    // and did not before. Unconditional — the precondition at the top of this
+    // function has already rejected a fixture that declares none, so an
+    // `undefined` here is unreachable rather than tolerated.
+    const [canonicalPlayerEntityId] = declaredPlayerEntityIds;
+    await tx.insert(schema.characterSheets).values({
+      campaignId: campaign.id,
+      userId,
+      system: 'mothership',
+      data: { entityId: canonicalPlayerEntityId },
+    });
 
     for (const raw of fixture.seededState.messages) {
       const row = raw as unknown as SeededMessageRow;
