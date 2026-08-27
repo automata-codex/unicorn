@@ -1,0 +1,15 @@
+The rolls under review this turn — already filtered to rolls whose actingEntityId names an entity carrying a crewRole. Grade only these; ignore every other roll in the sequence above.
+
+Each roll is followed by every target it could correctly have used, computed from that entity's own stored dice and role. You do not need to know the role table: the numbers below are derived from it directly.
+- sequence 44: notation "1d100", result [79], purpose "Mara's effort to crack the insurance file — roll under her Instinct 40"
+    acting entity: mara_odinsen (crewRole cargo_handler)
+    target if no mapped skill applies: 40
+    target if "Zero-G" (trained, +10) applies: 50
+    target if "Athletics" (trained, +10) applies: 50
+- sequence 97: notation "1d100", result [12], purpose "Petrov hauls the coupling clear of the housing"
+    acting entity: petrov (crewRole chief_engineer)
+    target if no mapped skill applies: 51
+    target if "Industrial Equipment" (trained, +10) applies: 61
+    target if "Mechanical Repair" (expert, +15) applies: 66
+    target if "Engineering" (master, +20) applies: 71
+    target if "Jury-Rigging" (trained, +10) applies: 61
