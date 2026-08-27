@@ -5,7 +5,12 @@ area: api-data-model
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Why narrative and dice submissions ship as `/messages` and `/dice-results` rather
+  than a discriminated union under `/actions`: the two diverge on Claude invocation,
+  response shape, failure modes and resource semantics, so a union reconciles the
+  request bodies and nothing else. Names the endpoint count that would justify
+  revisiting.
 ---
 
 Earlier drafts of `docs/api.md` specified a single `POST /api/v1/campaigns/:id/adventures/:id/actions` endpoint with a discriminated-union request body: `{ type: 'narrative', content } | { type: 'diceResult', requestId, notation, results, source }`. The M7 implementation ships two separate endpoints instead: `POST /messages` for narrative turns and `POST /dice-results` for dice submissions. `docs/api.md` has been updated to match what actually ships; this entry records why.

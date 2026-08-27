@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: M7.7
-summary: null
+summary: >-
+  Adds `assemblyHash` over the three code-built Warden surfaces — tool definitions, GM
+  context blob, state snapshot — via a frozen probe and committed goldens. Two addenda
+  matter: the hash tracks the *build* rather than the commit, so a stale workspace
+  `dist` mislabels a run, and the playtest-telemetry shape proposed here was replaced
+  by store-on-change.
 ---
 
 Four things reach the Warden, and until now exactly one of them had a recorded identity. `promptHash` covers `mothership-m7.txt`. The tool definitions, the GM context block and the state snapshot are produced by `session.tools.ts`, `formatGmContextBlob` and `buildStateSnapshot` — nothing anywhere recorded what shape they were in when a run executed. A rewritten tool description, an added snapshot section, or a formatter that started emitting `openingNarration` would change what the model reads while every field the run manifest prints stayed identical, and the difference would surface only in the rates, attributed to the model.

@@ -5,7 +5,11 @@ area: claude-continuity-spatial
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  The `<character_attributes>` block was specified with nothing to populate it. Two
+  amendments have overtaken the body: the static stats/saves slice was never actually
+  blocked, and the qualitative half's own reactivation trigger had already fired with
+  nothing watching. Both landed in M7.6, not the M8.1 this entry last scheduled.
 ---
 
 The M5 spec, the design doc's state-snapshot section, and the M5 roadmap bullet all reference a `<character_attributes>` block — persistent qualitative character state (armor mode, weapon loadout, active conditions) emitted in the per-turn snapshot. The M5 snapshot builder has no source to populate this block from: `MothershipCampaignState` carries no `characterAttributes` field, synthesis does not write one, and the Mothership character sheet shape (`equipment: string[]`, `saves.armor: number`) does not cleanly separate armor from loadout or carry conditions. The block is omitted in M5 per the spec's "omit an entire block if its source is empty or missing" rule.

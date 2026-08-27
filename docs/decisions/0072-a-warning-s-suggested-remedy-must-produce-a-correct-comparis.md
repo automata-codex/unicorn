@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  The class behind three separate warnings that each detected a real inconsistency and
+  then suggested a remedy that deleted it rather than resolving it. The rule: a
+  warning may only suggest a remedy that leaves the comparison valid, and where none
+  exists it says what the reader must do by hand. Homogeneity is a property of the row
+  set; correctness is a property of what the rows mean.
 ---
 
 Three separate warnings in this harness converged on the same defect, which is worth naming as a class rather than fixing three times. Each detected a real inconsistency between the two sides of a comparison, and each printed a remedy that resolved the inconsistency by **deleting** it — making the sides *look* consistent without making the comparison correct:

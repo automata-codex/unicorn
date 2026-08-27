@@ -5,7 +5,12 @@ area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  The sheet/pool split: identity, build and ceilings on the character sheet, anything
+  that mutates in play in `resourcePools`. Read the addenda before relying on the body
+  — they generalize the rule and find the entry wrong against the rules in several
+  places, including the stress seed, floor and cap. Addendum 3 rejects
+  end-of-adventure write-back.
 ---
 
 `character_sheet.data` carries the character's identity (name, class, entityId), build (stats, saves, skills, equipment), and ceilings (`maxHp`, `maxStress`). It does not carry current HP or current stress — those are mutable values that change during play and live exclusively in `campaign_state.data.resourcePools` as `{entityId}_hp` and `{entityId}_stress`. At character creation time, `deriveMothershipCharacterResourcePools` seeds the pools at full HP and zero stress from the ceilings. An earlier design kept `currentHp` and `stress: { current, max }` on the sheet, but these drifted from the authoritative pool values the moment play began and served no purpose after creation.

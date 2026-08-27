@@ -5,7 +5,11 @@ area: licensing-business
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Rejects closing the Warden prompts or any future orchestration logic as a moat, on
+  threat-model grounds rather than technical ones — the time-to-market estimate shows
+  a prompt-only closure would not buy the gap it is meant to. Names where protection
+  actually sits, and closes the open-source release question.
 ---
 
 Considered and rejected: closing the Warden prompts, and/or any future LangGraph-style orchestration logic, as a competitive moat against a funded competitor forking the public repo.

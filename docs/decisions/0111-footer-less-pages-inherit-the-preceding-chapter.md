@@ -5,7 +5,11 @@ area: rules-ingestion
 status: accepted
 milestone: M7.2
 superseded_by: null
-summary: null
+summary: >-
+  How the eight footer-less PSG pages resolve — two dropped, two reference cards
+  recorded as `chapterless_pages`, one inheriting the preceding chapter — plus the
+  re-measurement showing it cost no retrieval accuracy. Includes a same-day
+  correction: a chapterless page skips the carry rather than stopping it.
 ---
 
 **Decided 2026-08-26, closing the last open question M7.2 shipped with.**

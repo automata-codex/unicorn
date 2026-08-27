@@ -5,7 +5,12 @@ area: monorepo-tooling-deployment
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Records that `docs/plans/` and `docs/specs/zoltar/` are tracked and stay tracked —
+  already true in practice, after an earlier keep-them-out policy reversed without
+  either decision being written down. Written because a citation to that vanished
+  policy nearly justified pruning the specs. Whether they are *public* is a separate
+  question and stays open.
 ---
 
 `docs/plans/` and `docs/specs/zoltar/` are tracked in the repository and stay tracked.

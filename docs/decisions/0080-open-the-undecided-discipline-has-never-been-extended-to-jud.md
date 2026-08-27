@@ -5,7 +5,12 @@ area: eval-harness
 status: open
 superseded_by: null
 milestone: M7.5
-summary: null
+summary: >-
+  OPEN. The undecided discipline governs structural checks and was never extended to
+  judged ones; `turn24-over-resolution` is the case that shows it should be — a judged
+  check that cannot find its subject collapses into FAIL, the mirror of `ADR-0046`.
+  Three questions are listed and none is settled, so read `OVER-RESOLUTION` at 0.90
+  accordingly.
 ---
 
 *Opened 2026-08-10 from `docs/rules-extraction-findings.md § S33`. Not yet decided.*

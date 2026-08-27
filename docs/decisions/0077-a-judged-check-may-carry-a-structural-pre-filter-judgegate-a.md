@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  `judgeGate` — the structural pre-filter that lets one check span both modes without
+  adding a third `mode` value. The non-obvious half is what it does to
+  `eval:judge-variance`: gated inputs are deterministic, so leaving them in the
+  flip-rate denominator would pull the one number that command exists to produce
+  toward zero.
 ---
 
 `decisions.md` already held that a single check may span both modes. `judgeGate` is the mechanism: an optional function run before the judge call that either settles the rep structurally or returns `null` to mean "the remaining question is genuinely semantic." `mode` stays `'judged'` because that is what `runCheck` dispatches on and what the row records; a third mode value would have forced a fixture-schema change for no gain.

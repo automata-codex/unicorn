@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: M7.7
-summary: null
+summary: >-
+  Selection by `tag` alone meant a check was measured only on fixtures named after it
+  — which let `SYSTEM-ROLLED-PLAYER-ACTION` read 1.00 while six violations sat on
+  `turn24-*` fixtures. Adds tag-independent attachment through fixture-authored
+  `applicability`, and explains why `tagIndependent` is hand-declared rather than
+  derived from `applicabilitySource`.
 ---
 
 `selectChecksForFixture` returned exactly the check whose id matched the fixture's `tag`, so a check was measured only on fixtures named after it. `ADR-0073` had already made applicability fixture-authored and keyed by `checkId`, and the schema comment already said a fixture "can in principle carry more than one check" — but nothing consumed that, and the corpus stayed 1:1 by construction rather than by choice.

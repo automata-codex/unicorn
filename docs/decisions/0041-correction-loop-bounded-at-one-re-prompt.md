@@ -5,7 +5,11 @@ area: claude-turn-loop-correction
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  The correction loop is capped at one re-prompt — a hard cap, not a budget — after
+  which the turn 502s and the transaction rolls back. A larger retry budget masks the
+  real problem, which is a validator rule or a prompt that needs work. Names what
+  evidence would justify loosening it.
 ---
 
 When Claude's proposed state changes fail validation, the backend re-prompts once with a structured `tool_result` describing the rejections and waits for a corrected `submit_gm_response`. If that second response also fails validation, the turn aborts with 502 and the entire turn transaction rolls back — leaving only the player-message row that was persisted before the Claude call. Not two retries, not a budget — a hard cap at one re-prompt.

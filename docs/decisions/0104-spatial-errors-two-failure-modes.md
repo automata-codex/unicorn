@@ -5,7 +5,11 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: M7.7
-summary: null
+summary: >-
+  Splits the 2026-08-24 playtest's spatial narration errors into a gradeable
+  seeded-canon tag and an ungradeable relative-position one, with the rubric and
+  `judgeContext` injection the first needs. The addendum reverses the second half: its
+  category-three classification does not hold and registration is deferred.
 ---
 
 **The 2026-08-24 playtest narrated ship movement wrongly six times, and the six look

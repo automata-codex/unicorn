@@ -5,7 +5,12 @@ area: licensing-business
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Why the SaaS service implementations stay closed while the prompts and orchestration
+  stay open. Not secrecy — the RLS, tenancy and billing layer is the literal mechanism
+  that makes the ELv2 single-tenant restriction real, and the open core is
+  single-tenant by omission rather than enforcement. Costs nothing to maintain, since
+  the interface split already separates them.
 ---
 
 Unlike the Warden prompts and any future graph orchestration logic, the concrete SaaS implementations of the service interfaces (`ClerkAuthService`, `StripeEntitlementsService`, `AblyRealtimeService`, the RLS migration scripts and tenant-aware middleware, etc.) remain closed source when built. This is a different rationale from the open-source decision above and should not be read as contradicting it.

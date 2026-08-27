@@ -5,7 +5,12 @@ area: rules-ingestion
 status: accepted
 superseded_by: null
 milestone: M7.2
-summary: null
+summary: >-
+  No web upload surface for rules ingestion. It follows from the licensing posture
+  rather than from effort — an uploader puts the operator in the position of receiving
+  other people's rulebook PDFs — and from the shape of the job. Recorded because the
+  absence of a UI is the single thing a future reader is most likely to assume was an
+  oversight.
 ---
 
 No web upload surface. A self-hosted user installs the Python pipeline, points

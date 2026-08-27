@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Applicability moves out of 'did this turn produce a `dice_roll`?' — selection on the
+  outcome variable, which had shrunk two checks to 2 decided reps out of 40 — and into
+  a fixture-authored `applicability` map keyed by `checkId`. Records why it is keyed
+  rather than nested under `assertion`, and why `capture-fixture` stubs it
+  fail-closed.
 ---
 
 `system-rolled-player-action` and `out-of-order-resolution` originally decided applicability by asking "did this turn produce a `dice_roll` event?" — a consequence of the model's own choice, not a property of the fixture's scenario. When the correct behaviour was declining to roll (deferring to a pending `dice_request` instead), the harness scored the turn as `not_applicable` rather than as a pass, silently shrinking the denominator to exactly the reps where the model happened to roll — selection on the outcome variable. Confirmed against a real Sonnet 5 run: 38 of 40 reps across the two checks read `not_applicable` for this reason, and the two reps that didn't were themselves a false pass — a system-rolled to-hit roll the old pattern-only rule didn't match.

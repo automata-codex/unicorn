@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  What `eval:rescore` is — re-grading frozen artifacts with no Warden calls and no
+  database — and why it landed alone, before any checker changed, so its output could
+  be validated against independently derived numbers. Records why re-score rows extend
+  the run row schema rather than forking it, and why un-regradable rows are carried
+  forward rather than dropped.
 ---
 
 A scoring-only corpus bump or a checker change leaves every `warden-output.json` exactly as valid as it was, so re-grading in place is a real measurement rather than an approximation. `eval:rescore` does that with no Warden calls and no database. It landed alone, before any checker changed, so that it could be validated against numbers derived independently — it reproduces the hand-derived `applicability`-fix corrections in `eval-methodology.md` exactly, including the specific finding that two Sonnet 5 passes on `turn21` flip to `FAILED`.

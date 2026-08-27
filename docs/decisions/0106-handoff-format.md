@@ -5,7 +5,11 @@ area: monorepo-tooling-deployment
 status: provisional
 superseded_by: null
 milestone: M7.7
-summary: null
+summary: >-
+  The `handoff` block format for moving work between Claude Code and Claude Web:
+  header fields, the closed `ask` set, and the body shapes for `review-decision` and
+  `verify-claims`. Provisional — the open questions at the end are the experiment's
+  own success criteria.
 ---
 
 ## Purpose

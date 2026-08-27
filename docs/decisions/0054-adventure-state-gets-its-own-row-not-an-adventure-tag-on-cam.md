@@ -5,7 +5,11 @@ area: api-data-model
 status: accepted
 superseded_by: null
 milestone: M7.6
-summary: null
+summary: >-
+  Adventure-scoped state gets its own row rather than an adventure tag on campaign
+  state, with the two-schemas-two-write-paths cost stated. Not implemented in Phase 1.
+  The addendum is the load-bearing part: ownership and scope are orthogonal, so the
+  Phase 2 move spans all of `scenarioState` and part of `resourcePools`, by owner key.
 ---
 
 Given the placement rule above, adventure-scoped state has to be separable from

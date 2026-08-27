@@ -5,7 +5,11 @@ area: claude-continuity-spatial
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Why `messages` carries no sequence key and ordering rests on `createdAt` alone, plus
+  the two conditions that would change it: multi-instance deployment with
+  application-side timestamps, and synchronous multiplayer. Records that a player
+  message and the GM's response are deliberately not written in one transaction.
 ---
 
 The `messages` table has no `sequence_number` column, unlike `game_events`. Reconstruction and message-window ordering (`buildMessageWindow`) rely purely on `createdAt` timestamps. Player and GM messages for the same turn are not written in the same transaction — the player message commits first, in its own transaction, before the GM call runs (intentionally, so a retry can reproduce the player's action) — so there is no transactional guarantee of ordering either, only the practical guarantee that a player's message is always written before the GM's response to it.

@@ -5,7 +5,12 @@ area: rules-retrieval
 status: accepted
 superseded_by: null
 milestone: M7.6
-summary: null
+summary: >-
+  Two 5e mechanics found in the Mothership sheet and pool definitions: a `level`
+  field, and 0 HP sending a character to death saves where the rules give a Wound.
+  Recorded for the pattern rather than the defects — the bias hypothesis was about
+  retrieval and got confirmed in a hand-authored schema instead. It does not validate
+  the retrieval-side claim, and names the cheap test still unrun.
 ---
 
 The hypothesis — that the Warden's out-of-corpus vocabulary is specifically D&D 5e lexicon

@@ -5,7 +5,12 @@ area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
 milestone: M7.6
-summary: null
+summary: >-
+  The placement rule across the three state destinations: does the value change in
+  play, and if it does, how long does the thing it describes last. The part worth
+  reading is 'reset is a rule, not a lifecycle' — the intuition that spell slots are
+  adventure-scoped is exactly what the rule exists to correct. Scopes finer than an
+  adventure have no home yet.
 ---
 
 There are three places a piece of state can live — the character sheet, campaign state,

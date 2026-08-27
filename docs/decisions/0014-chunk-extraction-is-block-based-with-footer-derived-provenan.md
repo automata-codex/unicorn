@@ -5,7 +5,12 @@ area: rules-ingestion
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Why ingestion chunks marker's typed blocks rather than Markdown headings — the PSG's
+  heading histogram kills that premise on arithmetic alone — and where provenance
+  actually comes from, since `blocks[].page` is an internal id that looks like a page
+  number and is not. Verified against the PSG 1e only; a second book needs its own
+  check.
 ---
 
 The design doc's chunking premise — treat each `###` Markdown heading as a candidate chunk boundary — does not survive contact with the actual extraction output. The PSG's whole-book heading histogram is 84 `#`, 3 `##`, 10 `###`, 55 `####` (`docs/rules-extraction-findings.md § S1.5`): 10 `###` headings against a 100–400-chunk target kills the approach on arithmetic alone, and the levels are assigned by font size rather than document structure — `#### ARMOR` and `# 14 ARMOR` are the same section at different levels, and reading order scrambles across the character-creation spread. Markdown output is also the wrong extraction format independent of the heading problem: it discards page attribution entirely, and the only page-marker mechanism it carries (`<span id="page-N-M">` anchors) covers 16 of 44 pages.

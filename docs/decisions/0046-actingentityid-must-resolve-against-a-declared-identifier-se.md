@@ -5,7 +5,12 @@ area: claude-turn-loop-correction
 status: accepted
 superseded_by: null
 milestone: M7.5
-summary: null
+summary: >-
+  The `actingEntityId` namespace mismatch that inverted `system-rolled-player-action`
+  and graded ten violations clean, plus the three rules drawn from it: name both
+  namespaces in an identifier comparison, treat a resolution failure as a third state,
+  and enforce one canonical id at runtime while the checker tolerates aliases. The
+  amendment closes the product path and corrects two claims about the cause.
 ---
 
 M7.5's first integration of `actingEntityId` compared it against `applicability.playerEntity` for equality. The field carries an entity **id** (`lt_alvarez`); `playerEntity` carries a display **name** (`Alvarez`). Nothing ever matched, and because "no roll belongs to the player" is `system-rolled-player-action`'s PASS condition, the check did not report *less* — it inverted. It graded ten violations clean, including a rep whose payload reads `system_generated` / `lt_alvarez` / `"Alvarez Combat Check to shoot contractor alpha"`. Full account in `docs/rules-extraction-findings.md § S30`.

@@ -5,7 +5,12 @@ area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
 milestone: M7.6
-summary: null
+summary: >-
+  What M7.6's D1–D4 actually built: owner-keyed `resourcePools`, the reserved
+  `_scenario` owner, `creationChoices.adjustedStat`, `characterState`'s six
+  operations, and all-or-nothing rejection per turn. Also records what was identified
+  and deliberately left out, with the trigger that would reverse it. The addendum
+  settles within-entry granularity, which the body left looking open.
 ---
 
 *Closing out `docs/plans/016-m7.6-character-sheet-fidelity-implementation-plan.md`,
