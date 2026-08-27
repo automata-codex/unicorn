@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: M7.7
-summary: null
+summary: >-
+  Gives the judge contract — verdict tool, system prompt, closing instruction, model —
+  the identity `rubricHash` never covered, and gates every judge-spending entry point
+  on its golden. Also swaps `rationale` ahead of `passed`, shipped on variance
+  measurement rather than on the argument. Judged checks only; the structural half is
+  `ADR-0108`.
 ---
 
 `ADR-0099` gave the code-built Warden surfaces an identity and, in its addendum, recorded that the identity varies with the build rather than the commit. Both halves of that entry turn out to be one defect with two faces, and the second face is on the grading side: **an identity that does not cover the surface it names.** `assemblyHash` missed the build; `rubricHash` missed the judge contract. Both were invisible in the same run, `claude-sonnet-5__6717347d__2026-08-21T21-14-59Z`.

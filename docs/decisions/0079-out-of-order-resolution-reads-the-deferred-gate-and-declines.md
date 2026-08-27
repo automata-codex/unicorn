@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Why `out-of-order-resolution` reads a pending `dice_request` as a structural gate,
+  and the three sub-cases the checker keeps distinct so none collapses into a false
+  pass. The in-turn half closed when `gatedByRollId` landed; the deferred-gate
+  branch's known false FAIL is pinned by a test rather than patched, and the two-turn
+  fixture idea is withdrawn.
 ---
 
 > **Status: the in-turn half closed 2026-08-07**, when `gatedByRollId` landed in M7.5. Title

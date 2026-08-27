@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Once `eval:rescore` exists, 'the report for this run' stops being a well-defined
+  request. `--scoring` selects, defaulting to the most recent re-score and naming the
+  resolved grading in the title, a header bullet and stderr. It lives on both
+  `eval:report` and `eval:compare` through one resolver, because a default that moved
+  only one would manufacture the cross-grader comparison the flag exists to prevent.
 ---
 
 Once `eval:rescore` exists a run directory holds several sets of verdicts over the same generator output: the run's own `reps/<nnn>/scores.jsonl` plus one file per re-score pass. "The report for this run" stopped being a well-defined request, and the failure mode is not a crash — it is two people quoting numbers graded by different checker code at each other.

@@ -5,7 +5,12 @@ area: claude-turn-loop-correction
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Why `rules_lookup` calls land in `adventure_telemetry.payload` rather than
+  `game_events`: they are metadata about how the Warden reached a ruling, not state
+  changes, and the event log is player-visible and bound to a sequence-number
+  contract. Records what the telemetry record keeps and why full chunk text is
+  deliberately omitted.
 ---
 
 Every `roll_dice` call writes a `dice_roll` row to `game_events` — dice are mechanically consequential, part of the turn's audit trail, and rolls (like player actions and GM responses) carry sequence numbers so the full turn can be replayed from the event log.

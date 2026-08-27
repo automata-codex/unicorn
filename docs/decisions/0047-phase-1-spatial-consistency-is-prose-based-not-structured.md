@@ -5,7 +5,11 @@ area: claude-continuity-spatial
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Phase 1 spatial consistency runs on Claude-authored `worldFacts` rather than the
+  migrated-but-unused grid tables. An explicit deferral under uncertainty, naming the
+  failure modes a playtest should watch for — several of which `ADR-0101`'s 2026-08-25
+  addendum then measured.
 ---
 
 The `grid_cell` and `grid_entity` tables exist and are migrated, but no generation pipeline populates them and no runtime system queries them. Phase 1 spatial consistency — making sure the ship layout stays coherent across turns — is handled by `worldFacts` entries authored by Claude during synthesis and maintained during play. The Warden prompt directs Claude to record the location's overall layout in `worldFacts` at synthesis time and to consult and extend those entries when narrating spatial relationships.

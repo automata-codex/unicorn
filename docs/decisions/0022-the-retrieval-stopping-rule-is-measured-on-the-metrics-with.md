@@ -5,7 +5,12 @@ area: rules-retrieval
 status: accepted
 superseded_by: null
 milestone: M7.5
-summary: null
+summary: >-
+  Why M7.5's stopping rule moved off `authored` recall@3: already at 100%, it cannot
+  improve, so the no-progress test would have fired after three rounds unconditionally
+  — a round counter dressed as a quality test. `authored` becomes a regression floor
+  instead. Corrected before round 1 ran, which is the point, and the general lesson
+  outlives this rule.
 ---
 
 `docs/specs/zoltar/013-m7.5-rules-retrieval-quality.md § The stopping rule`

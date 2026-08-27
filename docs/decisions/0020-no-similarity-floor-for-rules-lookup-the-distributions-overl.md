@@ -5,7 +5,12 @@ area: rules-retrieval
 status: accepted
 superseded_by: null
 milestone: M7.5
-summary: null
+summary: >-
+  No similarity floor for `rules_lookup`: the answerable and unanswerable
+  distributions interleave rather than abut. The part worth reading is why the
+  free-looking 0.34 threshold is rejected — its zero measured cost is an artifact of
+  being fitted to a sample minimum — and what would actually make a floor derivable,
+  which sits upstream of retrieval.
 ---
 
 M7.5 Part 4, decided 2026-08-07 against the final index (61 chunks, `drop_pages: [3, 4, 41, 42]`), per `docs/rules-extraction-findings.md § S20`. `RulesLookupService.lookup()` is unchanged: it returns whatever `findByCosineSimilarity` gives back, with no threshold.

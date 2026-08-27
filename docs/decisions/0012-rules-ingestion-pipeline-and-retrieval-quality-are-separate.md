@@ -5,7 +5,12 @@ area: rules-ingestion
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Why the re-baseline and playtest left M7.2 for M7.5: buying a baseline against an
+  index about to be re-chunked buys it twice. The load-bearing half is what makes that
+  safe rather than procrastination — the retrieval harness reads index quality for a
+  few Voyage calls — plus the completion-criteria argument for two milestones instead
+  of one with a later Part 6.
 ---
 
 M7.2's original spec included post-ingestion validation — an eval re-baseline and a dedicated playtest — as its own Part 6. Both moved out to a new milestone, M7.5 (Rules Retrieval Quality), during M7.2 implementation.

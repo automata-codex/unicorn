@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  The heuristic that a rate pinned at 0.0 or 1.0 is a harness suspect rather than a
+  finding, with the ceiling half the one nobody investigates. Three addenda extend it:
+  the instance list decays and should be computed, `turn16` turned out to be a rules
+  error in the fixture rather than an immovable checker, and it has since been
+  retired.
 ---
 
 `eval-methodology.md` listed six fixtures as "confidently zero — n large enough that the result isn't just small-sample noise." Four were measuring the harness. `turn16-narrating-past-a-block` read 0/10 under both models because the check failed every rep on a `dice_request` the *fixture* seeded with `target: null`, a value fixed at capture time before the Warden under test ever ran.

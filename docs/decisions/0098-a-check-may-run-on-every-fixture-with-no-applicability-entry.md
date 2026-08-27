@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: M7.7
-summary: null
+summary: >-
+  Universal checks — no `applicability` entry to author, run on every fixture — added
+  for `tool-syntax-leak`, with the three ways routing it through `applicability`
+  fails. The accepted trade is that a universal check cannot be scoped to part of the
+  corpus; a check that needs scoping is conditional, and belongs in the
+  tag-independent list instead.
 ---
 
 `ADR-0096` opened selection beyond the fixture's own `tag`, but kept every attachment an authoring act: a tag-independent check reaches a fixture only through an `applicability` entry someone wrote. That is right for the check it was built for and wrong for `tool-syntax-leak`, which grades whether the narration the player was shown contains raw tool-call markup. So selection is now the tag's check, plus tag-independent checks the fixture authors an entry for, plus every **universal** check unconditionally.

@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: M7.8
-summary: null
+summary: >-
+  `judgeContext` output is the one judge-visible surface no identity covers, which
+  lets `eval:compare` issue a false like-for-like license in silence. Covered by a
+  committed golden rather than a hash, with the argument for why hashing the output is
+  the wrong instrument and a corollary on renderers selecting from the fixture rather
+  than authoring content.
 ---
 
 **Four surfaces reach the judge and three of them have a recorded identity.** `runJudgeCall`

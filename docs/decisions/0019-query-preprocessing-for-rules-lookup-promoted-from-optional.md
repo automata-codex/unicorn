@@ -5,7 +5,13 @@ area: rules-retrieval
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Query preprocessing as critical path — and the half of it measurement overturned:
+  the document-frequency ceiling has no useful setting on this corpus, because what `§
+  S4` proved was hand-authored trimming by someone who knew the target page. The
+  vocabulary half stays open, and the amendment splits it into wrong-word and
+  concept-absent, which is what makes a similarity floor load-bearing rather than a
+  refinement.
 ---
 
 Shortening a `rules_lookup` query to its 2–3 distinctive terms puts the

@@ -5,7 +5,11 @@ area: rules-retrieval
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  The three spikes that settled dense embeddings over Postgres FTS and LLM-authored
+  regex, including the latency budget that rules out any second model call at query
+  time and the one query that discriminated between the mechanisms. It does not settle
+  vocabulary sensitivity, which is `ADR-0019`'s subject.
 ---
 
 Raised as an alternative to the planned Voyage/pgvector pipeline: have an LLM

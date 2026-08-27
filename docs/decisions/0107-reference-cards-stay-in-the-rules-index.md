@@ -5,7 +5,12 @@ area: rules-retrieval
 status: accepted
 milestone: M7.5
 superseded_by: null
-summary: null
+summary: >-
+  The reference cards stay in the index. Dropping the back-cover cheat sheet worked
+  exactly as designed — its share of top-3 slots went 14 → 0, every aggregate
+  identical — and one fixture regressed deterministically, so the criterion fixed
+  before the run reverted it. Also records why this fixture set can no longer
+  discriminate at this level.
 ---
 
 **Decided 2026-08-09.** Mothership's printed pp. 1 and 44 are cheat sheets that restate

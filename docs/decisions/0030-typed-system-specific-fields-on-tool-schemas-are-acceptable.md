@@ -5,7 +5,12 @@ area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
 milestone: M7.6
-summary: null
+summary: >-
+  Why `damageType` may name five Mothership Wounds Table columns on a shared tool
+  schema, and what a generic `properties` container would cost while only one system
+  exists. Names the trigger to generalize — a second system needing a *different*
+  field, not this one needing a second field — and the re-baseline asymmetry that
+  argues for watching the pool-delta object closely.
 ---
 
 `damageType` on the pool-delta object (M7.6) is the first **rules-semantic** field on a

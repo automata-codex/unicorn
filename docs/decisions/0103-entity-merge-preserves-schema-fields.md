@@ -5,7 +5,12 @@ area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
 milestone: M7.7
-summary: null
+summary: >-
+  The hand-enumerated entity merge that silently destroyed authored fields —
+  `crewRole`, `instinctRoll` — the playtest evidence for it, and the
+  parse-through-`EntitySchema` fix. Carries five open items: pending captures are not
+  confirmed fix-invariant, and there is still no way to remove a field from an entity
+  record.
 ---
 
 ## Context

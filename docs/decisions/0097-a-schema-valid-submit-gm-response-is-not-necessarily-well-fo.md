@@ -5,7 +5,12 @@ area: claude-turn-loop-correction
 status: accepted
 superseded_by: null
 milestone: M7.7
-summary: null
+summary: >-
+  The tool-syntax leak — schema-valid responses whose payload was serialized into
+  `playerText` — its measurement, and the deterministic guard that catches it. Read
+  the addenda before citing the body: they supersede the retry reasoning (the budget
+  is 1, not the loop cap) and replace the prompt-block mitigation with tool-schema
+  descriptions.
 ---
 
 `playerText` is the only required field on `submitGmResponseSchema`. A response carrying nothing else validates cleanly, so a payload whose remaining parameters were serialized as *text inside the narration* is indistinguishable, to every consumer downstream of the Zod parse, from a turn that genuinely had no state changes. The turn commits, the markup reaches the player, and `stateChanges` / `gmUpdates` / `diceRequests` are discarded — with no rejection, no correction event, and no log line. There was no discard point to instrument: nothing in the code believed anything had gone wrong.

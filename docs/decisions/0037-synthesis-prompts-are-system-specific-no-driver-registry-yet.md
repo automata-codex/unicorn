@@ -5,7 +5,12 @@ area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Each system owns its synthesis prompt module, with system-prefixed exports so no
+  name falsely suggests cross-system generality; only the tool definitions and shared
+  schemas are universal. The `synthesisDrivers[systemId]` registry is deferred on the
+  standing ground that an interface defined against one implementation is a guess
+  shaped entirely by Mothership.
 ---
 
 Each supported game system owns its own synthesis prompt module under `apps/zoltar-be/src/synthesis/<system>/synthesis.prompts.ts` (currently only `mothership/`). System-specific exports — system prompt, character-sheet prose formatter, synthesis user prompt, coherence check prompt, and the canonical oracle-category list — are all prefixed with the system name (`MOTHERSHIP_SYNTHESIS_SYSTEM_PROMPT`, `formatMothershipCharacterProse`, etc.) so names never falsely suggest cross-system generality. Universals — the `submit_gm_context` and `report_coherence` tool definitions and the coherence report Zod schema — live in `src/synthesis/synthesis.tools.ts` and `synthesis.schema.ts` and are imported by every system module.

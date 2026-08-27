@@ -5,7 +5,12 @@ area: eval-harness
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  The rule that a structural check reports undecided when its prose binding fails,
+  rather than collapsing into its PASS condition — with the denominator cost measured
+  across both frozen runs. The same audit found a second error: binding a
+  `dice_request` by prose was wrong outright, since a pending request is a deferred
+  player roll whatever its purpose text says.
 ---
 
 `isAttributedTo` — binding a roll to the acting entity by the Warden's leading-name convention — is the last prose dependency in the structural checks, and it is not removable: nothing in `game_events` records who acted, and `actorType` is `'gm'` for every Warden-side roll whether it represents an NPC or the player, which is exactly the distinction being drawn. It waits on an `actingEntityId` on the roll payload.

@@ -5,7 +5,11 @@ area: claude-continuity-spatial
 status: accepted
 superseded_by: null
 milestone: unknown
-summary: null
+summary: >-
+  Why the rolling summary stays unbuilt and `adventure.rolling_summary` stays null
+  through Phase 1 — cached GM context plus the working-memory fields already cover
+  most of what it was specified to capture. An explicit deferral under uncertainty,
+  naming the playtest failures that would validate or reverse it.
 ---
 
 The original M5 design included a rolling summary stored in `adventures.rolling_summary`, lazily generated at adventure resume to carry continuity across messages that age out of the rolling window. Dropped from M5 pending playtest evidence that the gap exists.
