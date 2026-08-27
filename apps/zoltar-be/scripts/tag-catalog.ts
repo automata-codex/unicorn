@@ -27,17 +27,17 @@
  *   task docs:eval-tags -- --output ../../docs/eval-tags.md
  */
 
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
+import { judgeRubrics } from '../eval/checks/judged/rubrics';
+import { evalChecks, rubricTextFor } from '../eval/checks/registry';
 import {
   failureModeTagSchema,
   judgedFailureModeTags,
   structuralFailureModeTags,
 } from '../eval/fixture.schema';
-import { evalChecks, rubricTextFor } from '../eval/checks/registry';
-import { judgeRubrics } from '../eval/checks/judged/rubrics';
 
 const FIXTURES_DIR = join(__dirname, '..', 'eval', 'fixtures');
 const SCHEMA_SRC = join(__dirname, '..', 'eval', 'fixture.schema.ts');
@@ -144,8 +144,31 @@ const SOURCE_MEANING: Record<string, string> = {
     'fixture-authored — every rep agrees, so a partial applicability rate is a defect',
   artifact:
     "gates on the turn's own output — the denominator moves with what the Warden did; read alongside the exclusion count",
-  ungated: 'reaches a verdict on every rep; a `not_applicable` should not occur',
+  ungated:
+    'reaches a verdict on every rep; a `not_applicable` should not occur',
 };
+
+/**
+ * Whether this check's `judgeContext` renderer has a committed golden.
+ *
+ * Derived from the filesystem rather than a hand-kept list, on the same
+ * reasoning `tagIndependentCheckIds` is derived from the registry flag: a
+ * second list is a second thing to forget, and forgetting this one produces a
+ * catalog that reports coverage the repo does not have.
+ */
+function hasJudgeContextGolden(checkId: string): boolean {
+  return existsSync(
+    join(
+      __dirname,
+      '..',
+      'eval',
+      'checks',
+      'judged',
+      'judge-context-golden',
+      `${checkId}.txt`,
+    ),
+  );
+}
 
 function flagsFor(checkId: string): string {
   const check = evalChecks[checkId];
@@ -154,7 +177,16 @@ function flagsFor(checkId: string): string {
   if (check.tagIndependent) flags.push('tag-independent');
   if (check.stub) flags.push('**stub — refuses any run selecting it**');
   if (check.judgeGate) flags.push('has judge gate');
-  if (check.judgeContext) flags.push('has judgeContext (unhashed — `ADR-0105`)');
+  if (check.judgeContext) {
+    // `ADR-0105` decided a committed golden rather than a hash, so "unhashed"
+    // alone would read as uncovered on a renderer that has one. The two
+    // states are genuinely different and the column should say which it is.
+    flags.push(
+      hasJudgeContextGolden(checkId)
+        ? 'has judgeContext (golden — `ADR-0105`)'
+        : 'has judgeContext (**uncovered** — `ADR-0105`)',
+    );
+  }
   if (check.requiresFixtureSchema !== undefined) {
     flags.push(`fixtureSchemaVersion >= ${check.requiresFixtureSchema}`);
   }
@@ -183,13 +215,16 @@ function buildCatalog(): string {
 
   out.push('## Coverage');
   out.push('');
-  out.push('| Tag | Mode | Applicability | Fixtures tagged | Also attached | Flags |');
+  out.push(
+    '| Tag | Mode | Applicability | Fixtures tagged | Also attached | Flags |',
+  );
   out.push('| --- | --- | --- | --- | --- | --- |');
   for (const tag of tags) {
     const checkId = tag.toLowerCase();
     const check = evalChecks[checkId];
     const u = usage.get(tag) ?? { taggedBy: [], attachedBy: [] };
-    const tagged = u.taggedBy.length === 0 ? '**0**' : String(u.taggedBy.length);
+    const tagged =
+      u.taggedBy.length === 0 ? '**0**' : String(u.taggedBy.length);
     out.push(
       `| \`${tag}\` | ${check?.mode ?? '—'} | ${check?.applicabilitySource ?? '—'} | ` +
         `${tagged} | ${u.attachedBy.length} | ${check ? flagsFor(checkId) : '—'} |`,
@@ -197,7 +232,9 @@ function buildCatalog(): string {
   }
   out.push('');
 
-  const uncovered = tags.filter((t) => (usage.get(t)?.taggedBy.length ?? 0) === 0);
+  const uncovered = tags.filter(
+    (t) => (usage.get(t)?.taggedBy.length ?? 0) === 0,
+  );
   out.push('## Registered but never captured');
   out.push('');
   if (uncovered.length === 0) {
@@ -244,7 +281,8 @@ function buildCatalog(): string {
     );
     out.push(`- **Flags:** ${flagsFor(checkId)}`);
     if (check.mode === 'judged') {
-      const required = judgeRubrics[tag as keyof typeof judgeRubrics]?.requiredFacts ?? [];
+      const required =
+        judgeRubrics[tag as keyof typeof judgeRubrics]?.requiredFacts ?? [];
       out.push(`- **Rubric hash:** \`${check.rubricHash?.() ?? '—'}\``);
       out.push(
         `- **Required facts:** ${
@@ -285,7 +323,10 @@ function buildCatalog(): string {
 function main(): void {
   const { values } = parseArgs({
     args: process.argv.slice(2),
-    options: { json: { type: 'boolean', default: false }, output: { type: 'string' } },
+    options: {
+      json: { type: 'boolean', default: false },
+      output: { type: 'string' },
+    },
   });
 
   const payload = values.json
@@ -306,7 +347,8 @@ function main(): void {
             hasJudgeContext: check?.judgeContext !== undefined,
             rubricHash: check?.rubricHash?.() ?? null,
             requiredFacts:
-              judgeRubrics[tag as keyof typeof judgeRubrics]?.requiredFacts ?? null,
+              judgeRubrics[tag as keyof typeof judgeRubrics]?.requiredFacts ??
+              null,
             fixturesTagged: usage?.taggedBy ?? [],
             fixturesAttached: usage?.attachedBy ?? [],
           };
