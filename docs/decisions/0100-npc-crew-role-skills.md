@@ -5,7 +5,48 @@ area: claude-tool-schemas-state
 status: accepted
 superseded_by: null
 milestone: M7.7
-summary: null
+summary: |
+  **Status:** accepted 2026-08-20, **M7.7** — riding 018's re-baseline rather than
+  buying one (`ADR-0094`). Schema section amended the same day; the original
+  location did not exist.
+
+  Mothership resolves every Contractor check against a flat Instinct score, which
+  leaves a scenario-critical specialist NPC — often standing in for a missing
+  party role in solo play — with no way to be *especially* good at anything.
+  `entitySchema` had no Instinct to extend, so this entry introduces one.
+
+  **Decision.** Every `npc` entity gets an Instinct of `2d10 + 25 + role
+  adjustment`, the player Stat shape. The **backend** rolls it at synthesis-write
+  time — synthesis has no `roll_dice`, so a number Claude supplied would be a
+  fabrication. Rolled rather than assigned from role, because the mapping is not
+  total over `npc` entities and because assignment would give two pilots on the
+  same ship identical Instinct — the flatness this entry exists to fix, one level
+  up. `threat` and `feature` entities get nothing here; no new enum value.
+
+  An `npc` may carry a `crewRole` from a 20-value enum, each mapping to an ordered
+  Mothership skill chain (Trained → Expert → Master). A check inside a mapped
+  skill's domain resolves as Instinct + that tier's bonus (+10 / +15 / +20);
+  anything else is Instinct alone. Adjustment is by seniority tier — Senior +15,
+  Skilled +10, Unskilled +5, role-less +0 — rather than twenty bespoke numbers.
+
+  **Storage.** `instinctRoll` and `crewRole` live on the entity record, not in
+  `initialState`, whose non-pool entries are silently dropped at merge. The dice
+  are stored as they fell; `BASE`, the adjustment, and the whole skill chain are
+  derived at read time and persisted nowhere — storing a derived chain repeats the
+  `maxHp` duplication M7.6 removed. A free-text `crew_role:*` tag was rejected for
+  the same silent-failure reason the enum avoids.
+
+  **Precondition.** Deriving at read time means a role-table edit changes what the
+  Warden sees for fixtures whose files did not move. Before the derivation ships,
+  `ASSEMBLY_PROBE` must carry a Contractor with a role and a roll, **and** the full
+  20-row table must fold into `assemblyHash` (`ADR-0099`) — a probe NPC alone
+  covers only the one role it names.
+
+  **Everything mechanical here is invented** — the skill layer, the rolled
+  Instinct, and the seniority adjustment all extrapolate from the Contractors
+  rules rather than read out of them. Label it a Zoltar house rule wherever it is
+  cited; the failure mode guarded against is a later reader lifting `2d10 + 25`
+  into player-facing text as though it were RAW.
 ---
 
 **Status:** accepted 2026-08-20, **M7.7** — riding 018's re-baseline rather than buying one (`ADR-0094`). Schema section amended the same day against the codebase; see `§ Amendment 2026-08-20`.
