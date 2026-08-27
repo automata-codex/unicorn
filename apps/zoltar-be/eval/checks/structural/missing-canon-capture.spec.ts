@@ -168,7 +168,11 @@ describe('checkMissingCanonCapture', () => {
 });
 
 /** Carries a quoted marker phrase with an em-dash, matching the authoring
- * convention `turn02-missing-canon-capture.json` uses. */
+ * convention the corpus's MISSING-CANON-CAPTURE fixtures use. Kept as an
+ * em-dash after `turn02` was retired: the live fixtures' markers carry a
+ * hyphen (`hazard-multiplier`) rather than an em-dash, and a spec that only
+ * exercised the shape currently in the corpus would stop covering the other
+ * one `normalizeForMarkerMatch` exists to fold. */
 const EXPECTS_FIXTURE = fakeFixture({
   tag: 'MISSING-CANON-CAPTURE',
   seededState: {
