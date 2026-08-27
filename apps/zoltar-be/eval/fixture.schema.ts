@@ -47,6 +47,13 @@ export const failureModeTagSchema = z.enum([
   // the subject is a roll target that does not follow from the entity's
   // sheet, of which a misapplied skill bonus is only one of three ways.
   'UNGROUNDED-CONTRACTOR-TARGET',
+  // Added by M7.8 for `ADR-0104`. Its sibling `SPATIAL-RELATION-ERROR` is
+  // deliberately absent: that ADR's addendum defers registration because the
+  // structural/judged choice is the unsettled question, and registering forces
+  // it now. While it stays unregistered `capture-fixture` refuses `--tag
+  // SPATIAL-RELATION-ERROR` outright, which is a mechanical guardrail that
+  // registering would replace with a note asking people to remember.
+  'SEEDED-CANON-CONTRADICTION',
 ]);
 
 export type FailureModeTag = z.infer<typeof failureModeTagSchema>;
@@ -167,6 +174,19 @@ export const judgedFailureModeTags = [
   // is an id lookup against seeded state and entirely non-lexical. See
   // `ungrounded-contractor-target.ts`.
   'UNGROUNDED-CONTRACTOR-TARGET',
+  //
+  // SEEDED-CANON-CONTRADICTION is judged because extracting the assertion from
+  // narration is classification: "you climb down toward the deck below" has to
+  // be read as a claim about which deck a place is on before it can be
+  // compared to anything. The comparison itself would be trivial; getting the
+  // claim out of the prose is the whole difficulty.
+  //
+  // Its scope is deliberately wider than the spatial cases that produced it.
+  // The unifying property is not that a claim is spatial but that its referent
+  // lives in the fixture, which is what makes the tag gradeable at all — the
+  // reason `ADR-0104` splits one finding into this tag and a deferred sibling
+  // that reasons about positions state does not record.
+  'SEEDED-CANON-CONTRADICTION',
 ] as const satisfies readonly FailureModeTag[];
 
 /**

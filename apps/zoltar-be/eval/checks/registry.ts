@@ -7,6 +7,10 @@ import {
 import { judgeRubrics } from './judged/rubrics';
 import { narratingPastABlockGate } from './structural/narrating-past-a-block';
 import {
+  seededCanonContradictionGate,
+  seededCanonContradictionJudgeContext,
+} from './structural/seeded-canon-contradiction';
+import {
   unauditableMappingGate,
   unauditableMappingJudgeContext,
 } from './structural/unauditable-mapping';
@@ -268,6 +272,18 @@ const APPLICABILITY_SOURCE: Record<string, EvalCheck['applicabilitySource']> = {
   // unattributed is not, and the gate reports the two separately so the
   // second stays countable.
   'ungrounded-contractor-target': 'artifact',
+  // Artifact-gated on the weakest-link rule `tool-syntax-leak` is declared
+  // under. One of the gate's two branches is fixture-shaped (the fixture seeds
+  // nothing to contradict) and would repeat on every rep; the other is a turn
+  // that produced no gm_response at all. Neither is the Warden choosing
+  // something, so the selection hazard is weak here — but declaring 'ungated'
+  // would assert a not_applicable is impossible, and it is not.
+  //
+  // Note what this label does NOT cover: `ADR-0104` wanted a turn making no
+  // claim about seeded state to be not_applicable, and no such verdict exists
+  // for a judged check. Those reps land in the pass count. See the gate's doc
+  // comment.
+  'seeded-canon-contradiction': 'artifact',
   // Judged as of 2026-08-20, having been stubbed since capture. `'ungated'`
   // — the question "did this turn describe a change it did not emit" is
   // answerable of any turn that produced a response, so there is no gate and
@@ -353,12 +369,14 @@ const JUDGE_GATES: Partial<Record<string, EvalCheck['judgeGate']>> = {
   'narrating-past-a-block': narratingPastABlockGate,
   'unauditable-mapping': unauditableMappingGate,
   'ungrounded-contractor-target': ungroundedContractorTargetGate,
+  'seeded-canon-contradiction': seededCanonContradictionGate,
 };
 
 /** Extra judge-prompt context by check id — see `EvalCheck.judgeContext`. */
 const JUDGE_CONTEXTS: Partial<Record<string, EvalCheck['judgeContext']>> = {
   'unauditable-mapping': unauditableMappingJudgeContext,
   'ungrounded-contractor-target': ungroundedContractorTargetJudgeContext,
+  'seeded-canon-contradiction': seededCanonContradictionJudgeContext,
 };
 
 function buildChecks(): Record<string, EvalCheck> {

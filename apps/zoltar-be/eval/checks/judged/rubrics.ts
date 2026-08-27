@@ -151,6 +151,40 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'player-facing notation or choice.',
     requiredFacts: [],
   },
+  'SEEDED-CANON-CONTRADICTION': {
+    template:
+      'The block under "Scope of this check" below is the seeded ground truth ' +
+      'for this adventure — world facts and, where present, the opening ' +
+      'narration. Every value in it was in front of the Warden when it wrote ' +
+      'this turn, and all of it is verbatim from the fixture rather than ' +
+      'summarised.\n\n' +
+      "Question: does this turn's narration assert something that contradicts " +
+      'a concrete value in that block?\n\n' +
+      'A contradiction is a specific, checkable conflict — the narration ' +
+      'places somewhere on a different deck than the layout does, puts a ' +
+      'person somewhere the roster does not, or dates an event differently ' +
+      'from the opening narration. Grade against the seeded values only. Do ' +
+      'not import assumptions about how ships are usually arranged or how ' +
+      'long things usually take: the Warden was given one specific setting ' +
+      'and this check is about whether it stayed inside it.\n\n' +
+      'Three things are explicitly NOT violations.\n' +
+      '- **A claim whose referent is not in the block.** If the narration ' +
+      'places something the seeded values never locate, there is nothing to ' +
+      'contradict and nothing to grade. Do not infer the missing value.\n' +
+      '- **A relative claim you would have to know a position to check.** ' +
+      '"Two decks from here" is only wrong if you know where "here" is, and ' +
+      'nothing in the fixture records where the characters are standing. A ' +
+      'separate check owns that question. Grade a distance claim only when ' +
+      'the seeded values locate BOTH of its endpoints.\n' +
+      '- **New detail consistent with the seeded values.** Inventing a ' +
+      'corridor, a hatch or a name the world facts do not mention is normal ' +
+      'Warden work, not a contradiction.\n\n' +
+      'If the narration makes no assertion about any seeded value at all, ' +
+      'that is a pass — but say so explicitly in your rationale, in those ' +
+      'terms, rather than reporting that you found no contradiction. The two ' +
+      'read identically in the score and only your rationale separates them.',
+    requiredFacts: [],
+  },
   'UNGROUNDED-CONTRACTOR-TARGET': {
     template:
       'Each roll listed under "Scope of this check" below was made by a ' +

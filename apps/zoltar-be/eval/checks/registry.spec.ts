@@ -115,6 +115,32 @@ describe('evalChecks', () => {
     expect(rubric).toContain('not any of the supplied numbers');
   });
 
+  it('wires seeded-canon-contradiction as judged, artifact-gated, with both halves', () => {
+    // The judgeContext is the load-bearing half here: runJudgeCall shows the
+    // judge no seededState at all, so without it the rubric asks whether the
+    // narration contradicts a ship layout the judge has never seen.
+    const check = evalChecks['seeded-canon-contradiction'];
+    expect(check.mode).toBe('judged');
+    expect(check.applicabilitySource).toBe('artifact');
+    expect(check.judgeGate).toBeDefined();
+    expect(check.judgeContext).toBeDefined();
+    expect(check.stub).toBeUndefined();
+  });
+
+  it('leaves SPATIAL-RELATION-ERROR unregistered', () => {
+    // `ADR-0104`'s addendum defers it, and the deferral is load-bearing rather
+    // than bookkeeping: while the tag is absent from failureModeTagSchema,
+    // capture-fixture rejects `--tag SPATIAL-RELATION-ERROR` outright, so a
+    // fixture cannot be captured against it by accident. Registering it would
+    // replace that mechanical guard with a note asking people to remember, and
+    // would force the structural-versus-judged choice that is the actual open
+    // question.
+    expect(failureModeTagSchema.options).not.toContain(
+      'SPATIAL-RELATION-ERROR',
+    );
+    expect(evalChecks['spatial-relation-error']).toBeUndefined();
+  });
+
   it('wires ungrounded-contractor-target as judged, artifact-gated, with both halves', () => {
     // The check depends on all three being present together: the gate picks
     // the Contractor rolls, the context computes their derived targets, and
