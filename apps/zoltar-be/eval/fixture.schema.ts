@@ -42,6 +42,9 @@ export const failureModeTagSchema = z.enum([
   // the whole corpus — see its doc comment before reaching for `--fixtures`.
   'MISSING-DELTA',
   'ROLL-RESULT-INVERSION',
+  // Added by M7.8 for `ADR-0100`'s Contractor rules, which shipped in M7.7
+  // and were graded by nothing.
+  'MISAPPLIED-CONTRACTOR-SKILL',
 ]);
 
 export type FailureModeTag = z.infer<typeof failureModeTagSchema>;
@@ -143,6 +146,20 @@ export const judgedFailureModeTags = [
   // event, which is a Warden-visible turn-schema change.
   'MISSING-DELTA',
   'ROLL-RESULT-INVERSION',
+  //
+  // MISAPPLIED-CONTRACTOR-SKILL is judged for both of the reasons above at
+  // once. It needs a roll's target, which `DiceRollEventPayload` does not
+  // carry and `purpose` holds only as free text — the same wall
+  // ROLL-RESULT-INVERSION hit. And its decisive question is whether the check
+  // falls inside a mapped skill's domain, which is a judgment about what
+  // "cracking an encoded file" or "hauling a coupling clear" is *for*: prose
+  // classification, and so barred from a structural check outright.
+  //
+  // It keeps a structural pre-filter for the half structure can answer —
+  // whether any roll this turn was made by a crewRole-bearing entity — which
+  // is an id lookup against seeded state and entirely non-lexical. See
+  // `misapplied-contractor-skill.ts`.
+  'MISAPPLIED-CONTRACTOR-SKILL',
 ] as const satisfies readonly FailureModeTag[];
 
 /**

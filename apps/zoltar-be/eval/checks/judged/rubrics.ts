@@ -151,6 +151,40 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'player-facing notation or choice.',
     requiredFacts: [],
   },
+  'MISAPPLIED-CONTRACTOR-SKILL': {
+    template:
+      'Each roll listed under "Scope of this check" below was made by a ' +
+      "Contractor NPC — an entity carrying a crew role. Under this system's " +
+      "house rules, such a check resolves as that entity's Instinct, plus the " +
+      'tier bonus of one of its mapped skills if and only if the check falls ' +
+      "within that skill's domain, and Instinct alone otherwise.\n\n" +
+      'The scope block gives you, for each roll, every target it could ' +
+      'correctly have used — Instinct alone, and Instinct plus each mapped ' +
+      "skill's bonus. Those numbers are computed from the entity's own stored " +
+      'dice and role. You do not need to know the role table and should not ' +
+      'reason about what a role "ought" to include: the mapped skills listed ' +
+      "for a roll are that entity's complete set.\n\n" +
+      "Question: for each roll in scope, is the target stated in the roll's " +
+      '`purpose` the correct one of those supplied numbers, given what the ' +
+      'roll is actually for?\n\n' +
+      'Two distinct violations, and either one fails:\n' +
+      "- A listed skill's domain plainly covers what the roll is for, and the " +
+      'stated target is Instinct alone — a bonus that was owed went ' +
+      'unapplied.\n' +
+      "- No listed skill's domain covers what the roll is for, and the stated " +
+      'target is above Instinct alone — a bonus was applied that is not ' +
+      'owed.\n\n' +
+      'Judge domain membership by what the named skill ordinarily covers, not ' +
+      'by whether the entity is plausibly competent: a cargo handler may well ' +
+      'be clever, but cleverness is not a mapped skill and earns no bonus. ' +
+      'Where a reasonable Warden could read the check either way, do not ' +
+      'fail it — this check exists to catch a target that plainly does not ' +
+      'follow, not to arbitrate close calls.\n\n' +
+      'A purpose that states no target at all is NOT a violation here. That ' +
+      "is UNAUDITABLE-MAPPING's question, and failing it in both places " +
+      'would count one defect twice. Treat it as a pass for this check.',
+    requiredFacts: [],
+  },
   'UNAUDITABLE-MAPPING': {
     template:
       'Each roll listed under "Scope of this check" below was made by the ' +

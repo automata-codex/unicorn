@@ -95,7 +95,24 @@ describe('evalChecks', () => {
     // the two can drift. `narrating-past-a-block`'s gate narrows nothing
     // (it only ever FAILs or falls through), so it needs no context.
     expect(evalChecks['unauditable-mapping'].judgeContext).toBeDefined();
+    expect(
+      evalChecks['misapplied-contractor-skill'].judgeContext,
+    ).toBeDefined();
     expect(evalChecks['narrating-past-a-block'].judgeContext).toBeUndefined();
+  });
+
+  it('wires misapplied-contractor-skill as judged, artifact-gated, with both halves', () => {
+    // The check depends on all three being present together: the gate picks
+    // the Contractor rolls, the context computes their derived targets, and
+    // the rubric decides which target each roll should have used. A missing
+    // context in particular would not fail loudly — the judge would simply
+    // grade with no numbers in front of it.
+    const check = evalChecks['misapplied-contractor-skill'];
+    expect(check.mode).toBe('judged');
+    expect(check.applicabilitySource).toBe('artifact');
+    expect(check.judgeGate).toBeDefined();
+    expect(check.judgeContext).toBeDefined();
+    expect(check.stub).toBeUndefined();
   });
 
   it('has unique, lower-kebab ids that match their tag', () => {
