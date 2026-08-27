@@ -18,6 +18,10 @@ import {
   ungroundedContractorTargetGate,
   ungroundedContractorTargetJudgeContext,
 } from './structural/ungrounded-contractor-target';
+import {
+  unreversedRetconGate,
+  unreversedRetconJudgeContext,
+} from './structural/unreversed-retcon';
 
 import type { EvalFixture, FailureModeTag } from '../fixture.schema';
 import type { TurnExecutionResult } from '../turn-result';
@@ -204,6 +208,15 @@ function toCheckId(tag: FailureModeTag): string {
 const REQUIRES_FIXTURE_SCHEMA: Partial<Record<string, number>> = {
   'system-rolled-player-action': 2,
   'out-of-order-resolution': 2,
+  /**
+   * The first judged check to declare one, and the first to need a v3
+   * field: `seededState.precedingCommittedTurn`. A v2 fixture carries the
+   * field's `null` default, which means "never captured" and not "nothing was
+   * committed" — only the version separates those, so without this gate the
+   * check would read every older fixture as an honest exclusion and report a
+   * denominator it never earned.
+   */
+  'unreversed-retcon': 3,
 };
 
 /**
@@ -294,6 +307,20 @@ const APPLICABILITY_SOURCE: Record<string, EvalCheck['applicabilitySource']> = {
   // the denominator moves with how often the Warden rolls at all. Read it
   // alongside its exclusion count rather than as a rate over the corpus.
   'roll-result-inversion': 'artifact',
+  // Artifact-gated on the weakest-link rule, and the same caveat
+  // `seeded-canon-contradiction` carries applies here: two of the gate's
+  // three branches are fixture-shaped (no preceding committed turn captured;
+  // the preceding turn committed nothing) and repeat on every rep, while the
+  // third is a turn that produced no gm_response at all. None is the Warden
+  // choosing something, so the selection hazard is weak — but 'ungated'
+  // would assert a not_applicable is impossible, and it is not.
+  //
+  // What this label does NOT cover, again as with seeded-canon-contradiction:
+  // a turn that reverses nothing is not_applicable in principle and lands in
+  // the pass count in practice, because deciding it means reading prose. The
+  // rubric requires the judge to name that case in its rationale so the two
+  // stay separable in the artifacts.
+  'unreversed-retcon': 'artifact',
 };
 
 function applicabilitySourceFor(id: string): EvalCheck['applicabilitySource'] {
@@ -370,6 +397,7 @@ const JUDGE_GATES: Partial<Record<string, EvalCheck['judgeGate']>> = {
   'unauditable-mapping': unauditableMappingGate,
   'ungrounded-contractor-target': ungroundedContractorTargetGate,
   'seeded-canon-contradiction': seededCanonContradictionGate,
+  'unreversed-retcon': unreversedRetconGate,
 };
 
 /** Extra judge-prompt context by check id — see `EvalCheck.judgeContext`. */
@@ -377,6 +405,7 @@ const JUDGE_CONTEXTS: Partial<Record<string, EvalCheck['judgeContext']>> = {
   'unauditable-mapping': unauditableMappingJudgeContext,
   'ungrounded-contractor-target': ungroundedContractorTargetJudgeContext,
   'seeded-canon-contradiction': seededCanonContradictionJudgeContext,
+  'unreversed-retcon': unreversedRetconJudgeContext,
 };
 
 function buildChecks(): Record<string, EvalCheck> {
@@ -412,6 +441,12 @@ function buildChecks(): Record<string, EvalCheck> {
       tag,
       mode: 'judged',
       applicabilitySource: applicabilitySourceFor(id),
+      // Read here as well as in the structural loop. It was structural-only
+      // until `unreversed-retcon`, which is judged and needs a v3 capture
+      // field — and `runCheck` applies the gate before dispatching on mode,
+      // so the omission would have been a silently ignored declaration
+      // rather than a type error.
+      requiresFixtureSchema: REQUIRES_FIXTURE_SCHEMA[id],
       rubricHash: () => rubricHashFor(id),
       judgeGate: JUDGE_GATES[id],
       judgeContext: JUDGE_CONTEXTS[id],

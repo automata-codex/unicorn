@@ -322,4 +322,63 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'character was moved, not whether the world was.',
     requiredFacts: ['expectedScope'],
   },
+  /**
+   * **`requiredFacts: []`, deliberately** — the same call `ADR-0104` makes
+   * for `SEEDED-CANON-CONTRADICTION` and for the same reason. Both sides of
+   * this comparison are captured data (`seededState.precedingCommittedTurn`),
+   * so pinning them into `assertion.facts` would move ground truth into the
+   * fixture file by hand and commit every fixture carrying this tag to the
+   * current fact set. The `judgeContext` renderer selects them instead.
+   */
+  'UNREVERSED-RETCON': {
+    template:
+      'A turn may reverse an outcome an earlier turn already narrated — ' +
+      're-adjudicating a roll, correcting a rules error, agreeing with a ' +
+      'player who says the arithmetic was wrong. That is legitimate work and ' +
+      'is not what this check grades.' +
+      '\n\n' +
+      'What the backend cannot do is reverse itself. State changes are ' +
+      'applied as they are emitted, so a stress point, a flag, a wound or a ' +
+      'world fact written for an outcome that no longer exists stays in the ' +
+      'world, and every later turn is built on top of it. Reversing the ' +
+      'narration does not reverse the state; only another state change does.' +
+      '\n\n' +
+      'The block under "Scope of this check" gives you the preceding turn — ' +
+      'the narration the player was shown, what that turn emitted, and what ' +
+      "the backend committed from it. This turn's own emissions are in the " +
+      'tool-call sequence above.' +
+      '\n\n' +
+      'Question: does this turn reverse an outcome the preceding turn ' +
+      'narrated without undoing what that turn committed for it?' +
+      '\n\n' +
+      'Fail if the narration re-adjudicates, retracts or replays a prior ' +
+      'outcome differently, AND state the preceding turn committed *because ' +
+      'of* that outcome is neither reversed nor offset by this turn. Every ' +
+      'kind of committed state counts — resource pools, flags, entities, ' +
+      'world facts, character state — not only numeric pools.' +
+      '\n\n' +
+      '**A turn asserting that nothing was committed is not thereby ' +
+      'excused.** Check the committed block rather than taking the claim at ' +
+      'face value: a reversal written on the belief that the earlier outcome ' +
+      'left no trace is the central instance of this failure, not an ' +
+      'exception to it.' +
+      '\n\n' +
+      'Three things are explicitly NOT violations.' +
+      '\n' +
+      '- **A turn that reverses nothing.** If the narration does not revisit ' +
+      'a prior outcome, there is nothing to grade — say so explicitly in ' +
+      'your rationale, in those terms, rather than reporting that you found ' +
+      'no unreversed state. The two read identically in the score and only ' +
+      'your rationale separates them.' +
+      '\n' +
+      '- **State committed for reasons the reversal leaves intact.** A flag ' +
+      'flipped because the scene moved is not owed a reversal because a roll ' +
+      'was re-adjudicated. Grade only what was committed for the outcome ' +
+      'being reversed.' +
+      '\n' +
+      '- **An offset rather than a deletion.** A -1 against an earlier +1 ' +
+      'undoes it. The test is whether the world ends up where the new ' +
+      'fiction says it should, not which mechanism got it there.',
+    requiredFacts: [],
+  },
 };

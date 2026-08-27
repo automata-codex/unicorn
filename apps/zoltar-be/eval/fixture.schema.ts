@@ -54,6 +54,14 @@ export const failureModeTagSchema = z.enum([
   // SPATIAL-RELATION-ERROR` outright, which is a mechanical guardrail that
   // registering would replace with a note asking people to remember.
   'SEEDED-CANON-CONTRADICTION',
+  // Added by M7.7 for `ADR-0112`, from the turn 20/21 pair of the 2026-08-24
+  // playtest. `ADR-0104` had already separated this mechanism from turn 9's
+  // silent retcon and declined to register either; this one is registered on
+  // its single instance because the roadmap commits to it and because the
+  // failure it names is a state-integrity defect rather than a narrative one
+  // — the world carries a consequence of an outcome the fiction no longer
+  // contains.
+  'UNREVERSED-RETCON',
 ]);
 
 export type FailureModeTag = z.infer<typeof failureModeTagSchema>;
@@ -187,6 +195,24 @@ export const judgedFailureModeTags = [
   // reason `ADR-0104` splits one finding into this tag and a deferred sibling
   // that reasons about positions state does not record.
   'SEEDED-CANON-CONTRADICTION',
+  //
+  // UNREVERSED-RETCON is judged for the reason `ROLL-RESULT-INVERSION` is:
+  // the thing being detected lives in the narration and nowhere else. That a
+  // turn reversed an outcome an earlier turn narrated is a claim about what
+  // the prose does — "you reel the moment back the way it should've gone" is
+  // a reversal, and no field records that it happened. The comparison that
+  // follows is mechanical, and the fixture now carries both of its sides
+  // (`seededState.precedingCommittedTurn`), but reaching the comparison at
+  // all means reading prose, which `ADR-0074` bars a structural check from
+  // doing.
+  //
+  // A structural version was designed and rejected — see `ADR-0112`. It
+  // would have gated on the one structural trace a reversal leaves (this
+  // turn overwriting a key the preceding turn wrote) and graded whether the
+  // preceding turn's other deltas were offset. That gate is silent on the
+  // reversals that overwrite nothing, which is the majority shape: a turn can
+  // narrate the failure away and simply emit less.
+  'UNREVERSED-RETCON',
 ] as const satisfies readonly FailureModeTag[];
 
 /**
