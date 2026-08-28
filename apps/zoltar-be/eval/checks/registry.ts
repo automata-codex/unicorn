@@ -353,13 +353,21 @@ function applicabilitySourceFor(id: string): EvalCheck['applicabilitySource'] {
  * do this check's `not_applicable` verdicts come from", the other is "does
  * this check read the fixture's assertion". `out-of-order-resolution` is the
  * case that separates them: it is `'artifact'` because it has an
- * artifact-dependent branch, yet it reads no assertion at all and would be
- * portable on the merits. Adding it here is a corpus decision (which
- * fixtures should carry it) rather than a registry one, and it is not made
- * here.
+ * artifact-dependent branch, yet it reads no assertion at all and is portable
+ * on the merits. That it *should* be attached was a corpus decision rather
+ * than a registry one, and it was made separately in `ADR-0114`, once the
+ * occurrences had been counted — which is why the two properties are still
+ * declared apart.
  */
 const TAG_INDEPENDENT_CHECK_IDS: ReadonlySet<string> = new Set([
   'system-rolled-player-action',
+  // Added 2026-08-28 by `ADR-0114`, on the evidence this entry asks for: a scan
+  // of every archived artifact belonging to a fixture *not* carrying this check
+  // found 29 violations across five of them, every one the same shape — a
+  // damage roll resolved while its own to-hit `dice_request` was still open.
+  // The registry argument was settled long before (it reads no assertion);
+  // what was missing was the corpus evidence.
+  'out-of-order-resolution',
 ]);
 
 /**

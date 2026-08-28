@@ -54,10 +54,20 @@ describe('placeholderApplicability', () => {
   });
 
   it('does not emit a duplicate entry when the tag is itself tag-independent', () => {
+    // Asserts the absence of a duplicate rather than an exact key list: the
+    // tag-independent set grows as checks earn the flag (`out-of-order-
+    // resolution` joined it in `ADR-0114`), and an exact list would fail on
+    // that growth while saying nothing about the property under test.
     const applicability = placeholderApplicability(
       'SYSTEM-ROLLED-PLAYER-ACTION',
     );
-    expect(Object.keys(applicability)).toEqual(['system-rolled-player-action']);
+    const keys = Object.keys(applicability);
+
+    expect(keys).toContain('system-rolled-player-action');
+    expect(keys.filter((k) => k === 'system-rolled-player-action')).toHaveLength(
+      1,
+    );
+    expect(new Set(keys).size).toBe(keys.length);
   });
 
   it('names a distinct reason for a tag-independent stub', () => {
