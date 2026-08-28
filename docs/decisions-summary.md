@@ -19,7 +19,7 @@ Each entry records what was decided, what the alternatives were, and why.
   `task docs:decisions:check` fails if either is stale.
 -->
 
-**This is the summary log.** 78 of 113 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
+**This is the summary log.** 79 of 114 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
 
 ---
 
@@ -494,6 +494,10 @@ The turn 20/21 retcon pair, registered as a tag on one instance. Judged rather t
 ### [ADR-0113](decisions/0113-the-duplicate-turn19-turn21-fixtures-are-kept-as-tripwires-a.md) — The duplicate turn19/turn21 fixtures are kept as tripwires at `repOverride: 1`, not retired
 
 Two fixture pairs replay one turn each from identical seeded state, a leftover from before `ADR-0096` let one fixture carry two checks. Neither retiring them nor keeping them at full N is right: the behaviour they catch has been absent for seven runs but recurred once within a single day. `repOverride: 1` keeps the tripwire and its comparison history at a tenth of the cost.
+
+### [ADR-0114](decisions/0114-out-of-order-resolution-is-tag-independent-and-attached-to-s.md) — `out-of-order-resolution` is tag-independent, and attached to six more fixtures
+
+`ADR-0096` settled that the check *could* travel and deferred whether it *should*, pending a count. The count found 29 violations across five fixtures it was not pointed at, all of one shape. Records the count, the attachment, and why one fixture with zero observed failures is attached anyway.
 
 ---
 
