@@ -76,10 +76,25 @@ Each kind of record has one home. Putting a thing in the wrong one is how
 | Kind of thing | Home |
 |---|---|
 | A decision — its alternatives, its reasoning, what would reverse it | `docs/decisions/`, one file per ADR. `docs/decisions.md` (full text) and `docs/decisions-summary.md` (one summary per entry — the index to search first) are **generated views**: edit the file in `docs/decisions/`, then run `task docs:decisions:build`, and `task docs:decisions:check` to validate |
-| A measurement, diagnosis, or defect writeup | the relevant findings doc: `docs/rules-extraction-findings.md`, `docs/eval-methodology.md`, `docs/hidden-information-findings.md` |
+| A measurement, diagnosis, or defect writeup | the relevant findings doc — see the four below |
 | How a feature is designed and built | `docs/specs/` and `docs/plans/` |
 | Product and tooling scope, and the milestone sequence | `docs/roadmap.md` |
 | Outstanding work at task granularity, and its status | Workflowy — hand it over in the format at `docs/workflowy-template.md` |
+
+**Which findings doc.** All four are empirical records — what was run, what came
+back, what was concluded — and they divide by subject, not by format:
+
+| Doc | Subject |
+|---|---|
+| `docs/eval-findings.md` | what the Warden eval harness measured: run diagnoses, tag coverage, checker defects, corpus decisions |
+| `docs/eval-methodology.md` | how to *run* the harness: rep allocation, corpus bumps, what a re-score is valid after. A rule for the next run, not a number from the last one |
+| `docs/rules-extraction-findings.md` | the rules corpus: chunking, extraction, retrieval |
+| `docs/hidden-information-findings.md` | what the Warden discloses and withholds |
+
+`rules-extraction-findings.md § S30`–`§ S36` are Warden eval findings that
+predate `eval-findings.md` and stay put, because frozen plans cite them. The `S`
+numbering is one namespace across both files — `§ S37` onward is in
+`eval-findings.md`.
 
 **`docs/roadmap.md` tracks status at milestone granularity only.** It carries no
 per-item checkboxes. A milestone entry states what the milestone delivers; it does
