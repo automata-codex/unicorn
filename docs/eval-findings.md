@@ -175,3 +175,105 @@ scenario, and `turn19` is the only scenario in the corpus that has ever produced
 a `SYSTEM-ROLLED-PLAYER-ACTION` failure. Consolidating would halve the sample
 exactly where the signal is. Recorded as a decision to make rather than work to
 schedule.
+
+---
+
+### S38 — 2026-08-28 · Pre-registration: the corpus re-baseline, at an unchanged prompt
+
+Written before the run, per `ADR-0085` and the convention `§ Bump note — 2026-08-23`
+established. Recorded here rather than in `eval-methodology.md` because a
+pre-registration becomes a record the moment the run lands — see `ADR-0116`.
+
+#### The prompt half of this re-baseline is already bought
+
+The task that prompted this entry describes a re-baseline for plan 021's
+`roll_dice.purpose` change, "promptHash 6717347d to 995083c8, assemblyHash 6dc28608
+to dc5fa663". Every one of those identities is behind the tree:
+
+| | Task says | Actually |
+|---|---|---|
+| promptHash | → `995083c8` | **`e83e8aaa`** |
+| assemblyHash | → `dc5fa663` | **`ada7fb8a`** |
+| corpusVersion | `ead033182d6a` | **`c077bc456af7`** |
+
+Plan 021's change has had **two** runs. `995083c8` (2026-08-23) stopped at 7 of 10
+reps and read `UNAUDITABLE-MAPPING` 8/8 at applicability 8/36. `e83e8aaa`
+(2026-08-24) ran all ten and read **9/10 at applicability 10/50** — the target off
+0.00 with applicability unmoved at 0.20, so the pre-registered over-correction
+falsifier did not fire. Commit `c3de56a` records the disposition: *"target held, and
+the residual splits into two unrelated bugs."*
+
+**So the run below is not plan 021's.** It is owed for the corpus, which has moved
+several bumps since `e83e8aaa` and now contains fixtures no run has ever executed.
+
+#### What this run is actually for
+
+**Seven of 27 fixtures have never been run** — every `2c0ba938` capture, four
+predating this batch and three from it. Three registered tags have therefore never
+produced a single score row: `SEEDED-CANON-CONTRADICTION`,
+`UNGROUNDED-CONTRACTOR-TARGET` and `UNREVERSED-RETCON`. `MISSING-CANON-CAPTURE`'s
+two replacements are also unrun, and its previous fixture is retired (`ADR-0115`),
+so that tag has no live measurement either.
+
+Alongside them, four fixture-check pairs were widened onto existing artifacts
+(`§ S37`, `ADR-0114`) and two fixtures were dialled to `repOverride: 1`
+(`ADR-0113`).
+
+#### The decision rule, in full
+
+**No pre-existing fixture's input changed**, so this run's primary claim is a
+negative one, and it is the falsifier:
+
+> Every fixture that ran under `e83e8aaa` must reproduce its rate within one rep.
+> A pre-existing fixture that moves is a **harness suspect first** — fixture schema
+> v3, the widened check selection, or the sampling change — and Warden behaviour
+> only after that is excluded. A corpus change audits the harness as much as it
+> measures the Warden, which is `§ A model swap audits the harness as much as the
+> model` one level down.
+
+**Ship the new fixtures as measured if**, and only if:
+
+- Each of the four first-time tags returns a **non-zero denominator**. A tag whose
+  fixtures all report `not_applicable` has measured nothing, which is the
+  `turn02` failure (`ADR-0115`) arriving in a new place, and it is a corpus defect
+  rather than a result.
+- **Applicability is read before every rate, and reported beside it.** A first-time
+  tag reading 1.00 on applicability 0.10 has measured one turn, not a tag. This is
+  the ticket's own falsifier generalised: a rate that looks good because the
+  denominator collapsed is not a pass.
+- `UNAUDITABLE-MAPPING` holds near **0.20 applicability**. It is the one tag with a
+  pre-registered applicability expectation, and a collapse there means the Warden
+  stopped making spontaneous rolls rather than started explaining them.
+
+**Floors on the established tags**, unchanged from `6717347d`'s rule and expected to
+hold trivially since nothing Warden-visible moved: `SYSTEM-ROLLED-PLAYER-ACTION`,
+`UNSURFACED-CHECK`, `NARRATING-PAST-A-BLOCK` and `HIDDEN-INFO-LEAK` at ≥ 0.90. A
+breach is evidence about the harness, not the prompt.
+
+**Not gates**, and stated so they are not read as ones:
+
+- `turn19-system-rolled-player-action` and `turn21-system-rolled-player-action` run
+  at `repOverride: 1`. Their rows are tripwires — present or absent — and a single
+  failure means the behaviour returned and they go back to full N (`ADR-0113`). A
+  rate cannot be computed from one rep and must not be quoted as one.
+- Tool-syntax emission, counted as abandoned turns ÷ (fixtures × reps) rather than
+  off the `TOOL-SYNTAX-LEAK` check rate, which reads 1.00 whenever a leak abandons
+  the turn (`ADR-0097` addendum 3).
+
+#### Predictions, pre-registered
+
+- Every pre-existing fixture reproduces `e83e8aaa` within one rep. **This is the
+  one I most expect to be wrong**, and the reason to write it down.
+- `UNREVERSED-RETCON` reaches a verdict on most reps: its gate excludes only a turn
+  that produced no `gm_response`, and its fixture's player message forces the
+  reveal.
+- `SEEDED-CANON-CONTRADICTION` reads high with a full denominator. Its gate reports
+  `not_applicable` only when the fixture seeds no `worldFacts`, and all three
+  fixtures seed plenty — so a low applicability there would mean the gate is wrong.
+- `MISSING-CANON-CAPTURE` reaches a verdict on both new fixtures, and `turn23`
+  passes via the `worldFacts` diff — the branch that has never executed against
+  real output in 157 reps. If it does not, the replacement failed the same way
+  `turn02` did.
+- `UNGROUNDED-CONTRACTOR-TARGET` has the weakest expectation: one fixture, and its
+  gate needs a Contractor to roll. A zero denominator here is the least surprising
+  and still needs saying so.
