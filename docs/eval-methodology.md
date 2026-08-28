@@ -88,11 +88,18 @@ when a baseline is accepted. The dated sections below are history — kept for t
 corrections and caveats attached to each, not to be read as competing claims about
 what is current.
 
-- **Last recorded:** `claude-sonnet-5__fa4e6e2f__2026-08-21T11-05-26Z`, prompt
-  `fa4e6e2f`, corpus `abbce198026c`.
+- **Last recorded:** `claude-sonnet-5__e83e8aaa__2026-08-28T13-00-14Z`, prompt
+  `e83e8aaa`, assembly `ada7fb8a`, corpus `c077bc456af7`. Full corpus, 10 reps.
+  Accepted 2026-08-28 against the rule pre-registered in
+  `docs/eval-findings.md § S38`; results and disposition in `§ S39`.
 
-**And it is stale.** Five runs postdate it, and no entry in this file says which
-of them, if any, was accepted as the standing point:
+**Superseded `claude-sonnet-5__fa4e6e2f__2026-08-21T11-05-26Z` (prompt
+`fa4e6e2f`, corpus `abbce198026c`) on 2026-08-28.** That run stays the correct
+comparison point for anything measured before plan 021's `roll_dice.purpose`
+change; it is not the current baseline.
+
+**The five runs between the two, none of which was accepted as a standing
+point:**
 
 - `claude-sonnet-5__6717347d__2026-08-21T21-14-59Z` — the re-baseline `§ S36`
   diagnoses `UNAUDITABLE-MAPPING` against.
@@ -103,6 +110,13 @@ of them, if any, was accepted as the standing point:
 - `claude-sonnet-5__e83e8aaa__2026-08-24T11-21-49Z` — the most recent, and what
   `§ Bump note — 2026-08-24` measures a corpus change against without declaring
   it a baseline.
+
+`claude-sonnet-5__e83e8aaa__2026-08-24T11-21-49Z` is the one of the five that
+matters: plan 021's change was measured and held there (`UNAUDITABLE-MAPPING`
+9/10 at applicability 10/50, dispositioned in `c3de56a`), and it is the
+like-for-like comparison point for `§ S39`. Compare against its `rescore/` rows
+rather than its `reps/` rows wherever `SCENE-JUMP` is involved — the two disagree
+by half a point under different rubrics.
 
 **Named in full deliberately.** `task docs:baseline-check` matches run
 directories against this file by full run id, so a prompt hash or a truncated
