@@ -32,6 +32,12 @@ tasks:
     cmds:
       - npx tsx docs/tooling/check.ts
 
+  docs:baseline-check:
+    desc: Report eval runs newer than the standing comparison point that docs/eval-methodology.md names nowhere. Reads run directory names under $ZOLTAR_EVAL_ROOT/eval-runs and one markdown file — no database, no Anthropic, no Voyage, no cost, so it needs no approval. Skips with exit 0 when ZOLTAR_EVAL_ROOT is unset or the archive is absent, which is the normal state on a fresh clone and in CI.
+    dotenv: ['.env']
+    cmds:
+      - npx tsx docs/tooling/baseline-check.ts
+
   docs:decisions:missing-summaries:
     desc: List ADR entries with no summary, longest body first. This is the summary-authoring queue.
     cmds:

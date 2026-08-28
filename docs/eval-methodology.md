@@ -91,12 +91,26 @@ what is current.
 - **Last recorded:** `claude-sonnet-5__fa4e6e2f__2026-08-21T11-05-26Z`, prompt
   `fa4e6e2f`, corpus `abbce198026c`.
 
-**And it is stale.** Full-corpus runs exist after it — `6717347d` (2026-08-21),
-`f0753f86` twice (2026-08-23), and `e83e8aaa` (2026-08-24, the most recent) — and
-no entry in this file says which of them, if any, was accepted as the standing
-point. `§ Bump note — 2026-08-24` records a corpus change measured against
-`e83e8aaa` without declaring it one. **Check the archive before citing a
-baseline**, and when one is accepted, say so here rather than by adding a fourth
+**And it is stale.** Five runs postdate it, and no entry in this file says which
+of them, if any, was accepted as the standing point:
+
+- `claude-sonnet-5__6717347d__2026-08-21T21-14-59Z` — the re-baseline `§ S36`
+  diagnoses `UNAUDITABLE-MAPPING` against.
+- `claude-sonnet-5__995083c8__2026-08-23T13-24-26Z` — partial, 7 reps.
+- `claude-sonnet-5__f0753f86__2026-08-23T14-39-39Z` and
+  `claude-sonnet-5__f0753f86__2026-08-23T16-26-10Z` — the accidental
+  same-prompt pair measured in `§ Same-prompt run-to-run variance`.
+- `claude-sonnet-5__e83e8aaa__2026-08-24T11-21-49Z` — the most recent, and what
+  `§ Bump note — 2026-08-24` measures a corpus change against without declaring
+  it a baseline.
+
+**Named in full deliberately.** `task docs:baseline-check` matches run
+directories against this file by full run id, so a prompt hash or a truncated
+timestamp does not count as having dispositioned a run — and the first version of
+this paragraph, which used bare hashes, is what the check caught. It also omitted
+`995083c8` entirely.
+
+**Check the archive before citing a baseline**, and when one is accepted, say so here rather than by adding a fourth
 dated section: three of them accreted because each new baseline was recorded
 beside the last instead of replacing it, which is how a reference section becomes
 a chronology.
