@@ -196,7 +196,7 @@ export const rescoreRowSchema = baseScoreRowSchema
      * it copied the *re-scored* verdict, so a never-before-scored check was
      * recorded as though it had been scored identically. The warning said one
      * thing and the file it wrote said the other; the file is what survives.
-     * See `docs/rules-extraction-findings.md § S37`.
+     * See `docs/eval-findings.md § S37`.
      *
      * **Files written before that date carry the copied verdict**, so
      * `sourceVerdict === verdict` in an older `rescore/*.jsonl` may mean
