@@ -905,6 +905,25 @@ movement needs the like-for-like-on-shared-fixtures treatment
 `SYSTEM-ROLLED-PLAYER-ACTION` already gets above — restricted to the fixtures
 present on both sides — before it means anything.
 
+**Sampling.** Added 2026-08-28 with `ADR-0113`, and the heading now undercounts
+by two. The edit changes a fixture's `repOverride` — how many reps it runs — and
+nothing else. No input reaching the Warden moved, no grading of existing output
+moved, and no fixture was added or removed, so frozen artifacts stay exactly as
+valid as they were and `eval:rescore` is unaffected. What moves is the **sample
+size from this run forward**.
+
+Read it the way a set-membership bump is read, and for the same reason: the
+denominator changes without the Warden changing. A fixture dialled from 10 reps
+to 1 contributes a tenth of the rows it used to, so its tag's rate is now
+weighted differently across fixtures even though every fixture is still present.
+Restrict per-tag comparisons to like-for-like on shared fixtures *at comparable
+N*, or read the per-fixture breakdown instead of the rollup.
+
+The reason it is not simply set-membership: the fixture is still there, still
+graded, and still pairs on `(fixtureId, checkId)` across every archived run. That
+is the whole point of dialling a fixture down rather than retiring it, and a
+label that said "removed" would describe the opposite of what happened.
+
 The `8071500a4952...` → `4c9f2e73efd7...` bump was scoring-only, which is why re-grading
 the two existing runs off disk produced genuine corrected rates with no API spend and no
 re-run. That distinction was obvious to the person who made the edit and will not be

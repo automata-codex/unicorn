@@ -19,7 +19,7 @@ Each entry records what was decided, what the alternatives were, and why.
   `task docs:decisions:check` fails if either is stale.
 -->
 
-**This is the summary log.** 77 of 112 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
+**This is the summary log.** 78 of 113 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
 
 ---
 
@@ -490,6 +490,10 @@ Why the structural checkers get no identity hash while the judged half does. The
 ### [ADR-0112](decisions/0112-unreversed-retcon-is-judged-and-the-reversed-turn-s-committe.md) — `UNREVERSED-RETCON` is judged, and the reversed turn's committed deltas are captured
 
 The turn 20/21 retcon pair, registered as a tag on one instance. Judged rather than structural, because detecting a reversal means reading prose; graded against a new captured field (`seededState.precedingCommittedTurn`, fixture schema v3) rather than hand-authored facts, because the fold destroys the delta the check needs. Carries the rejected structural design and the `ADR-0105` golden that ships with the renderer.
+
+### [ADR-0113](decisions/0113-the-duplicate-turn19-turn21-fixtures-are-kept-as-tripwires-a.md) — The duplicate turn19/turn21 fixtures are kept as tripwires at `repOverride: 1`, not retired
+
+Two fixture pairs replay one turn each from identical seeded state, a leftover from before `ADR-0096` let one fixture carry two checks. Neither retiring them nor keeping them at full N is right: the behaviour they catch has been absent for seven runs but recurred once within a single day. `repOverride: 1` keeps the tripwire and its comparison history at a tenth of the cost.
 
 ---
 
