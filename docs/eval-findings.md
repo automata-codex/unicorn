@@ -277,3 +277,118 @@ breach is evidence about the harness, not the prompt.
 - `UNGROUNDED-CONTRACTOR-TARGET` has the weakest expectation: one fixture, and its
   gate needs a Contractor to roll. A zero denominator here is the least surprising
   and still needs saying so.
+
+---
+
+### S39 — 2026-08-28 · The corpus re-baseline: four tags measured for the first time, and one fails 8/8
+
+`claude-sonnet-5__e83e8aaa__2026-08-28T13-00-14Z`. Full corpus, 10 reps, prompt
+`e83e8aaa` and assembly `ada7fb8a` unmoved, corpus `f6186723bc49` →
+`c077bc456af7`, harness `7482a78`. Scored against the rule pre-registered in
+`§ S38`.
+
+#### First numbers for the four tags that had never produced a row
+
+| Tag | Rate | Applicability |
+|---|---|---|
+| `SEEDED-CANON-CONTRADICTION` | 0.87 (26/30) | 30/30 |
+| `UNGROUNDED-CONTRACTOR-TARGET` | 1.00 (10/10) | 10/10 |
+| `MISSING-CANON-CAPTURE` | 0.20 (3/15) | 15/17 |
+| `UNREVERSED-RETCON` | **0.00 (0/8)** | 8/8 |
+
+**Every one returned a non-zero denominator**, which was the rule's condition for
+treating them as measured rather than as a corpus defect. Applicability is full or
+near-full on all four — no rate here is bought by a collapsed denominator, which
+was the ticket's original falsifier generalised.
+
+#### `UNREVERSED-RETCON` fails every rep it reaches
+
+Eight of eight, with two reps lost to errors. A 0.00 is a harness suspect under
+`ADR-0082` before it is a finding, so the rationales were read rather than
+assumed. They are grading the intended thing:
+
+> The preceding turn narrated a failed Computers check … and committed two pieces
+> of state because of that failure: (1) a +1 stress delta to Danny's stress pool
+> for "failed Intellect+Computers check," bringing stress to 3 … This turn
+> legitimately re-adjudicates the roll (48 vs 50 is indeed a success) … The
+> question is whether the state committed *because of the failure outcome* was
+> reversed or offset.
+
+That is `ADR-0112`'s question asked correctly, and the Warden loses it every time.
+The failure mode is **systematic, not occasional** — the strongest single result in
+this run, and a stronger claim than the single playtest instance the tag was
+registered on.
+
+`MISSING-CANON-CAPTURE`'s fail-side fixture behaves the same way: `turn21` reads
+0/5. Its pass-side sibling `turn23` reads 3/10, which is the better outcome — it
+discriminates rather than sitting at the ceiling a pass-side fixture risks.
+
+#### The falsifier fired, and only once in a way that matters
+
+The rule said every pre-existing fixture must reproduce `e83e8aaa` within one rep,
+and that a mover is a harness suspect before it is the Warden. Three shared pairs
+moved, compared **like-for-like against the 08-24 re-score** rather than its
+original rows:
+
+| Pair | 08-24 | 08-28 | Mode |
+|---|---|---|---|
+| `5c34991b-turn07-missing-delta` | 7/10 | 5/10 | judged |
+| `turn24-hidden-info-leak / hidden-info-leak` | 9/9 | 8/9 | judged |
+| `turn24-hidden-info-leak / system-rolled-player-action` | 9/9 | **7/9** | **structural** |
+
+**The like-for-like qualifier is load-bearing and nearly went wrong here.**
+`SCENE-JUMP` on the 08-24 run reads 5/10 in `reps/` and **10/10 in `rescore/`**
+under the disambiguated rubric `01a4288c` (`§ Bump note — 2026-08-24`). Compared
+naively it shows 0.50 → 1.00, a spurious half-point gain; compared correctly it is
+1.00 → 1.00, unchanged. The first pass of this analysis made that error and caught
+it only by checking whether a re-score existed.
+
+#### The one structural mover is the panic-check residual, not a new regression
+
+Both failures are the Warden resolving the player's own Panic Check system-side —
+rep 004 *"Alvarez Panic Check triggered by taking a serious wound mid-firefight"*,
+rep 007 *"Panic Check triggered by taking a Lethal Injury wound"*.
+
+This is the case `c3de56a` isolated in plan 021's second run, and **plan 022's
+prompt fix for it shipped on 2026-08-23** — before both runs. The prompt now says
+it outright: *"The player character's own Panic Check is theirs to roll and goes in
+diceRequests … the trigger being something the world did to them does not make the
+roll yours."*
+
+So the fix is real and incomplete. `SYSTEM-ROLLED-PLAYER-ACTION` reads 0.97 (76/78)
+here against 1.00 (79/79) on 08-24, under a byte-identical prompt — **08-24's clean
+sweep was the optimistic tail**, the same shape `§ Tool-syntax emission: the
+2026-08-18 figure was the optimistic tail` records for a different mitigation. Two
+occurrences in ten reps is the honest current rate, not zero.
+
+**The `repOverride: 1` tripwires did not fire**: `turn19-` and
+`turn21-system-rolled-player-action` both pass their single rep. `ADR-0113`'s
+reversal condition is therefore not met — and it is worth noting that the corpus
+widening caught this where the tripwires could not, since the failures are on
+`turn24-hidden-info-leak`, a fixture that carries the check only because `ADR-0096`
+attached it there.
+
+#### Predictions, scored
+
+- **"Every pre-existing fixture reproduces within one rep" — wrong**, on three
+  pairs. `§ S38` called this the prediction most likely to fail, which is the only
+  reason it is legible as a result rather than a surprise.
+- `UNREVERSED-RETCON` reaches a verdict on most reps — **confirmed**, 8/8.
+- `SEEDED-CANON-CONTRADICTION` high with a full denominator — **confirmed**, 0.87
+  on 30/30.
+- `MISSING-CANON-CAPTURE` reaches a verdict on both new fixtures — **confirmed**;
+  the sub-prediction that `turn23` would pass via the `worldFacts` diff was too
+  strong at 3/10, and the weaker result is the better fixture.
+- `UNGROUNDED-CONTRACTOR-TARGET` most likely to return a zero denominator —
+  **wrong**, and comfortably: 10/10 at full applicability.
+
+#### Also worth carrying forward
+
+- **`OUT-OF-ORDER-RESOLUTION` now has a real denominator** — 33 rows across eight
+  fixtures against two before (`ADR-0114`), reading 1.00 (33/33) at applicability
+  33/58. The widening found nothing this run, which is not evidence against it: the
+  29 historical violations it was attached on are in frozen artifacts, and a check
+  that catches nothing on the run after it is attached is the ordinary case.
+- **The two `2c0ba938-turn21-*` fixtures error at 2 and 3 of 10.** Every other new
+  fixture errors zero times. Both replay sequence 64, so the shared cause is the
+  turn rather than either tag, and it is unexplained.
