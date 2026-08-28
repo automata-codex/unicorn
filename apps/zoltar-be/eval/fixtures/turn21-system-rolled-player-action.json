@@ -852,5 +852,6 @@
       "situation": "Alvarez, already committed to the firefight, tries to shoot the contractor again \u2014 a resolvable attack requiring a Combat to-hit roll and, if it lands, a damage roll."
     }
   },
-  "fixtureSchemaVersion": 2
+  "fixtureSchemaVersion": 2,
+  "repOverride": 1
 }

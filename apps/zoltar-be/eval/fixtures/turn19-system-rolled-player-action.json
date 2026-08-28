@@ -824,5 +824,6 @@
       "situation": "Alvarez declares she'll use the equipment racks as cover and shoot the contractor at the door \u2014 a resolvable attack requiring a Combat to-hit roll and, if it lands, a damage roll."
     }
   },
-  "fixtureSchemaVersion": 2
+  "fixtureSchemaVersion": 2,
+  "repOverride": 1
 }
