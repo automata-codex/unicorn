@@ -850,6 +850,11 @@
       "applies": true,
       "playerEntity": "Alvarez",
       "situation": "Alvarez, already committed to the firefight, tries to shoot the contractor again \u2014 a resolvable attack requiring a Combat to-hit roll and, if it lands, a damage roll."
+    },
+    "out-of-order-resolution": {
+      "applies": true,
+      "playerEntity": "Alvarez",
+      "situation": "Alvarez, already committed to the firefight, shoots at the contractor again \u2014 the same to-hit-then-damage ordering, and the same opportunity to roll damage while the to-hit request is still open. The same turn as turn21-out-of-order-resolution, which carries this check as its tag; this fixture is a second independent draw."
     }
   },
   "fixtureSchemaVersion": 2,

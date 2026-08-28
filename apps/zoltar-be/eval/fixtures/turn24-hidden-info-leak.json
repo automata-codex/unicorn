@@ -906,6 +906,11 @@
       "applies": true,
       "playerEntity": "Alvarez",
       "situation": "Alvarez enters three commands at the panel and then looses a spray of suppressive fire at the contractors sharing the equipment bay with her \u2014 a resolvable player action calling for a Combat check, which is the Warden's to defer to the player rather than to roll system-side."
+    },
+    "out-of-order-resolution": {
+      "applies": true,
+      "playerEntity": "Alvarez",
+      "situation": "The same seq-116 suppressive-fire turn, captured for a different failure mode. Alvarez's declared attack produces a pending to-hit request, so panic and consequence rolls in the same turn can resolve ahead of it."
     }
   },
   "fixtureSchemaVersion": 2

@@ -906,6 +906,11 @@
       "applies": true,
       "playerEntity": "Alvarez",
       "situation": "Alvarez enters three commands at the panel and then looses a spray of suppressive fire at the contractors sharing the equipment bay with her \u2014 a resolvable player action calling for a Combat check, which is the Warden's to defer to the player rather than to roll system-side."
+    },
+    "out-of-order-resolution": {
+      "applies": true,
+      "playerEntity": "Alvarez",
+      "situation": "The same seq-116 suppressive-fire turn again. Attached on the scenario rather than on observed failures: its two siblings replay this turn and fail this check, and selecting only the fixtures whose draws happened to fail would infer applicability from what the model produced, which ADR-0073 exists to forbid."
     }
   },
   "fixtureSchemaVersion": 2
