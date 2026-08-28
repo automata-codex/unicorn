@@ -5183,9 +5183,22 @@ file six months from now sees `pass → pass` for a check that had no prior
 measurement at all.
 
 This is the shape `ADR-0067` and `ADR-0078` both legislate against in other
-places — an absent answer given a confident value rather than its own one. Filed
-as its own item rather than fixed here; the fix is a persisted-format change and
-wants the reasoning written down with it.
+places — an absent answer given a confident value rather than its own one.
+
+**Fixed 2026-08-28.** `sourceVerdict` is nullable, `null` means there was no
+source row, and the reasoning lives on `rescoreRowSchema.sourceVerdict` where
+the next person to widen a check will read it. Two tests: the schema accepts
+`null` and still parses the old shape, and a re-score whose universal check has
+no source row records `null` rather than its own verdict — the second verified
+by mutation, since it passes vacuously against a correct implementation and only
+the old fallback distinguishes it.
+
+**The two files this entry cites predate the fix** and carry the copied verdict.
+Their verdicts are the measurement and are correct; only the source-side
+bookkeeping is wrong, and it is wrong in the direction of claiming a prior
+measurement that never happened. They were left as written rather than
+re-generated: a second pair of files recording the same measurement would make
+the archive harder to read than one documented quirk does.
 
 #### Still open
 
