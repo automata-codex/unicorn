@@ -3658,6 +3658,211 @@ than one, fail-closed, so each capture is asked about this check as well.
 - **Attach everywhere the check reaches a verdict** — fifteen fixtures. Deferred above,
   with its own reasoning.
 
+### [ADR-0115](decisions/0115-turn02-missing-canon-capture-is-retired-not-re-authored.md) — `turn02-missing-canon-capture` is retired, not re-authored
+
+## Context
+
+`turn02-missing-canon-capture` never graded anything. Across every archived run
+containing it — **157 reps, 16 runs**, both models, every prompt revision from 2026-07-29
+to 2026-08-24 — it returned `not_applicable` on every rep.
+
+The audit block on `checkMissingCanonCapture` had already examined this at 20 reps and
+reached a correct but incomplete conclusion: the exclusions are honest, the marker phrase
+(`RESTRICTED — VERIDIAN INTERNAL`) genuinely never appears, and the fixture is at fault
+rather than the checker. It named the fix as "recapturing the fixture against a turn whose
+narration reliably introduces its detail, or authoring the expectation as something other
+than a literal phrase."
+
+## The marker is a symptom, not the defect
+
+The turn asks whether the Warden captured the station layout. `worldFacts.station_layout_overview`
+**already seeds that layout** — the central hub, four radial modules, habitat ring, ladder
+shaft, Lab C's quarantine notice. The player asks for a map and the Warden reads the seeded
+canon back to them. That is correct behaviour, it introduces nothing, and there is nothing
+to capture.
+
+**Which makes the obvious repair a trap.** Re-authoring the marker to a phrase the
+narration does produce every rep — "habitat ring", "ladder shaft" — gates on restated
+seeded canon, and the check would then fail the turn on every rep for not durably writing
+a fact that was already durable. An honest zero denominator traded for a manufactured
+0.00. `ADR-0081` rejects this check's migration to judged for the mirror-image reason: a
+judge asked "was the detail introduced, and if so captured" would answer "it wasn't" on
+every rep and, the verdict being binary, return a spurious 1.00. Both trades replace *no
+measurement* with *a wrong measurement*, in opposite directions.
+
+The details the turn genuinely invents vary rep to rep — one rep produces
+`"restricted, manifest ref. 774-KK"`, another places the junction "about twenty metres out"
+where `starting_location` seeds 12. No fixture-authored literal phrase can gate on
+invention that moves every rep.
+
+## Decision
+
+**Retire `turn02-missing-canon-capture`, and replace it with two fixtures from `2c0ba938`,
+one per direction.**
+
+Retirement rather than repair is forced as well as chosen: the source adventure
+`18be155e` is no longer in the local database, so the fixture cannot be re-captured
+against a different turn. Only a hand-edit of the frozen JSON was available, and every
+candidate edit is the trap above.
+
+- **`2c0ba938-turn21-missing-canon-capture`** — the fail side. The player's corrected
+  arithmetic opens the insurance file, and what the file holds lives in
+  `gmContextBlob.narrative` ("a designed loss, with hazard-multiplier payouts for crew and
+  colonist casualties") where the player cannot see it, with nothing about it in the five
+  `worldFacts` keys standing at that point. Narrating it moves a GM secret into shared
+  canon and owes a durable write; the original turn wrote a flag and an `npcState`.
+- **`2c0ba938-turn23-missing-canon-capture`** — the pass side, and it exists because the
+  `worldFacts`-diff branch had never executed against real output in those 157 reps. The
+  player asks who the crew are, five of the six are unnamed in the seeded context, and the
+  original turn wrote `crew_roster` and `insurance_file_copies`.
+
+Both were verified against the historical output of their turns before landing: `turn21`
+reaches `FAILED`, `turn23` reaches `PASSED` on the branch that had never run.
+
+## The rule this generalises to
+
+**A fixture that grades whether a turn wrote something down must seed a world in which
+that something is absent.** Nothing in the authoring path checks this — the marker phrase,
+the `expects:` text and the seeded state are authored independently, and `capture-fixture`
+cannot know which world fact the author has in mind. Until it can, the question belongs on
+the authoring checklist: *is the expected detail absent from
+`seededState.campaignState.worldFacts`, and absent from the seeded message window?*
+Recorded at length in `docs/eval-methodology.md § A fixture cannot grade what the seed
+already contains`.
+
+**Marker stability becomes an authoring criterion rather than an accident.** A phrase the
+Warden invents fresh each rep gates on a coin flip. Both replacements are pinned instead:
+`hazard multiplier` is vocabulary the Warden reads off its own seeded context, and
+`bridge crew` is echoed from the player's own question. Neither is a guess at how a model
+might word something — the property `RESTRICTED — VERIDIAN INTERNAL` lacked.
+
+## Alternatives considered
+
+- **Re-author the marker in place.** The ticket's first option, and the trap analysed
+  above. It also keeps the fixture id and its comparison history, which is a real cost of
+  retiring — paid because the alternative is a fixture that reports a number meaning
+  nothing.
+- **Migrate the check to judged.** Rejected in `ADR-0081` and not reopened: only the
+  structural path can express `not_applicable`, and this fixture is the case that proves
+  why that matters.
+- **Keep it and add coverage elsewhere.** Leaves an honest zero denominator standing at
+  the cost of a rep per run and an exclusion line someone re-reads every time. Rejected as
+  paying rent for nothing.
+
+## Consequences
+
+**A set-membership bump** under `docs/eval-methodology.md § Two kinds of corpus bump` —
+one fixture removed, two added. Frozen artifacts for surviving fixtures stay valid, but
+`MISSING-CANON-CAPTURE`'s denominator moves and no rate spans the change like-for-like.
+
+**The `pending_canon` branch is still unexercised.** The check has two PASS branches and
+the replacement only covers one. `2c0ba938` proposes canon on no turn at all; the only
+rows in any source adventure are `5c34991b` sequences 14 and 34. Covering it properly is
+M7.8 known-answer work — a hand-authored artifact carrying a `pending_canon` row — because
+no corpus fixture can force the Warden to choose that route.
+
+**`turn02` joins `turn16-narrating-past-a-block` as a retired fixture**, and the two were
+retired for different reasons worth keeping distinct: `turn16` was measuring the harness
+(a `dice_request` the fixture itself seeded with a null target), while `turn02` measures
+nothing at all. A fixture that grades the harness produces a wrong number; this one
+produced no number.
+
+### [ADR-0116](decisions/0116-warden-eval-findings-get-their-own-log-and-the-s-numbering-s.md) — Warden eval findings get their own log, and the `S` numbering spans both files
+
+## Context
+
+`docs/rules-extraction-findings.md` describes itself as "a running record of what has
+actually been tried against real rulebook PDFs… Chunking and extraction are expected to
+need several iterations." `§ S1`–`§ S23` are exactly that: PDF block extraction,
+column-aware sort, FTS versus dense retrieval, DF trimming, MRR bars. `§ S24`–`§ S29`
+stretch to the primer and query-side retrieval, still tethered to the rules corpus.
+
+From `§ S30` on 2026-08-09 the series stops being about rules extraction:
+
+| | |
+|---|---|
+| `§ S30` | the attribution field shipped and made a *check* worse |
+| `§ S31`, `§ S33`, `§ S34` | re-baselines, roll ownership, the `<entities>` render |
+| `§ S35` | pointing a check at more fixtures |
+| `§ S36` | `roll_dice` has nowhere to put a target |
+
+Seven sections, the most recent seven at the time, none about extracting anything from a
+PDF. **Each landed there because its predecessor had.** Splitting a thread reads worse
+than continuing one, and every individual entry was justified by the entry above it —
+which is the mechanism `CLAUDE.md` already records for how `docs/roadmap.md` reached
+22,000 words.
+
+## Decision
+
+**`docs/eval-findings.md` owns Warden eval findings — run diagnoses, tag coverage, checker
+defects, and the corpus decisions that follow from them — starting at `§ S37`.**
+
+**`eval-methodology.md` is deliberately not the home.** Its own header draws the line that
+excludes them: "how to run the Warden eval harness, as distinct from what it measures." A
+rule you would apply to the next run belongs there; a number you got from the last one
+belongs in the new file. That test is now stated in both file headers and in `CLAUDE.md`'s
+routing table, because the previous instruction — three findings docs named with the
+choice left to judgement — is what let the drift happen.
+
+### The break is forward-only, and that is a constraint rather than a preference
+
+`docs/plans/014-turn19-roll-ownership.md` cites `rules-extraction-findings.md § S30`,
+`§ S31` and `§ S32`. `docs/plans/021-unauditable-mapping-roll-purpose.md` cites `§ S36`.
+Plans are frozen — dated accounts of what was true when written — and `CLAUDE.md` forbids
+rewriting a reference inside one to cite an identifier that did not exist at the time.
+Moving those sections would strand the citations; rewriting the citations is not
+available. So `§ S36` and earlier stay where they are, with a note in the rules file's
+preamble saying they are in the wrong file and why they are not moving.
+
+`§ S37` moved rather than the new file starting at `§ S38`: nothing frozen cited it, its
+only references were the roadmap footer and a doc comment, and starting the file empty
+would have made the break notional.
+
+### The numbering is one namespace across two files
+
+Restarting at `S1` in the new file would make `§ S12` ambiguous in every future citation,
+and these sections are cited by number far more often than by title. One namespace, two
+files, and a reader resolves a citation by looking in both — which is worse than one file
+and better than an ambiguous number.
+
+## Alternatives considered
+
+- **Move `§ S30`–`§ S36` into the new file.** The tidy answer, and unavailable: it either
+  strands frozen-plan citations or requires editing frozen documents.
+- **Put them in `eval-methodology.md`.** Rejected on that file's own stated remit. It has
+  the opposite problem already — dated records accumulated there before this file existed,
+  each arriving with a lesson attached that made it feel at home — and its header now says
+  so and points new ones here.
+- **Rename `rules-extraction-findings.md` to cover both subjects.** Rejected: `§ S1`–`§ S23`
+  genuinely are rules extraction, and a name broad enough to cover both is a name that
+  routes nothing.
+- **Leave it and rely on the routing table alone.** Rejected because the routing table is
+  what failed: it named three findings docs and let judgement pick, and judgement picked by
+  following each section's neighbours.
+
+## Consequences
+
+**`references.core.ts`'s `IN_SCOPE_DOCS` gains the new file.** That list is exported and
+currently consumed by nothing — the migration script that used it is gone — so the addition
+is an inventory statement rather than a functional change, and the reference-rewriting it
+implies is not running on any document today.
+
+**A reader resolving `§ S12` has two files to check.** Accepted, and cheaper than the
+alternative: an `S` number that means different things in different files would be a
+silent mis-citation rather than a two-second lookup.
+
+**The rules file keeps a permanent irregularity.** Its preamble now carries a paragraph
+explaining that seven of its sections belong elsewhere and are staying. That note is
+maintained rather than appended, which the file's own rules permit for the preamble while
+protecting session evidence from edits.
+
+**This does not fix `eval-methodology.md`.** Roughly 700 of its 1,280 lines are dated
+records rather than method — `§ Structural check migrations`, two `§ Bump note` sections,
+`§ Same-prompt run-to-run variance`, and the tables under `§ Current baseline N`. They stay
+for the same reason `§ S30`–`§ S36` stay: several are cited from ADRs and `§ Outcome` is
+cited from a frozen plan. Its header names them and routes new ones here. Migrating them
+is a large edit whose only benefit is tidiness, and it is not owed.
+
 ---
 
 ## Monorepo, Tooling & Deployment

@@ -19,7 +19,7 @@ Each entry records what was decided, what the alternatives were, and why.
   `task docs:decisions:check` fails if either is stale.
 -->
 
-**This is the summary log.** 79 of 114 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
+**This is the summary log.** 81 of 116 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
 
 ---
 
@@ -498,6 +498,14 @@ Two fixture pairs replay one turn each from identical seeded state, a leftover f
 ### [ADR-0114](decisions/0114-out-of-order-resolution-is-tag-independent-and-attached-to-s.md) — `out-of-order-resolution` is tag-independent, and attached to six more fixtures
 
 `ADR-0096` settled that the check *could* travel and deferred whether it *should*, pending a count. The count found 29 violations across five fixtures it was not pointed at, all of one shape. Records the count, the attachment, and why one fixture with zero observed failures is attached anyway.
+
+### [ADR-0115](decisions/0115-turn02-missing-canon-capture-is-retired-not-re-authored.md) — `turn02-missing-canon-capture` is retired, not re-authored
+
+The fixture reported `not_applicable` on 157 reps across 16 runs. The marker phrase looked like the defect and was a symptom: the detail it asks the Warden to capture is already seeded in `worldFacts`, so re-authoring the marker would have failed the turn for not re-writing a durable fact. Retired rather than repaired, and replaced by two fixtures graded in opposite directions.
+
+### [ADR-0116](decisions/0116-warden-eval-findings-get-their-own-log-and-the-s-numbering-s.md) — Warden eval findings get their own log, and the `S` numbering spans both files
+
+`rules-extraction-findings.md § S30`–`§ S36` are Warden eval findings in a file about chunking PDFs. `docs/eval-findings.md` takes the subject from `§ S37` on, continuing the same numbering — the break is forward-only because frozen plans cite the older sections by file and number.
 
 ---
 
