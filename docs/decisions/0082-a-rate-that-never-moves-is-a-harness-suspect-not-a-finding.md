@@ -7,10 +7,11 @@ superseded_by: null
 milestone: unknown
 summary: >-
   The heuristic that a rate pinned at 0.0 or 1.0 is a harness suspect rather than a
-  finding, with the ceiling half the one nobody investigates. Three addenda extend it:
+  finding, with the ceiling half the one nobody investigates. Four addenda extend it:
   the instance list decays and should be computed, `turn16` turned out to be a rules
-  error in the fixture rather than an immovable checker, and it has since been
-  retired.
+  error in the fixture rather than an immovable checker, it has since been retired,
+  and the Haiku control arm dispositioned `turn28-hidden-info-leak` as real while
+  proving it cannot reach `out-of-order-resolution` at all.
 ---
 
 `eval-methodology.md` listed six fixtures as "confidently zero — n large enough that the result isn't just small-sample noise." Four were measuring the harness. `turn16-narrating-past-a-block` read 0/10 under both models because the check failed every rep on a `dice_request` the *fixture* seeded with `target: null`, a value fixed at capture time before the Warden under test ever ran.
@@ -124,3 +125,47 @@ named there.
 
 The checker's comments keep the `turn16` evidence as history, with a pointer recording that
 the fixture is gone.
+
+**Addendum, 2026-08-28 — the ceiling half gets its first dispositions, and one of them is
+"this instrument cannot answer."**
+
+The Haiku 4.5 control arm this entry's first addendum scheduled ran on 2026-08-16 and was
+written up on 2026-08-28 (`docs/eval-findings.md § S40`, `ADR-0023`'s third addendum). It
+covered three of the ceiling suspects named above.
+
+**`turn28-hidden-info-leak` is dispositioned: real finding, not a harness artifact.** Haiku
+read 0.00 (0/3) at full applicability against Sonnet 5's 1.00 (10/10) the same day, and the
+rationales grade the tag's own question. The suspicion is retired for this check, which is
+what the arm was for.
+
+**`turn19-` and `turn21-out-of-order-resolution` stay suspects, and no rerun will change
+that.** `turn19` passed 3/3 by rolling nothing — the check's assertion is negative and was
+satisfied by absence, with `App` reading 1.00 throughout. `turn21` returned `not_applicable`
+3/3 because Haiku rolled six times and named `gatedByRollId` on none of them, which is the
+only field the in-turn branch reads. A weaker generator is the one *least* likely to populate
+a field the checker depends on, so the arm shrinks the denominator it was bought to exercise.
+
+**That is a fourth tail on this entry's rule, and the sharpest one.** The tails so far: the
+checker cannot move (`turn16`, as first written); the fixture encodes a rules error (second
+addendum); the instance list decays and should be computed (first addendum). This one is
+about the *probes*. Three indirect instruments stand in for reading a checker — the
+heuristic, the control arm, hand-review — and the control arm has now been shown to have a
+domain: it is valid where a `fail` depends on what the model narrates, and invalid where a
+`fail` depends on what the model emits into a structural field. **A probe that cannot reach a
+check is not a weak signal about that check; it is no signal, and reporting it as an
+inconclusive result invites a rerun that cannot help.** Recorded as a rule in
+`docs/eval-methodology.md § A weaker-model control arm cannot probe every check`.
+
+**`out-of-order-resolution` therefore waits on M7.8 and nothing earlier**, which raises the
+stakes on that milestone's known-answer pairs rather than lowering them: hand-authored input
+supplies `gatedByRollId` instead of hoping a generator emits it. `§ S39` has since widened the
+check to 33 rows across eight fixtures, still reading 1.00 (33/33) — a larger denominator over
+the same unexercised fail direction, which is exactly the shape this entry warns reads as
+health.
+
+**A note on the delay, since this entry is partly about things enforced by memory.** The arm
+ran twelve days before it was written up, and `task docs:baseline-check` could not catch the
+gap: a control arm is not a baseline candidate, so nothing checks that one was dispositioned.
+The arm was two days from being dropped quietly when the first addendum recorded it; its
+*result* then sat undispositioned for twelve. The same failure, one stage later in the same
+pipeline.

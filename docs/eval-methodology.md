@@ -1237,6 +1237,34 @@ turns becoming non-applicable. Neither read as a bug at first glance. The check 
 for any check whose denominator moved sharply, hand-construct output that *should* produce
 each verdict and confirm the checker agrees.
 
+### A weaker-model control arm cannot probe every check, and which ones is decidable in advance
+
+Recorded 2026-08-28 from the Haiku 4.5 arm (`docs/eval-findings.md § S40`), which was
+scoped to two pinned checks and settled exactly one of them.
+
+The arm's premise is that a weaker generator failing a pinned check is evidence the
+check can reach `fail` at all. That holds only where the fail direction depends on
+**what the model narrates**. It does not hold where the fail direction depends on the
+model **populating a structural field the check reads** — because the weaker the
+model, the less reliably it fills that field, so the arm shrinks the very denominator
+it was bought to exercise. The instrument and its target are anti-correlated, and no
+increase in N repairs it: a model that never emits `gatedByRollId` never produces a
+turn `out-of-order-resolution`'s in-turn branch can grade.
+
+**So decide before scoping the arm, not after reading it.** For each candidate check,
+ask what a `fail` requires the generator to have *emitted*. Prose only — the arm is
+valid. A field the checker reads — the arm is not, and the check goes to a
+hand-authored known-answer pair (M7.8), which supplies the field instead of hoping.
+
+**A second shape from the same run: a check can pass on absence with full
+applicability.** `out-of-order-resolution`'s applicability guard requires a pending
+gating request, deliberately, so that a Warden which stopped issuing gates could not
+score 1.00 by doing less. Haiku issued the request and then rolled nothing at all —
+guard satisfied, nothing to order, automatic pass, `App` 1.00. **An applicability gate
+on the *setup* does not guarantee the check had anything to grade**; where a check's
+assertion is negative, the gate needs to require the material the negative is asserted
+over, not just the condition that makes the question sensible.
+
 ---
 
 ## Denominators are not automatically model-neutral

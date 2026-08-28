@@ -790,6 +790,41 @@ block from stored data at all, and had to answer it indirectly. `stop_reason`, c
 and tool names are now recorded per turn for both the original and correction rounds. Watch
 instructions that name a field the telemetry does not keep are not watch instructions.
 
+**Addendum — the control arm ran, and it works for one of the two checks it was scoped to.**
+Recorded 2026-08-28 from `claude-haiku-4-5-20251001__ccac7d1c__2026-08-16T13-24-26Z`, twelve days
+after the run; full diagnosis in `docs/eval-findings.md § S40`.
+
+The arm did its job on `turn28-hidden-info-leak`: **0.00 (0/3) at full applicability**, against a
+Sonnet 5 rate of 1.00 (10/10) the same day, with rationales grading the tag's actual question. The
+check discriminates and the pinned 1.00 is behaviour, not a blind checker. That is the outcome this
+addendum predicted and the reason the arm was kept.
+
+**It cannot do its job on `out-of-order-resolution`, and the reason generalises.** `turn19` passed
+3/3 by rolling nothing — the deferred-gate assertion is satisfied by absence, and Haiku issued its
+gating request and stopped. `turn21` returned `not_applicable` 3/3 because Haiku rolled six times
+and named `gatedByRollId` on none of them, which is the only field the in-turn branch reads. The
+in-turn fail direction is reachable only when the model under test populates a structural field,
+and a weaker model is precisely the one that will not. **The instrument is anti-correlated with its
+target**, so this is not an inconclusive result to be re-run at higher N; the arm is retired as an
+instrument for that check specifically.
+
+**This corrects the scoping assumption above**, which named "the fixtures carrying those two
+checks" as though both were equivalent targets. The distinguishing property is stateable before a
+run rather than after: an arm can probe a check whose fail direction depends on what the model
+*narrates*; it cannot probe one whose fail direction depends on what the model *emits into a field
+the checker reads*. The rule is recorded in `docs/eval-methodology.md § A weaker-model control arm
+cannot probe every check`.
+
+So the narrowing trajectory recorded above — decision input → checker control → coverage-gap probe
+— gains a constraint at every remaining stage: the arm's remit is prose-graded checks and the
+narrative half of mixed ones. M8's caller and initiative checkers should be sorted on that test as
+they are written, not after their first pinned rate appears.
+
+**One open item, cheap.** The arm was graded under `hidden-info-leak` rubric `4cf7fda1`, superseded
+by `13305f34` on 2026-08-23. Judge-variance puts `turn28`'s Sonnet 5 output at 30/30 under both, so
+the pass side is rubric-stable; the arm's three `fail` rows have never been re-scored under the
+current rubric. Three judge calls.
+
 ### [ADR-0024](decisions/0024-tool-use-over-prompt-instructions-for-structured-output.md) — Tool use over prompt instructions for structured output
 
 Claude is required to call `submit_gm_response` and `submit_gm_context` rather than producing structured JSON in plain text. Tool use enforces the schema at the API level and eliminates a whole category of malformed response runtime errors. Prompt instructions alone are not sufficient for this guarantee.
@@ -2719,6 +2754,50 @@ named there.
 
 The checker's comments keep the `turn16` evidence as history, with a pointer recording that
 the fixture is gone.
+
+**Addendum, 2026-08-28 — the ceiling half gets its first dispositions, and one of them is
+"this instrument cannot answer."**
+
+The Haiku 4.5 control arm this entry's first addendum scheduled ran on 2026-08-16 and was
+written up on 2026-08-28 (`docs/eval-findings.md § S40`, `ADR-0023`'s third addendum). It
+covered three of the ceiling suspects named above.
+
+**`turn28-hidden-info-leak` is dispositioned: real finding, not a harness artifact.** Haiku
+read 0.00 (0/3) at full applicability against Sonnet 5's 1.00 (10/10) the same day, and the
+rationales grade the tag's own question. The suspicion is retired for this check, which is
+what the arm was for.
+
+**`turn19-` and `turn21-out-of-order-resolution` stay suspects, and no rerun will change
+that.** `turn19` passed 3/3 by rolling nothing — the check's assertion is negative and was
+satisfied by absence, with `App` reading 1.00 throughout. `turn21` returned `not_applicable`
+3/3 because Haiku rolled six times and named `gatedByRollId` on none of them, which is the
+only field the in-turn branch reads. A weaker generator is the one *least* likely to populate
+a field the checker depends on, so the arm shrinks the denominator it was bought to exercise.
+
+**That is a fourth tail on this entry's rule, and the sharpest one.** The tails so far: the
+checker cannot move (`turn16`, as first written); the fixture encodes a rules error (second
+addendum); the instance list decays and should be computed (first addendum). This one is
+about the *probes*. Three indirect instruments stand in for reading a checker — the
+heuristic, the control arm, hand-review — and the control arm has now been shown to have a
+domain: it is valid where a `fail` depends on what the model narrates, and invalid where a
+`fail` depends on what the model emits into a structural field. **A probe that cannot reach a
+check is not a weak signal about that check; it is no signal, and reporting it as an
+inconclusive result invites a rerun that cannot help.** Recorded as a rule in
+`docs/eval-methodology.md § A weaker-model control arm cannot probe every check`.
+
+**`out-of-order-resolution` therefore waits on M7.8 and nothing earlier**, which raises the
+stakes on that milestone's known-answer pairs rather than lowering them: hand-authored input
+supplies `gatedByRollId` instead of hoping a generator emits it. `§ S39` has since widened the
+check to 33 rows across eight fixtures, still reading 1.00 (33/33) — a larger denominator over
+the same unexercised fail direction, which is exactly the shape this entry warns reads as
+health.
+
+**A note on the delay, since this entry is partly about things enforced by memory.** The arm
+ran twelve days before it was written up, and `task docs:baseline-check` could not catch the
+gap: a control arm is not a baseline candidate, so nothing checks that one was dispositioned.
+The arm was two days from being dropped quietly when the first addendum recorded it; its
+*result* then sat undispositioned for twelve. The same failure, one stage later in the same
+pipeline.
 
 ### [ADR-0083](decisions/0083-applicability-is-reported-alongside-every-rate-and-errors-ar.md) — Applicability is reported alongside every rate, and errors are not in its denominator
 

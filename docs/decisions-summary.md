@@ -159,7 +159,7 @@ The reference cards stay in the index. Dropping the back-cover cheat sheet worke
 
 ### [ADR-0023](decisions/0023-warden-model-upgraded-to-claude-sonnet-5.md) — Warden model upgraded to `claude-sonnet-5`
 
-The 4.6 → Sonnet 5 upgrade and the baseline tables behind it. Several figures here have since been retired — the `SYSTEM-ROLLED-PLAYER-ACTION` ceiling, everything graded before `actingEntityId` — and the judged rows are self-graded. Addenda cover the Haiku control arm's narrowing job and the Sonnet 5 markup-leak defect.
+The 4.6 → Sonnet 5 upgrade and the baseline tables behind it. Several figures here have since been retired — the `SYSTEM-ROLLED-PLAYER-ACTION` ceiling, everything graded before `actingEntityId` — and the judged rows are self-graded. Addenda cover the Haiku control arm's narrowing job, the Sonnet 5 markup-leak defect, and what the arm returned — valid for prose-graded checks, unable to probe a check whose fail direction needs a field the generator populates.
 
 ### [ADR-0024](decisions/0024-tool-use-over-prompt-instructions-for-structured-output.md) — Tool use over prompt instructions for structured output
 
@@ -441,7 +441,7 @@ The one check reviewed for its prose dependency where the conclusion ran the oth
 
 ### [ADR-0082](decisions/0082-a-rate-that-never-moves-is-a-harness-suspect-not-a-finding.md) — A rate that never moves is a harness suspect, not a finding
 
-The heuristic that a rate pinned at 0.0 or 1.0 is a harness suspect rather than a finding, with the ceiling half the one nobody investigates. Three addenda extend it: the instance list decays and should be computed, `turn16` turned out to be a rules error in the fixture rather than an immovable checker, and it has since been retired.
+The heuristic that a rate pinned at 0.0 or 1.0 is a harness suspect rather than a finding, with the ceiling half the one nobody investigates. Four addenda extend it: the instance list decays and should be computed, `turn16` turned out to be a rules error in the fixture rather than an immovable checker, it has since been retired, and the Haiku control arm dispositioned `turn28-hidden-info-leak` as real while proving it cannot reach `out-of-order-resolution` at all.
 
 ### [ADR-0083](decisions/0083-applicability-is-reported-alongside-every-rate-and-errors-ar.md) — Applicability is reported alongside every rate, and errors are not in its denominator
 

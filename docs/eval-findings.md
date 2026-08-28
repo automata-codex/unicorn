@@ -392,3 +392,107 @@ attached it there.
 - **The two `2c0ba938-turn21-*` fixtures error at 2 and 3 of 10.** Every other new
   fixture errors zero times. Both replay sequence 64, so the shared cause is the
   turn rather than either tag, and it is unexplained.
+
+---
+
+### S40 — 2026-08-28 · The Haiku 4.5 control arm, dispositioned twelve days late: it settled one of its two checks and cannot settle the other
+
+`claude-haiku-4-5-20251001__ccac7d1c__2026-08-16T13-24-26Z`. 3 reps, `--fixtures`
+scoped to `turn19-out-of-order-resolution`, `turn21-out-of-order-resolution` and
+`turn28-hidden-info-leak`, corpus `2cfaf351a760`, harness `9e5b9b5`, rubric
+`4cf7fda1`. The rider `ADR-0023`'s first addendum scheduled onto M7.6's
+re-baseline, run the same day as `claude-sonnet-5__ccac7d1c__2026-08-16T12-38-30Z`.
+
+**It has sat in `unicorn-artifacts` undispositioned since.** No findings doc named
+it, and `task docs:baseline-check` could not catch that — the arm is not a baseline
+candidate and the standing point has moved twice since. Recorded now because
+`ADR-0082` and `ADR-0023` both still describe the arm in the future tense while its
+result was on disk, and because the result is not the clean retirement either entry
+anticipated.
+
+**Read in one direction only**, per `ADR-0023`: a weak model *passing* a pinned
+check is the finding. Haiku's rates are not a model comparison and are not reported
+beside Sonnet 5's as though they were. The Sonnet 5 column below is the pinned rate
+under test, not an opposing arm.
+
+| Fixture / check | Sonnet 5, same day | Haiku 4.5 | What the arm established |
+|---|---|---|---|
+| `turn28-hidden-info-leak` | 1.00 (10/10) | **0.00 (0/3)**, App 1.00 | check discriminates — suspicion retired |
+| `turn19-out-of-order-resolution` | 1.00 (9/9) | 1.00 (3/3), App 1.00 | **nothing** — passed on absence |
+| `turn21-out-of-order-resolution` | 1.00 (10/10) | n/a, 3 `not_applicable` | **nothing** — never reached a verdict |
+
+#### `turn28-hidden-info-leak` is a real finding, and the pinned 1.00 can be believed
+
+Three fails from three reps, at full applicability, on a check that had read 1.00
+across every Sonnet 5 run since the model swap. That is what the arm was built to
+produce. Combined with the same fixture reading 0.67 (6/9) under 4.6 at prompt
+`97feadbd`, the ceiling is behaviour rather than a blind checker.
+
+**The fails are for the right reason, with one qualification.** `ADR-0023` warns
+that a Haiku failure proves a check *can* move without proving it moved correctly.
+The rationales grade the tag's actual question — exact roll totals, HP values and
+stat thresholds narrated past the perception boundary:
+
+> the Warden fully executed the charge as if committed, revealing exact roll totals
+> (89, 64, 51, 79, 8, 88), specific damage numbers (3, 4, 3 damage), and precise HP
+> values … the narration didn't just hint at danger, it narrated a full resolved
+> combat sequence with concrete mechanical facts the character could not know from a
+> pre-commitment hypothetical question.
+
+The qualification is that **all three rationales share one root cause** — Haiku
+treated *"How exposed would I be if I charged Gamma…"* as a committed action and
+resolved it. So this is three reps of one failure mode, not three independent
+observations, and the leak is downstream of an over-resolution failure that the
+`--fixtures` scoping meant no `over-resolution` check saw. Sufficient for the
+discrimination question, which asks only whether a `fail` is reachable; not a
+characterisation of the check's fail surface.
+
+**Graded under rubric `4cf7fda1`, superseded by `13305f34` on 2026-08-23**
+(`§ Bump note`, the `HIDDEN-INFO-LEAK` scoping disambiguation). Judge-variance put
+`turn28`'s Sonnet 5 output at 30/30 under both rubrics, so the pass side is
+rubric-stable; the arm's fail side has never been re-scored under the current
+rubric. Three judge calls would settle it and it is the only open item here.
+
+#### `out-of-order-resolution` cannot be probed by a control arm at all
+
+This is the half that matters, and it is a stronger claim than "N=3 was too thin."
+
+**`turn19` passed 3/3 by rolling nothing.** All three reps issued one
+`dice_request` for the player's Combat Check and stopped — `diceRolls: []`, zero
+`dice_roll` events, one pending request at end of turn. The deferred-gate branch
+asks whether any roll resolved ahead of the pending gate; with no rolls, the
+answer is trivially no. The check's own doc comment anticipates the shape —
+*"'No consequence rolled ahead of its gate' is satisfied by absence, so a turn
+that rolls nothing satisfies it trivially"* — and the guard it describes requires
+*a pending gating request*, which Haiku produced. The hole is one step narrower
+than the guard: **request present, rolls absent, automatic pass, applicability
+1.00**. The healthiest-looking row in the report is the one that measured nothing.
+
+**`turn21` never reached a verdict.** All three reps rolled — 5, 6 and 6 rolls —
+left no request pending, and **named no `gatedByRollId` on any of them**, so the
+in-turn branch returned `not_applicable` on all three: *"no dice_request is pending
+at the end of this turn, and none of the 5 roll(s) resolved in-turn names a
+gatedByRollId."*
+
+Put together: the in-turn fail direction is reachable **only when the model under
+test populates `gatedByRollId`**, and a weaker model is precisely the one that
+won't. The instrument and its target are anti-correlated. A control arm can widen
+the applicability gap it was meant to close, and no increase in N fixes it — a
+model that never fills the field never produces a gradeable turn.
+
+So `turn19` and `turn21-out-of-order-resolution` **remain harness suspects under
+`ADR-0082`**, and the arm is retired as an instrument for them rather than
+returning an inconclusive result to be re-run. `§ S39` widened the check to 33 rows
+across eight fixtures and it still reads 1.00 (33/33) — a bigger denominator on the
+same unexercised fail direction. Only M7.8's known-answer pairs, which supply
+`gatedByRollId` by hand instead of hoping a generator emits it, can close this.
+
+#### What this changes about the arm
+
+`ADR-0023` scheduled the arm against "the fixtures carrying those two checks" as
+though the two were equivalent targets. They are not, and the distinguishing
+property is stateable in advance: **an arm can probe a check whose fail direction
+depends only on what the model narrates; it cannot probe one whose fail direction
+depends on the model populating a structural field the check reads.** The rule is
+recorded in `docs/eval-methodology.md § A model swap audits the harness as much as
+the model`; the dispositions are recorded in `ADR-0023` and `ADR-0082`.
