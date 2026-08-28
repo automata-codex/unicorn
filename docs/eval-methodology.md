@@ -4,6 +4,21 @@ Lessons about how to run the Warden eval harness, as distinct from what it measu
 Decisions with alternatives-and-rationale belong in `decisions.md`; this file is for
 methodology that would otherwise become folklore.
 
+**Dated records in here predate `docs/eval-findings.md`, and new ones do not go
+here.** `§ Structural check migrations`, the two `§ Bump note` sections,
+`§ Same-prompt run-to-run variance`, and the measured tables under `§ Current
+baseline N` are all records of what happened on a particular date — which is
+`eval-findings.md`'s subject, not this file's. They accumulated before that file
+existed, each arriving with a lesson attached that made it feel at home, and they
+stay: several are cited from ADRs and `§ Outcome` is cited from
+`docs/plans/013-m7.5-open-work.md`, which is frozen.
+
+The test for a new entry: **a rule you would apply to the next run belongs here; a
+number you got from the last one belongs in `eval-findings.md`.** A rule may quote
+the measurement that establishes it — `§ Un-rankable is a numerator problem` and
+`§ Before trusting any judged rate from this corpus` both do — and that is
+different from the measurement being the point.
+
 ---
 
 ## Rep allocation: variable N vs. uniform N
@@ -68,7 +83,26 @@ than an assumption.
   `manifest.json`)
 - Run directory: `claude-sonnet-4-6__97feadbd__2026-07-29T10-51-26Z`
 
-### The run the baseline actually points at, as of 2026-08-10
+**The standing comparison point, in one place.** This is the only entry to update
+when a baseline is accepted. The dated sections below are history — kept for the
+corrections and caveats attached to each, not to be read as competing claims about
+what is current.
+
+- **Last recorded:** `claude-sonnet-5__fa4e6e2f__2026-08-21T11-05-26Z`, prompt
+  `fa4e6e2f`, corpus `abbce198026c`.
+
+**And it is stale.** Full-corpus runs exist after it — `6717347d` (2026-08-21),
+`f0753f86` twice (2026-08-23), and `e83e8aaa` (2026-08-24, the most recent) — and
+no entry in this file says which of them, if any, was accepted as the standing
+point. `§ Bump note — 2026-08-24` records a corpus change measured against
+`e83e8aaa` without declaring it one. **Check the archive before citing a
+baseline**, and when one is accepted, say so here rather than by adding a fourth
+dated section: three of them accreted because each new baseline was recorded
+beside the last instead of replacing it, which is how a reference section becomes
+a chronology.
+
+
+### 2026-08-10 — the standing point moved to `c45a142a`
 
 **N is still 10 and has not been re-calibrated.** What changed is everything it was
 calibrated *against*, so the calibration basis above is now historical and the standing
@@ -116,7 +150,106 @@ carry a `system-rolled-player-action` check and the re-scored rate is 0.88 (44/5
 `§ S35` and `ADR-0096`. The rule above outlives the instance, and a fixture carries a
 check because someone authored it there, so it can go wrong again the same way.
 
-### The run the baseline actually points at, as of 2026-08-21
+### 2026-08-16 — the standing point moved to `ccac7d1c`
+
+**N is still 10 and still has not been re-calibrated.** The standing comparison point moves to
+M7.6's re-baseline:
+
+- Model: **`claude-sonnet-5`**
+- Prompt hash: **`ccac7d1c`**
+- Corpus version: **`1c2a418cf68c`** as of 2026-08-16; the run was scored under **`2cfaf351a760`**,
+  an **input-affecting** bump (`§ Two kinds of corpus bump`) — every pool key changed format and ten
+  pools appear, so `campaignState` changed for all 15 fixtures. The bump to `1c2a418cf68c` is
+  **scoring-only** and is graded off this run's frozen artifacts (see the note below)
+- Run directory: **`claude-sonnet-5__ccac7d1c__2026-08-16T12-38-30Z`**
+- Full corpus, 10 reps, zero errors. The closeout and category calls for this run are below
+
+**Superseded `claude-sonnet-5__c45a142a__2026-08-10T19-45-15Z` (corpus `83fe9ee82341`).** That run
+stays the correct comparison point for anything measured before M7.6's snapshot changes. It is not
+the current baseline.
+
+**`eval:compare` across this boundary is meaningless, and that is not a warning to suppress.** Six
+Warden-visible changes ride the one run — the snapshot's `owner.pool` addressing,
+`<character_attributes>`, the pool-delta array with `reason`/`maxDelta`/`damageType`,
+`characterState`, the wounds chain, and the re-keyed corpus. No per-tag delta against `c45a142a` is
+honest, which is why M7.6's category calls are argued from §6.3 predictions and absolute rates
+instead.
+
+**This baseline certifies less than a full-corpus run normally does.** Read it with the run's own
+"What this run does not measure" section: `characterState`'s five families have no floor from it at
+all, the absolute-vs-delta count excepted, and M7.6's two new checks — `CARRYOVER-ARITHMETIC` and
+`UNEXPLAINED-DELTA` — carry no denominator because no fixture yet exercises them. Three of fifteen
+fixtures (`UNAUDITABLE-MAPPING`) contributed zero applicable reps, and `turn16-narrating-past-a-block`
+is a known-defective fixture (`ADR-0082`, addendum 2026-08-16). **Nine of fifteen fixture rows read 1.00 and almost none of them are
+evidence.**
+
+**Corpus version updated 2026-08-16 to `1c2a418cf68c...` — a coverage fix, not a re-run.**
+The three `turn24-*` fixtures gained a fixture-authored `applicability` entry for
+`system-rolled-player-action` (and `fixtureSchemaVersion` 1 → 2), which now attaches that check
+to them — `ADR-0096`. **Scoring-only**: `seededState`, `playerInput` and `assertion` are
+untouched on all 15 fixtures, so every `warden-output.json` on disk was produced under unchanged
+conditions. Re-scored in place rather than re-run, both runs, `--fixtures` scoped to the five
+fixtures now carrying the check:
+
+- `claude-sonnet-5__ccac7d1c__2026-08-16T12-38-30Z` (the current baseline) — `SYSTEM-ROLLED-PLAYER-ACTION`
+  0.90 (18/20) → **0.94 (47/50)**, applicability 1.00 (50/50). No verdict changed across all 80
+  rows; the three new fixture-check pairs are additive.
+- `claude-sonnet-5__c45a142a__2026-08-10T19-45-15Z` (`§ S34`) — 1.00 (20/20) → **0.88 (44/50)**, the
+  six occurrences `§ S34` counted by hand. One judged verdict flipped on this run
+  (`turn24-scene-jump / scene-jump`, `fail → pass`, `SCENE-JUMP` 0.90 → 1.00) — **judge variance on
+  an ungated judged check, not a consequence of the corpus edit**; see `ADR-0080`.
+
+Reports at `<run-dir>-rescore-srpa-turn24.md`, raw rows under each run's `rescore/`. `eval:compare`
+will correctly warn on any pairing against a run scored under `2cfaf351a760...`; re-score rather
+than suppress. Full write-up in `docs/rules-extraction-findings.md § S35`.
+
+**Corpus version updated 2026-07-29 to `4c9f2e73efd7...` — a grader fix, not a re-run.**
+`turn{19,21}-{system-rolled-player-action,out-of-order-resolution}.json` gained a
+fixture-authored `applicability` field so those two checks stop inferring applicability from
+whether the model happened to produce a `dice_roll` event (see `decisions.md`). The Warden
+outputs already on disk for both `claude-sonnet-4-6__97feadbd__2026-07-29T10-51-26Z` and
+`claude-sonnet-5__97feadbd__2026-07-29T15-40-17Z` are byte-identical to before — only the
+grading of `system-rolled-player-action` / `out-of-order-resolution` against them changed.
+`eval:compare` will (correctly) warn on any pairing against a run scored under
+`8071500a4952...`; re-score under the new corpus version rather than suppressing the warning.
+Re-grading the two runs above against the fix:
+
+- `system-rolled-player-action`: `claude-sonnet-4-6` — `turn19` 1/8 (2 excluded as
+  `not_applicable`) → 3/10 (0 excluded); `turn21` unchanged at 2/9. `claude-sonnet-5` —
+  `turn19` 0/0 (10 excluded) → 10/10; `turn21` 2/2 (8 excluded) → 8/10 — the 2 prior passes
+  were the exact violation this check exists to catch (a system-rolled to-hit roll with no
+  damage-conditional phrasing, which the pre-fix pattern-only rule missed) and now correctly
+  read `FAILED`.
+- `out-of-order-resolution`: unchanged for both runs — `claude-sonnet-4-6` stays 0/9 on both
+  fixtures, `claude-sonnet-5` stays fully `not_applicable` on both. The situation now gates
+  correctly, but under the regex still in place at this point the check had no ordering
+  evidence to read. This was read at the time as the fixtures being too short — one turn, under
+  a model that splits the to-hit request from its resolution — and the fix was assumed to be
+  extending turn19/21 through the follow-up turn. **That reading was wrong twice over**: the
+  regex was the problem (the structural deferred-gate rule reads 5/10 and 2/8 off the *same*
+  artifacts), and extending the fixtures would have guaranteed a PASS rather than measured one.
+  See `decisions.md`, "`out-of-order-resolution` reads the deferred gate, and declines the
+  in-turn case."
+
+> **Superseded 2026-07-31 by the structural check migrations
+> (`4c9f2e73efd7...` → `88fa84bd8329...`).** The numbers immediately above were
+> the correct reading under the checkers as they stood on 2026-07-29 and are kept
+> because they are what the two runs were originally scored against. Four of them
+> have since moved, and one turned out to be an artifact. See "Structural check
+> migrations" below for the current figures. They are now reproducible on demand
+> via `eval:rescore` rather than existing only as prose here — which is what this
+> whole block was doing before, and the reason the command exists.
+
+**Basis.** Binomial variance is worst at p=0.5, and several fixtures in this corpus sit
+near there. At N=10, the 95% CI half-width at p=0.5 is ~±31pp; tightening that to ±15pp
+would need N≈40+, which isn't affordable for routine comparisons (a two-sided comparison
+at N=10 over the full 15-fixture corpus cost ~$30/side in the calibration run; N=40 would
+run ~$120/side, ~$240 for one comparison). N=10 is a deliberate precision-for-cost
+tradeoff, not an oversight — the fixtures sitting near 0.5 (mostly the `turn24-*` judged
+checks) carry real uncertainty at this N and should be read as "unsettled," not as a
+precise estimate, until/unless the budget for a higher N is revisited.
+
+### 2026-08-21 — the standing point moved to `fa4e6e2f` (the last one recorded)
 
 **N is still 10 and still has not been re-calibrated.** The standing comparison point moves to
 018's re-baseline:
@@ -247,105 +380,6 @@ Read every number above with this list, not after it.
 - **`NARRATING-PAST-A-BLOCK` 0.66 is still `turn16`**, the rules-impossible fixture from `ADR-0082`'s
   addendum, failing 10/10. Not evidence about the Warden. Re-authoring remains owed.
 - **Five tags read exactly 1.00 and are suspects, not passes** (`ADR-0082`).
-
-### The run the baseline actually points at, as of 2026-08-16
-
-**N is still 10 and still has not been re-calibrated.** The standing comparison point moves to
-M7.6's re-baseline:
-
-- Model: **`claude-sonnet-5`**
-- Prompt hash: **`ccac7d1c`**
-- Corpus version: **`1c2a418cf68c`** as of 2026-08-16; the run was scored under **`2cfaf351a760`**,
-  an **input-affecting** bump (`§ Two kinds of corpus bump`) — every pool key changed format and ten
-  pools appear, so `campaignState` changed for all 15 fixtures. The bump to `1c2a418cf68c` is
-  **scoring-only** and is graded off this run's frozen artifacts (see the note below)
-- Run directory: **`claude-sonnet-5__ccac7d1c__2026-08-16T12-38-30Z`**
-- Full corpus, 10 reps, zero errors. The closeout and category calls for this run are below
-
-**Superseded `claude-sonnet-5__c45a142a__2026-08-10T19-45-15Z` (corpus `83fe9ee82341`).** That run
-stays the correct comparison point for anything measured before M7.6's snapshot changes. It is not
-the current baseline.
-
-**`eval:compare` across this boundary is meaningless, and that is not a warning to suppress.** Six
-Warden-visible changes ride the one run — the snapshot's `owner.pool` addressing,
-`<character_attributes>`, the pool-delta array with `reason`/`maxDelta`/`damageType`,
-`characterState`, the wounds chain, and the re-keyed corpus. No per-tag delta against `c45a142a` is
-honest, which is why M7.6's category calls are argued from §6.3 predictions and absolute rates
-instead.
-
-**This baseline certifies less than a full-corpus run normally does.** Read it with the run's own
-"What this run does not measure" section: `characterState`'s five families have no floor from it at
-all, the absolute-vs-delta count excepted, and M7.6's two new checks — `CARRYOVER-ARITHMETIC` and
-`UNEXPLAINED-DELTA` — carry no denominator because no fixture yet exercises them. Three of fifteen
-fixtures (`UNAUDITABLE-MAPPING`) contributed zero applicable reps, and `turn16-narrating-past-a-block`
-is a known-defective fixture (`ADR-0082`, addendum 2026-08-16). **Nine of fifteen fixture rows read 1.00 and almost none of them are
-evidence.**
-
-**Corpus version updated 2026-08-16 to `1c2a418cf68c...` — a coverage fix, not a re-run.**
-The three `turn24-*` fixtures gained a fixture-authored `applicability` entry for
-`system-rolled-player-action` (and `fixtureSchemaVersion` 1 → 2), which now attaches that check
-to them — `ADR-0096`. **Scoring-only**: `seededState`, `playerInput` and `assertion` are
-untouched on all 15 fixtures, so every `warden-output.json` on disk was produced under unchanged
-conditions. Re-scored in place rather than re-run, both runs, `--fixtures` scoped to the five
-fixtures now carrying the check:
-
-- `claude-sonnet-5__ccac7d1c__2026-08-16T12-38-30Z` (the current baseline) — `SYSTEM-ROLLED-PLAYER-ACTION`
-  0.90 (18/20) → **0.94 (47/50)**, applicability 1.00 (50/50). No verdict changed across all 80
-  rows; the three new fixture-check pairs are additive.
-- `claude-sonnet-5__c45a142a__2026-08-10T19-45-15Z` (`§ S34`) — 1.00 (20/20) → **0.88 (44/50)**, the
-  six occurrences `§ S34` counted by hand. One judged verdict flipped on this run
-  (`turn24-scene-jump / scene-jump`, `fail → pass`, `SCENE-JUMP` 0.90 → 1.00) — **judge variance on
-  an ungated judged check, not a consequence of the corpus edit**; see `ADR-0080`.
-
-Reports at `<run-dir>-rescore-srpa-turn24.md`, raw rows under each run's `rescore/`. `eval:compare`
-will correctly warn on any pairing against a run scored under `2cfaf351a760...`; re-score rather
-than suppress. Full write-up in `docs/rules-extraction-findings.md § S35`.
-
-**Corpus version updated 2026-07-29 to `4c9f2e73efd7...` — a grader fix, not a re-run.**
-`turn{19,21}-{system-rolled-player-action,out-of-order-resolution}.json` gained a
-fixture-authored `applicability` field so those two checks stop inferring applicability from
-whether the model happened to produce a `dice_roll` event (see `decisions.md`). The Warden
-outputs already on disk for both `claude-sonnet-4-6__97feadbd__2026-07-29T10-51-26Z` and
-`claude-sonnet-5__97feadbd__2026-07-29T15-40-17Z` are byte-identical to before — only the
-grading of `system-rolled-player-action` / `out-of-order-resolution` against them changed.
-`eval:compare` will (correctly) warn on any pairing against a run scored under
-`8071500a4952...`; re-score under the new corpus version rather than suppressing the warning.
-Re-grading the two runs above against the fix:
-
-- `system-rolled-player-action`: `claude-sonnet-4-6` — `turn19` 1/8 (2 excluded as
-  `not_applicable`) → 3/10 (0 excluded); `turn21` unchanged at 2/9. `claude-sonnet-5` —
-  `turn19` 0/0 (10 excluded) → 10/10; `turn21` 2/2 (8 excluded) → 8/10 — the 2 prior passes
-  were the exact violation this check exists to catch (a system-rolled to-hit roll with no
-  damage-conditional phrasing, which the pre-fix pattern-only rule missed) and now correctly
-  read `FAILED`.
-- `out-of-order-resolution`: unchanged for both runs — `claude-sonnet-4-6` stays 0/9 on both
-  fixtures, `claude-sonnet-5` stays fully `not_applicable` on both. The situation now gates
-  correctly, but under the regex still in place at this point the check had no ordering
-  evidence to read. This was read at the time as the fixtures being too short — one turn, under
-  a model that splits the to-hit request from its resolution — and the fix was assumed to be
-  extending turn19/21 through the follow-up turn. **That reading was wrong twice over**: the
-  regex was the problem (the structural deferred-gate rule reads 5/10 and 2/8 off the *same*
-  artifacts), and extending the fixtures would have guaranteed a PASS rather than measured one.
-  See `decisions.md`, "`out-of-order-resolution` reads the deferred gate, and declines the
-  in-turn case."
-
-> **Superseded 2026-07-31 by the structural check migrations
-> (`4c9f2e73efd7...` → `88fa84bd8329...`).** The numbers immediately above were
-> the correct reading under the checkers as they stood on 2026-07-29 and are kept
-> because they are what the two runs were originally scored against. Four of them
-> have since moved, and one turned out to be an artifact. See "Structural check
-> migrations" below for the current figures. They are now reproducible on demand
-> via `eval:rescore` rather than existing only as prose here — which is what this
-> whole block was doing before, and the reason the command exists.
-
-**Basis.** Binomial variance is worst at p=0.5, and several fixtures in this corpus sit
-near there. At N=10, the 95% CI half-width at p=0.5 is ~±31pp; tightening that to ±15pp
-would need N≈40+, which isn't affordable for routine comparisons (a two-sided comparison
-at N=10 over the full 15-fixture corpus cost ~$30/side in the calibration run; N=40 would
-run ~$120/side, ~$240 for one comparison). N=10 is a deliberate precision-for-cost
-tradeoff, not an oversight — the fixtures sitting near 0.5 (mostly the `turn24-*` judged
-checks) carry real uncertainty at this N and should be read as "unsettled," not as a
-precise estimate, until/unless the budget for a higher N is revisited.
 
 ### Settled fixtures — candidates for `repOverride` during supervised iteration
 
