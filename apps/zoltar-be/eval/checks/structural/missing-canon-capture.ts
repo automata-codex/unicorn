@@ -24,14 +24,20 @@ function parseExpectedNewDetail(check: string): string | null {
 
 /**
  * A fixture author quoting the literal phrase that should appear if the
- * turn introduces the expected detail — e.g. `expects: ... ("RESTRICTED —
- * VERIDIAN INTERNAL")` — is already this fixture library's natural
- * authoring convention (see `turn02-missing-canon-capture.json`). Reused
+ * turn introduces the expected detail — e.g. `expects: ... ("hazard
+ * multiplier")` — is this fixture library's authoring convention. Reused
  * here as the signal for whether this turn's live, non-deterministic
  * narration actually introduced the detail at all, distinct from whether it
  * captured it durably. No quoted phrase means this signal is unavailable,
  * not that nothing was introduced — callers must treat `null` as "can't
  * tell," not as a negative result.
+ *
+ * **The phrase has to be one the fixture pins, not one the model might
+ * choose.** That is the lesson of the retirement recorded below: a marker on
+ * wording the Warden invents fresh each rep gates on a coin flip, and a
+ * marker on wording it reads off its own seeded context does not. Both live
+ * fixtures are authored the second way — `hazard multiplier` comes from
+ * `gmContextBlob.narrative`, `bridge crew` from the player's own question.
  */
 function parseIntroductionMarker(check: string): string | null {
   const match = check.match(/["“]([^"”]+)["”]/);
@@ -40,10 +46,11 @@ function parseIntroductionMarker(check: string): string | null {
 
 /**
  * Case, whitespace and dash-shape are not meaningful differences between
- * "the narration used the fixture's phrase" and "it didn't". The authored
- * marker for `turn02` contains an em-dash, and an exact substring match
- * would miss a narration writing the same words with a hyphen or a colon —
- * a hair-trigger on a character no one would consider load-bearing.
+ * "the narration used the fixture's phrase" and "it didn't". This is
+ * load-bearing rather than defensive: `2c0ba938-turn21` authors its marker
+ * as `hazard multiplier` and the seeded context the Warden reads it from
+ * writes `hazard-multiplier`, so an exact substring match would miss every
+ * rep — a hair-trigger on a character no one would consider load-bearing.
  *
  * This is a narrower kind of matching than the prose classifiers removed
  * from the other checks: the phrase is a fixture-authored constant, not a
@@ -107,6 +114,42 @@ function normalizeForMarkerMatch(text: string): string {
  * introduces its detail, or authoring the expectation as something other
  * than a literal phrase — fixture work, tracked separately, not a checker
  * change.
+ *
+ * ---
+ *
+ * **Resolved 2026-08-27 (M7.7), and the diagnosis went one level deeper.**
+ * By then the archive held 16 runs and 157 reps of this check, every one
+ * `NOT_APPLICABLE` — both models, every prompt revision. The audit above
+ * treats the marker as the problem; it is a symptom. `turn02` asks whether
+ * the Warden captured the station layout, and
+ * `worldFacts.station_layout_overview` **already seeds that layout** — hub,
+ * four radial modules, habitat ring, ladder shaft, Lab C's quarantine. The
+ * player asks for a map and the Warden reads the seeded canon back, which is
+ * correct behaviour with nothing new to capture. Re-authoring the marker to
+ * a phrase that does appear every rep would therefore have failed the turn
+ * for not re-writing a fact that was already durable: a manufactured 0.00
+ * traded for an honest zero denominator, which is the same bad trade the
+ * judged migration was rejected for above.
+ *
+ * `turn02` is retired rather than repaired — its source adventure
+ * (`18be155e`) no longer exists to recapture from — and replaced by two
+ * fixtures from `2c0ba938`, one per direction:
+ *
+ * - `2c0ba938-turn21-missing-canon-capture` is the fail side. The player's
+ *   corrected arithmetic opens the insurance file, and what the file holds
+ *   lives in `gmContextBlob.narrative` where the player cannot see it, with
+ *   nothing about it in `worldFacts`. Narrating it moves a GM secret into
+ *   shared canon and owes a durable write; the original turn wrote a flag
+ *   and an `npcState`.
+ * - `2c0ba938-turn23-missing-canon-capture` is the pass side, and the reason
+ *   it exists is the second half of the audit above: the `worldFacts`-diff
+ *   branch had never run against real output in 157 reps. The player asks
+ *   who the crew are, five of the six are unnamed in the seeded context, and
+ *   the original turn wrote `crew_roster` and `insurance_file_copies`.
+ *
+ * The `pending_canon` branch is still unexercised. `2c0ba938` proposes canon
+ * on no turn at all; the only rows in any source adventure are `5c34991b`
+ * seq 14 and seq 34, which is where a fixture for it would have to come from.
  */
 export function checkMissingCanonCapture(
   result: TurnExecutionResult,

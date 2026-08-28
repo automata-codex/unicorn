@@ -414,7 +414,12 @@ function buildRescoreRow(input: BuildRescoreRowInput): RescoreRow {
     harnessVersion: input.harnessVersion,
     sourceCorpusVersion: sourceRow?.corpusVersion ?? manifest.corpusVersion,
     sourceHarnessVersion: sourceRow?.harnessVersion ?? 'unknown',
-    sourceVerdict: sourceRow?.verdict ?? observation.verdict,
+    // `null`, not the verdict just computed. A check with no source row was
+    // never scored before, and copying today's answer into the field that
+    // records yesterday's makes a new attachment read as an unchanged one —
+    // contradicting the warning this same pass prints for it. See
+    // `rescoreRowSchema.sourceVerdict`.
+    sourceVerdict: sourceRow?.verdict ?? null,
     rescoredAt: input.rescoredAt,
     carriedForward: false,
 

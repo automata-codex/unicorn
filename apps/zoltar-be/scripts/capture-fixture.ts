@@ -18,6 +18,10 @@
  * Re-running against an existing `--output` path requires `--force` —
  * re-capturing over a hand-edited fixture is always a deliberate,
  * by-hand re-authoring action (spec "Out of Scope"), never automatic.
+ *
+ * Exits 1 with a message if the source adventure's campaign has no
+ * character sheet to derive `playerEntityIds` from — see
+ * `playerEntityIdsForAdventure` in the core module.
  */
 
 import { existsSync } from 'node:fs';
@@ -30,7 +34,7 @@ import { failureModeTagSchema } from '../eval/fixture.schema';
 import * as schema from '../src/db/schema';
 import { ReplayError } from '../src/replay/reconstruct-state';
 
-import { captureFixture } from './capture-fixture.core';
+import { CaptureError, captureFixture } from './capture-fixture.core';
 
 import type { FailureModeTag } from '../eval/fixture.schema';
 
@@ -149,16 +153,22 @@ async function main(): Promise<number> {
 
     await writeFile(cli.output, `${JSON.stringify(fixture, null, 2)}\n`);
 
+    const blob = fixture.seededState.gmContextBlob as {
+      playerEntityIds?: readonly string[];
+    };
     process.stdout.write(
       `captured fixture "${cli.id}" (tag: ${cli.tag}) from adventure ` +
         `${cli.adventureId} @ sequence ${cli.targetSequenceNumber}\n` +
-        `  written to: ${cli.output}\n\n` +
+        `  written to: ${cli.output}\n` +
+        `  playerEntityIds: ${(blob.playerEntityIds ?? []).join(', ')} ` +
+        '(derived from character_sheet; add an alias by hand only if the ' +
+        'captured adventure refers to the player by more than one id)\n\n' +
         'playerInput and assertion are placeholders — fill them in by hand ' +
         'before this fixture is usable by the harness.\n',
     );
     return 0;
   } catch (err) {
-    if (err instanceof ReplayError) {
+    if (err instanceof ReplayError || err instanceof CaptureError) {
       process.stderr.write(`${err.message}\n`);
       return 1;
     }

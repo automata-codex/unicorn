@@ -75,11 +75,26 @@ Each kind of record has one home. Putting a thing in the wrong one is how
 
 | Kind of thing | Home |
 |---|---|
-| A decision — its alternatives, its reasoning, what would reverse it | `docs/decisions/`, one file per ADR. Run `task docs:decisions:build` after editing, and `task docs:decisions:check` to validate |
-| A measurement, diagnosis, or defect writeup | the relevant findings doc: `docs/rules-extraction-findings.md`, `docs/eval-methodology.md`, `docs/hidden-information-findings.md` |
+| A decision — its alternatives, its reasoning, what would reverse it | `docs/decisions/`, one file per ADR. `docs/decisions.md` (full text) and `docs/decisions-summary.md` (one summary per entry — the index to search first) are **generated views**: edit the file in `docs/decisions/`, then run `task docs:decisions:build`, and `task docs:decisions:check` to validate |
+| A measurement, diagnosis, or defect writeup | the relevant findings doc — see the four below |
 | How a feature is designed and built | `docs/specs/` and `docs/plans/` |
 | Product and tooling scope, and the milestone sequence | `docs/roadmap.md` |
 | Outstanding work at task granularity, and its status | Workflowy — hand it over in the format at `docs/workflowy-template.md` |
+
+**Which findings doc.** All four are empirical records — what was run, what came
+back, what was concluded — and they divide by subject, not by format:
+
+| Doc | Subject |
+|---|---|
+| `docs/eval-findings.md` | what the Warden eval harness measured: run diagnoses, tag coverage, checker defects, corpus decisions |
+| `docs/eval-methodology.md` | how to *run* the harness: rep allocation, corpus bumps, what a re-score is valid after. A rule for the next run, not a number from the last one |
+| `docs/rules-extraction-findings.md` | the rules corpus: chunking, extraction, retrieval |
+| `docs/hidden-information-findings.md` | what the Warden discloses and withholds |
+
+`rules-extraction-findings.md § S30`–`§ S36` are Warden eval findings that
+predate `eval-findings.md` and stay put, because frozen plans cite them. The `S`
+numbering is one namespace across both files — `§ S37` onward is in
+`eval-findings.md`.
 
 **`docs/roadmap.md` tracks status at milestone granularity only.** It carries no
 per-item checkboxes. A milestone entry states what the milestone delivers; it does
@@ -117,6 +132,7 @@ Testing expectations apply uniformly across all milestones — they are not trac
 - **Use `task eval:*`, never `npm run eval:*` or a direct `npx tsx scripts/eval-*.ts`.** The `task` targets carry the working directory, the env file, and — for `eval:run` — the `@swc-node/register` loader that plain `tsx` cannot substitute for. Their `desc:` fields in `Taskfile.yml` also carry the cost and precondition notes (which scripts hit the DB, which make real Anthropic or Voyage calls, and how many), which is the information a decision to run one should be based on. Going around `task` skips all of it.
 - **Ask before every run, every time.** Most of these spend real money — `eval:run` is N × a full-corpus pass, `eval:rescore` is one judge call per judged fixture-rep, `eval:retrieval-probe` is one Voyage call per distinct query. Approval to run one script once is not approval to run it again, and not approval for a different script. This holds even when a run is the obvious next step in a plan the maintainer already approved.
 - **`eval:run` is always run by the maintainer, by hand.** Never launch it, including in the background. Prepare everything it needs — the prompt edit committed, goldens regenerated, predictions pre-registered — and then hand over the full command with its `--decision-rule` string for them to run.
+- **A baseline run is not closed until `docs/eval-methodology.md § Current baseline N` names it**, by full run id. That section carries one standing-point statement; accepting a new baseline means *replacing* it, not appending beside it. A run that happened and was not accepted still needs saying so there — the failure mode is a run nobody dispositioned, which is how that section fell four runs behind by 2026-08-24. This is the write-up's job, not the run's: the run is the maintainer's, the record is whoever reads the artifacts. **`task docs:baseline-check` enforces it** — free, no approval needed, and it skips when the archive is absent.
 
 Reading the artifacts a run has already produced is not running the harness: `ls`, `cat`, and parsing `scores.jsonl` under `$ZOLTAR_EVAL_ROOT` are free and need no approval. Prefer them. A surprising number of questions that look like they need a run — a tag's per-fixture breakdown, whether a denominator moved, what a judge actually said — are answerable from the archive at zero cost, and `docs/eval-methodology.md § Two kinds of corpus bump` decides when a re-run is genuinely owed rather than merely convenient.
 

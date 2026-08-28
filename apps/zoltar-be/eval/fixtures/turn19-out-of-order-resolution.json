@@ -822,6 +822,11 @@
       "applies": true,
       "playerEntity": "Alvarez",
       "situation": "Alvarez declares she'll use the equipment racks as cover and shoot the contractor at the door \u2014 her Combat to-hit roll must resolve before any damage roll."
+    },
+    "system-rolled-player-action": {
+      "applies": true,
+      "playerEntity": "Alvarez",
+      "situation": "Alvarez declares she'll use the equipment racks as cover and shoot the contractor at the door \u2014 a resolvable attack requiring a Combat to-hit roll and, if it lands, a damage roll."
     }
   },
   "fixtureSchemaVersion": 2

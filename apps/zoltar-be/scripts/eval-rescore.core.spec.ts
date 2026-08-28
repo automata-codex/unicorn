@@ -212,6 +212,32 @@ describe('runRescore', () => {
     expect(summary.deltas.every((d) => d.changedVerdicts === 0)).toBe(true);
   });
 
+  it('records a null sourceVerdict for a check with no row in the source run', async () => {
+    // The universal check has no row in the source scores file, which is the
+    // shape every newly attached check arrives in. Until 2026-08-28 the
+    // fallback copied the *re-scored* verdict into `sourceVerdict`, so a
+    // first-ever measurement was recorded as an unchanged one — contradicting
+    // the warning this same pass emits for it.
+    buildRunDir({ sourceVerdict: 'fail' });
+
+    const summary = await runRescore({ runDir, fixturesDir }, deps());
+
+    const tagRow = summary.rows.find(
+      (r) => r.checkId === 'system-rolled-player-action',
+    );
+    expect(tagRow?.sourceVerdict).toBe('fail');
+
+    for (const checkId of universalCheckIds) {
+      const row = summary.rows.find((r) => r.checkId === checkId);
+      expect(row, `no row for universal check ${checkId}`).toBeDefined();
+      expect(row?.sourceVerdict).toBe(null);
+      // And the row is still a real measurement — null on the source side
+      // says nothing about whether this pass graded it.
+      expect(row?.verdict).toBeDefined();
+      expect(row?.carriedForward).toBe(false);
+    }
+  });
+
   it('names the transition and the rate move when a verdict changes', async () => {
     // Stands in for "the checker changed": the frozen artifact now grades
     // differently than the row on disk says it did.

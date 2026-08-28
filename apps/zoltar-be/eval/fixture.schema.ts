@@ -42,6 +42,26 @@ export const failureModeTagSchema = z.enum([
   // the whole corpus — see its doc comment before reaching for `--fixtures`.
   'MISSING-DELTA',
   'ROLL-RESULT-INVERSION',
+  // Added by M7.8 for `ADR-0100`'s Contractor rules, which shipped in M7.7
+  // and were graded by nothing. Named for the target rather than the skill:
+  // the subject is a roll target that does not follow from the entity's
+  // sheet, of which a misapplied skill bonus is only one of three ways.
+  'UNGROUNDED-CONTRACTOR-TARGET',
+  // Added by M7.8 for `ADR-0104`. Its sibling `SPATIAL-RELATION-ERROR` is
+  // deliberately absent: that ADR's addendum defers registration because the
+  // structural/judged choice is the unsettled question, and registering forces
+  // it now. While it stays unregistered `capture-fixture` refuses `--tag
+  // SPATIAL-RELATION-ERROR` outright, which is a mechanical guardrail that
+  // registering would replace with a note asking people to remember.
+  'SEEDED-CANON-CONTRADICTION',
+  // Added by M7.7 for `ADR-0112`, from the turn 20/21 pair of the 2026-08-24
+  // playtest. `ADR-0104` had already separated this mechanism from turn 9's
+  // silent retcon and declined to register either; this one is registered on
+  // its single instance because the roadmap commits to it and because the
+  // failure it names is a state-integrity defect rather than a narrative one
+  // — the world carries a consequence of an outcome the fiction no longer
+  // contains.
+  'UNREVERSED-RETCON',
 ]);
 
 export type FailureModeTag = z.infer<typeof failureModeTagSchema>;
@@ -143,7 +163,75 @@ export const judgedFailureModeTags = [
   // event, which is a Warden-visible turn-schema change.
   'MISSING-DELTA',
   'ROLL-RESULT-INVERSION',
+  //
+  // UNGROUNDED-CONTRACTOR-TARGET is judged for both of the reasons above at
+  // once. It needs a roll's target, which `DiceRollEventPayload` does not
+  // carry and `purpose` holds only as free text — the same wall
+  // ROLL-RESULT-INVERSION hit. And one of its three violations turns on
+  // whether the check falls inside a mapped skill's domain, a judgment about
+  // what "cracking an encoded file" or "hauling a coupling clear" is *for*:
+  // prose classification, and so barred from a structural check outright.
+  //
+  // The third violation — a target matching none of the entity's derived
+  // numbers — needs no domain judgment and would be structural if the target
+  // were a field. It is not, so the whole check goes to the judge rather than
+  // splitting one question across two modes.
+  //
+  // It keeps a structural pre-filter for the half structure can answer —
+  // whether any roll this turn was made by a crewRole-bearing entity — which
+  // is an id lookup against seeded state and entirely non-lexical. See
+  // `ungrounded-contractor-target.ts`.
+  'UNGROUNDED-CONTRACTOR-TARGET',
+  //
+  // SEEDED-CANON-CONTRADICTION is judged because extracting the assertion from
+  // narration is classification: "you climb down toward the deck below" has to
+  // be read as a claim about which deck a place is on before it can be
+  // compared to anything. The comparison itself would be trivial; getting the
+  // claim out of the prose is the whole difficulty.
+  //
+  // Its scope is deliberately wider than the spatial cases that produced it.
+  // The unifying property is not that a claim is spatial but that its referent
+  // lives in the fixture, which is what makes the tag gradeable at all — the
+  // reason `ADR-0104` splits one finding into this tag and a deferred sibling
+  // that reasons about positions state does not record.
+  'SEEDED-CANON-CONTRADICTION',
+  //
+  // UNREVERSED-RETCON is judged for the reason `ROLL-RESULT-INVERSION` is:
+  // the thing being detected lives in the narration and nowhere else. That a
+  // turn reversed an outcome an earlier turn narrated is a claim about what
+  // the prose does — "you reel the moment back the way it should've gone" is
+  // a reversal, and no field records that it happened. The comparison that
+  // follows is mechanical, and the fixture now carries both of its sides
+  // (`seededState.precedingCommittedTurn`), but reaching the comparison at
+  // all means reading prose, which `ADR-0074` bars a structural check from
+  // doing.
+  //
+  // A structural version was designed and rejected — see `ADR-0112`. It
+  // would have gated on the one structural trace a reversal leaves (this
+  // turn overwriting a key the preceding turn wrote) and graded whether the
+  // preceding turn's other deltas were offset. That gate is silent on the
+  // reversals that overwrite nothing, which is the majority shape: a turn can
+  // narrate the failure away and simply emit less.
+  'UNREVERSED-RETCON',
 ] as const satisfies readonly FailureModeTag[];
+
+/**
+ * One turn's committed write, as `capture-fixture` records it for the turn
+ * preceding a fixture's own — see `seededState.precedingCommittedTurn`.
+ *
+ * `stateChanges` is nullable because `gmPayloadFor` persists
+ * `r.stateChanges ?? null`: a turn that changed nothing writes the key as
+ * `null` rather than omitting it, and that is a real answer (the turn
+ * committed nothing) rather than a missing one.
+ */
+const precedingCommittedTurnSchema = z.object({
+  /** The winning `gm_response`/`correction` event's sequence number. */
+  sequenceNumber: z.number().int().nonnegative(),
+  /** As the Warden emitted it — deltas, each with its `reason`. */
+  stateChanges: z.record(z.string(), z.unknown()).nullable(),
+  /** As the validator committed it — resulting values, per `state_update`. */
+  applied: z.record(z.string(), z.unknown()),
+});
 
 /**
  * `campaignState`/`gmContextBlob`/`pendingCanon`/`messages` are captured
@@ -179,6 +267,37 @@ const seededStateSchema = z.object({
    * parse.
    */
   pendingDiceRequests: z.array(z.record(z.string(), z.unknown())).default([]),
+  /**
+   * What the **preceding committed turn** wrote — the last `gm_response` (or
+   * its winning `correction`) before this fixture's turn, paired with the
+   * `state_update` that actually committed it. `null` when the fixture's turn
+   * is the adventure's first, or when nothing before it committed.
+   *
+   * **Captured because the fold destroys it.** Everything else under
+   * `seededState` is state *as of* the target turn, which is the fold of every
+   * prior delta — by construction it records where the world ended up and not
+   * who moved it there. A check asking whether a reversal undid what the
+   * reversed turn committed needs the delta itself: the folded state carries
+   * `stress: 3` and no trace that a turn added 1 of it, for a reason that no
+   * longer applies.
+   *
+   * **Both halves, because they answer different questions.** `stateChanges`
+   * is what the Warden emitted — deltas, and the `reason` text attached to
+   * each, which is where the causal link to the reversed outcome lives
+   * ("failed Intellect+Computers check cracking insurance file encoding").
+   * `applied` is what the validator committed — resulting values, which is
+   * what "committed" means and what a rejected change would be missing from.
+   * The prior value is the difference between them, which is why neither is
+   * hand-authored: `ADR-0105`'s corollary wants a `judgeContext` that selects
+   * from the fixture rather than one that computes and asserts.
+   *
+   * Defaults to `null` so every fixture captured before this field existed
+   * still parses. A check that needs it declares `requiresFixtureSchema: 3`
+   * rather than treating the default as an answer — `null` from a v2 fixture
+   * means "never captured", not "nothing was committed", and only the version
+   * separates the two.
+   */
+  precedingCommittedTurn: precedingCommittedTurnSchema.nullable().default(null),
   /** Provenance only — never read at eval-run time. */
   capturedAt: z.string(),
 });
@@ -269,13 +388,14 @@ export type Applicability = z.infer<typeof applicabilitySchema>;
 /**
  * Describes *what was captured*, not the current checker logic. Bumped only
  * when `capture-fixture` starts recording a field it didn't before — v2
- * added `applicability` (see above) — never when a checker's interpretation
- * of existing fields changes. A check that needs a field newer fixtures
- * don't yet have declares `requiresFixtureSchema`, and the runner reports
- * `not_applicable` rather than a false regression (see
+ * added `applicability` (see above), v3 added
+ * `seededState.precedingCommittedTurn` — never when a checker's
+ * interpretation of existing fields changes. A check that needs a field newer
+ * fixtures don't yet have declares `requiresFixtureSchema`, and the runner
+ * reports `not_applicable` rather than a false regression (see
  * `eval/checks/registry.ts`).
  */
-export const FIXTURE_SCHEMA_VERSION = 2;
+export const FIXTURE_SCHEMA_VERSION = 3;
 
 /**
  * The version every fixture predating this field is deemed to be — frozen

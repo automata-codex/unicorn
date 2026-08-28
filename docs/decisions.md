@@ -1651,6 +1651,29 @@ differently before and after the fix. See open item 1.
    `{status, visible, revealed, npcState}` at synthesis before treating the captures as
    fix-invariant.
 
+   **Resolved 2026-08-27 (M7.7), and by a stronger route than this item asked for.**
+   The check as written passes: at synthesis `cryo_bay_feature`,
+   `falsified_maintenance_logs`, `hull_breach_cascade` and `parasitic_organism` carry
+   exactly `{status, visible, revealed}` — nothing outside the enumerated set, and no
+   `npcState` yet. But the decisive fact is about the *writes* rather than the records.
+   The adventure contains four committed entity writes in total: seq 30 and seq 66
+   (`falsified_maintenance_logs`) and seq 99 and seq 122 (`mara_odinsen`). Every write
+   below seq 99 targets an entity with nothing non-enumerated to lose, so a capture
+   folding only below it is fix-invariant whatever the full schema field list turns out
+   to be. The five fixtures taken from this adventure — turns 8 (seq 22), 14 (seq 40),
+   15 (seq 43), 21 (seq 64) and 29 (seq 90) — all qualify.
+
+   **The two writes where the fields are at stake are seq 99 and seq 122**, which is
+   the turn 31/32 pair this entry already names as its diagnosis and consigns to unit
+   tests rather than the corpus. A capture folding past seq 99 re-opens the question and
+   should not be taken before the fix lands.
+
+   **The fix has not landed**, and this resolution does not depend on it having landed.
+   The merge in `session.validator.ts` is still the closed literal
+   `{visible, revealed, status, npcState?}`. `mara_odinsen`'s `crewRole` and
+   `instinctRoll` survive in the captured fixtures because nothing wrote her below
+   seq 99 — not because the merge preserves them.
+
 2. **There is no way to remove a field from an entity record, and this decision makes
    that consequential.** The inability predates this ADR: `change.x ?? existing.x`
    treats an omitted value and an explicit `null` identically as "no opinion," so
@@ -1682,8 +1705,9 @@ differently before and after the fix. See open item 1.
    where it happened to work.
 
 3. **`capture-fixture` cannot emit `playerEntityIds`, and the harness treats its
-   absence as `[]`.** `reconstructStateAsOfTurn` returns `gmContextBlob` from the
-   synthesis snapshot, where the field is never persisted; `harness-runner.ts:179`
+   absence as `[]`.** *(Resolved 2026-08-27 (M7.7) — see below.)*
+   `reconstructStateAsOfTurn` returns `gmContextBlob` from the synthesis snapshot,
+   where the field is never persisted; `harness-runner.ts:179`
    reads it and resolves empty, which — per the comment in `seedScratchAdventure` —
    silently disables `actingEntityId` validation and grades a code path production does
    not take. All 21 existing fixtures carry hand-added values. This is a tooling defect
@@ -1692,6 +1716,24 @@ differently before and after the fix. See open item 1.
    emit the field from `character_sheet.data->>'entityId'` as
    `session.service.ts:280` already does, and `harness-runner` should fail loudly on an
    empty resolution rather than proceed. Tracked separately from this ADR.
+
+   **Resolved 2026-08-27 (M7.7).** Both changes landed, and they close different
+   populations rather than the same one twice. `capture-fixture` derives the field
+   from `character_sheet.data.entityId` — joined through the adventure's campaign,
+   ordered by `user_id` so a frozen file's canonical-first ordering does not depend
+   on the planner — and refuses the capture outright when the answer is empty, since
+   writing `[]` is what produced the defect. That closes the production side: no new
+   capture can arrive without it. It cannot reach the corpus that already exists,
+   which is hand-authored and hand-edited, so `seedScratchAdventure` now also rejects
+   a fixture declaring none, as a precondition before any row is written. All 21
+   fixtures already carry values, so the guard changes no current run.
+
+   Two details worth keeping. **Aliases stay a hand-edit**: derivation yields the
+   canonical id only, because the second id in `['alvarez', 'lt_alvarez']` exists for
+   the checker's leniency toward old artifacts and has no counterpart in
+   `character_sheet`. And the seeding path **had no test coverage at all** before
+   this, which is a fair part of why one editing slip became a voided re-baseline
+   nobody could see from the report; it has some now.
 
 4. **`gm_context_blob.entities` and `campaign_state.data->'entities'` disagree at
    synthesis.** The duplicate copy carries `crewRole` for `mara_odinsen` but not
@@ -3223,6 +3265,603 @@ two halves look symmetrical and are not, and that asymmetry is the whole justifi
 
 **Revisit if** a structural checker edit ever lands that `eval:rescore` cannot undo. A
 checker that reads something no longer present in the archived artifact would be that case.
+
+### [ADR-0112](decisions/0112-unreversed-retcon-is-judged-and-the-reversed-turn-s-committe.md) — `UNREVERSED-RETCON` is judged, and the reversed turn's committed deltas are captured
+
+## Context
+
+**Turn 20 of the 2026-08-24 playtest adjudicated a check against the wrong target, and
+turn 21 fixed the fiction without fixing the world.** Danny attempts to crack an
+insurance file; the roll comes in at 48. The player's own message says *"I have
+Computers +10"* — in the same turn, before the adjudication — and the Warden resolves it
+against an unmodified Intellect 40, narrates a hard failure with a tamper alert, and
+commits two things for that outcome: `stress +1` on `danny`, whose `reason` names the
+failed check, and `insurance_scam_exposed` held at `false`.
+
+The player says so: *"I have computers +10, so that 48 would be under the total of 50."*
+Turn 21 agrees, and it is right to — Trained is +10, the target is 50, and 48 clears it.
+It narrates the moment again as a clean success, flips the flag to `true`, and writes an
+`npcState`. The stress point stays. The turn's own notes state the reason it stays:
+
+> Overwrote the prior narrated failure/lockout outcome this turn since **no lasting
+> state had been committed to it beyond narrative flavor**.
+
+That claim is false, and the fixture carries the `state_update` proving it. Every
+subsequent turn is built from a `danny.stress` of 3, one point of which was charged for
+an event the fiction no longer contains.
+
+**`ADR-0104` had already isolated this mechanism and declined to name it.** Reviewing six
+continuity errors from the same playtest, it registered `SEEDED-CANON-CONTRADICTION`,
+deferred `SPATIAL-RELATION-ERROR`, and set turn 9's silent retcon aside as "one instance,
+entangled with a defensible behaviour, and a different mechanism from the turn 20/21
+retcon defect which is about state committed and not reversed." This entry registers that
+second mechanism.
+
+## Decision
+
+**Register `UNREVERSED-RETCON` on its single instance, as a judged check, graded against
+a newly captured fixture field.**
+
+### Registered on one instance, which is a departure worth stating
+
+`ADR-0104`'s own bar was a second instance before registering turn 9's retcon, and this
+tag clears no such bar. Three things separate them. The roadmap already commits to this
+one as an M7.7 deliverable. The failure is a state-integrity defect rather than a
+narrative one — a wrong number in the world that every later turn compounds, not a
+paragraph a reader might disagree about. And the behaviour that produces it is not
+entangled with anything defensible: the retcon itself is correct and is explicitly
+excluded from the rubric, so the tag names only the half that has no argument for it.
+
+### Judged, not structural
+
+The subject of the check — that a turn reversed an outcome an earlier turn narrated —
+lives in the narration and nowhere else. `ADR-0074` bars a structural check from
+classifying prose, and "you reel the moment back the way it should've gone" is prose. The
+comparison that follows a detected reversal is mechanical, and both sides of it are now
+captured data, but reaching the comparison is the part that is not.
+
+**A structural version was designed and is recorded here because it is the obvious
+move.** It would gate on the one structural trace a reversal leaves — this turn writing a
+key the preceding turn also wrote, `insurance_scam_exposed` going `false` → `true` — and
+then grade whether the preceding turn's other committed deltas were offset. It is
+deterministic, free, and non-lexical, and it fails on coverage: a reversal that overwrites
+nothing leaves no trace at all. A turn can narrate the failure away and simply emit less,
+which is the shape a Warden that believes "no lasting state was committed" will most often
+produce. Gating on the overwrite measures the subset of retcons that happen to touch the
+same key, and reports it as the rate for all of them.
+
+The alternative structural framing — stipulate the reversal in the fixture and grade only
+whether the stress was offset — was rejected for the opposite failure. A Warden that
+re-examines the arithmetic and declines to retcon has committed no violation, and would
+score a `fail` for the absence of a delta it correctly did not owe.
+
+### Graded against `seededState.precedingCommittedTurn`, a new v3 capture field
+
+**Nothing in a fixture carried what the reversed turn committed.** Everything under
+`seededState` is state *as of* the target turn, which is the fold of every prior delta:
+by construction it records where the world ended up and not who moved it there. The
+folded `campaignState` carries `danny.stress = 3` and no trace that a turn added 1 of it,
+for a reason that no longer applies. `seededState.messages` are narration only — `role`
+and `content`, no `stateChanges`. So the check's ground truth was absent from both modes,
+not just from the judged one.
+
+`capture-fixture` now records the last **committed** turn before the target: the winning
+`gm_response`/`correction` payload's `stateChanges`, paired with the `applied` block of
+the `state_update` that committed it, plus that response's sequence number.
+`FIXTURE_SCHEMA_VERSION` moves 2 → 3 and `unreversed-retcon` declares
+`requiresFixtureSchema: 3`, so a v2 fixture — whose `null` means *never captured* rather
+than *nothing was committed* — reports `not_applicable` instead of an exclusion it never
+earned. This is the first judged check to declare the field, which surfaced that
+`buildChecks` read `REQUIRES_FIXTURE_SCHEMA` only in the structural loop; `runCheck`
+applies the gate before dispatching on mode, so the omission would have been a silently
+ignored declaration rather than a type error.
+
+**Both halves are captured, because they answer different questions.** `stateChanges` is
+what the Warden emitted — the deltas, and the `reason` text on each, which is where the
+causal link to the reversed outcome lives. `applied` is what the validator committed —
+resulting values, which is what "committed" means and what a rejected change would be
+missing from. The prior value is the difference between them, and is deliberately left as
+a difference: see the renderer note below.
+
+### Every kind of committed state counts
+
+Pools, flags, entities, world facts, character state — not only numeric pools. The
+instance in hand is a pool, and a rubric scoped to pools would name the tag after its
+first example. The cost is a judgment the rubric has to carry explicitly: state the
+reversed turn committed *for reasons that survive the reversal* is not owed an undo, and
+the rubric says so rather than leaving the judge to infer a scope.
+
+## Consequences
+
+**A `judgeContext` golden ships with the renderer**, per `ADR-0105`. This is the third,
+after `SEEDED-CANON-CONTRADICTION` and `UNGROUNDED-CONTRACTOR-TARGET`;
+`unauditableMappingJudgeContext` remains the one uncovered renderer and remains M7.8's
+work. The catalog reports the state per check (`task docs:eval-tags`), so the gap is
+visible rather than remembered.
+
+**The renderer selects and computes nothing.** `ADR-0105`'s corollary is load-bearing
+here in a way it was not for `SEEDED-CANON-CONTRADICTION`: the interesting number is the
+*prior* value of a changed pool, and that is arithmetic. Computing it inside the renderer
+would put an arithmetic claim in front of the judge as ground truth, carrying no identity
+and answerable to no hash — so the two blocks are rendered verbatim and the difference is
+left for the judge to take. A spec asserts the absence.
+
+**`corpusVersion` moves**, as it does for any corpus addition — one new fixture,
+`2c0ba938-turn21-unreversed-retcon`. The check's `applicabilitySource` is `'artifact'`
+under the weakest-link rule, and carries the same caveat `SEEDED-CANON-CONTRADICTION`
+does: a turn that reverses nothing is `not_applicable` in principle and a pass in
+practice, because a judged check has no route to `not_applicable` except through its gate
+and deciding that case means reading prose. The rubric requires the judge to name it in
+those terms so the artifacts stay separable.
+
+**The prior narration reaches the judge from `messages`, not from the new field.** The
+renderer takes the last `gm` message in the seeded window, which is not provably the same
+turn as the captured deltas — `precedingCommittedTurn` skips back past a turn that
+committed nothing, while `messages` carries every narration. They coincide on every
+fixture captured so far. The renderer labels the section as the last narration the player
+was shown rather than asserting a pairing it cannot verify.
+
+## Alternatives considered
+
+- **Hand-author the reversed turn's deltas into `assertion.facts`.** Free — the fixture
+  file falls under `corpusVersion` already — and rejected on the cost `ADR-0104` records
+  for `SEEDED-CANON-CONTRADICTION`'s `requiredFacts: []`: pinning ground truth there
+  commits every future fixture carrying this tag to the current fact set, and a later
+  rubric revision changing that set costs a `corpusVersion` bump on all of them. It also
+  moves a transcription step into fixture authoring, where a typo becomes ground truth.
+- **Grade against the folded state alone, with no capture change.** Rejected as
+  unreachable rather than expensive: the fold has already destroyed the distinction the
+  check is about.
+- **Capture the `state_update` payload only.** Cheaper, and loses the `reason` text —
+  which is the only field linking a committed delta to the outcome being reversed. A
+  judge shown `stress: 3` with no stated cause cannot tell what the reversal owes.
+- **A structural check.** Recorded above at length, in both its gated and stipulated
+  forms.
+- **Fold this into `MISSING-DELTA`.** Superficially close — both are about a gap between
+  narration and emitted state — and wrong in direction. `MISSING-DELTA` asks whether a
+  turn failed to emit a change it described; this asks whether a turn failed to emit a
+  change it *un*-described. Merging them would make one tag's rate mean two things, which
+  is the objection `ADR-0104` raises against a single tag for six errors and
+  `fixture.schema.ts` raises against merging `SCENE-JUMP` into `OVER-RESOLUTION`.
+
+## Open items
+
+1. **The tag has one fixture and will report a rate on one turn.** `ADR-0082`'s reading
+   applies in advance: a rate that never moves is a harness suspect before it is a
+   finding. A second instance is worth capturing when a playtest produces one, and the
+   scenario is cheap to steer toward — tell the Warden its arithmetic was wrong on a roll
+   that already cost something.
+2. **Whether a `judgeContext` renderer without a golden should be a compile error** is
+   still the open question `ADR-0105` left, and is now three-for-four rather than
+   two-for-three. A convention that depends on remembering is the thing that entry was
+   correcting.
+
+### [ADR-0113](decisions/0113-the-duplicate-turn19-turn21-fixtures-are-kept-as-tripwires-a.md) — The duplicate turn19/turn21 fixtures are kept as tripwires at `repOverride: 1`, not retired
+
+## Context
+
+`turn19-out-of-order-resolution` and `turn19-system-rolled-player-action` are the same
+turn — sequence 82 of adventure `18be155e`, identical `playerInput`, and `seededState`
+differing only in `capturedAt`, which is provenance and never read at eval time. The
+turn21 pair is the same at sequence 95.
+
+**They exist because selection used to be 1:1 with `tag`.** Covering two failure modes on
+one turn required two files. `ADR-0096` removed that constraint, and the widening recorded
+in `docs/eval-findings.md § S37` acted on it: both `-out-of-order-resolution` fixtures now
+carry a `system-rolled-player-action` check. That makes each sibling's check set a **strict
+subset** of its partner's — `{system-rolled-player-action, tool-syntax-leak}` against
+`{out-of-order-resolution, system-rolled-player-action, tool-syntax-leak}` — on the same
+turn, from the same seeded state.
+
+**The duplication is real spend, not a filing quirk.** `eval-run.core.ts:350-391` seeds a
+fresh scratch campaign per fixture per rep and calls `sessionService.sendMessage` for each,
+with no memoisation on seeded state. Two fixtures with identical input are two independent
+draws costing two Warden turns. At N=10 the two siblings cost 20 turns per full-corpus run.
+
+## The evidence, and why it points both ways
+
+Across all seventeen archived runs the two siblings have produced **28
+`SYSTEM-ROLLED-PLAYER-ACTION` failures** — 19 on turn19, 9 on turn21. The behaviour is
+real and both scenarios provoke it.
+
+It has also been absent for a long time:
+
+| Period | Failures |
+|---|---|
+| 2026-07-29 (Sonnet 4.6) | 14 / 17 |
+| 2026-08-09 | 11 / 20 |
+| 2026-08-10 → 08-16 | 3 across four runs |
+| **2026-08-18 → 08-24, seven runs** | **0 / 134** |
+
+**The recurrence pattern is what decides this.** On 2026-08-09 the fixtures were clean at
+`14-37-36Z` and produced eleven failures at `21-23-39Z` — the same day. A behaviour that
+can return within one day after a clean run is not settled by seven clean runs; it is
+dormant. `§ A model swap audits the harness as much as the model` records the same shape
+one level up: the 4.6 → Sonnet 5 swap surfaced defects no number of 4.6 runs could show.
+
+## Decision
+
+**`repOverride: 1` on `turn19-system-rolled-player-action` and
+`turn21-system-rolled-player-action`.** They stay in the corpus, keep their ids, and run
+once per full-corpus pass instead of ten times.
+
+`repOverride` is consumed at `eval-run.core.ts:284` as
+`Math.min(args.reps, fixture.repOverride)`, resolved into a map *before* the rep loop
+begins, which is what makes "no adaptive mode" a structural property rather than a
+promise. The mechanism already existed and was tested; nothing is built here.
+
+**What this buys.** Cost falls from 20 Warden turns per run to 2. The fixture ids stay in
+the corpus, so `eval:compare` keeps pairing them on `(fixtureId, checkId)` against every
+archived run. And a regression that returns at anything like the historical rate meets a
+live fixture rather than a deleted one.
+
+**What it costs, stated plainly.** At N=1 a fixture's own rate is uninterpretable — one
+rep is a tripwire, not a measurement, and anyone reading `SYSTEM-ROLLED-PLAYER-ACTION`'s
+per-fixture breakdown must read these two rows as present-or-absent rather than as a rate.
+The thin denominator is at least visible, because `ADR-0083` puts applicability beside
+every rate.
+
+## Alternatives considered
+
+- **Keep both at full N.** 20 turns per run for a second draw on a behaviour with no live
+  signal in 134 consecutive reps. The insurance is worth something; it is not worth ten
+  times the cheapest version of itself.
+- **Retire the two siblings.** The first instinct, and it discards two things that cost
+  nothing to keep: the `(fixtureId, checkId)` pairing that lets `eval:compare` reach every
+  archived run, and the tripwire. Retirement is right when a fixture is *measuring the
+  harness* — `turn16-narrating-past-a-block`, `turn02-missing-canon-capture` — and these
+  are not; they measure the Warden and have caught it 28 times.
+- **Consolidate onto one fixture per turn.** Identical in effect to retiring, since the
+  survivor would have to be the `-out-of-order-resolution` file — `out-of-order-resolution`
+  is not tag-independent and can only reach a fixture carrying its tag — so the sibling's
+  id is what disappears either way.
+- **Retire them and rely on the `turn24-*` trio for this tag.** Rejected on the same
+  evidence that motivated `ADR-0096`: a tag measured on a narrow set of scenarios is a
+  claim about those scenarios. Nineteen of the 28 failures are on turn19, a scenario the
+  `turn24-*` fixtures do not reproduce.
+
+## Consequences
+
+**This is a fourth kind of corpus bump, and `§ Two kinds of corpus bump` names three.**
+Editing `repOverride` changes the fixture file, so `corpusVersion` moves — but no input
+reaching the Warden changed, no grading of existing output changed, and no fixture was
+added or removed. What changes is the **sample size going forward**. Frozen artifacts stay
+exactly as valid as they were and `eval:rescore` is unaffected; future denominators shrink,
+so a rate compared across this change needs the same like-for-like-on-shared-fixtures
+treatment a set-membership bump needs. Worth adding to that section as a named kind rather
+than left to be re-derived.
+
+**The tripwire has to be read to work.** A fixture at N=1 contributes one row, and one row
+among hundreds is easy to skim past. This is only insurance if someone looks at the
+per-fixture breakdown after a run — which `ADR-0082`'s "a rate that never moves is a
+harness suspect" already asks for, and which this decision now depends on.
+
+**What would reverse it.** A single failure on either sibling means the behaviour is back
+and the fixtures should return to full N to measure it. So would a model swap or a prompt
+change touching roll ownership: this decision is calibrated on seven clean runs under one
+model and one prompt family, and neither is a permanent condition.
+
+### [ADR-0114](decisions/0114-out-of-order-resolution-is-tag-independent-and-attached-to-s.md) — `out-of-order-resolution` is tag-independent, and attached to six more fixtures
+
+## Context
+
+`ADR-0096` made a check attachable to a fixture whose `tag` it is not, and named
+`out-of-order-resolution` as the case that separates *portable* from *attached*: it reads
+no `assertion`, only `applicability[checkId]` and the turn output, so it qualifies on the
+merits — and it closed with "whether it should be attached to more fixtures is a corpus
+decision, and is not made here." The `TAG_INDEPENDENT_CHECK_IDS` doc comment said the same
+in its own words. Neither was an oversight; both were waiting on evidence.
+
+The precedent for what that evidence looks like is `§ S34`, which counted
+`SYSTEM-ROLLED-PLAYER-ACTION` occurrences in frozen artifacts *before* `ADR-0096` attached
+the check to the `turn24-*` trio. This entry does the same for this check.
+
+## The count
+
+Every archived `warden-output.json` belonging to a fixture **not** carrying the check was
+graded by `checkOutOfOrderResolution` with a synthesised `applicability` entry. Frozen
+artifacts only: no Warden run, no Anthropic calls, no cost.
+
+| Fixture | v | FAIL | pass | n/a |
+|---|---|---|---|---|
+| `turn19-system-rolled-player-action` | 2 | **13** | 149 | 2 |
+| `turn21-system-rolled-player-action` | 2 | **8** | 136 | 6 |
+| `turn21-narrating-past-a-block` | 1 | **5** | 140 | 5 |
+| `turn24-over-resolution` | 2 | **2** | 25 | 110 |
+| `turn24-hidden-info-leak` | 2 | **1** | 24 | 115 |
+
+**29 violations, and every one is the same shape** — a consequence roll resolved while the
+`dice_request` it depends on was still open:
+
+> sequence 4: "Alvarez pulse rifle damage against contractor if combat check succeeds" was
+> resolved for Alvarez while 1 dice_request(s) were still pending ("Combat check — shoot
+> contractor at equipment bay door from heavy cover") — its gate had not resolved when this
+> turn ended
+
+None came through the other two branches (a roll preceding the turn's `player_action`, or
+an in-turn `gatedByRollId` inversion). Nine other fixtures reached a verdict with no
+failures at all.
+
+## Decision
+
+**`out-of-order-resolution` joins `TAG_INDEPENDENT_CHECK_IDS`, and six fixtures author an
+`applicability` entry for it**, taking the check from 2 fixtures to 8.
+
+`turn21-narrating-past-a-block` needed `fixtureSchemaVersion` 1 → 2 to be reachable at all:
+the check declares `requiresFixtureSchema: 2`, so `runCheck`'s gate would have reported
+`not_applicable` on every rep and the attachment would have bought nothing. The bump is
+honest rather than cosmetic — v2 is "carries `applicability`", and it now does. Same move
+`§ S35` made for the `turn24-*` trio.
+
+### `turn24-scene-jump` is attached despite zero observed failures, and that is the point
+
+It replays the same seq-116 turn as `turn24-over-resolution` and `turn24-hidden-info-leak`,
+both of which fail this check. Attaching only the fixtures whose draws happened to fail
+would infer applicability from what the model produced, which is exactly what `ADR-0073`
+forbids and what `applicabilitySource: 'artifact'` exists to warn about. **Applicability is
+a claim about the scenario, and the three fixtures are one scenario.** Selecting on the
+outcome variable would also bias the resulting rate downward by construction.
+
+### What is deliberately not attached
+
+Nine fixtures reach a verdict on this check without ever failing it — `turn14-unauditable-
+mapping` (39 passes), `5c34991b-turn09-unauditable-mapping` (18), the `5c34991b-turn10-*`
+trio, and others. A strict reading of "applicability is a claim about the scenario" argues
+for attaching those too: a scenario that produces a pass *is* a scenario the check applies
+to.
+
+Not done here, and the reason is that it is a different decision with a different cost.
+Attaching six fixtures on the strength of observed violations widens coverage where the
+behaviour demonstrably occurs. Attaching nine more on the strength of observed passes
+widens the *denominator* into scenarios that have never once produced the failure, which
+moves the tag's rate toward 1.00 without adding information — the shape `ADR-0082` names.
+Worth deciding on its own evidence, not by extension from this one.
+
+## Consequences
+
+**Scoring-only bump.** Six `applicability` blocks and one `fixtureSchemaVersion` bump; no
+`seededState`, `playerInput` or `assertion` touched. Every frozen `warden-output.json`
+remains exactly as valid as it was, so the count above is reproducible as a real
+measurement via `eval:rescore` rather than only as a prediction.
+
+**The rate will move, and the movement is not about the Warden.** Going from 2 fixtures to
+8 changes what the tag's number is a claim about. `§ S35`'s framing applies unchanged:
+widening a check's corpus is not a way to make a rate fall, it is a way to make the rate
+mean the corpus. Compare across this bump only on shared fixtures.
+
+**Two of the eight run at `repOverride: 1`.** `ADR-0113` dialled the two
+`-system-rolled-player-action` siblings down to one rep, and they carry 21 of the 29
+counted violations. Their contribution going forward is therefore a tripwire, not a rate —
+which is the right shape for them, since the turns they replay are already covered at full
+N by their `-out-of-order-resolution` partners.
+
+**The count is a lower bound.** The branch that produced all 29 routes through
+`isAttributedTo`, a prose leading-name match on the roll's `purpose`. The checker's own
+comment records that this "fails the way prose matching always fails here — silently, by
+not matching," so any violation whose purpose text does not open with the player's name is
+invisible both to this scan and to the check wherever it is attached. That is a property of
+the checker, not of this attachment, and it is not addressed here.
+
+**`capture-fixture` now stubs two tag-independent checks into every new fixture** rather
+than one, fail-closed, so each capture is asked about this check as well.
+
+## Alternatives considered
+
+- **Leave it tag-bound.** Rejected by the count: 29 violations sat in artifacts no checker
+  was looking at, which is `§ S34`'s finding reproduced for a second tag.
+- **Attach without counting first**, on portability alone. Rejected in the ticket that
+  preceded this entry and worth keeping: a check pointed at scenarios that cannot provoke
+  it inflates the denominator with guaranteed passes, which is the same error as leaving it
+  narrow, in the other direction.
+- **Attach only where failures were observed** — five fixtures rather than six. Rejected on
+  `ADR-0073`: that infers applicability from model output, and it biases the rate.
+- **Attach everywhere the check reaches a verdict** — fifteen fixtures. Deferred above,
+  with its own reasoning.
+
+### [ADR-0115](decisions/0115-turn02-missing-canon-capture-is-retired-not-re-authored.md) — `turn02-missing-canon-capture` is retired, not re-authored
+
+## Context
+
+`turn02-missing-canon-capture` never graded anything. Across every archived run
+containing it — **157 reps, 16 runs**, both models, every prompt revision from 2026-07-29
+to 2026-08-24 — it returned `not_applicable` on every rep.
+
+The audit block on `checkMissingCanonCapture` had already examined this at 20 reps and
+reached a correct but incomplete conclusion: the exclusions are honest, the marker phrase
+(`RESTRICTED — VERIDIAN INTERNAL`) genuinely never appears, and the fixture is at fault
+rather than the checker. It named the fix as "recapturing the fixture against a turn whose
+narration reliably introduces its detail, or authoring the expectation as something other
+than a literal phrase."
+
+## The marker is a symptom, not the defect
+
+The turn asks whether the Warden captured the station layout. `worldFacts.station_layout_overview`
+**already seeds that layout** — the central hub, four radial modules, habitat ring, ladder
+shaft, Lab C's quarantine notice. The player asks for a map and the Warden reads the seeded
+canon back to them. That is correct behaviour, it introduces nothing, and there is nothing
+to capture.
+
+**Which makes the obvious repair a trap.** Re-authoring the marker to a phrase the
+narration does produce every rep — "habitat ring", "ladder shaft" — gates on restated
+seeded canon, and the check would then fail the turn on every rep for not durably writing
+a fact that was already durable. An honest zero denominator traded for a manufactured
+0.00. `ADR-0081` rejects this check's migration to judged for the mirror-image reason: a
+judge asked "was the detail introduced, and if so captured" would answer "it wasn't" on
+every rep and, the verdict being binary, return a spurious 1.00. Both trades replace *no
+measurement* with *a wrong measurement*, in opposite directions.
+
+The details the turn genuinely invents vary rep to rep — one rep produces
+`"restricted, manifest ref. 774-KK"`, another places the junction "about twenty metres out"
+where `starting_location` seeds 12. No fixture-authored literal phrase can gate on
+invention that moves every rep.
+
+## Decision
+
+**Retire `turn02-missing-canon-capture`, and replace it with two fixtures from `2c0ba938`,
+one per direction.**
+
+Retirement rather than repair is forced as well as chosen: the source adventure
+`18be155e` is no longer in the local database, so the fixture cannot be re-captured
+against a different turn. Only a hand-edit of the frozen JSON was available, and every
+candidate edit is the trap above.
+
+- **`2c0ba938-turn21-missing-canon-capture`** — the fail side. The player's corrected
+  arithmetic opens the insurance file, and what the file holds lives in
+  `gmContextBlob.narrative` ("a designed loss, with hazard-multiplier payouts for crew and
+  colonist casualties") where the player cannot see it, with nothing about it in the five
+  `worldFacts` keys standing at that point. Narrating it moves a GM secret into shared
+  canon and owes a durable write; the original turn wrote a flag and an `npcState`.
+- **`2c0ba938-turn23-missing-canon-capture`** — the pass side, and it exists because the
+  `worldFacts`-diff branch had never executed against real output in those 157 reps. The
+  player asks who the crew are, five of the six are unnamed in the seeded context, and the
+  original turn wrote `crew_roster` and `insurance_file_copies`.
+
+Both were verified against the historical output of their turns before landing: `turn21`
+reaches `FAILED`, `turn23` reaches `PASSED` on the branch that had never run.
+
+## The rule this generalises to
+
+**A fixture that grades whether a turn wrote something down must seed a world in which
+that something is absent.** Nothing in the authoring path checks this — the marker phrase,
+the `expects:` text and the seeded state are authored independently, and `capture-fixture`
+cannot know which world fact the author has in mind. Until it can, the question belongs on
+the authoring checklist: *is the expected detail absent from
+`seededState.campaignState.worldFacts`, and absent from the seeded message window?*
+Recorded at length in `docs/eval-methodology.md § A fixture cannot grade what the seed
+already contains`.
+
+**Marker stability becomes an authoring criterion rather than an accident.** A phrase the
+Warden invents fresh each rep gates on a coin flip. Both replacements are pinned instead:
+`hazard multiplier` is vocabulary the Warden reads off its own seeded context, and
+`bridge crew` is echoed from the player's own question. Neither is a guess at how a model
+might word something — the property `RESTRICTED — VERIDIAN INTERNAL` lacked.
+
+## Alternatives considered
+
+- **Re-author the marker in place.** The ticket's first option, and the trap analysed
+  above. It also keeps the fixture id and its comparison history, which is a real cost of
+  retiring — paid because the alternative is a fixture that reports a number meaning
+  nothing.
+- **Migrate the check to judged.** Rejected in `ADR-0081` and not reopened: only the
+  structural path can express `not_applicable`, and this fixture is the case that proves
+  why that matters.
+- **Keep it and add coverage elsewhere.** Leaves an honest zero denominator standing at
+  the cost of a rep per run and an exclusion line someone re-reads every time. Rejected as
+  paying rent for nothing.
+
+## Consequences
+
+**A set-membership bump** under `docs/eval-methodology.md § Two kinds of corpus bump` —
+one fixture removed, two added. Frozen artifacts for surviving fixtures stay valid, but
+`MISSING-CANON-CAPTURE`'s denominator moves and no rate spans the change like-for-like.
+
+**The `pending_canon` branch is still unexercised.** The check has two PASS branches and
+the replacement only covers one. `2c0ba938` proposes canon on no turn at all; the only
+rows in any source adventure are `5c34991b` sequences 14 and 34. Covering it properly is
+M7.8 known-answer work — a hand-authored artifact carrying a `pending_canon` row — because
+no corpus fixture can force the Warden to choose that route.
+
+**`turn02` joins `turn16-narrating-past-a-block` as a retired fixture**, and the two were
+retired for different reasons worth keeping distinct: `turn16` was measuring the harness
+(a `dice_request` the fixture itself seeded with a null target), while `turn02` measures
+nothing at all. A fixture that grades the harness produces a wrong number; this one
+produced no number.
+
+### [ADR-0116](decisions/0116-warden-eval-findings-get-their-own-log-and-the-s-numbering-s.md) — Warden eval findings get their own log, and the `S` numbering spans both files
+
+## Context
+
+`docs/rules-extraction-findings.md` describes itself as "a running record of what has
+actually been tried against real rulebook PDFs… Chunking and extraction are expected to
+need several iterations." `§ S1`–`§ S23` are exactly that: PDF block extraction,
+column-aware sort, FTS versus dense retrieval, DF trimming, MRR bars. `§ S24`–`§ S29`
+stretch to the primer and query-side retrieval, still tethered to the rules corpus.
+
+From `§ S30` on 2026-08-09 the series stops being about rules extraction:
+
+| | |
+|---|---|
+| `§ S30` | the attribution field shipped and made a *check* worse |
+| `§ S31`, `§ S33`, `§ S34` | re-baselines, roll ownership, the `<entities>` render |
+| `§ S35` | pointing a check at more fixtures |
+| `§ S36` | `roll_dice` has nowhere to put a target |
+
+Seven sections, the most recent seven at the time, none about extracting anything from a
+PDF. **Each landed there because its predecessor had.** Splitting a thread reads worse
+than continuing one, and every individual entry was justified by the entry above it —
+which is the mechanism `CLAUDE.md` already records for how `docs/roadmap.md` reached
+22,000 words.
+
+## Decision
+
+**`docs/eval-findings.md` owns Warden eval findings — run diagnoses, tag coverage, checker
+defects, and the corpus decisions that follow from them — starting at `§ S37`.**
+
+**`eval-methodology.md` is deliberately not the home.** Its own header draws the line that
+excludes them: "how to run the Warden eval harness, as distinct from what it measures." A
+rule you would apply to the next run belongs there; a number you got from the last one
+belongs in the new file. That test is now stated in both file headers and in `CLAUDE.md`'s
+routing table, because the previous instruction — three findings docs named with the
+choice left to judgement — is what let the drift happen.
+
+### The break is forward-only, and that is a constraint rather than a preference
+
+`docs/plans/014-turn19-roll-ownership.md` cites `rules-extraction-findings.md § S30`,
+`§ S31` and `§ S32`. `docs/plans/021-unauditable-mapping-roll-purpose.md` cites `§ S36`.
+Plans are frozen — dated accounts of what was true when written — and `CLAUDE.md` forbids
+rewriting a reference inside one to cite an identifier that did not exist at the time.
+Moving those sections would strand the citations; rewriting the citations is not
+available. So `§ S36` and earlier stay where they are, with a note in the rules file's
+preamble saying they are in the wrong file and why they are not moving.
+
+`§ S37` moved rather than the new file starting at `§ S38`: nothing frozen cited it, its
+only references were the roadmap footer and a doc comment, and starting the file empty
+would have made the break notional.
+
+### The numbering is one namespace across two files
+
+Restarting at `S1` in the new file would make `§ S12` ambiguous in every future citation,
+and these sections are cited by number far more often than by title. One namespace, two
+files, and a reader resolves a citation by looking in both — which is worse than one file
+and better than an ambiguous number.
+
+## Alternatives considered
+
+- **Move `§ S30`–`§ S36` into the new file.** The tidy answer, and unavailable: it either
+  strands frozen-plan citations or requires editing frozen documents.
+- **Put them in `eval-methodology.md`.** Rejected on that file's own stated remit. It has
+  the opposite problem already — dated records accumulated there before this file existed,
+  each arriving with a lesson attached that made it feel at home — and its header now says
+  so and points new ones here.
+- **Rename `rules-extraction-findings.md` to cover both subjects.** Rejected: `§ S1`–`§ S23`
+  genuinely are rules extraction, and a name broad enough to cover both is a name that
+  routes nothing.
+- **Leave it and rely on the routing table alone.** Rejected because the routing table is
+  what failed: it named three findings docs and let judgement pick, and judgement picked by
+  following each section's neighbours.
+
+## Consequences
+
+**`references.core.ts`'s `IN_SCOPE_DOCS` gains the new file.** That list is exported and
+currently consumed by nothing — the migration script that used it is gone — so the addition
+is an inventory statement rather than a functional change, and the reference-rewriting it
+implies is not running on any document today.
+
+**A reader resolving `§ S12` has two files to check.** Accepted, and cheaper than the
+alternative: an `S` number that means different things in different files would be a
+silent mis-citation rather than a two-second lookup.
+
+**The rules file keeps a permanent irregularity.** Its preamble now carries a paragraph
+explaining that seven of its sections belong elsewhere and are staying. That note is
+maintained rather than appended, which the file's own rules permit for the preamble while
+protecting session evidence from edits.
+
+**This does not fix `eval-methodology.md`.** Roughly 700 of its 1,280 lines are dated
+records rather than method — `§ Structural check migrations`, two `§ Bump note` sections,
+`§ Same-prompt run-to-run variance`, and the tables under `§ Current baseline N`. They stay
+for the same reason `§ S30`–`§ S36` stay: several are cited from ADRs and `§ Outcome` is
+cited from a frozen plan. Its header names them and routes new ones here. Migrating them
+is a large edit whose only benefit is tidiness, and it is not owed.
 
 ---
 

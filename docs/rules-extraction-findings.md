@@ -10,6 +10,16 @@ design intent. `ingestion/README.md` is the operational how-to. This file is
 the empirical record, and where it contradicts the design doc, this file
 describes reality — see [Corrections owed to `docs/rules-ingestion.md`](#corrections-owed-to-docsrules-ingestionmd).
 
+**`§ S30`–`§ S36` are Warden eval findings, and are in the wrong file.** The
+series drifted on 2026-08-09: from `§ S30` the sections stop being about
+extracting rules from a PDF and become re-baselines, tag coverage and checker
+defects, which is `docs/eval-findings.md`'s subject. They stay here because
+`docs/plans/014-turn19-roll-ownership.md` cites `§ S30`, `§ S31` and `§ S32` and
+`docs/plans/021-unauditable-mapping-roll-purpose.md` cites `§ S36`, and plans are
+frozen. The break is forward-only: `§ S37` onward is in `docs/eval-findings.md`,
+which continues the same numbering so a `§ S` citation means one thing across
+both files. Add rules-corpus findings here; add Warden eval findings there.
+
 **How to add to this file.** Append a new dated session under
 [Sessions](#sessions) with the commands you ran and the raw numbers you got.
 Promote anything durable into [Standing conclusions](#standing-conclusions)
@@ -5078,3 +5088,4 @@ fixture-authoring bullet records — but it is not what holds this tag at 0.00.
 - Widening the tag's coverage — the bullet's second half — is worth doing
   regardless, but widening it before the instruction exists buys more fixtures
   measuring a Warden that was never told.
+

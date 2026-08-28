@@ -850,6 +850,11 @@
       "applies": true,
       "playerEntity": "Alvarez",
       "situation": "Alvarez, already committed to the firefight, tries to shoot the contractor again \u2014 her Combat to-hit roll must resolve before any damage roll."
+    },
+    "system-rolled-player-action": {
+      "applies": true,
+      "playerEntity": "Alvarez",
+      "situation": "Alvarez, already committed to the firefight, tries to shoot the contractor again \u2014 a resolvable attack requiring a Combat to-hit roll and, if it lands, a damage roll."
     }
   },
   "fixtureSchemaVersion": 2

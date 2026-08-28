@@ -18,7 +18,7 @@ import {
   truncateAll,
 } from '../test/db-test-helper';
 
-import { captureFixture } from './capture-fixture.core';
+import { CaptureError, captureFixture } from './capture-fixture.core';
 
 import type { MothershipCampaignState } from '@uv/game-systems';
 
@@ -40,7 +40,14 @@ beforeEach(async () => {
   await truncateAll();
 });
 
-async function seedAdventure(): Promise<{
+/**
+ * `playerEntityId` defaults to a real value because a campaign without a
+ * character sheet is not a capturable adventure — `captureFixture` refuses it
+ * (`ADR-0103` open item 3). Pass `null` to build that refusal case.
+ */
+async function seedAdventure(
+  playerEntityId: string | null = 'dr_chen',
+): Promise<{
   campaignId: string;
   adventureId: string;
 }> {
@@ -68,6 +75,14 @@ async function seedAdventure(): Promise<{
     userId: 'u1',
     role: 'owner',
   });
+  if (playerEntityId !== null) {
+    await db.insert(schema.characterSheets).values({
+      campaignId: campaign.id,
+      userId: 'u1',
+      system: 'mothership',
+      data: { entityId: playerEntityId },
+    });
+  }
   const [adventure] = await db
     .insert(schema.adventures)
     .values({ campaignId: campaign.id, callerId: 'u1', status: 'ready' })
@@ -166,7 +181,12 @@ describe('captureFixture (integration)', () => {
     expect(fixture.sourceAdventureId).toBe(adventureId);
     expect(fixture.sourceSequenceNumber).toBe(targetSequenceNumber);
     expect(fixture.seededState.campaignState).toEqual(direct.campaignState);
-    expect(fixture.seededState.gmContextBlob).toEqual(direct.gmContextBlob);
+    // Everything except `playerEntityIds` is the fold's own output; that one
+    // field is derived here because synthesis never persists it.
+    expect(fixture.seededState.gmContextBlob).toEqual({
+      ...direct.gmContextBlob,
+      playerEntityIds: ['dr_chen'],
+    });
     expect(fixture.seededState.pendingCanon).toEqual(direct.pendingCanon);
     expect(fixture.seededState.messages).toHaveLength(direct.messages.length);
     expect(fixture.seededState.capturedAt).toBeTruthy();
@@ -250,6 +270,150 @@ describe('captureFixture (integration)', () => {
       expect(fixture.assertion.rubric).toBe('HIDDEN-INFO-LEAK');
       expect(Object.keys(fixture.assertion.facts).length).toBeGreaterThan(0);
     }
+  });
+
+  it('derives playerEntityIds from character_sheet, in user_id order', async () => {
+    // The field the harness seeds scratch character sheets from. Derived
+    // rather than hand-added, because hand-adding it is what everyone forgot:
+    // all 21 pre-existing fixtures needed the edit, and the one run that went
+    // out without it was voided (`ADR-0103` open item 3).
+    const db = getTestDb();
+    const { campaignId, adventureId } = await seedAdventure('danny');
+
+    // A second sheet whose `user_id` sorts before `u1`'s, so the expected
+    // output below is the sorted order rather than the insertion order.
+    //
+    // **This pins intent, not the ORDER BY.** Dropping the clause still
+    // passes — an unordered Postgres read returned the same order here — so
+    // the determinism guarantee lives in the query, not in this assertion.
+    // It is worth having anyway: order is not cosmetic, since
+    // `harness-runner` seeds its scratch `character_sheet` from the *first*
+    // id only, and the file it reads is frozen JSON.
+    //
+    // Two players in one campaign is not a shape any playtest has produced —
+    // every capture so far is solo, one sheet, one id — so nothing here
+    // claims which of two players ought to be canonical. A real multi-player
+    // capture would need that picked by hand.
+    await db
+      .insert(schema.users)
+      .values({ id: 'a_second_player', email: 'bob@x.test' });
+    await db.insert(schema.campaignMembers).values({
+      campaignId,
+      userId: 'a_second_player',
+      role: 'player',
+    });
+    await db.insert(schema.characterSheets).values({
+      campaignId,
+      userId: 'a_second_player',
+      system: 'mothership',
+      data: { entityId: 'mara_odinsen' },
+    });
+
+    await synthesisRepo.writeGmContextAtomic({
+      adventureId,
+      campaignId,
+      gmContextBlob: { openingNarration: 'n/a' },
+      campaignStateData: emptyMothershipState(),
+      gridEntities: [],
+    });
+    await db.insert(schema.messages).values({
+      adventureId,
+      role: 'player',
+      content: 'A turn.',
+    });
+    await sessionRepo.applyTurnAtomic({
+      adventureId,
+      campaignId,
+      playerUserId: 'u1',
+      campaignStateData: emptyMothershipState(),
+      playerAction: { content: 'A turn.' },
+      gmResponse: {
+        playerText: 'GM: ok.',
+        gmUpdates: { npcStates: {} },
+      } as never,
+      applied: {
+        resourcePools: {},
+        characterState: {},
+        entities: {},
+        flags: {},
+        scenarioState: {},
+        worldFacts: {},
+      },
+      thresholds: [],
+      proposedCanon: [],
+      gmContextBlob: { openingNarration: 'n/a' },
+      gmText: 'GM: ok.',
+      telemetry: fakeTelemetry('A turn.'),
+      autoPromoteCanon: false,
+    });
+
+    const fixture = await captureFixture(db, {
+      adventureId,
+      targetSequenceNumber: 1,
+      tag: 'OUT-OF-ORDER-RESOLUTION',
+      id: 'turn1-player-entity-ids',
+    });
+
+    const blob = fixture.seededState.gmContextBlob as {
+      playerEntityIds?: unknown;
+    };
+    expect(blob.playerEntityIds).toEqual(['mara_odinsen', 'danny']);
+    expect(evalFixtureSchema.safeParse(fixture).success).toBe(true);
+  });
+
+  it('refuses to capture when no character sheet declares an entityId', async () => {
+    // Writing the fixture anyway is the failure this derivation exists to
+    // close: it would seed no scratch sheet, resolve `playerEntityIds` to `[]`,
+    // and grade a code path production does not take — silently, and only
+    // detectable after the run.
+    const db = getTestDb();
+    const { campaignId, adventureId } = await seedAdventure(null);
+    await synthesisRepo.writeGmContextAtomic({
+      adventureId,
+      campaignId,
+      gmContextBlob: { openingNarration: 'n/a' },
+      campaignStateData: emptyMothershipState(),
+      gridEntities: [],
+    });
+    await db.insert(schema.messages).values({
+      adventureId,
+      role: 'player',
+      content: 'A turn.',
+    });
+    await sessionRepo.applyTurnAtomic({
+      adventureId,
+      campaignId,
+      playerUserId: 'u1',
+      campaignStateData: emptyMothershipState(),
+      playerAction: { content: 'A turn.' },
+      gmResponse: {
+        playerText: 'GM: ok.',
+        gmUpdates: { npcStates: {} },
+      } as never,
+      applied: {
+        resourcePools: {},
+        characterState: {},
+        entities: {},
+        flags: {},
+        scenarioState: {},
+        worldFacts: {},
+      },
+      thresholds: [],
+      proposedCanon: [],
+      gmContextBlob: { openingNarration: 'n/a' },
+      gmText: 'GM: ok.',
+      telemetry: fakeTelemetry('A turn.'),
+      autoPromoteCanon: false,
+    });
+
+    await expect(
+      captureFixture(db, {
+        adventureId,
+        targetSequenceNumber: 1,
+        tag: 'OUT-OF-ORDER-RESOLUTION',
+        id: 'turn1-no-sheet',
+      }),
+    ).rejects.toThrow(CaptureError);
   });
 
   it('propagates ReplayError for an invalid targetSequenceNumber', async () => {

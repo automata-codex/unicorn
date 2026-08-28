@@ -19,7 +19,7 @@ Each entry records what was decided, what the alternatives were, and why.
   `task docs:decisions:check` fails if either is stale.
 -->
 
-**This is the summary log.** 76 of 111 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
+**This is the summary log.** 81 of 116 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
 
 ---
 
@@ -241,7 +241,7 @@ Introduces Instinct for `npc` entities and a `crewRole` → skill-chain layer ov
 
 ### [ADR-0103](decisions/0103-entity-merge-preserves-schema-fields.md) — Entity merge preserves all schema fields rather than a hand-enumerated set
 
-The hand-enumerated entity merge that silently destroyed authored fields — `crewRole`, `instinctRoll` — the playtest evidence for it, and the parse-through-`EntitySchema` fix. Carries five open items: pending captures are not confirmed fix-invariant, and there is still no way to remove a field from an entity record.
+The hand-enumerated entity merge that silently destroyed authored fields — `crewRole`, `instinctRoll` — the playtest evidence for it, and the parse-through-`EntitySchema` fix, which has not yet landed. Carries five open items, two of them since resolved: the 2c0ba938 captures are confirmed fix-invariant below seq 99, and there is still no way to remove a field from an entity record.
 
 ---
 
@@ -486,6 +486,26 @@ Splits the 2026-08-24 playtest's spatial narration errors into a gradeable seede
 ### [ADR-0108](decisions/0108-no-identity-for-the-structural-checkers.md) — Structural checkers get no identity hash — the repair hatch is what makes them different
 
 Why the structural checkers get no identity hash while the judged half does. The gap is real; the reason is repair cost — `eval:rescore` regrades deterministic checkers for free, so a run mislabelled by a checker edit is repairable after the fact at zero spend, where the judged half has no such hatch. Names the case that would reverse it.
+
+### [ADR-0112](decisions/0112-unreversed-retcon-is-judged-and-the-reversed-turn-s-committe.md) — `UNREVERSED-RETCON` is judged, and the reversed turn's committed deltas are captured
+
+The turn 20/21 retcon pair, registered as a tag on one instance. Judged rather than structural, because detecting a reversal means reading prose; graded against a new captured field (`seededState.precedingCommittedTurn`, fixture schema v3) rather than hand-authored facts, because the fold destroys the delta the check needs. Carries the rejected structural design and the `ADR-0105` golden that ships with the renderer.
+
+### [ADR-0113](decisions/0113-the-duplicate-turn19-turn21-fixtures-are-kept-as-tripwires-a.md) — The duplicate turn19/turn21 fixtures are kept as tripwires at `repOverride: 1`, not retired
+
+Two fixture pairs replay one turn each from identical seeded state, a leftover from before `ADR-0096` let one fixture carry two checks. Neither retiring them nor keeping them at full N is right: the behaviour they catch has been absent for seven runs but recurred once within a single day. `repOverride: 1` keeps the tripwire and its comparison history at a tenth of the cost.
+
+### [ADR-0114](decisions/0114-out-of-order-resolution-is-tag-independent-and-attached-to-s.md) — `out-of-order-resolution` is tag-independent, and attached to six more fixtures
+
+`ADR-0096` settled that the check *could* travel and deferred whether it *should*, pending a count. The count found 29 violations across five fixtures it was not pointed at, all of one shape. Records the count, the attachment, and why one fixture with zero observed failures is attached anyway.
+
+### [ADR-0115](decisions/0115-turn02-missing-canon-capture-is-retired-not-re-authored.md) — `turn02-missing-canon-capture` is retired, not re-authored
+
+The fixture reported `not_applicable` on 157 reps across 16 runs. The marker phrase looked like the defect and was a symptom: the detail it asks the Warden to capture is already seeded in `worldFacts`, so re-authoring the marker would have failed the turn for not re-writing a durable fact. Retired rather than repaired, and replaced by two fixtures graded in opposite directions.
+
+### [ADR-0116](decisions/0116-warden-eval-findings-get-their-own-log-and-the-s-numbering-s.md) — Warden eval findings get their own log, and the `S` numbering spans both files
+
+`rules-extraction-findings.md § S30`–`§ S36` are Warden eval findings in a file about chunking PDFs. `docs/eval-findings.md` takes the subject from `§ S37` on, continuing the same numbering — the break is forward-only because frozen plans cite the older sections by file and number.
 
 ---
 

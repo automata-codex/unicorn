@@ -95,7 +95,64 @@ describe('evalChecks', () => {
     // the two can drift. `narrating-past-a-block`'s gate narrows nothing
     // (it only ever FAILs or falls through), so it needs no context.
     expect(evalChecks['unauditable-mapping'].judgeContext).toBeDefined();
+    expect(
+      evalChecks['ungrounded-contractor-target'].judgeContext,
+    ).toBeDefined();
     expect(evalChecks['narrating-past-a-block'].judgeContext).toBeUndefined();
+  });
+
+  it('names all three ungrounded-contractor-target violations in its rubric', () => {
+    // The third one is why the check is named for the target rather than the
+    // skill, and it is the one a rubric can lose silently: judgeContext hands
+    // the judge every derived number, so the main question already catches a
+    // target matching none of them — but a judge working down an enumerated
+    // list of skill mistakes has a fair reading in which a fabricated Instinct
+    // matches no bullet and passes.
+    const rubric = rubricTextFor('ungrounded-contractor-target');
+    expect(rubric).toContain('Three distinct violations');
+    expect(rubric).toContain('a bonus that was owed went unapplied');
+    expect(rubric).toContain('a bonus was applied that is not owed');
+    expect(rubric).toContain('not any of the supplied numbers');
+  });
+
+  it('wires seeded-canon-contradiction as judged, artifact-gated, with both halves', () => {
+    // The judgeContext is the load-bearing half here: runJudgeCall shows the
+    // judge no seededState at all, so without it the rubric asks whether the
+    // narration contradicts a ship layout the judge has never seen.
+    const check = evalChecks['seeded-canon-contradiction'];
+    expect(check.mode).toBe('judged');
+    expect(check.applicabilitySource).toBe('artifact');
+    expect(check.judgeGate).toBeDefined();
+    expect(check.judgeContext).toBeDefined();
+    expect(check.stub).toBeUndefined();
+  });
+
+  it('leaves SPATIAL-RELATION-ERROR unregistered', () => {
+    // `ADR-0104`'s addendum defers it, and the deferral is load-bearing rather
+    // than bookkeeping: while the tag is absent from failureModeTagSchema,
+    // capture-fixture rejects `--tag SPATIAL-RELATION-ERROR` outright, so a
+    // fixture cannot be captured against it by accident. Registering it would
+    // replace that mechanical guard with a note asking people to remember, and
+    // would force the structural-versus-judged choice that is the actual open
+    // question.
+    expect(failureModeTagSchema.options).not.toContain(
+      'SPATIAL-RELATION-ERROR',
+    );
+    expect(evalChecks['spatial-relation-error']).toBeUndefined();
+  });
+
+  it('wires ungrounded-contractor-target as judged, artifact-gated, with both halves', () => {
+    // The check depends on all three being present together: the gate picks
+    // the Contractor rolls, the context computes their derived targets, and
+    // the rubric decides which target each roll should have used. A missing
+    // context in particular would not fail loudly — the judge would simply
+    // grade with no numbers in front of it.
+    const check = evalChecks['ungrounded-contractor-target'];
+    expect(check.mode).toBe('judged');
+    expect(check.applicabilitySource).toBe('artifact');
+    expect(check.judgeGate).toBeDefined();
+    expect(check.judgeContext).toBeDefined();
+    expect(check.stub).toBeUndefined();
   });
 
   it('has unique, lower-kebab ids that match their tag', () => {

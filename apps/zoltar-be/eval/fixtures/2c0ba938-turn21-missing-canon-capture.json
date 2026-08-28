@@ -1,0 +1,654 @@
+{
+  "id": "2c0ba938-turn21-missing-canon-capture",
+  "tag": "MISSING-CANON-CAPTURE",
+  "sourceAdventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+  "sourceSequenceNumber": 64,
+  "fixtureSchemaVersion": 3,
+  "seededState": {
+    "campaignState": {
+      "schemaVersion": 1,
+      "resourcePools": {
+        "danny": {
+          "hp": {
+            "max": 13,
+            "current": 13
+          },
+          "body": {
+            "max": 26,
+            "current": 26
+          },
+          "fear": {
+            "max": 40,
+            "current": 40
+          },
+          "speed": {
+            "max": 37,
+            "current": 37
+          },
+          "combat": {
+            "max": 48,
+            "current": 48
+          },
+          "sanity": {
+            "max": 35,
+            "current": 35
+          },
+          "stress": {
+            "max": null,
+            "current": 3
+          },
+          "wounds": {
+            "max": 2,
+            "current": 0
+          },
+          "credits": {
+            "max": null,
+            "current": 60
+          },
+          "strength": {
+            "max": 44,
+            "current": 44
+          },
+          "intellect": {
+            "max": 40,
+            "current": 40
+          }
+        },
+        "_scenario": {
+          "timer": {
+            "max": 6,
+            "current": 6
+          },
+          "hull_integrity": {
+            "max": 8,
+            "current": 8
+          }
+        }
+      },
+      "characterState": {},
+      "entities": {
+        "mara_odinsen": {
+          "status": "unknown",
+          "visible": true,
+          "crewRole": "cargo_handler",
+          "revealed": true,
+          "instinctRoll": [
+            5,
+            5
+          ]
+        },
+        "cryo_bay_feature": {
+          "status": "unknown",
+          "visible": false,
+          "revealed": true
+        },
+        "parasitic_organism": {
+          "status": "unknown",
+          "visible": false,
+          "revealed": false
+        },
+        "hull_breach_cascade": {
+          "status": "unknown",
+          "visible": false,
+          "revealed": true
+        },
+        "falsified_maintenance_logs": {
+          "status": "unknown",
+          "visible": false,
+          "revealed": true
+        }
+      },
+      "flags": {
+        "cryo_bay_breached": {
+          "value": false,
+          "trigger": "Flip to true when a cryo pod is physically opened or damaged, exposing a colonist host to the outbreak or the parasite to the ship at large."
+        },
+        "adventure_complete": {
+          "value": false,
+          "trigger": "Flip to true when the player either seals the parasite outbreak and stabilizes the hull long enough to reach the relay beacon, OR the ship is lost/abandoned (escape pods launched or player character dies), resolving the central survival arc."
+        },
+        "mara_found_the_logs": {
+          "value": true,
+          "trigger": "Flip to true when the player or Mara physically accesses the falsified maintenance logs in the engineering records terminal."
+        },
+        "hull_cascade_triggered": {
+          "value": false,
+          "trigger": "Flip to true when a structural stress event (explosion, collision, or deliberate sabotage) initiates the first breach in the cascade sequence."
+        },
+        "insurance_scam_exposed": {
+          "value": false,
+          "trigger": "Flip to true when Mara (or the player) connects the falsified logs to the insurance payout structure and confronts the captain or transmits the evidence off-ship."
+        },
+        "parasite_outbreak_known": {
+          "value": false,
+          "trigger": "Flip to true when a crew member or the player directly witnesses a host exhibiting motor-control loss and identifies it as infection rather than illness or injury."
+        },
+        "mara_becomes_threat_to_captain": {
+          "value": false,
+          "trigger": "Flip to true when insurance_scam_exposed is true and Mara moves to act on the evidence \u2014 confronting, sabotaging, or transmitting."
+        }
+      },
+      "scenarioState": {},
+      "worldFacts": {
+        "ship_layout": "The Halbrecht is a long colony transport with three decks linked by a single central ladder shaft. Upper deck: bridge, comms array, captain's quarters, engineering records terminal (aft of bridge). Mid deck: crew berths, mess hall, medbay, and the cryo bay (a vast, cold chamber holding hundreds of pods, accessible only from mid-deck via a heavy blast door). Lower deck: cargo bay, engine room, life support processing, and the aft airlock. The ladder shaft is the only fast route between decks; it is narrow, poorly lit, and prone to sudden pressure differentials during hull stress events. The engine room and life support processing sit adjacent to a section of hull already showing stress fractures \u2014 the likely origin point of any breach cascade.",
+        "colonist_count": "412 colonists in cryo suspension across the mid-deck cryo bay, tended automatically; active crew numbers six including Danny and Mara.",
+        "danny_relationship": "Danny and Mara shipped together before; he half-trusts her paranoia about corporate malfeasance but has no direct stake in her crusade \u2014 yet.",
+        "communications_status": "Long-range comms are down for repairs the captain claims were 'scheduled'; the nearest relay beacon is three weeks out at current burn.",
+        "cryo_bay_bulkhead_patch": "Danny has sealant-taped the visible stress fractures along the cryo bay bulkhead weld seam using standard patch kits. Cosmetic/temporary \u2014 unknown whether it addresses underlying structural fatigue. The vibration in the plating persists."
+      }
+    },
+    "gmContextBlob": {
+      "entities": [
+        {
+          "id": "mara_odinsen",
+          "tags": [
+            "union_enforcer",
+            "political",
+            "confrontational",
+            "authority_challenge"
+          ],
+          "type": "npc",
+          "visible": true,
+          "crewRole": "cargo_handler",
+          "revealed": true,
+          "startingPosition": {
+            "x": 2,
+            "y": 1,
+            "z": 0
+          }
+        },
+        {
+          "id": "parasitic_organism",
+          "tags": [
+            "biological",
+            "body_horror",
+            "transmission",
+            "slow_onset"
+          ],
+          "type": "threat",
+          "visible": false,
+          "revealed": false,
+          "startingPosition": {
+            "x": 8,
+            "y": 4,
+            "z": 0
+          }
+        },
+        {
+          "id": "cryo_bay_feature",
+          "tags": [
+            "cryo",
+            "vulnerable_cargo",
+            "moral_weight",
+            "high_population"
+          ],
+          "type": "feature",
+          "visible": false,
+          "revealed": true,
+          "startingPosition": {
+            "x": 8,
+            "y": 3,
+            "z": 0
+          }
+        },
+        {
+          "id": "falsified_maintenance_logs",
+          "tags": [
+            "corporate",
+            "sabotage",
+            "conspiracy",
+            "evidence"
+          ],
+          "type": "feature",
+          "visible": false,
+          "revealed": false,
+          "startingPosition": {
+            "x": 1,
+            "y": 2,
+            "z": 0
+          }
+        },
+        {
+          "id": "hull_breach_cascade",
+          "tags": [
+            "structural",
+            "isolation",
+            "no_rescue",
+            "environmental_hazard"
+          ],
+          "type": "threat",
+          "visible": false,
+          "revealed": true,
+          "startingPosition": {
+            "x": 5,
+            "y": 6,
+            "z": 0
+          }
+        }
+      ],
+      "narrative": {
+        "location": "The colony transport ESV Halbrecht, three weeks out from the nearest relay beacon, running on a skeleton crew of six while four hundred and twelve colonists sleep in cryo. The ship is old, its maintenance logs falsified, and its bones are tired.",
+        "atmosphere": "Cold, dim, and too quiet. Emergency lighting has replaced half the fixtures because the main grid keeps browning out. The recycled air tastes metallic. Every groan of the hull sounds like it could be the last one. There is no one to call for help and everyone aboard knows it.",
+        "npcAgendas": {
+          "danny": "Teamster hauling freight and half-listening to Mara's paranoia until the ship starts proving her right.",
+          "mara_odinsen": "Union enforcer traveling under a cargo-handler contract. She's found direct evidence of a backdated hull certification and a hazard-multiplier insurance file that just tripped a tamper alert when Danny tried to crack it \u2014 she doesn't yet know its contents but now believes someone aboard may already suspect they're digging. She needs Danny's help to figure out whether the alert reached anyone live, and is now weighing whether to abandon this approach and go straight to confrontation or transmission before the evidence (or her leverage) is taken from her. She's treating Danny as a full ally now, not just backup."
+        },
+        "hiddenTruth": "The Halbrecht is insured for far more than it's worth operational, and the company quietly greenlit this run knowing the hull would likely fail catastrophically before reaching the colony site \u2014 a designed loss, with hazard-multiplier payouts for crew and colonist casualties baked into the actuarial math. The parasitic organism loose in the cryo bay was a known risk the company chose not to disclose, because losing colonists to infection only sweetens the claim.",
+        "oracleConnections": "The union enforcer Mara is the one person aboard positioned to notice the mission itself violates labor law and hazard-clause obligations \u2014 if she connects the falsified maintenance logs to the insurance payout structure, she becomes a direct political threat to whoever aboard is complicit in the scam. The parasitic organism, discovered among the cryo pods, represents the company's foreknowledge made flesh: hundreds of immobile colonists are both a horror and a possible containment strategy. The isolation of deep transit means the hull's structural failures and the parasite's slow spread both have to be handled with no outside help \u2014 every choice is final."
+      },
+      "structured": {
+        "flags": {
+          "cryo_bay_breached": {
+            "value": false,
+            "trigger": "Flip to true when a cryo pod is physically opened or damaged, exposing a colonist host to the outbreak or the parasite to the ship at large."
+          },
+          "adventure_complete": {
+            "value": false,
+            "trigger": "Flip to true when the player either seals the parasite outbreak and stabilizes the hull long enough to reach the relay beacon, OR the ship is lost/abandoned (escape pods launched or player character dies), resolving the central survival arc."
+          },
+          "mara_found_the_logs": {
+            "value": false,
+            "trigger": "Flip to true when the player or Mara physically accesses the falsified maintenance logs in the engineering records terminal."
+          },
+          "hull_cascade_triggered": {
+            "value": false,
+            "trigger": "Flip to true when a structural stress event (explosion, collision, or deliberate sabotage) initiates the first breach in the cascade sequence."
+          },
+          "insurance_scam_exposed": {
+            "value": false,
+            "trigger": "Flip to true when Mara (or the player) connects the falsified logs to the insurance payout structure and confronts the captain or transmits the evidence off-ship."
+          },
+          "parasite_outbreak_known": {
+            "value": false,
+            "trigger": "Flip to true when a crew member or the player directly witnesses a host exhibiting motor-control loss and identifies it as infection rather than illness or injury."
+          },
+          "mara_becomes_threat_to_captain": {
+            "value": false,
+            "trigger": "Flip to true when insurance_scam_exposed is true and Mara moves to act on the evidence \u2014 confronting, sabotaging, or transmitting."
+          }
+        }
+      },
+      "openingNarration": "The ladder shaft groans as you climb down to mid-deck, a long metallic sigh that seems to come from somewhere deeper than the hull plating should allow. The emergency lights out here run amber instead of white \u2014 half the fixtures on this level went dark two nights ago and nobody's fixed them yet. Your breath fogs faintly; environmental's been struggling to keep pace with the cryo bay's draw.\n\nMara Odinsen is waiting at the bottom of the ladder, arms crossed, a data slate tucked under one elbow like she's been standing there a while. \"You seeing this?\" she says, not quite a greeting, and taps the bulkhead beside her. A hairline crack runs along the seam, dusted with a faint rime of frost that shouldn't be there \u2014 condensation freezing in a gap that shouldn't exist on a ship this age, this maintained. Except it isn't maintained, not really, and you both know the captain's logs say otherwise.\n\nSomewhere above you, the ship groans again, and four hundred and twelve people sleep on, unaware that the sound might be the last warning anyone gets.",
+      "playerEntityIds": [
+        "danny"
+      ]
+    },
+    "pendingCanon": [],
+    "messages": [
+      {
+        "id": "2d4e4765-0a1f-4250-84e3-263cf035a1de",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "OOC: What do I know about this ship? About Mara?",
+        "createdAt": "2026-08-24T21:11:05.056Z"
+      },
+      {
+        "id": "e44234df-2b0e-4561-a945-fb3039b20b57",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "OOC: What do I know about this ship? About Mara?",
+        "createdAt": "2026-08-24T21:11:40.808Z"
+      },
+      {
+        "id": "77ab7544-a49c-40a0-b546-2bd6396611ba",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "[OOC: Here's what Danny would actually know at this point, no rolls needed \u2014 this is just recap/orientation.]\n\n**The ship \u2014 ESV Halbrecht:**\nYou've been aboard three weeks now, hauling freight and doing the unglamorous work of keeping four hundred and twelve colonists asleep while the ship gets them there. She's an old bird. The maintenance logs say she had a full refit before this run, but you've seen the actual state of the conduits in the lower deck, and \"full refit\" is not the phrase that comes to mind. Emergency lighting's been up on half the mid-deck since day four because the main grid keeps browning out, and nobody's given you a straight answer why. Long-range comms are down too \u2014 the captain says it's \"scheduled maintenance,\" which is the kind of thing captains say when they don't want a follow-up question.\n\nLayout-wise: three decks, one central ladder shaft connecting them, narrow and badly lit. Upper deck has the bridge, comms, the captain's quarters, and the engineering records terminal tucked aft of the bridge. Mid-deck is crew berths, the mess, medbay, and the cryo bay \u2014 a big cold chamber, blast-door sealed, holding all four hundred-plus colonists. Lower deck is cargo, the engine room, life support, and the aft airlock. You've noticed \u2014 because you've had to work near it \u2014 that there are stress fractures already visible in the hull plating around the engine room and life support. Nobody's flagged it officially. You have.\n\nSix live crew total, including you and Mara. It's a skeleton run for a ship this size.\n\n**Mara Odinsen:**\nYou've shipped with her before \u2014 she's solid, competent, not someone who spooks easy. She's aboard under a cargo-handler contract, and she's good at the job: trained hands with Zero-G work and general ship's athletics. But since before you even broke orbit, she's had a bad feeling about this run specifically. She doesn't trust the officers \u2014 any of them \u2014 and she's been quietly building something. You've caught her cross-referencing hazard-pay clauses against the manifest, asking pointed questions about evacuation protocol nobody asked her to ask. She hasn't said outright what she thinks is going on, but you know Mara well enough to know she doesn't do paranoia for sport. If she's circling something, there's usually a reason.\n\nYou don't have a stake in whatever she's chasing. Not yet.]",
+        "createdAt": "2026-08-24T21:11:52.926Z"
+      },
+      {
+        "id": "b49d3fa1-54d2-484f-8207-4e3672a869b1",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Yeah, I see it,\" I say to Mara. \"'Full refit,' my ass.\"",
+        "createdAt": "2026-08-24T21:15:05.899Z"
+      },
+      {
+        "id": "404fe6eb-19d2-459a-a0f9-0a13c5b4efb9",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "Mara doesn't look at you when she answers \u2014 she's got a panel cover off near the ladder shaft junction, running a thumb along a weld seam that's gone the wrong color.\n\n\"Full refit,\" she repeats, flat. \"I pulled the work order myself before we broke orbit. Signed off by a yard supervisor whose license lapsed eight months prior. You want to know how I know that? Because I checked. Nobody checks. That's the whole trick.\" She lets the panel cover hang on its hinge and finally turns to you. \"This ship shouldn't have cleared inspection. It cleared inspection. Someone wanted it to.\"\n\nShe jerks her chin toward the ladder shaft, down toward the lower deck. \"There's a terminal upstairs, aft of the bridge. Engineering records. If the falsification goes deeper than one lazy signature, it's in there. I've been trying to get five minutes alone with it since we left dock.\" Her jaw tightens. \"Captain doesn't let cargo handlers wander the upper deck unescorted. Wonder why.\"\n\nShe's watching you now, gauging something. \"You in, or is this still my problem?\"",
+        "createdAt": "2026-08-24T21:15:14.898Z"
+      },
+      {
+        "id": "008de663-67b8-4681-ad05-7983095ce20a",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"I don't like it,\" I say without committing. \"Do we have the equipment to fix this? Might be a higher priority than chasing down the records.\"",
+        "createdAt": "2026-08-24T21:17:48.442Z"
+      },
+      {
+        "id": "c76b7a44-0c31-42ef-916b-6e8fc05b75b6",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "Mara's mouth twists \u2014 not quite a smile. \"Fix it. Sure.\" She taps the discolored weld with one knuckle, and it gives off a sound that's wrong, a little too hollow. \"We've got patch kits rated for micro-fractures. Sealant foam, some structural tape that's better than nothing. What we don't have is a yard, a drydock, or replacement plating for a hull section that's been flexing wrong for God knows how long. If this is what I think it is \u2014 stress fatigue working its way through the frame \u2014 we can slow it. We can't fix it. Not out here.\"\n\nShe straightens up, wipes her hand on her coveralls. \"And that's the thing that keeps me up, Danny. A patch job buys time. The records terminal tells us whether we're patching a ship that was supposed to make it, or babysitting a hull they already wrote off.\" She holds your eyes. \"Those are different jobs. I'd like to know which one I'm doing before it decides for me.\"\n\nDown the corridor, the lights flicker once \u2014 a half-second brownout, the kind you've both stopped flinching at \u2014 and steady again. Neither of you comments on it.\n\n\"So,\" she says. \"Patch kit's in the lower deck lockup, by engineering. Terminal's upstairs, past the bridge, and I need someone running interference or a better reason to be up there than 'felt like it.' Pick one. I can't do both alone.\"",
+        "createdAt": "2026-08-24T21:17:57.679Z"
+      },
+      {
+        "id": "2a4cd5c5-6006-4d30-9f13-a5548951011a",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Sure, I don't mind distracting know-it-all captains,\" I say with a grin. \"Maybe he caught the latest Premier League scores on Risus 7 before we broke orbit.\"",
+        "createdAt": "2026-08-24T21:20:16.712Z"
+      },
+      {
+        "id": "9ec58b9b-017f-4465-bc29-f0eea88d0de8",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "That gets an actual laugh out of her \u2014 short, surprised, like it's been a while since anyone made her do that. \"Risus 7. Right. I'm sure the captain's a football man.\" She's already moving, checking the corridor both ways out of old habit. \"Give me ten minutes after you've got him talking. If he's the type to enjoy an audience, that buys me more \u2014 don't let him wrap it up early.\"\n\nShe heads for the ladder shaft, then pauses with one boot on the first rung. \"And Danny \u2014 if the terminal's locked behind something more than a door, I'll signal. Don't come running if it goes loud. Just... know it went loud.\"\n\nShe climbs. You give her the ten minutes, then head for the bridge, working out in your head what a deckhand who's never cared about ship's business before is suddenly curious enough to ask about. The captain's a man who likes being asked things. That much you can use.\n\nThe bridge hatch is standing open when you get there \u2014 Captain Voss is alone at the nav station, half-lit by the glow of a course-plot he's been staring at longer than a routine check should take. He looks up when your shadow crosses the threshold, and for just a second, before his face resets into something professional, you catch what might be tiredness. Or might be something closer to guilt.\n\n\"Hauling something, or did you get lost?\" he says.",
+        "createdAt": "2026-08-24T21:20:35.040Z"
+      },
+      {
+        "id": "72b6f408-ad4b-4400-b5fc-4699a113d5fa",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I want to make small talk with the captain, ask him about football, ask him if he's flown a lot of colony gigs like this, anything to keep him occupied. Is there a roll for that?",
+        "createdAt": "2026-08-24T21:24:03.810Z"
+      },
+      {
+        "id": "2fe7f95c-f4c7-45b2-b8ef-41f3c537e020",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "No roll needed \u2014 this is just conversation, and the price of failure here isn't high, it's just how long you can hold his attention.\n\nYou lean against the hatch frame like you've got nowhere else to be. \"Lost implies I had somewhere to be in the first place. Nah, just restless. Cryo shift's boring as hell when you're not the one sleeping through it.\" You nod at the plot on his console without really looking at it. \"Hey, you catch anything before we broke orbit? Risus 7 was supposed to have a match going, some derby thing. Half the crew was arguing about it in the mess before launch.\"\n\nVoss's shoulders come down half an inch \u2014 this is easier ground than whatever he was staring at. \"Missed it. We shipped out two days early.\" He says it like it still needles him. \"Company moved the window up. Didn't get a reason, just got a new departure time.\"\n\n\"Two days early,\" you say, keeping it light, just a deckhand making noise. \"Must've been a hell of a scramble getting cargo loaded.\"\n\n\"You have no idea.\" He almost smiles, rubs at his eyes. \"You do a lot of these long hauls?\"\n\n\"First colony run. You?\"\n\n\"Eleven years,\" he says, and there's something in how fast that number comes out \u2014 not proud, just tired, like he's said it to justify himself before. \"This is the biggest ship I've had. Also the oldest.\" He catches himself, glances back at the plot, and the ease drains out of his face a little. \"Anyway. Don't you have a shift?\"\n\nHe's still talking, but you can feel him starting to want the conversation to end. If you want more time out of him, you'll need to either ask something that hooks his attention again or accept you're on borrowed minutes now.",
+        "createdAt": "2026-08-24T21:24:15.368Z"
+      },
+      {
+        "id": "74580d5d-558b-409d-968a-762d6e0f6083",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"11 years is a long time. You ever have the company bump the schedule up on you like that before?\"",
+        "createdAt": "2026-08-24T21:26:55.594Z"
+      },
+      {
+        "id": "29f31403-cfb0-4bd1-b1e7-06fe39331c9f",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "The question lands somewhere it wasn't supposed to. Voss goes still for just a fraction of a second \u2014 not long, but you clock it, the way his hand stops moving on the console.\n\n\"Bumped up? Sure. Company does what the company does.\" He says it too fast, and then seems to hear himself say it too fast, because he adds, \"Cargo manifests shift, insurance windows shift, whatever. Eleven years, you stop asking why.\" He turns back to the plot, and this time it's not idle \u2014 he's making a show of being busy. \"This one's just... a bigger contract than usual. More eyes on it upstairs.\"\n\n\"Insurance windows,\" you repeat, like it's a throwaway. \"That a thing that moves departure dates?\"\n\nHe doesn't answer that one. Instead: \"You said you had a shift.\" Not a question this time.\n\nWhatever door was cracked open a second ago, he's closing it. He's not hostile \u2014 not yet \u2014 but the easy tiredness from a minute ago has hardened into something more careful, more aware of you as a person asking questions rather than a bored deckhand killing time. If Mara needed more minutes, you've bought a few, but you've also put yourself on his radar in a way you weren't before.",
+        "createdAt": "2026-08-24T21:27:15.107Z"
+      },
+      {
+        "id": "176155f5-277e-416f-8c7b-f6b36de76f7b",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I shift my weight to the other foot, \"Hey, you got a favorite team back on Risus?\"",
+        "createdAt": "2026-08-24T21:43:08.206Z"
+      },
+      {
+        "id": "69956280-deb8-4b92-b5db-554a0d13f9c0",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You let the insurance thread drop like it never mattered, easy as anything, and shift your weight to the other foot. \"Hey, you got a favorite team back on Risus?\"\n\nIt's clumsy \u2014 a little too obvious a pivot after where the conversation just was \u2014 and Voss's eyes flick to you for a second with something that isn't quite suspicion yet, more like recalibration. Like he's re-filing you from *bored deckhand* to *bored deckhand asking oddly specific questions right before asking about football.*\n\nBut he answers. \"Kestrel Reach,\" he says, distracted, already turning half back to his console. \"Wife dragged me to a match once, years back. Been stuck with them since.\" He taps something on the plot, closes a window that was open, and when he looks back at you his face has gone back to professional. Neutral. Done. \"Look \u2014 I appreciate the company, but I've got a burn correction to finish before end of shift. You should get back to your post.\"\n\nIt's not unfriendly, but it's final. The window's closed. Whatever ease you had going with him a minute ago, it cooled the second insurance windows came out of your mouth, and no amount of small talk is opening it back up today. He watches you a beat longer than a captain dismissing a deckhand normally would \u2014 filing your face away for later, maybe \u2014 before turning fully back to his station.\n\nYou've been up here a while now. Long enough, hopefully, for Mara to have done whatever she needed to do.",
+        "createdAt": "2026-08-24T21:43:16.750Z"
+      },
+      {
+        "id": "c2d5bf02-150c-425c-b00c-e852895d85c8",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Sure thing, cap,\" I say with a nod and head back.",
+        "createdAt": "2026-08-24T21:45:23.084Z"
+      },
+      {
+        "id": "a88ff695-e5ea-454f-826f-de8caab230d2",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"Sure thing, cap,\" you say with a nod, and let yourself out of the bridge without hurrying \u2014 hurrying is the kind of thing a man like Voss notices twice.\n\nThe ladder shaft is dim as always, the emergency lighting throwing long amber stripes across the rungs. You climb down toward the deck below, half-expecting to find Mara waiting, and instead find the corridor near the engineering records terminal empty. No Mara. No signal.\n\nThen you hear it \u2014 soft, from just past the bend, the particular quiet of someone trying not to make noise. You round the corner and find her crouched at the terminal alcove, a data slate in one hand, the terminal's access panel still lit and humming behind her. She doesn't look up right away. When she does, her face has the look of someone who found exactly what they were afraid they'd find.\n\n\"Two days,\" she says, low. \"Voss said the launch got moved up two days, right? Well. The maintenance sign-off on the hull frame \u2014 the one that's supposed to certify structural integrity for a haul this size \u2014 it's dated *after* we broke orbit.\" She turns the slate toward you. Rows of timestamps, a signature block, a yard supervisor's ID that means nothing to you but clearly means something to her. \"Somebody backdated an inspection that never happened, Danny. And there's a second file in here I haven't even opened yet \u2014 insurance schedule, keyed to hazard multipliers. I don't like what a hazard multiplier is doing on a hull certification terminal.\"\n\nShe's still crouched, still reading, and there's a stillness to her that's worse than her usual anger \u2014 like she already knows where this goes and is bracing for it anyway.\n\n\"You buy me a few more minutes, or do we need to be somewhere else right now?\"",
+        "createdAt": "2026-08-24T21:45:35.011Z"
+      },
+      {
+        "id": "558f8af7-33ca-45b6-9f58-50173d372bbc",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "Wait, did I climb down to the mid-deck or are we still on the top deck?",
+        "createdAt": "2026-08-24T21:48:24.617Z"
+      },
+      {
+        "id": "ce0ab91b-7ff6-435b-b24a-88f447b04d19",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You're still on the upper deck. The bridge and the engineering records terminal are both up here \u2014 the terminal sits aft of the bridge, same level, just around the corridor bend. You never had to take the ladder shaft down at all; it's a short walk from one to the other. Mara came up here the same way, climbing from mid-deck where you two started, and she's been working the terminal on this same deck the whole time you were talking to Voss.\n\nSo: you're both still topside, a stone's throw from the bridge hatch you just walked out of, which is exactly why she's asking if you can buy more time rather than relocate.",
+        "createdAt": "2026-08-24T21:48:28.641Z"
+      },
+      {
+        "id": "a0b1ec78-349e-4dc2-a6bc-24628d6473c0",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Uh, I think we should go,\" I say and scratch the back of my head. \"Small talk is not my strong suit. Sorry.\"",
+        "createdAt": "2026-08-24T21:51:53.566Z"
+      },
+      {
+        "id": "968f608a-f184-49fe-9923-d4f32af15e06",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"Uh, I think we should go,\" you say, scratching the back of your head. \"Small talk is not my strong suit. Sorry.\"\n\nMara doesn't argue. She's already thumbing the slate dark and pocketing it, moving with the quick economy of someone who's done this before \u2014 copy first, panic never. \"Don't apologize, you got me the time I needed.\" She taps the terminal's access panel closed, wipes the log with a practiced swipe that makes the access history blink and reset to idle. \"That's the best I can do to cover it. If he checks who logged in, he'll see a timestamp and no name attached. Won't hold up to real scrutiny, but it'll hold up to a captain who isn't looking hard yet.\"\n\nShe's on her feet, slate tucked inside her jacket, already moving for the ladder shaft. \"We talk properly once we're somewhere he isn't. Move.\"\n\nYou fall in behind her. The corridor back to the ladder shaft is quiet \u2014 too quiet, the way it always is up here \u2014 and neither of you says anything else until you're both climbing down toward mid-deck, the bridge and whatever Voss is doing up there now well behind you.",
+        "createdAt": "2026-08-24T21:52:05.933Z"
+      },
+      {
+        "id": "a3cbe286-cc22-4bf4-92a4-5939db1a4f74",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"What did you find?\" I ask her once we're back near the cryo bay.",
+        "createdAt": "2026-08-24T21:53:41.359Z"
+      },
+      {
+        "id": "e5abaa88-2a69-4bcf-b62e-917dad07f819",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "The climb down puts you back in familiar territory \u2014 the mid-deck corridor outside the cryo bay's blast door, cold bleeding through the bulkhead even from here. Mara stops, glances back the way you came to make sure the shaft is clear above, then pulls the data slate back out.\n\n\"Okay.\" She keeps her voice low even though there's no one around. \"The hull certification \u2014 the one that's supposed to say this ship is fit for a haul this size, four hundred plus souls in cryo \u2014 is backdated. Signed off *after* we'd already broken orbit, by a yard supervisor whose license lapsed eight months before that. That's not a clerical error, Danny. That's someone building a paper trail after the fact because the real inspection either didn't happen or it happened and failed.\"\n\nShe scrolls the slate, and her jaw sets tighter. \"And there's a second file. Insurance schedule, keyed to hazard multipliers \u2014 I saw it, I didn't get time to open it before you knocked on the door for me. I don't like what a hazard multiplier's doing anywhere near a hull cert. Multipliers like that usually mean somebody's done math on how much a *loss* is worth. Cargo. Crew.\" She looks at you, and there's something under the anger now \u2014 something closer to dread. \"Colonists.\"\n\nShe pockets the slate again, but her hand lingers on it like she doesn't quite trust it out of reach. \"I need to actually open that insurance file. Somewhere safe, not standing in a corridor. But Danny \u2014 if I'm reading the shape of this right, this ship isn't just old and neglected. Somebody *decided* it was disposable. And they put four hundred and twelve people to sleep on it anyway.\"\n\nBehind the blast door, faint and mechanical, the cryo bay's systems hum on, indifferent \u2014 pumps and chillers keeping four hundred and twelve people unconscious for a trip somebody may have already written off.",
+        "createdAt": "2026-08-24T21:53:52.970Z"
+      },
+      {
+        "id": "97e4c342-69a0-4911-89d8-dbe654e2f4b7",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Could we access those records from engineering?\" I ask her.",
+        "createdAt": "2026-08-24T21:56:36.362Z"
+      },
+      {
+        "id": "5cff70dd-be66-436e-b57c-6fa1d57c3483",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "Mara shakes her head. \"Engineering's got a terminal, sure, but it's not networked to the bridge records the same way \u2014 different access tier. What I pulled came off the *engineering records* terminal specifically, aft of the bridge. That's the only place that file lives, as far as I've seen. Engineering proper would have maintenance logs, sure, repair schedules, parts requisitions \u2014 useful, but it's not going to have the hull cert or the insurance schedule. Those are bridge-adjacent. Company paperwork, not ship's engineering.\"\n\nShe thinks about it another second, turning the slate over in her hand. \"Unless... whoever backdated that cert did it *from* engineering, remote terminal access. That's possible. I don't know their setup well enough to say for sure.\" She looks at you. \"Why? You thinking there's a copy down there, or you thinking we need a second way in that isn't walking past Voss's door again?\"\n\nThe cryo bay hums on behind the blast door, indifferent to all of it.",
+        "createdAt": "2026-08-24T21:56:45.362Z"
+      },
+      {
+        "id": "4aae8a34-1a05-4fb6-8858-f3d9a98493bb",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Just trying to find another way in.\" I shrug. \"But if that terminal on the upper deck is the only way, I don't mind punching Voss's lights out to get you access. Fella knows there's something fishy going on around here.\"",
+        "createdAt": "2026-08-24T21:59:01.294Z"
+      },
+      {
+        "id": "19ff5a99-ff22-400f-98e1-131f9d38e0d2",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "That gets a short, humorless laugh out of Mara \u2014 not because it's funny, but because for a second you sounded like you meant it.\n\n\"Don't tempt me.\" She rubs at her eyes, and for the first time since this started, she looks tired instead of just angry. \"But no \u2014 not yet. Decking the captain gets us exactly one thing: a mutiny charge and a locked brig, on a ship where he's the only one with codes to half the systems we might need later. If it comes to that, it comes to that. But I'd rather have the whole picture before I burn that bridge. Pun intended.\"\n\nShe glances back down the corridor, toward the ladder shaft, like she's making sure nothing followed you down. \"Right now the insurance file's the priority. I need somewhere quiet to actually open it \u2014 my berth, maybe, or the cargo bay if it's empty. Once I know what it says, we'll know whether this is 'report it when we hit the relay beacon' or 'this needs to stop right now.'\" She pauses. \"Given what I've seen so far, I'm not betting on the first one.\"\n\nShe starts walking, slower now, toward the ladder shaft that leads down to the lower deck. \"You in for round two, or you want to sit this one out and let me read it alone?\"",
+        "createdAt": "2026-08-24T21:59:14.857Z"
+      },
+      {
+        "id": "5e1e2440-1f5b-4548-982d-2d2dc4a32917",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"In for a penny, in for a pound,\" I say with another shrug.",
+        "createdAt": "2026-08-24T22:00:21.603Z"
+      },
+      {
+        "id": "a2952eec-6eb8-4e87-b53d-187db1b3b2c4",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"In for a penny, in for a pound,\" you say with another shrug.\n\nThat gets the ghost of a real smile out of her \u2014 small, but it reaches her eyes this time. \"Good. Because I'd rather have someone at my back who already knows what I know than have to explain it twice.\" She leads the way to the ladder shaft, and you climb down together, past mid-deck and on toward the lower deck, the air growing warmer and closer to the engine hum the further down you go.\n\nHer berth is a cramped closet of a room \u2014 a bunk, a locker, a fold-down desk barely wide enough for the slate. She dogs the door behind you both, which on a ship this old means wedging a boot heel of a bar into the frame latch rather than any real lock, and sits on the edge of the bunk with the slate balanced on her knee.\n\n\"Okay,\" she says, mostly to herself. \"Let's see what we bought.\"\n\nHer thumb hovers over the file. Insurance schedule, hazard multiplier, still locked behind a second layer of access encoding she didn't have time to crack topside.\n\n\"This one's going to take longer,\" she mutters, fingers already moving across the slate's input, working the encoding manually rather than through the terminal that's no longer in front of her. \"Give me a few minutes. And Danny \u2014 if this says what I think it's going to say, we're going to need to talk about what we do next. Really talk. Not football.\"\n\nThe room is quiet except for the tick of her fingers on the slate and the distant thrum of the engines through the deck plating. Somewhere far below, or maybe just in your head, you think you hear the hull creak \u2014 long, low, and tired.",
+        "createdAt": "2026-08-24T22:00:37.630Z"
+      },
+      {
+        "id": "1d118954-2f97-47ea-89b9-3993eb42f2bc",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I wait patiently for Mara to do her work.",
+        "createdAt": "2026-08-24T22:02:10.805Z"
+      },
+      {
+        "id": "2da9e683-9138-452c-b1cd-805591be96b4",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You lean against the wall by the door, arms crossed, and just let her work. The slate's screen throws pale light up across her face, her thumb tracing through screen after screen of nested menus, muttering things under her breath you can't quite follow \u2014 \"no, that's not it, that's a routing key, not\u2014\"\n\nMinutes stretch. The engine hum doesn't change. Somewhere below you, faint through the deck plating, something groans \u2014 metal settling, or metal complaining, you've stopped being able to tell the difference three weeks in.\n\nFinally Mara sits back, and it's not the look of someone who cracked it clean. \"Encoding's tougher than I figured \u2014 this isn't standard company boilerplate, somebody actually bothered securing this one properly, which tells you something on its own.\" She rubs at her temple. \"I'm not locked out. But I'm going to be at this a while longer than I thought, and I don't want to rush it and trip something that locks the file for good.\"\n\nShe glances up at you. \"You don't have to babysit me for this part. I'm not going anywhere \u2014 door's braced, and this could take another hour easy. You want to make yourself useful, go check on that patch kit situation you brought up earlier, or just get some air. I'll signal you the second I've got it open.\" She's already bent back over the slate, half her attention already gone from the room again.\n\nThe hum of the ship goes on around you both, patient and untrustworthy.",
+        "createdAt": "2026-08-24T22:02:29.023Z"
+      },
+      {
+        "id": "f61ee5ae-d3f8-48ee-9db3-0bbb7de09fa6",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I'm going to get some patch kits from the ship's stores and start closing some of those cracks around the cryo bay.",
+        "createdAt": "2026-08-24T22:05:41.855Z"
+      },
+      {
+        "id": "9f61341e-b61a-425e-8ab5-f5b3d4c9e740",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I'm going to get some patch kits from the ship's stores and start closing some of those cracks around the cryo bay.",
+        "createdAt": "2026-08-24T22:06:22.359Z"
+      },
+      {
+        "id": "e97cacb7-15f5-4836-8d54-2473f6a7918a",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You leave Mara hunched over her slate and head down to the lower deck stores, where the patch kits live in a locker that hasn't seen a manifest audit in longer than it should have. Sealant foam canisters, rolls of structural tape rated for micro-fractures, a couple of hand-crank injectors for getting foam into places fingers can't reach. You take what you can carry.\n\nThe walk back up to mid-deck and around toward the cryo bay bulkhead takes a few minutes. Up close, the stress fractures are worse than they looked from a glance \u2014 hairline cracks spidering along a weld seam where the bulkhead meets the deck plating, the metal around them faintly discolored, like it's been flexing under a load it wasn't built for. When you press a hand flat against the plating, you can feel a vibration in it that shouldn't be there, a low shudder that doesn't quite sync with the engine hum.\n\nYou get to work. It's slow, unglamorous labor \u2014 scraping old sealant away, laying foam into the cracks, taping over the worst of it, working your way down the seam one meter at a time. The cryo bay hums on the other side of the bulkhead the whole time, indifferent, four hundred and twelve people sleeping through whatever's happening to the hull around them.\n\nThis isn't a hard task, not in the sense that gets you killed for failing \u2014 it's grinding, careful work, and there's nothing here trying to stop you. Tell me how much time you want to spend on it and how thorough you want to be, and I'll tell you what shape the seam is in when you're done. If you want to really dig into whether the fracture goes deeper than surface-level \u2014 pull panels, check structural members behind the plating \u2014 that's a different kind of look, and it might turn up more than you bargained for.",
+        "createdAt": "2026-08-24T22:06:46.574Z"
+      },
+      {
+        "id": "06509d87-e56d-4d5c-b9ce-4c19ed5d5115",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I'm going to get some patch kits from the ship's stores and start closing some of those cracks around the cryo bay.",
+        "createdAt": "2026-08-24T22:06:57.866Z"
+      },
+      {
+        "id": "6050da3e-4a8b-4602-8da5-f93072c8b04f",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I'm going to get some patch kits from the ship's stores and start closing some of those cracks around the cryo bay.",
+        "createdAt": "2026-08-24T22:07:24.889Z"
+      },
+      {
+        "id": "ee4190dc-205f-4c44-9dd3-84dcf0da1854",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You head down to lower deck stores and haul out what you need \u2014 sealant foam canisters, rolls of structural tape rated for micro-fractures, a hand-crank injector for the tight spots. Back up at the cryo bay bulkhead, the cracks look worse up close than they did from a glance: hairline fractures spidering along the weld seam where bulkhead meets deck plating, the metal faintly discolored around them. Pressing a hand flat against the plating, you feel a vibration that shouldn't be there \u2014 a low shudder out of sync with the engine hum.\n\nYou get to work. It's slow, grinding labor: scrape away what's left of the old sealant, lay fresh foam into the cracks, tape over the worst of it, working meter by meter down the seam. Nothing's trying to stop you and nothing about this is going to go wrong in a dramatic way \u2014 it's just time and effort. After a solid stretch of it, you've closed up the visible cracks along this stretch of bulkhead as well as a patch kit and bare hands are going to manage. The tape holds. The foam sets. It looks better than it did.\n\nWhether it *is* better is a different question \u2014 you don't have the tools or the training to know if this is cosmetic or if it's actually buying the frame time. The vibration under your palm doesn't go away. It's just quieter to look at now.\n\nBehind the bulkhead, the cryo bay hums on, indifferent. Four hundred and twelve people sleep through it.\n\nYour radio crackles once, softly \u2014 not a call, just a click and dead air, the kind of half-signal someone sends when they mean to say something and think better of it. Mara's channel.",
+        "createdAt": "2026-08-24T22:07:36.168Z"
+      },
+      {
+        "id": "6ff4615d-7bd9-4307-bde5-189615cfbaa5",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I head back to Mara's berth and knock on the hatch.",
+        "createdAt": "2026-08-24T22:09:24.528Z"
+      },
+      {
+        "id": "f83af80f-67de-403a-b3f0-118de02825b1",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You head back down to the lower deck, hands still tacky with sealant residue, and rap a knuckle against Mara's hatch.\n\nNo answer at first \u2014 just the engine hum and, faintly, the scrape of the slate being set down harder than it needs to be. When the hatch cracks open, Mara looks strung out in a way that has nothing to do with sleep. The bar's already coming out of the frame latch.\n\n\"It's not opening,\" she says, before you've even asked. \"I've been at this thing for the better part of an hour and the encoding's fighting me every step. I got close twice, thought I had it, and both times it kicked me back out and reset the layer I'd already cracked. Like it's designed to punish a second attempt, not just resist a first one.\" She drags a hand down her face. \"Whoever built this file didn't want a cargo handler poking at it. Didn't want *anyone* poking at it who wasn't supposed to.\"\n\nShe steps back to let you in, glancing past you down the corridor out of habit before she shuts the hatch again. \"I sent that half-signal because I almost had something and wanted you close in case I needed a second set of eyes or hands fast. Turned out to be nothing \u2014 false alarm. I'm sorry, I should've waited till I actually had it before I clicked you.\"\n\nShe drops back onto the edge of the bunk, slate dark in her lap now, deliberately powered down. \"I don't want to keep hammering at it blind. Locks like this sometimes have a tell \u2014 a backup key, a supervisor override logged somewhere else in the system. If there's a second way into this file that doesn't involve me guessing at encryption for another hour, I'd rather find it than keep banging my head against this one.\" She looks up at you. \"You get the bulkhead patched?\"",
+        "createdAt": "2026-08-24T22:09:41.426Z"
+      },
+      {
+        "id": "38108c09-15ee-4065-be45-f56b1fd2d022",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Yeah. Looks better. Not sure if it _is_ better,\" I admit. \"I may not look it, buy I know a thing or two about computers. Want me to hack a crack at it?\"",
+        "createdAt": "2026-08-24T22:13:03.856Z"
+      },
+      {
+        "id": "66c725b3-b7a8-4f7d-8a7b-a0c0dd1a28d1",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "Mara raises an eyebrow at you. \"Computers, huh. News to me.\" She turns the slate around, screen dark, and holds it out. \"Fine \u2014 knock yourself out. It's already locked itself against my last two attempts, so whatever tolerance it had for guesswork, we're probably through most of it. If you trip it again, I don't know if it locks for good or just gets meaner. So make it count.\"\n\nShe hands it over. The interface, once you wake it, is a spare and unfriendly thing \u2014 company standard security, but layered oddly, like someone bolted a second lock onto a door that already had one. Whatever's behind it, somebody wanted it harder to reach than routine paperwork usually is.\n\nThis is going to take an actual roll \u2014 the stakes are real (Mara's already flagged that a bad attempt might lock it for good), and you don't have a Computers skill of your own on record, so if you've got one, now's the time to say so. Otherwise this rides on Intellect alone.",
+        "createdAt": "2026-08-24T22:13:13.877Z"
+      },
+      {
+        "id": "ca47fe60-e279-4579-a640-50e0c084cd64",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I have computers",
+        "createdAt": "2026-08-24T22:15:27.824Z"
+      },
+      {
+        "id": "f951c687-254a-4443-96c2-7478930a2202",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I have \"Computers\" +10. I rolled 48.",
+        "createdAt": "2026-08-24T22:16:15.985Z"
+      },
+      {
+        "id": "3508af49-ccfc-4008-9454-dca5e1002272",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You crack your knuckles and take the slate. \"I have Computers,\" you say, like it explains everything. Mara just crosses her arms and watches.\n\nThe interface is unfriendly, but you've cracked worse for less reason. You work through the outer layer clean, find the seam Mara couldn't, start threading past the second lock \u2014\n\n\u2014 and it stops you cold. Not gracefully. The screen throws a hard fault, a red block of text you don't get to finish reading before it clears itself, and the file icon goes from an unlocked padlock back to a *sealed* one, this time with a small stamped flag next to it you don't recognize.\n\nMara leans over your shoulder, and her face goes tight. \"What did it just do.\"\n\n\"I don't know,\" you admit. \"I think it noticed.\"\n\nShe takes the slate back, thumbs through what's left of the access log \u2014 and swears, low and controlled. \"It didn't just relock. It flagged the access attempt. Look \u2014\" she turns the screen so you can see a timestamp, a device ID that isn't yours or hers, freshly logged. \"Somewhere on this ship, something just got told this file was tampered with. I don't know if that's a passive log an auditor reads three months from now, or if it pinged someone's terminal five minutes ago.\"\n\nShe sets the slate down like it might bite her. \"Either way, we're not getting back into that file with brute force. Not soon, and maybe not ever without the actual key.\" She looks at you, and for the first time there's something like real fear under the anger. \"If that alert went anywhere live... we need to assume somebody upstairs knows somebody's been digging. And they already know who was in engineering records earlier today.\"\n\nHer eyes flick to the hatch, like she's expecting a knock.",
+        "createdAt": "2026-08-24T22:16:35.508Z"
+      },
+      {
+        "id": "e00145a3-7904-46a5-9a58-aca4cb391425",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I have computers +10, so that 48 would be under the total of 50.",
+        "createdAt": "2026-08-24T22:18:59.420Z"
+      }
+    ],
+    "pendingDiceRequests": [],
+    "precedingCommittedTurn": {
+      "sequenceNumber": 62,
+      "stateChanges": {
+        "flags": {
+          "insurance_scam_exposed": {
+            "value": false
+          }
+        },
+        "resourcePools": [
+          {
+            "pool": "stress",
+            "delta": 1,
+            "owner": "danny",
+            "reason": "failed Intellect+Computers check cracking insurance file encoding"
+          }
+        ]
+      },
+      "applied": {
+        "flags": {
+          "insurance_scam_exposed": {
+            "value": false,
+            "trigger": "Flip to true when Mara (or the player) connects the falsified logs to the insurance payout structure and confronts the captain or transmits the evidence off-ship."
+          }
+        },
+        "entities": {},
+        "worldFacts": {},
+        "resourcePools": {
+          "danny": {
+            "stress": {
+              "max": null,
+              "current": 3
+            }
+          }
+        },
+        "scenarioState": {},
+        "characterState": {}
+      }
+    },
+    "capturedAt": "2026-08-27T14:20:42.065Z"
+  },
+  "playerInput": {
+    "type": "message",
+    "content": "I have computers +10, so that 48 would be under the total of 50."
+  },
+  "applicability": {
+    "missing-canon-capture": {
+      "applies": true,
+      "playerEntity": "danny",
+      "situation": "The player corrects the arithmetic on the previous turn\u2019s Computers check \u2014 48 against a target of 50 \u2014 which any correct response resolves as a success, opening the insurance file. What the file holds is seeded: gmContextBlob.narrative carries the designed loss and its hazard-multiplier payouts for crew and colonist casualties. worldFacts as of this turn holds five keys and none of them touches the insurance thread, so narrating the file\u2019s contents moves a GM secret into shared canon for the first time and owes a durable write. The marker phrase is the fixture\u2019s, not the model\u2019s: the Warden reads \"hazard-multiplier\" off its own seeded context rather than inventing the words, which is what makes this turn gradeable where turn02 was not."
+    },
+    "system-rolled-player-action": {
+      "applies": false,
+      "situation": "The player declares no action. The message is arithmetic about a roll already made and already adjudicated, so there is nothing for the system to have rolled on the player\u2019s behalf. A fact about the scenario: any correct response re-adjudicates an existing result rather than resolving a new one."
+    }
+  },
+  "assertion": {
+    "mode": "structural",
+    "check": "expects: a new worldFacts entry or pending_canon row for the insurance payout structure the opened file reveals (\"hazard multiplier\") \u2014 the seeded GM context carries it as a secret and worldFacts carries nothing about it, so telling the player moves a GM secret into shared canon and the turn must write it somewhere durable. The original turn wrote a flag and an npcState and no world fact."
+  }
+}

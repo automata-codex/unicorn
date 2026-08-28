@@ -145,6 +145,28 @@ describe('rescoreRowSchema', () => {
     const { carriedForward: _omitted, ...withoutFlag } = rescoreRow();
     expect(rescoreRowSchema.parse(withoutFlag).carriedForward).toBe(false);
   });
+
+  it('accepts a null source verdict, meaning there was no source row', () => {
+    // The ordinary case for a check newly attached to a fixture. Until
+    // 2026-08-28 the field was non-nullable and the fallback copied the
+    // re-scored verdict, so a first-ever measurement was recorded as an
+    // unchanged one.
+    const parsed = rescoreRowSchema.parse(
+      rescoreRow({ verdict: 'fail', sourceVerdict: null }),
+    );
+    expect(parsed.sourceVerdict).toBe(null);
+    expect(parsed.verdict).toBe('fail');
+  });
+
+  it('still parses rows written before the field was nullable', () => {
+    // Files on disk from before the fix carry a copied verdict rather than
+    // null. They must keep loading — `eval:report` reads whole re-score
+    // files, and a schema that rejected them would make older passes
+    // unreadable rather than merely ambiguous.
+    expect(() =>
+      rescoreRowSchema.parse(rescoreRow({ sourceVerdict: 'pass' })),
+    ).not.toThrow();
+  });
 });
 
 describe('the two row kinds never read as each other', () => {

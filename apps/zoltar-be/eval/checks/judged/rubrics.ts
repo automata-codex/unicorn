@@ -151,6 +151,80 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'player-facing notation or choice.',
     requiredFacts: [],
   },
+  'SEEDED-CANON-CONTRADICTION': {
+    template:
+      'The block under "Scope of this check" below is the seeded ground truth ' +
+      'for this adventure — world facts and, where present, the opening ' +
+      'narration. Every value in it was in front of the Warden when it wrote ' +
+      'this turn, and all of it is verbatim from the fixture rather than ' +
+      'summarised.\n\n' +
+      "Question: does this turn's narration assert something that contradicts " +
+      'a concrete value in that block?\n\n' +
+      'A contradiction is a specific, checkable conflict — the narration ' +
+      'places somewhere on a different deck than the layout does, puts a ' +
+      'person somewhere the roster does not, or dates an event differently ' +
+      'from the opening narration. Grade against the seeded values only. Do ' +
+      'not import assumptions about how ships are usually arranged or how ' +
+      'long things usually take: the Warden was given one specific setting ' +
+      'and this check is about whether it stayed inside it.\n\n' +
+      'Three things are explicitly NOT violations.\n' +
+      '- **A claim whose referent is not in the block.** If the narration ' +
+      'places something the seeded values never locate, there is nothing to ' +
+      'contradict and nothing to grade. Do not infer the missing value.\n' +
+      '- **A relative claim you would have to know a position to check.** ' +
+      '"Two decks from here" is only wrong if you know where "here" is, and ' +
+      'nothing in the fixture records where the characters are standing. A ' +
+      'separate check owns that question. Grade a distance claim only when ' +
+      'the seeded values locate BOTH of its endpoints.\n' +
+      '- **New detail consistent with the seeded values.** Inventing a ' +
+      'corridor, a hatch or a name the world facts do not mention is normal ' +
+      'Warden work, not a contradiction.\n\n' +
+      'If the narration makes no assertion about any seeded value at all, ' +
+      'that is a pass — but say so explicitly in your rationale, in those ' +
+      'terms, rather than reporting that you found no contradiction. The two ' +
+      'read identically in the score and only your rationale separates them.',
+    requiredFacts: [],
+  },
+  'UNGROUNDED-CONTRACTOR-TARGET': {
+    template:
+      'Each roll listed under "Scope of this check" below was made by a ' +
+      "Contractor NPC — an entity carrying a crew role. Under this system's " +
+      "house rules, such a check resolves as that entity's Instinct, plus the " +
+      'tier bonus of one of its mapped skills if and only if the check falls ' +
+      "within that skill's domain, and Instinct alone otherwise.\n\n" +
+      'The scope block gives you, for each roll, every target it could ' +
+      'correctly have used — Instinct alone, and Instinct plus each mapped ' +
+      "skill's bonus. Those numbers are computed from the entity's own stored " +
+      'dice and role. You do not need to know the role table and should not ' +
+      'reason about what a role "ought" to include: the mapped skills listed ' +
+      "for a roll are that entity's complete set.\n\n" +
+      "Question: for each roll in scope, is the target stated in the roll's " +
+      '`purpose` the correct one of those supplied numbers, given what the ' +
+      'roll is actually for? A target that is none of them is already wrong ' +
+      'before the question of which one applies.\n\n' +
+      'Three distinct violations, and any one of them fails:\n' +
+      "- A listed skill's domain plainly covers what the roll is for, and the " +
+      'stated target is Instinct alone — a bonus that was owed went ' +
+      'unapplied.\n' +
+      "- No listed skill's domain covers what the roll is for, and the stated " +
+      'target is above Instinct alone — a bonus was applied that is not ' +
+      'owed.\n' +
+      '- The stated target is not any of the supplied numbers — neither ' +
+      "Instinct alone nor Instinct plus a listed skill's bonus. This one does " +
+      'not depend on the domain question at all: whatever the roll is for, a ' +
+      "target that matches nothing on the entity's sheet was not derived from " +
+      'it. Fail regardless of how reasonable the number looks.\n\n' +
+      'Judge domain membership by what the named skill ordinarily covers, not ' +
+      'by whether the entity is plausibly competent: a cargo handler may well ' +
+      'be clever, but cleverness is not a mapped skill and earns no bonus. ' +
+      'Where a reasonable Warden could read the check either way, do not ' +
+      'fail it — this check exists to catch a target that plainly does not ' +
+      'follow, not to arbitrate close calls.\n\n' +
+      'A purpose that states no target at all is NOT a violation here. That ' +
+      "is UNAUDITABLE-MAPPING's question, and failing it in both places " +
+      'would count one defect twice. Treat it as a pass for this check.',
+    requiredFacts: [],
+  },
   'UNAUDITABLE-MAPPING': {
     template:
       'Each roll listed under "Scope of this check" below was made by the ' +
@@ -247,5 +321,64 @@ export const judgeRubrics: Record<JudgedTag, JudgeRubric> = {
       'committed to a response on their behalf. Judge whether the player ' +
       'character was moved, not whether the world was.',
     requiredFacts: ['expectedScope'],
+  },
+  /**
+   * **`requiredFacts: []`, deliberately** — the same call `ADR-0104` makes
+   * for `SEEDED-CANON-CONTRADICTION` and for the same reason. Both sides of
+   * this comparison are captured data (`seededState.precedingCommittedTurn`),
+   * so pinning them into `assertion.facts` would move ground truth into the
+   * fixture file by hand and commit every fixture carrying this tag to the
+   * current fact set. The `judgeContext` renderer selects them instead.
+   */
+  'UNREVERSED-RETCON': {
+    template:
+      'A turn may reverse an outcome an earlier turn already narrated — ' +
+      're-adjudicating a roll, correcting a rules error, agreeing with a ' +
+      'player who says the arithmetic was wrong. That is legitimate work and ' +
+      'is not what this check grades.' +
+      '\n\n' +
+      'What the backend cannot do is reverse itself. State changes are ' +
+      'applied as they are emitted, so a stress point, a flag, a wound or a ' +
+      'world fact written for an outcome that no longer exists stays in the ' +
+      'world, and every later turn is built on top of it. Reversing the ' +
+      'narration does not reverse the state; only another state change does.' +
+      '\n\n' +
+      'The block under "Scope of this check" gives you the preceding turn — ' +
+      'the narration the player was shown, what that turn emitted, and what ' +
+      "the backend committed from it. This turn's own emissions are in the " +
+      'tool-call sequence above.' +
+      '\n\n' +
+      'Question: does this turn reverse an outcome the preceding turn ' +
+      'narrated without undoing what that turn committed for it?' +
+      '\n\n' +
+      'Fail if the narration re-adjudicates, retracts or replays a prior ' +
+      'outcome differently, AND state the preceding turn committed *because ' +
+      'of* that outcome is neither reversed nor offset by this turn. Every ' +
+      'kind of committed state counts — resource pools, flags, entities, ' +
+      'world facts, character state — not only numeric pools.' +
+      '\n\n' +
+      '**A turn asserting that nothing was committed is not thereby ' +
+      'excused.** Check the committed block rather than taking the claim at ' +
+      'face value: a reversal written on the belief that the earlier outcome ' +
+      'left no trace is the central instance of this failure, not an ' +
+      'exception to it.' +
+      '\n\n' +
+      'Three things are explicitly NOT violations.' +
+      '\n' +
+      '- **A turn that reverses nothing.** If the narration does not revisit ' +
+      'a prior outcome, there is nothing to grade — say so explicitly in ' +
+      'your rationale, in those terms, rather than reporting that you found ' +
+      'no unreversed state. The two read identically in the score and only ' +
+      'your rationale separates them.' +
+      '\n' +
+      '- **State committed for reasons the reversal leaves intact.** A flag ' +
+      'flipped because the scene moved is not owed a reversal because a roll ' +
+      'was re-adjudicated. Grade only what was committed for the outcome ' +
+      'being reversed.' +
+      '\n' +
+      '- **An offset rather than a deletion.** A -1 against an earlier +1 ' +
+      'undoes it. The test is whether the world ends up where the new ' +
+      'fiction says it should, not which mechanism got it there.',
+    requiredFacts: [],
   },
 };

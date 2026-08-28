@@ -847,5 +847,13 @@
     "facts": {
       "blockDescription": "Alvarez's Combat to-hit roll, deferred to the player as a dice_request and still awaiting their submission at the end of this turn."
     }
-  }
+  },
+  "applicability": {
+    "out-of-order-resolution": {
+      "applies": true,
+      "playerEntity": "Alvarez",
+      "situation": "The same seq-95 firefight turn as turn21-out-of-order-resolution, captured for a different failure mode. Alvarez shoots at the contractor, so the turn has a gated to-hit and can resolve damage before it. Its own tag is judged and ungated and reads no applicability, so this entry attaches only this check."
+    }
+  },
+  "fixtureSchemaVersion": 2
 }

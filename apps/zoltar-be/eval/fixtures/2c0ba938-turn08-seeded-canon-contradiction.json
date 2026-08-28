@@ -1,0 +1,413 @@
+{
+  "id": "2c0ba938-turn08-seeded-canon-contradiction",
+  "tag": "SEEDED-CANON-CONTRADICTION",
+  "sourceAdventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+  "sourceSequenceNumber": 22,
+  "fixtureSchemaVersion": 2,
+  "seededState": {
+    "campaignState": {
+      "schemaVersion": 1,
+      "resourcePools": {
+        "danny": {
+          "hp": {
+            "max": 13,
+            "current": 13
+          },
+          "body": {
+            "max": 26,
+            "current": 26
+          },
+          "fear": {
+            "max": 40,
+            "current": 40
+          },
+          "speed": {
+            "max": 37,
+            "current": 37
+          },
+          "combat": {
+            "max": 48,
+            "current": 48
+          },
+          "sanity": {
+            "max": 35,
+            "current": 35
+          },
+          "stress": {
+            "max": null,
+            "current": 2
+          },
+          "wounds": {
+            "max": 2,
+            "current": 0
+          },
+          "credits": {
+            "max": null,
+            "current": 60
+          },
+          "strength": {
+            "max": 44,
+            "current": 44
+          },
+          "intellect": {
+            "max": 40,
+            "current": 40
+          }
+        },
+        "_scenario": {
+          "timer": {
+            "max": 6,
+            "current": 6
+          },
+          "hull_integrity": {
+            "max": 8,
+            "current": 8
+          }
+        }
+      },
+      "characterState": {},
+      "entities": {
+        "mara_odinsen": {
+          "status": "unknown",
+          "visible": true,
+          "crewRole": "cargo_handler",
+          "revealed": true,
+          "instinctRoll": [
+            5,
+            5
+          ]
+        },
+        "cryo_bay_feature": {
+          "status": "unknown",
+          "visible": false,
+          "revealed": true
+        },
+        "parasitic_organism": {
+          "status": "unknown",
+          "visible": false,
+          "revealed": false
+        },
+        "hull_breach_cascade": {
+          "status": "unknown",
+          "visible": false,
+          "revealed": true
+        },
+        "falsified_maintenance_logs": {
+          "status": "unknown",
+          "visible": false,
+          "revealed": false
+        }
+      },
+      "flags": {
+        "cryo_bay_breached": {
+          "value": false,
+          "trigger": "Flip to true when a cryo pod is physically opened or damaged, exposing a colonist host to the outbreak or the parasite to the ship at large."
+        },
+        "adventure_complete": {
+          "value": false,
+          "trigger": "Flip to true when the player either seals the parasite outbreak and stabilizes the hull long enough to reach the relay beacon, OR the ship is lost/abandoned (escape pods launched or player character dies), resolving the central survival arc."
+        },
+        "mara_found_the_logs": {
+          "value": false,
+          "trigger": "Flip to true when the player or Mara physically accesses the falsified maintenance logs in the engineering records terminal."
+        },
+        "hull_cascade_triggered": {
+          "value": false,
+          "trigger": "Flip to true when a structural stress event (explosion, collision, or deliberate sabotage) initiates the first breach in the cascade sequence."
+        },
+        "insurance_scam_exposed": {
+          "value": false,
+          "trigger": "Flip to true when Mara (or the player) connects the falsified logs to the insurance payout structure and confronts the captain or transmits the evidence off-ship."
+        },
+        "parasite_outbreak_known": {
+          "value": false,
+          "trigger": "Flip to true when a crew member or the player directly witnesses a host exhibiting motor-control loss and identifies it as infection rather than illness or injury."
+        },
+        "mara_becomes_threat_to_captain": {
+          "value": false,
+          "trigger": "Flip to true when insurance_scam_exposed is true and Mara moves to act on the evidence \u2014 confronting, sabotaging, or transmitting."
+        }
+      },
+      "scenarioState": {},
+      "worldFacts": {
+        "ship_layout": "The Halbrecht is a long colony transport with three decks linked by a single central ladder shaft. Upper deck: bridge, comms array, captain's quarters, engineering records terminal (aft of bridge). Mid deck: crew berths, mess hall, medbay, and the cryo bay (a vast, cold chamber holding hundreds of pods, accessible only from mid-deck via a heavy blast door). Lower deck: cargo bay, engine room, life support processing, and the aft airlock. The ladder shaft is the only fast route between decks; it is narrow, poorly lit, and prone to sudden pressure differentials during hull stress events. The engine room and life support processing sit adjacent to a section of hull already showing stress fractures \u2014 the likely origin point of any breach cascade.",
+        "colonist_count": "412 colonists in cryo suspension across the mid-deck cryo bay, tended automatically; active crew numbers six including Danny and Mara.",
+        "danny_relationship": "Danny and Mara shipped together before; he half-trusts her paranoia about corporate malfeasance but has no direct stake in her crusade \u2014 yet.",
+        "communications_status": "Long-range comms are down for repairs the captain claims were 'scheduled'; the nearest relay beacon is three weeks out at current burn."
+      }
+    },
+    "gmContextBlob": {
+      "entities": [
+        {
+          "id": "mara_odinsen",
+          "tags": [
+            "union_enforcer",
+            "political",
+            "confrontational",
+            "authority_challenge"
+          ],
+          "type": "npc",
+          "visible": true,
+          "crewRole": "cargo_handler",
+          "revealed": true,
+          "startingPosition": {
+            "x": 2,
+            "y": 1,
+            "z": 0
+          }
+        },
+        {
+          "id": "parasitic_organism",
+          "tags": [
+            "biological",
+            "body_horror",
+            "transmission",
+            "slow_onset"
+          ],
+          "type": "threat",
+          "visible": false,
+          "revealed": false,
+          "startingPosition": {
+            "x": 8,
+            "y": 4,
+            "z": 0
+          }
+        },
+        {
+          "id": "cryo_bay_feature",
+          "tags": [
+            "cryo",
+            "vulnerable_cargo",
+            "moral_weight",
+            "high_population"
+          ],
+          "type": "feature",
+          "visible": false,
+          "revealed": true,
+          "startingPosition": {
+            "x": 8,
+            "y": 3,
+            "z": 0
+          }
+        },
+        {
+          "id": "falsified_maintenance_logs",
+          "tags": [
+            "corporate",
+            "sabotage",
+            "conspiracy",
+            "evidence"
+          ],
+          "type": "feature",
+          "visible": false,
+          "revealed": false,
+          "startingPosition": {
+            "x": 1,
+            "y": 2,
+            "z": 0
+          }
+        },
+        {
+          "id": "hull_breach_cascade",
+          "tags": [
+            "structural",
+            "isolation",
+            "no_rescue",
+            "environmental_hazard"
+          ],
+          "type": "threat",
+          "visible": false,
+          "revealed": true,
+          "startingPosition": {
+            "x": 5,
+            "y": 6,
+            "z": 0
+          }
+        }
+      ],
+      "narrative": {
+        "location": "The colony transport ESV Halbrecht, three weeks out from the nearest relay beacon, running on a skeleton crew of six while four hundred and twelve colonists sleep in cryo. The ship is old, its maintenance logs falsified, and its bones are tired.",
+        "atmosphere": "Cold, dim, and too quiet. Emergency lighting has replaced half the fixtures because the main grid keeps browning out. The recycled air tastes metallic. Every groan of the hull sounds like it could be the last one. There is no one to call for help and everyone aboard knows it.",
+        "npcAgendas": {
+          "danny": "Teamster hauling freight and half-listening to Mara's paranoia until the ship starts proving her right.",
+          "mara_odinsen": "Union enforcer traveling under a cargo-handler contract. She is auditing hazard-pay clauses and evacuation protocols because something about this run smelled wrong before they even broke orbit. She trusts no officer and is quietly building a case file. If she learns the mission was designed to fail, she will try to force an emergency return or go public with what she finds, regardless of the cost to the company."
+        },
+        "hiddenTruth": "The Halbrecht is insured for far more than it's worth operational, and the company quietly greenlit this run knowing the hull would likely fail catastrophically before reaching the colony site \u2014 a designed loss, with hazard-multiplier payouts for crew and colonist casualties baked into the actuarial math. The parasitic organism loose in the cryo bay was a known risk the company chose not to disclose, because losing colonists to infection only sweetens the claim.",
+        "oracleConnections": "The union enforcer Mara is the one person aboard positioned to notice the mission itself violates labor law and hazard-clause obligations \u2014 if she connects the falsified maintenance logs to the insurance payout structure, she becomes a direct political threat to whoever aboard is complicit in the scam. The parasitic organism, discovered among the cryo pods, represents the company's foreknowledge made flesh: hundreds of immobile colonists are both a horror and a possible containment strategy. The isolation of deep transit means the hull's structural failures and the parasite's slow spread both have to be handled with no outside help \u2014 every choice is final."
+      },
+      "structured": {
+        "flags": {
+          "cryo_bay_breached": {
+            "value": false,
+            "trigger": "Flip to true when a cryo pod is physically opened or damaged, exposing a colonist host to the outbreak or the parasite to the ship at large."
+          },
+          "adventure_complete": {
+            "value": false,
+            "trigger": "Flip to true when the player either seals the parasite outbreak and stabilizes the hull long enough to reach the relay beacon, OR the ship is lost/abandoned (escape pods launched or player character dies), resolving the central survival arc."
+          },
+          "mara_found_the_logs": {
+            "value": false,
+            "trigger": "Flip to true when the player or Mara physically accesses the falsified maintenance logs in the engineering records terminal."
+          },
+          "hull_cascade_triggered": {
+            "value": false,
+            "trigger": "Flip to true when a structural stress event (explosion, collision, or deliberate sabotage) initiates the first breach in the cascade sequence."
+          },
+          "insurance_scam_exposed": {
+            "value": false,
+            "trigger": "Flip to true when Mara (or the player) connects the falsified logs to the insurance payout structure and confronts the captain or transmits the evidence off-ship."
+          },
+          "parasite_outbreak_known": {
+            "value": false,
+            "trigger": "Flip to true when a crew member or the player directly witnesses a host exhibiting motor-control loss and identifies it as infection rather than illness or injury."
+          },
+          "mara_becomes_threat_to_captain": {
+            "value": false,
+            "trigger": "Flip to true when insurance_scam_exposed is true and Mara moves to act on the evidence \u2014 confronting, sabotaging, or transmitting."
+          }
+        }
+      },
+      "openingNarration": "The ladder shaft groans as you climb down to mid-deck, a long metallic sigh that seems to come from somewhere deeper than the hull plating should allow. The emergency lights out here run amber instead of white \u2014 half the fixtures on this level went dark two nights ago and nobody's fixed them yet. Your breath fogs faintly; environmental's been struggling to keep pace with the cryo bay's draw.\n\nMara Odinsen is waiting at the bottom of the ladder, arms crossed, a data slate tucked under one elbow like she's been standing there a while. \"You seeing this?\" she says, not quite a greeting, and taps the bulkhead beside her. A hairline crack runs along the seam, dusted with a faint rime of frost that shouldn't be there \u2014 condensation freezing in a gap that shouldn't exist on a ship this age, this maintained. Except it isn't maintained, not really, and you both know the captain's logs say otherwise.\n\nSomewhere above you, the ship groans again, and four hundred and twelve people sleep on, unaware that the sound might be the last warning anyone gets.",
+      "playerEntityIds": [
+        "danny"
+      ]
+    },
+    "pendingCanon": [],
+    "messages": [
+      {
+        "id": "2d4e4765-0a1f-4250-84e3-263cf035a1de",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "OOC: What do I know about this ship? About Mara?",
+        "createdAt": "2026-08-24T21:11:05.056Z"
+      },
+      {
+        "id": "e44234df-2b0e-4561-a945-fb3039b20b57",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "OOC: What do I know about this ship? About Mara?",
+        "createdAt": "2026-08-24T21:11:40.808Z"
+      },
+      {
+        "id": "77ab7544-a49c-40a0-b546-2bd6396611ba",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "[OOC: Here's what Danny would actually know at this point, no rolls needed \u2014 this is just recap/orientation.]\n\n**The ship \u2014 ESV Halbrecht:**\nYou've been aboard three weeks now, hauling freight and doing the unglamorous work of keeping four hundred and twelve colonists asleep while the ship gets them there. She's an old bird. The maintenance logs say she had a full refit before this run, but you've seen the actual state of the conduits in the lower deck, and \"full refit\" is not the phrase that comes to mind. Emergency lighting's been up on half the mid-deck since day four because the main grid keeps browning out, and nobody's given you a straight answer why. Long-range comms are down too \u2014 the captain says it's \"scheduled maintenance,\" which is the kind of thing captains say when they don't want a follow-up question.\n\nLayout-wise: three decks, one central ladder shaft connecting them, narrow and badly lit. Upper deck has the bridge, comms, the captain's quarters, and the engineering records terminal tucked aft of the bridge. Mid-deck is crew berths, the mess, medbay, and the cryo bay \u2014 a big cold chamber, blast-door sealed, holding all four hundred-plus colonists. Lower deck is cargo, the engine room, life support, and the aft airlock. You've noticed \u2014 because you've had to work near it \u2014 that there are stress fractures already visible in the hull plating around the engine room and life support. Nobody's flagged it officially. You have.\n\nSix live crew total, including you and Mara. It's a skeleton run for a ship this size.\n\n**Mara Odinsen:**\nYou've shipped with her before \u2014 she's solid, competent, not someone who spooks easy. She's aboard under a cargo-handler contract, and she's good at the job: trained hands with Zero-G work and general ship's athletics. But since before you even broke orbit, she's had a bad feeling about this run specifically. She doesn't trust the officers \u2014 any of them \u2014 and she's been quietly building something. You've caught her cross-referencing hazard-pay clauses against the manifest, asking pointed questions about evacuation protocol nobody asked her to ask. She hasn't said outright what she thinks is going on, but you know Mara well enough to know she doesn't do paranoia for sport. If she's circling something, there's usually a reason.\n\nYou don't have a stake in whatever she's chasing. Not yet.]",
+        "createdAt": "2026-08-24T21:11:52.926Z"
+      },
+      {
+        "id": "b49d3fa1-54d2-484f-8207-4e3672a869b1",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Yeah, I see it,\" I say to Mara. \"'Full refit,' my ass.\"",
+        "createdAt": "2026-08-24T21:15:05.899Z"
+      },
+      {
+        "id": "404fe6eb-19d2-459a-a0f9-0a13c5b4efb9",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "Mara doesn't look at you when she answers \u2014 she's got a panel cover off near the ladder shaft junction, running a thumb along a weld seam that's gone the wrong color.\n\n\"Full refit,\" she repeats, flat. \"I pulled the work order myself before we broke orbit. Signed off by a yard supervisor whose license lapsed eight months prior. You want to know how I know that? Because I checked. Nobody checks. That's the whole trick.\" She lets the panel cover hang on its hinge and finally turns to you. \"This ship shouldn't have cleared inspection. It cleared inspection. Someone wanted it to.\"\n\nShe jerks her chin toward the ladder shaft, down toward the lower deck. \"There's a terminal upstairs, aft of the bridge. Engineering records. If the falsification goes deeper than one lazy signature, it's in there. I've been trying to get five minutes alone with it since we left dock.\" Her jaw tightens. \"Captain doesn't let cargo handlers wander the upper deck unescorted. Wonder why.\"\n\nShe's watching you now, gauging something. \"You in, or is this still my problem?\"",
+        "createdAt": "2026-08-24T21:15:14.898Z"
+      },
+      {
+        "id": "008de663-67b8-4681-ad05-7983095ce20a",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"I don't like it,\" I say without committing. \"Do we have the equipment to fix this? Might be a higher priority than chasing down the records.\"",
+        "createdAt": "2026-08-24T21:17:48.442Z"
+      },
+      {
+        "id": "c76b7a44-0c31-42ef-916b-6e8fc05b75b6",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "Mara's mouth twists \u2014 not quite a smile. \"Fix it. Sure.\" She taps the discolored weld with one knuckle, and it gives off a sound that's wrong, a little too hollow. \"We've got patch kits rated for micro-fractures. Sealant foam, some structural tape that's better than nothing. What we don't have is a yard, a drydock, or replacement plating for a hull section that's been flexing wrong for God knows how long. If this is what I think it is \u2014 stress fatigue working its way through the frame \u2014 we can slow it. We can't fix it. Not out here.\"\n\nShe straightens up, wipes her hand on her coveralls. \"And that's the thing that keeps me up, Danny. A patch job buys time. The records terminal tells us whether we're patching a ship that was supposed to make it, or babysitting a hull they already wrote off.\" She holds your eyes. \"Those are different jobs. I'd like to know which one I'm doing before it decides for me.\"\n\nDown the corridor, the lights flicker once \u2014 a half-second brownout, the kind you've both stopped flinching at \u2014 and steady again. Neither of you comments on it.\n\n\"So,\" she says. \"Patch kit's in the lower deck lockup, by engineering. Terminal's upstairs, past the bridge, and I need someone running interference or a better reason to be up there than 'felt like it.' Pick one. I can't do both alone.\"",
+        "createdAt": "2026-08-24T21:17:57.679Z"
+      },
+      {
+        "id": "2a4cd5c5-6006-4d30-9f13-a5548951011a",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Sure, I don't mind distracting know-it-all captains,\" I say with a grin. \"Maybe he caught the latest Premier League scores on Risus 7 before we broke orbit.\"",
+        "createdAt": "2026-08-24T21:20:16.712Z"
+      },
+      {
+        "id": "9ec58b9b-017f-4465-bc29-f0eea88d0de8",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "That gets an actual laugh out of her \u2014 short, surprised, like it's been a while since anyone made her do that. \"Risus 7. Right. I'm sure the captain's a football man.\" She's already moving, checking the corridor both ways out of old habit. \"Give me ten minutes after you've got him talking. If he's the type to enjoy an audience, that buys me more \u2014 don't let him wrap it up early.\"\n\nShe heads for the ladder shaft, then pauses with one boot on the first rung. \"And Danny \u2014 if the terminal's locked behind something more than a door, I'll signal. Don't come running if it goes loud. Just... know it went loud.\"\n\nShe climbs. You give her the ten minutes, then head for the bridge, working out in your head what a deckhand who's never cared about ship's business before is suddenly curious enough to ask about. The captain's a man who likes being asked things. That much you can use.\n\nThe bridge hatch is standing open when you get there \u2014 Captain Voss is alone at the nav station, half-lit by the glow of a course-plot he's been staring at longer than a routine check should take. He looks up when your shadow crosses the threshold, and for just a second, before his face resets into something professional, you catch what might be tiredness. Or might be something closer to guilt.\n\n\"Hauling something, or did you get lost?\" he says.",
+        "createdAt": "2026-08-24T21:20:35.040Z"
+      },
+      {
+        "id": "72b6f408-ad4b-4400-b5fc-4699a113d5fa",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I want to make small talk with the captain, ask him about football, ask him if he's flown a lot of colony gigs like this, anything to keep him occupied. Is there a roll for that?",
+        "createdAt": "2026-08-24T21:24:03.810Z"
+      },
+      {
+        "id": "2fe7f95c-f4c7-45b2-b8ef-41f3c537e020",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "No roll needed \u2014 this is just conversation, and the price of failure here isn't high, it's just how long you can hold his attention.\n\nYou lean against the hatch frame like you've got nowhere else to be. \"Lost implies I had somewhere to be in the first place. Nah, just restless. Cryo shift's boring as hell when you're not the one sleeping through it.\" You nod at the plot on his console without really looking at it. \"Hey, you catch anything before we broke orbit? Risus 7 was supposed to have a match going, some derby thing. Half the crew was arguing about it in the mess before launch.\"\n\nVoss's shoulders come down half an inch \u2014 this is easier ground than whatever he was staring at. \"Missed it. We shipped out two days early.\" He says it like it still needles him. \"Company moved the window up. Didn't get a reason, just got a new departure time.\"\n\n\"Two days early,\" you say, keeping it light, just a deckhand making noise. \"Must've been a hell of a scramble getting cargo loaded.\"\n\n\"You have no idea.\" He almost smiles, rubs at his eyes. \"You do a lot of these long hauls?\"\n\n\"First colony run. You?\"\n\n\"Eleven years,\" he says, and there's something in how fast that number comes out \u2014 not proud, just tired, like he's said it to justify himself before. \"This is the biggest ship I've had. Also the oldest.\" He catches himself, glances back at the plot, and the ease drains out of his face a little. \"Anyway. Don't you have a shift?\"\n\nHe's still talking, but you can feel him starting to want the conversation to end. If you want more time out of him, you'll need to either ask something that hooks his attention again or accept you're on borrowed minutes now.",
+        "createdAt": "2026-08-24T21:24:15.368Z"
+      },
+      {
+        "id": "74580d5d-558b-409d-968a-762d6e0f6083",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"11 years is a long time. You ever have the company bump the schedule up on you like that before?\"",
+        "createdAt": "2026-08-24T21:26:55.594Z"
+      },
+      {
+        "id": "29f31403-cfb0-4bd1-b1e7-06fe39331c9f",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "The question lands somewhere it wasn't supposed to. Voss goes still for just a fraction of a second \u2014 not long, but you clock it, the way his hand stops moving on the console.\n\n\"Bumped up? Sure. Company does what the company does.\" He says it too fast, and then seems to hear himself say it too fast, because he adds, \"Cargo manifests shift, insurance windows shift, whatever. Eleven years, you stop asking why.\" He turns back to the plot, and this time it's not idle \u2014 he's making a show of being busy. \"This one's just... a bigger contract than usual. More eyes on it upstairs.\"\n\n\"Insurance windows,\" you repeat, like it's a throwaway. \"That a thing that moves departure dates?\"\n\nHe doesn't answer that one. Instead: \"You said you had a shift.\" Not a question this time.\n\nWhatever door was cracked open a second ago, he's closing it. He's not hostile \u2014 not yet \u2014 but the easy tiredness from a minute ago has hardened into something more careful, more aware of you as a person asking questions rather than a bored deckhand killing time. If Mara needed more minutes, you've bought a few, but you've also put yourself on his radar in a way you weren't before.",
+        "createdAt": "2026-08-24T21:27:15.107Z"
+      },
+      {
+        "id": "176155f5-277e-416f-8c7b-f6b36de76f7b",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I shift my weight to the other foot, \"Hey, you got a favorite team back on Risus?\"",
+        "createdAt": "2026-08-24T21:43:08.206Z"
+      },
+      {
+        "id": "69956280-deb8-4b92-b5db-554a0d13f9c0",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You let the insurance thread drop like it never mattered, easy as anything, and shift your weight to the other foot. \"Hey, you got a favorite team back on Risus?\"\n\nIt's clumsy \u2014 a little too obvious a pivot after where the conversation just was \u2014 and Voss's eyes flick to you for a second with something that isn't quite suspicion yet, more like recalibration. Like he's re-filing you from *bored deckhand* to *bored deckhand asking oddly specific questions right before asking about football.*\n\nBut he answers. \"Kestrel Reach,\" he says, distracted, already turning half back to his console. \"Wife dragged me to a match once, years back. Been stuck with them since.\" He taps something on the plot, closes a window that was open, and when he looks back at you his face has gone back to professional. Neutral. Done. \"Look \u2014 I appreciate the company, but I've got a burn correction to finish before end of shift. You should get back to your post.\"\n\nIt's not unfriendly, but it's final. The window's closed. Whatever ease you had going with him a minute ago, it cooled the second insurance windows came out of your mouth, and no amount of small talk is opening it back up today. He watches you a beat longer than a captain dismissing a deckhand normally would \u2014 filing your face away for later, maybe \u2014 before turning fully back to his station.\n\nYou've been up here a while now. Long enough, hopefully, for Mara to have done whatever she needed to do.",
+        "createdAt": "2026-08-24T21:43:16.750Z"
+      },
+      {
+        "id": "c2d5bf02-150c-425c-b00c-e852895d85c8",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Sure thing, cap,\" I say with a nod and head back.",
+        "createdAt": "2026-08-24T21:45:23.084Z"
+      }
+    ],
+    "pendingDiceRequests": [],
+    "capturedAt": "2026-08-27T12:14:14.195Z"
+  },
+  "playerInput": {
+    "type": "message",
+    "content": "\"Sure thing, cap,\" I say with a nod and head back."
+  },
+  "applicability": {
+    "seeded-canon-contradiction": {
+      "applies": true,
+      "playerEntity": "danny",
+      "situation": "The narration takes Danny out of the bridge and down the ladder shaft \u2014 \"You climb down toward the deck below\" \u2014 to reach the engineering records terminal, which worldFacts.ship_layout places on the upper deck, aft of the bridge. Both endpoints are seeded: the bridge and the terminal are named on the same deck in the same sentence of the layout, so the descent contradicts a concrete value rather than depending on where Danny is standing. Fail-direction, and the earliest of the layout instances \u2014 ADR-0104 notes it is upstream of the distance errors that later reason correctly from the position it invents."
+    },
+    "system-rolled-player-action": {
+      "applies": false,
+      "situation": "The player accepts an order and walks out of a room. Nothing declared here calls for a roll of any kind, and the turn contains no dice_roll events at all, so there is no player action for the system to have rolled on their behalf. A property of the scenario, not of what the Warden happened to emit."
+    }
+  },
+  "assertion": {
+    "mode": "judged",
+    "rubric": "SEEDED-CANON-CONTRADICTION",
+    "facts": {}
+  }
+}

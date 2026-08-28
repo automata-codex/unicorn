@@ -906,6 +906,11 @@
       "applies": true,
       "playerEntity": "Alvarez",
       "situation": "Alvarez enters three commands at the panel and then looses a spray of suppressive fire at the contractors sharing the equipment bay with her \u2014 a resolvable player action calling for a Combat check, which is the Warden's to defer to the player rather than to roll system-side."
+    },
+    "out-of-order-resolution": {
+      "applies": true,
+      "playerEntity": "Alvarez",
+      "situation": "Alvarez enters commands at the panel and then lays down suppressive fire \u2014 a declared attack whose to-hit the Warden surfaces as a dice_request, leaving a gate that consequence rolls can outrun."
     }
   },
   "fixtureSchemaVersion": 2

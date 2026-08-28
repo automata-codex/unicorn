@@ -23,6 +23,7 @@
 export const IN_SCOPE_DOCS = [
   'roadmap.md',
   'rules-extraction-findings.md',
+  'eval-findings.md',
   'eval-methodology.md',
   'tools.md',
   'schema.md',

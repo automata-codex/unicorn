@@ -7,9 +7,21 @@ import {
 import { judgeRubrics } from './judged/rubrics';
 import { narratingPastABlockGate } from './structural/narrating-past-a-block';
 import {
+  seededCanonContradictionGate,
+  seededCanonContradictionJudgeContext,
+} from './structural/seeded-canon-contradiction';
+import {
   unauditableMappingGate,
   unauditableMappingJudgeContext,
 } from './structural/unauditable-mapping';
+import {
+  ungroundedContractorTargetGate,
+  ungroundedContractorTargetJudgeContext,
+} from './structural/ungrounded-contractor-target';
+import {
+  unreversedRetconGate,
+  unreversedRetconJudgeContext,
+} from './structural/unreversed-retcon';
 
 import type { EvalFixture, FailureModeTag } from '../fixture.schema';
 import type { TurnExecutionResult } from '../turn-result';
@@ -196,6 +208,15 @@ function toCheckId(tag: FailureModeTag): string {
 const REQUIRES_FIXTURE_SCHEMA: Partial<Record<string, number>> = {
   'system-rolled-player-action': 2,
   'out-of-order-resolution': 2,
+  /**
+   * The first judged check to declare one, and the first to need a v3
+   * field: `seededState.precedingCommittedTurn`. A v2 fixture carries the
+   * field's `null` default, which means "never captured" and not "nothing was
+   * committed" — only the version separates those, so without this gate the
+   * check would read every older fixture as an honest exclusion and report a
+   * denominator it never earned.
+   */
+  'unreversed-retcon': 3,
 };
 
 /**
@@ -257,6 +278,25 @@ const APPLICABILITY_SOURCE: Record<string, EvalCheck['applicabilitySource']> = {
   // did not happen, not that the Warden chose something — but declaring
   // `'ungated'` would assert a `not_applicable` is impossible, and it is not.
   'tool-syntax-leak': 'artifact',
+  // Artifact-gated, and the hazard label is worth reading here rather than
+  // assumed: the denominator is "turns in which a Contractor rolled", which
+  // moves with how often the Warden gives its NPCs dice. A turn where no
+  // Contractor acted is an honest exclusion; a turn whose rolls are simply
+  // unattributed is not, and the gate reports the two separately so the
+  // second stays countable.
+  'ungrounded-contractor-target': 'artifact',
+  // Artifact-gated on the weakest-link rule `tool-syntax-leak` is declared
+  // under. One of the gate's two branches is fixture-shaped (the fixture seeds
+  // nothing to contradict) and would repeat on every rep; the other is a turn
+  // that produced no gm_response at all. Neither is the Warden choosing
+  // something, so the selection hazard is weak here — but declaring 'ungated'
+  // would assert a not_applicable is impossible, and it is not.
+  //
+  // Note what this label does NOT cover: `ADR-0104` wanted a turn making no
+  // claim about seeded state to be not_applicable, and no such verdict exists
+  // for a judged check. Those reps land in the pass count. See the gate's doc
+  // comment.
+  'seeded-canon-contradiction': 'artifact',
   // Judged as of 2026-08-20, having been stubbed since capture. `'ungated'`
   // — the question "did this turn describe a change it did not emit" is
   // answerable of any turn that produced a response, so there is no gate and
@@ -267,6 +307,20 @@ const APPLICABILITY_SOURCE: Record<string, EvalCheck['applicabilitySource']> = {
   // the denominator moves with how often the Warden rolls at all. Read it
   // alongside its exclusion count rather than as a rate over the corpus.
   'roll-result-inversion': 'artifact',
+  // Artifact-gated on the weakest-link rule, and the same caveat
+  // `seeded-canon-contradiction` carries applies here: two of the gate's
+  // three branches are fixture-shaped (no preceding committed turn captured;
+  // the preceding turn committed nothing) and repeat on every rep, while the
+  // third is a turn that produced no gm_response at all. None is the Warden
+  // choosing something, so the selection hazard is weak — but 'ungated'
+  // would assert a not_applicable is impossible, and it is not.
+  //
+  // What this label does NOT cover, again as with seeded-canon-contradiction:
+  // a turn that reverses nothing is not_applicable in principle and lands in
+  // the pass count in practice, because deciding it means reading prose. The
+  // rubric requires the judge to name that case in its rationale so the two
+  // stay separable in the artifacts.
+  'unreversed-retcon': 'artifact',
 };
 
 function applicabilitySourceFor(id: string): EvalCheck['applicabilitySource'] {
@@ -299,13 +353,21 @@ function applicabilitySourceFor(id: string): EvalCheck['applicabilitySource'] {
  * do this check's `not_applicable` verdicts come from", the other is "does
  * this check read the fixture's assertion". `out-of-order-resolution` is the
  * case that separates them: it is `'artifact'` because it has an
- * artifact-dependent branch, yet it reads no assertion at all and would be
- * portable on the merits. Adding it here is a corpus decision (which
- * fixtures should carry it) rather than a registry one, and it is not made
- * here.
+ * artifact-dependent branch, yet it reads no assertion at all and is portable
+ * on the merits. That it *should* be attached was a corpus decision rather
+ * than a registry one, and it was made separately in `ADR-0114`, once the
+ * occurrences had been counted — which is why the two properties are still
+ * declared apart.
  */
 const TAG_INDEPENDENT_CHECK_IDS: ReadonlySet<string> = new Set([
   'system-rolled-player-action',
+  // Added 2026-08-28 by `ADR-0114`, on the evidence this entry asks for: a scan
+  // of every archived artifact belonging to a fixture *not* carrying this check
+  // found 29 violations across five of them, every one the same shape — a
+  // damage roll resolved while its own to-hit `dice_request` was still open.
+  // The registry argument was settled long before (it reads no assertion);
+  // what was missing was the corpus evidence.
+  'out-of-order-resolution',
 ]);
 
 /**
@@ -341,11 +403,17 @@ const STUB_CHECK_IDS: ReadonlySet<string> = new Set([]);
 const JUDGE_GATES: Partial<Record<string, EvalCheck['judgeGate']>> = {
   'narrating-past-a-block': narratingPastABlockGate,
   'unauditable-mapping': unauditableMappingGate,
+  'ungrounded-contractor-target': ungroundedContractorTargetGate,
+  'seeded-canon-contradiction': seededCanonContradictionGate,
+  'unreversed-retcon': unreversedRetconGate,
 };
 
 /** Extra judge-prompt context by check id — see `EvalCheck.judgeContext`. */
 const JUDGE_CONTEXTS: Partial<Record<string, EvalCheck['judgeContext']>> = {
   'unauditable-mapping': unauditableMappingJudgeContext,
+  'ungrounded-contractor-target': ungroundedContractorTargetJudgeContext,
+  'seeded-canon-contradiction': seededCanonContradictionJudgeContext,
+  'unreversed-retcon': unreversedRetconJudgeContext,
 };
 
 function buildChecks(): Record<string, EvalCheck> {
@@ -381,6 +449,12 @@ function buildChecks(): Record<string, EvalCheck> {
       tag,
       mode: 'judged',
       applicabilitySource: applicabilitySourceFor(id),
+      // Read here as well as in the structural loop. It was structural-only
+      // until `unreversed-retcon`, which is judged and needs a v3 capture
+      // field — and `runCheck` applies the gate before dispatching on mode,
+      // so the omission would have been a silently ignored declaration
+      // rather than a type error.
+      requiresFixtureSchema: REQUIRES_FIXTURE_SCHEMA[id],
       rubricHash: () => rubricHashFor(id),
       judgeGate: JUDGE_GATES[id],
       judgeContext: JUDGE_CONTEXTS[id],

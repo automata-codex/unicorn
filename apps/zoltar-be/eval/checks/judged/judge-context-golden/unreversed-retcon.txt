@@ -1,0 +1,39 @@
+The turn immediately before this one, verbatim from the fixture. This is what the player had already been shown, and what the backend had already committed, when the turn you are grading was written.
+
+--- the narration the player was shown before this turn ---
+The screen throws a hard fault and the file icon goes from an unlocked padlock back to a sealed one.
+
+--- what that turn emitted (gm_response at sequence 62) ---
+{
+  "flags": {
+    "insurance_scam_exposed": {
+      "value": false
+    }
+  },
+  "resourcePools": [
+    {
+      "delta": 1,
+      "owner": "danny",
+      "pool": "stress",
+      "reason": "failed Intellect+Computers check cracking insurance file encoding"
+    }
+  ]
+}
+
+--- what the backend committed from it (resulting values) ---
+{
+  "flags": {
+    "insurance_scam_exposed": {
+      "trigger": "Flip to true when...",
+      "value": false
+    }
+  },
+  "resourcePools": {
+    "danny": {
+      "stress": {
+        "current": 3,
+        "max": null
+      }
+    }
+  }
+}

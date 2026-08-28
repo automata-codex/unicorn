@@ -182,9 +182,28 @@ export const rescoreRowSchema = baseScoreRowSchema
      * normal case for `corpusVersion` on a checker-only change. */
     sourceCorpusVersion: z.string().min(1),
     sourceHarnessVersion: z.string().min(1),
-    /** The source row's verdict, kept so a diff never needs both files
-     * open. */
-    sourceVerdict: verdictSchema,
+    /**
+     * The source row's verdict, kept so a diff never needs both files open.
+     *
+     * **`null` means there was no source row**, which is the ordinary case
+     * for a check newly attached to a fixture: the re-score grades it, the
+     * pass warns that it is "counted in the re-scored rate with nothing to
+     * compare against", and this field has nothing to record. It is never
+     * "the source row existed and had no verdict" — every source row carries
+     * one.
+     *
+     * It was non-nullable until 2026-08-28, and the fallback that satisfied
+     * it copied the *re-scored* verdict, so a never-before-scored check was
+     * recorded as though it had been scored identically. The warning said one
+     * thing and the file it wrote said the other; the file is what survives.
+     * See `docs/eval-findings.md § S37`.
+     *
+     * **Files written before that date carry the copied verdict**, so
+     * `sourceVerdict === verdict` in an older `rescore/*.jsonl` may mean
+     * either "unchanged" or "no source row" and the two are not
+     * distinguishable after the fact. Read `rescoredAt` before trusting it.
+     */
+    sourceVerdict: verdictSchema.nullable(),
     /**
      * True when the verdict was copied from the source row rather than
      * recomputed, because no `warden-output.json` exists for this
