@@ -118,6 +118,22 @@ like-for-like comparison point for `§ S39`. Compare against its `rescore/` rows
 rather than its `reps/` rows wherever `SCENE-JUMP` is involved — the two disagree
 by half a point under different rubrics.
 
+**What the next full-corpus run owes.** A standing list, emptied as each item
+is scored. `task docs:baseline-check` enforces that a *run* gets dispositioned;
+nothing enforces that an outstanding *pre-registration* gets scored. That is
+`§ S40`'s failure one stage earlier — a control arm is not a baseline candidate,
+so nothing verified it was dispositioned; a pre-registration is not a run, so
+nothing verifies it was scored. This list is the manual stand-in until something
+checks it.
+
+- **`docs/eval-findings.md § S41`**, outstanding since 2026-08-29. The four
+  fixtures the `UNAUDITABLE-MAPPING` widening added (corpus `c077bc456af7` →
+  `0272d4951fa0`) have never executed, and no rescore can reach them. Score it
+  in the run's own write-up. **Its falsifier is per-fixture applicability, not
+  the rollup** — three of its five predictions name individual fixtures
+  (`2c0ba938-turn25/45/51-` and `5c34991b-turn44-unauditable-mapping`), and the
+  rollup is explicitly not readable as a movement across this bump.
+
 **Named in full deliberately.** `task docs:baseline-check` matches run
 directories against this file by full run id, so a prompt hash or a truncated
 timestamp does not count as having dispositioned a run — and the first version of
