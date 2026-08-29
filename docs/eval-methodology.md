@@ -125,7 +125,7 @@ that keep falling through.
 
 - **`docs/eval-findings.md § S41`**, outstanding since 2026-08-29. The four
   fixtures the `UNAUDITABLE-MAPPING` widening added (corpus `c077bc456af7` →
-  `0272d4951fa0`) have never executed, and no rescore can reach them. Score it
+  `6bc7eee3970f`) have never executed, and no rescore can reach them. Score it
   in the run's own write-up. **Its falsifier is per-fixture applicability, not
   the rollup** — three of its five predictions name individual fixtures
   (`2c0ba938-turn25/45/51-` and `5c34991b-turn44-unauditable-mapping`), and the
@@ -1228,7 +1228,7 @@ ambiguously and the Warden skips the transit — which this fixture never tested
 
 ## Bump note — 2026-08-29, `UNAUDITABLE-MAPPING` widened from one fixture to four
 
-Corpus `c077bc456af7` → **`0272d4951fa0`**, a **set-membership** bump. Four
+Corpus `c077bc456af7` → **`6bc7eee3970f`**, a **set-membership** bump. Four
 fixtures added, none removed, no surviving fixture's `seededState`,
 `playerInput`, `applicability` or `assertion` touched. **`promptHash`
 `e83e8aaa` and `assemblyHash` `ada7fb8a` are unmoved** — nothing Warden-visible
@@ -1240,6 +1240,36 @@ is in this change. Plan: `docs/plans/023-widen-unauditable-mapping-coverage.md`.
 | `2c0ba938-turn45-unauditable-mapping` | 2026-08-24 playtest, seq 144 | pass |
 | `2c0ba938-turn51-unauditable-mapping` | 2026-08-24 playtest, seq 165 | pass |
 | `5c34991b-turn44-unauditable-mapping` | 2026-08-16 playtest, seq 149 | tripwire |
+
+**Two other checks gain rows, and the count is not the interesting number.**
+`selectChecksForFixture` selects on an applicability *block being present*, not
+on `applies` being true, so every one of the four captures adds a row per rep to
+both tag-independent checks:
+
+| Check | Attached before | Added | Of which gradeable |
+|---|---|---|---|
+| `OUT-OF-ORDER-RESOLUTION` | 6 blocks (+2 tagged) = 8 fixtures | 4 | **1** |
+| `SYSTEM-ROLLED-PLAYER-ACTION` | 18 blocks (7 true, 11 false) | 4 | **0** |
+
+The seven `applies: false` blocks are exclusion rows by construction and are
+kept deliberately: per `docs/playtest-scenarios.md § Capture discipline` an
+answered `applies: false` surfaces in the report's `fixture-gated-never-applies`
+finding, where a deleted entry is visible nowhere. Neither check's **rate**
+moves — `not_applicable` rows sit outside it — but both **applicabilities** do,
+which is why `§ S41`'s rule to read applicability before every rate applies to
+the two floors as much as to the tag being widened.
+
+**The one gradeable addition is deliberate.**
+`2c0ba938-turn51-unauditable-mapping` carries `applies: true` for
+`OUT-OF-ORDER-RESOLUTION` because it is the corpus's only turn with a genuine
+two-stage chain — a repair attempt, then a consequence contingent on its failure
+— and that check's in-turn branch is the one `§ S39` reads 1.00 (33/33) on
+having found nothing, whose fail direction `§ S40` showed is reachable only when
+the model populates `gatedByRollId`. The source turn ordered the two correctly,
+so a pass is the expected outcome and this is denominator, not a catch. It is
+still set-membership rather than the scoring-only shape `§ S37` recorded,
+because the attachment rides in on a *new* fixture and no surviving fixture's
+grading changed.
 
 **The rate and the applicability will both move for reasons that have nothing
 to do with the Warden.** The tag went into this bump reading 1.00 (10/10) at

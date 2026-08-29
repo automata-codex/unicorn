@@ -503,7 +503,7 @@ the model`; the dispositions are recorded in `ADR-0023` and `ADR-0082`.
 
 Written before the run, per `ADR-0085` and `ADR-0116`. Plan:
 `docs/plans/023-widen-unauditable-mapping-coverage.md`. Corpus `c077bc456af7`
-→ `0272d4951fa0`, a set-membership bump whose note is in
+→ `6bc7eee3970f`, a set-membership bump whose note is in
 `docs/eval-methodology.md § Bump note — 2026-08-29`.
 
 #### What was actually carrying the tag
@@ -600,3 +600,25 @@ about the harness, not the prompt.
   tripwire, not a fail-side fixture, and its passing is the expected outcome
   rather than a missing signal. The fail side is frozen on disk and belongs to
   M7.8.
+- **Both tag-independent checks gain four rows per rep**, because
+  `selectChecksForFixture` selects on a block being present rather than on
+  `applies` being true. Seven of the eight new blocks are `applies: false` and
+  are exclusion rows by construction, kept so they surface in the report's
+  `fixture-gated-never-applies` finding. Neither rate moves; both
+  applicabilities do, so the ≥ 0.90 floor on `SYSTEM-ROLLED-PLAYER-ACTION`
+  should be read against its rate and not against a shifted denominator.
+- **The one gradeable addition is `OUT-OF-ORDER-RESOLUTION` on
+  `2c0ba938-turn51`**, taking it from eight fixtures to nine that can reach a
+  verdict. It carries `applies: true` on the argument
+  that it is the corpus's only genuine two-stage chain and that check's in-turn
+  branch has never had material — 1.00 (33/33) in `§ S39`, and `§ S40` showed
+  its fail direction needs the model to populate `gatedByRollId`. **The
+  prediction is a pass**, because the source turn ordered the two rolls
+  correctly; a fail would mean the Warden reversed a chain it previously got
+  right, which is a finding rather than a widening artefact. **The row worth
+  reading is neither the rate nor the verdict but the exclusion reason**: if it
+  comes back `no pending dice_request and no in-turn roll declares a gate`, the
+  Warden did not emit `gatedByRollId` on a turn practically built to invite it,
+  and the check's fail direction stays unexercised on the corpus's best
+  candidate for it. That would be the strongest evidence yet for `§ S40`'s
+  conclusion that only M7.8's known-answer pairs can close it.

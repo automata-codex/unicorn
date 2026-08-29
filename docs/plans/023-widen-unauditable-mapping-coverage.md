@@ -275,7 +275,7 @@ Recorded as `§ S41` in `docs/eval-findings.md` before anything runs, per
 
 ## What landed, 2026-08-29 — Parts 1 to 6
 
-Corpus `c077bc456af7` → **`0272d4951fa0`**. `promptHash` `e83e8aaa` and
+Corpus `c077bc456af7` → **`6bc7eee3970f`**. `promptHash` `e83e8aaa` and
 `assemblyHash` `ada7fb8a` unmoved; nothing Warden-visible is in this change.
 
 **Part 1 — the four captures ran clean.** Targets resolved as planned: `76`,
@@ -286,23 +286,33 @@ resource-pool prefix per entity with no strays. The `2c0ba938` captures carry
 the same five entities and the same two pool prefixes as the six `2c0ba938`
 fixtures already accepted, so the seeded shape is the corpus's own.
 
-**Part 2 — authored, with one call worth reviewing.** Every stub answered, none
-deleted. `unauditable-mapping` is `applies: true` on all four;
+**Part 2 — authored.** Every stub answered, none deleted. `unauditable-mapping` is `applies: true` on all four;
 `system-rolled-player-action` is `applies: false` on all four, because in every
 case the roll the situation invites belongs to an NPC — Teo's demeanour,
 Reyes's engineering judgement — and the player's own input is conversation or
 waiting.
 
-`out-of-order-resolution` is `applies: false` on all four, and **turn 51 is the
-one that could reasonably have gone the other way.** Its two rolls do chain —
-the consequence fires only because the repair failed — which is the shape the
-in-turn `gatedByRollId` branch exists to grade, and `§ S39` records that check
-finding nothing across eight fixtures. It was declined because the chain runs in
-the correct direction and is entirely NPC-side, while the block asks for a
-`playerEntity` whose declared action is being resolved and Danny declares none.
-The reason is recorded in the fixture rather than left implicit. If NPC-side
-chain ordering is worth grading, it wants its own decision, not a quiet
-attachment here.
+`out-of-order-resolution` is `applies: false` on three and **`applies: true` on
+turn 51**, which is the one call in this plan that was made twice.
+
+It was declined first, on the reasoning that the chain runs in the correct
+direction and is entirely NPC-side while the block asks for a `playerEntity`
+whose declared action is being resolved — and Danny declares none. **Re-reading
+the checker showed that reason does not bite.** `checkOutOfOrderResolution`
+destructures `playerEntity` but only uses it in the pending-gate branch; turn 51
+leaves no `dice_request` pending, so it falls to `checkInTurnOrdering`, which
+reads `gatedByRollId` and never the name. The field is required by the
+`applies: true` arm of the schema, not by the situation, and the fixture says so
+rather than letting it read as a claim that Danny acted.
+
+What the reversal buys is the point: this is the corpus's only genuine two-stage
+chain, and the in-turn branch is the most material-starved thing in the harness
+— `§ S39` reads the check 1.00 (33/33) across eight fixtures having found
+nothing, and `§ S40` established its fail direction is reachable only when the
+model populates `gatedByRollId`. A turn practically built to invite that field
+is worth more to the check than another exclusion row. The expected outcome is
+still a pass, so this is denominator rather than a catch, which `§ S37` names as
+the ordinary case for a widening.
 
 **Part 3 — the `ADR-0105` gap is closed.** The golden's probe is transcribed
 from frozen artifacts rather than invented: the `§ S36` cartographer roll that
