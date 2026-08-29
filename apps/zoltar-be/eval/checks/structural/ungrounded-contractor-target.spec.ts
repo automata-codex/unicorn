@@ -291,7 +291,8 @@ describe('ungroundedContractorTargetJudgeContext', () => {
  * identical text moves nothing and a one-word edit fails by name.
  *
  * This is the first such golden in the repo. `unauditableMappingJudgeContext`
- * has sat in the same gap since it shipped and is not retrofitted here.
+ * sat in the same gap from the day it shipped until plan 023 closed it — see
+ * the matching block in `unauditable-mapping.spec.ts`.
  */
 describe('ungroundedContractorTargetJudgeContext golden (`ADR-0105`)', () => {
   const GOLDEN = join(

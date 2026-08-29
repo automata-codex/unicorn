@@ -1,0 +1,970 @@
+{
+  "id": "2c0ba938-turn45-unauditable-mapping",
+  "tag": "UNAUDITABLE-MAPPING",
+  "sourceAdventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+  "sourceSequenceNumber": 144,
+  "fixtureSchemaVersion": 3,
+  "seededState": {
+    "campaignState": {
+      "schemaVersion": 1,
+      "resourcePools": {
+        "danny": {
+          "hp": {
+            "max": 13,
+            "current": 13
+          },
+          "body": {
+            "max": 26,
+            "current": 26
+          },
+          "fear": {
+            "max": 40,
+            "current": 40
+          },
+          "speed": {
+            "max": 37,
+            "current": 37
+          },
+          "combat": {
+            "max": 48,
+            "current": 48
+          },
+          "sanity": {
+            "max": 35,
+            "current": 35
+          },
+          "stress": {
+            "max": null,
+            "current": 3
+          },
+          "wounds": {
+            "max": 2,
+            "current": 0
+          },
+          "credits": {
+            "max": null,
+            "current": 60
+          },
+          "strength": {
+            "max": 44,
+            "current": 44
+          },
+          "intellect": {
+            "max": 40,
+            "current": 40
+          }
+        },
+        "_scenario": {
+          "timer": {
+            "max": 6,
+            "current": 6
+          },
+          "hull_integrity": {
+            "max": 8,
+            "current": 8
+          }
+        }
+      },
+      "characterState": {},
+      "entities": {
+        "mara_odinsen": {
+          "status": "unknown",
+          "visible": true,
+          "npcState": "Standing just behind Danny at the bridge hatch, arms crossed, watching Voss closely for any sign of a move — resolved, not backing down.",
+          "revealed": true
+        },
+        "cryo_bay_feature": {
+          "status": "unknown",
+          "visible": false,
+          "revealed": true
+        },
+        "parasitic_organism": {
+          "status": "unknown",
+          "visible": false,
+          "revealed": false
+        },
+        "hull_breach_cascade": {
+          "status": "unknown",
+          "visible": false,
+          "revealed": true
+        },
+        "falsified_maintenance_logs": {
+          "status": "unknown",
+          "visible": false,
+          "npcState": "Insurance schedule opened and read: hazard-multiplier clause tied to crew/colonist casualty count, insured value far exceeding operational value.",
+          "revealed": true
+        }
+      },
+      "flags": {
+        "cryo_bay_breached": {
+          "value": false,
+          "trigger": "Flip to true when a cryo pod is physically opened or damaged, exposing a colonist host to the outbreak or the parasite to the ship at large."
+        },
+        "adventure_complete": {
+          "value": false,
+          "trigger": "Flip to true when the player either seals the parasite outbreak and stabilizes the hull long enough to reach the relay beacon, OR the ship is lost/abandoned (escape pods launched or player character dies), resolving the central survival arc."
+        },
+        "mara_found_the_logs": {
+          "value": true,
+          "trigger": "Flip to true when the player or Mara physically accesses the falsified maintenance logs in the engineering records terminal."
+        },
+        "hull_cascade_triggered": {
+          "value": false,
+          "trigger": "Flip to true when a structural stress event (explosion, collision, or deliberate sabotage) initiates the first breach in the cascade sequence."
+        },
+        "insurance_scam_exposed": {
+          "value": true,
+          "trigger": "Flip to true when Mara (or the player) connects the falsified logs to the insurance payout structure and confronts the captain or transmits the evidence off-ship."
+        },
+        "parasite_outbreak_known": {
+          "value": false,
+          "trigger": "Flip to true when a crew member or the player directly witnesses a host exhibiting motor-control loss and identifies it as infection rather than illness or injury."
+        },
+        "mara_becomes_threat_to_captain": {
+          "value": false,
+          "trigger": "Flip to true when insurance_scam_exposed is true and Mara moves to act on the evidence — confronting, sabotaging, or transmitting."
+        }
+      },
+      "scenarioState": {},
+      "worldFacts": {
+        "ship_layout": "The Halbrecht is a long colony transport with three decks linked by a single central ladder shaft. Upper deck: bridge, comms array, captain's quarters, engineering records terminal (aft of bridge). Mid deck: crew berths, mess hall, medbay, and the cryo bay (a vast, cold chamber holding hundreds of pods, accessible only from mid-deck via a heavy blast door). Lower deck: cargo bay, engine room, life support processing, and the aft airlock. The ladder shaft is the only fast route between decks; it is narrow, poorly lit, and prone to sudden pressure differentials during hull stress events. The engine room and life support processing sit adjacent to a section of hull already showing stress fractures — the likely origin point of any breach cascade.",
+        "colonist_count": "412 colonists in cryo suspension across the mid-deck cryo bay, tended automatically; active crew numbers six including Danny and Mara.",
+        "danny_relationship": "Danny and Mara shipped together before; he half-trusts her paranoia about corporate malfeasance but has no direct stake in her crusade — yet.",
+        "communications_status": "Long-range comms are down for repairs the captain claims were 'scheduled'; the nearest relay beacon is three weeks out at current burn.",
+        "cryo_bay_bulkhead_patch": "Danny has sealant-taped the visible stress fractures along the cryo bay bulkhead weld seam using standard patch kits. Cosmetic/temporary — unknown whether it addresses underlying structural fatigue. The vibration in the plating persists.",
+        "crew_roster": "Six active crew: Captain Voss (bridge, likely complicit or blame-bearer), First Mate Okonkwo-Reyes (bridge, comms/nav, currently running diagnostics since long-range comms are down), Chief Engineer Petrov (lower deck, engine room/life support — plausibly aware of true hull condition), Danny and Mara (cargo handlers), Teo (other cargo hand, keeps to himself, bunks near mess).",
+        "insurance_file_copies": "The falsified maintenance logs / insurance schedule evidence now exists on two slates: Mara's and Danny's, copied as a redundancy in case either is seized or destroyed.",
+        "crew_awareness_status": "Danny and Mara have confirmed insurance hazard-multiplier file contents together. Plan: Danny briefs Teo (cargo hand) and confronts Petrov (chief engineer) with him as backup. Mara stays topside watching Voss for pod activity or contact with Okonkwo-Reyes. Danny is to signal Mara before confronting Petrov.",
+        "teo_awareness_status": "Teo has been briefed by Danny on both the backdated hull certification and the insurance hazard-multiplier clause. He held composure (no Panic) but is visibly shaken and has committed to confronting Petrov alongside Danny. He wants a signal sent to Mara before the confrontation happens."
+      }
+    },
+    "gmContextBlob": {
+      "entities": [
+        {
+          "id": "mara_odinsen",
+          "tags": [
+            "union_enforcer",
+            "political",
+            "confrontational",
+            "authority_challenge"
+          ],
+          "type": "npc",
+          "visible": true,
+          "crewRole": "cargo_handler",
+          "revealed": true,
+          "startingPosition": {
+            "x": 2,
+            "y": 1,
+            "z": 0
+          }
+        },
+        {
+          "id": "parasitic_organism",
+          "tags": [
+            "biological",
+            "body_horror",
+            "transmission",
+            "slow_onset"
+          ],
+          "type": "threat",
+          "visible": false,
+          "revealed": false,
+          "startingPosition": {
+            "x": 8,
+            "y": 4,
+            "z": 0
+          }
+        },
+        {
+          "id": "cryo_bay_feature",
+          "tags": [
+            "cryo",
+            "vulnerable_cargo",
+            "moral_weight",
+            "high_population"
+          ],
+          "type": "feature",
+          "visible": false,
+          "revealed": true,
+          "startingPosition": {
+            "x": 8,
+            "y": 3,
+            "z": 0
+          }
+        },
+        {
+          "id": "falsified_maintenance_logs",
+          "tags": [
+            "corporate",
+            "sabotage",
+            "conspiracy",
+            "evidence"
+          ],
+          "type": "feature",
+          "visible": false,
+          "revealed": false,
+          "startingPosition": {
+            "x": 1,
+            "y": 2,
+            "z": 0
+          }
+        },
+        {
+          "id": "hull_breach_cascade",
+          "tags": [
+            "structural",
+            "isolation",
+            "no_rescue",
+            "environmental_hazard"
+          ],
+          "type": "threat",
+          "visible": false,
+          "revealed": true,
+          "startingPosition": {
+            "x": 5,
+            "y": 6,
+            "z": 0
+          }
+        }
+      ],
+      "narrative": {
+        "location": "The colony transport ESV Halbrecht, three weeks out from the nearest relay beacon, running on a skeleton crew of six while four hundred and twelve colonists sleep in cryo. The ship is old, its maintenance logs falsified, and its bones are tired.",
+        "atmosphere": "Cold, dim, and too quiet. Emergency lighting has replaced half the fixtures because the main grid keeps browning out. The recycled air tastes metallic. Every groan of the hull sounds like it could be the last one. There is no one to call for help and everyone aboard knows it.",
+        "npcAgendas": {
+          "danny": "Teamster hauling freight and half-listening to Mara's paranoia until the ship starts proving her right.",
+          "mara_odinsen": "Has confronted Voss directly with the group; confirmed he had no plan to save the crew, only himself and Reyes, and that Reyes is uninvolved and equally expendable. Now focused on securing the pods for the whole crew (all six, not just Voss+Reyes) and getting the evidence off-ship or used as leverage. Watching for whether Voss will cooperate on reallocating the pods or has to be forced/circumvented."
+        },
+        "hiddenTruth": "The Halbrecht is insured for far more than it's worth operational, and the company quietly greenlit this run knowing the hull would likely fail catastrophically before reaching the colony site — a designed loss, with hazard-multiplier payouts for crew and colonist casualties baked into the actuarial math. The parasitic organism loose in the cryo bay was a known risk the company chose not to disclose, because losing colonists to infection only sweetens the claim.",
+        "oracleConnections": "The union enforcer Mara is the one person aboard positioned to notice the mission itself violates labor law and hazard-clause obligations — if she connects the falsified maintenance logs to the insurance payout structure, she becomes a direct political threat to whoever aboard is complicit in the scam. The parasitic organism, discovered among the cryo pods, represents the company's foreknowledge made flesh: hundreds of immobile colonists are both a horror and a possible containment strategy. The isolation of deep transit means the hull's structural failures and the parasite's slow spread both have to be handled with no outside help — every choice is final."
+      },
+      "structured": {
+        "flags": {
+          "cryo_bay_breached": {
+            "value": false,
+            "trigger": "Flip to true when a cryo pod is physically opened or damaged, exposing a colonist host to the outbreak or the parasite to the ship at large."
+          },
+          "adventure_complete": {
+            "value": false,
+            "trigger": "Flip to true when the player either seals the parasite outbreak and stabilizes the hull long enough to reach the relay beacon, OR the ship is lost/abandoned (escape pods launched or player character dies), resolving the central survival arc."
+          },
+          "mara_found_the_logs": {
+            "value": false,
+            "trigger": "Flip to true when the player or Mara physically accesses the falsified maintenance logs in the engineering records terminal."
+          },
+          "hull_cascade_triggered": {
+            "value": false,
+            "trigger": "Flip to true when a structural stress event (explosion, collision, or deliberate sabotage) initiates the first breach in the cascade sequence."
+          },
+          "insurance_scam_exposed": {
+            "value": false,
+            "trigger": "Flip to true when Mara (or the player) connects the falsified logs to the insurance payout structure and confronts the captain or transmits the evidence off-ship."
+          },
+          "parasite_outbreak_known": {
+            "value": false,
+            "trigger": "Flip to true when a crew member or the player directly witnesses a host exhibiting motor-control loss and identifies it as infection rather than illness or injury."
+          },
+          "mara_becomes_threat_to_captain": {
+            "value": false,
+            "trigger": "Flip to true when insurance_scam_exposed is true and Mara moves to act on the evidence — confronting, sabotaging, or transmitting."
+          }
+        }
+      },
+      "openingNarration": "The ladder shaft groans as you climb down to mid-deck, a long metallic sigh that seems to come from somewhere deeper than the hull plating should allow. The emergency lights out here run amber instead of white — half the fixtures on this level went dark two nights ago and nobody's fixed them yet. Your breath fogs faintly; environmental's been struggling to keep pace with the cryo bay's draw.\n\nMara Odinsen is waiting at the bottom of the ladder, arms crossed, a data slate tucked under one elbow like she's been standing there a while. \"You seeing this?\" she says, not quite a greeting, and taps the bulkhead beside her. A hairline crack runs along the seam, dusted with a faint rime of frost that shouldn't be there — condensation freezing in a gap that shouldn't exist on a ship this age, this maintained. Except it isn't maintained, not really, and you both know the captain's logs say otherwise.\n\nSomewhere above you, the ship groans again, and four hundred and twelve people sleep on, unaware that the sound might be the last warning anyone gets.",
+      "playerEntityIds": [
+        "danny"
+      ]
+    },
+    "pendingCanon": [],
+    "messages": [
+      {
+        "id": "2d4e4765-0a1f-4250-84e3-263cf035a1de",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "OOC: What do I know about this ship? About Mara?",
+        "createdAt": "2026-08-24T21:11:05.056Z"
+      },
+      {
+        "id": "e44234df-2b0e-4561-a945-fb3039b20b57",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "OOC: What do I know about this ship? About Mara?",
+        "createdAt": "2026-08-24T21:11:40.808Z"
+      },
+      {
+        "id": "77ab7544-a49c-40a0-b546-2bd6396611ba",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "[OOC: Here's what Danny would actually know at this point, no rolls needed — this is just recap/orientation.]\n\n**The ship — ESV Halbrecht:**\nYou've been aboard three weeks now, hauling freight and doing the unglamorous work of keeping four hundred and twelve colonists asleep while the ship gets them there. She's an old bird. The maintenance logs say she had a full refit before this run, but you've seen the actual state of the conduits in the lower deck, and \"full refit\" is not the phrase that comes to mind. Emergency lighting's been up on half the mid-deck since day four because the main grid keeps browning out, and nobody's given you a straight answer why. Long-range comms are down too — the captain says it's \"scheduled maintenance,\" which is the kind of thing captains say when they don't want a follow-up question.\n\nLayout-wise: three decks, one central ladder shaft connecting them, narrow and badly lit. Upper deck has the bridge, comms, the captain's quarters, and the engineering records terminal tucked aft of the bridge. Mid-deck is crew berths, the mess, medbay, and the cryo bay — a big cold chamber, blast-door sealed, holding all four hundred-plus colonists. Lower deck is cargo, the engine room, life support, and the aft airlock. You've noticed — because you've had to work near it — that there are stress fractures already visible in the hull plating around the engine room and life support. Nobody's flagged it officially. You have.\n\nSix live crew total, including you and Mara. It's a skeleton run for a ship this size.\n\n**Mara Odinsen:**\nYou've shipped with her before — she's solid, competent, not someone who spooks easy. She's aboard under a cargo-handler contract, and she's good at the job: trained hands with Zero-G work and general ship's athletics. But since before you even broke orbit, she's had a bad feeling about this run specifically. She doesn't trust the officers — any of them — and she's been quietly building something. You've caught her cross-referencing hazard-pay clauses against the manifest, asking pointed questions about evacuation protocol nobody asked her to ask. She hasn't said outright what she thinks is going on, but you know Mara well enough to know she doesn't do paranoia for sport. If she's circling something, there's usually a reason.\n\nYou don't have a stake in whatever she's chasing. Not yet.]",
+        "createdAt": "2026-08-24T21:11:52.926Z"
+      },
+      {
+        "id": "b49d3fa1-54d2-484f-8207-4e3672a869b1",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Yeah, I see it,\" I say to Mara. \"'Full refit,' my ass.\"",
+        "createdAt": "2026-08-24T21:15:05.899Z"
+      },
+      {
+        "id": "404fe6eb-19d2-459a-a0f9-0a13c5b4efb9",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "Mara doesn't look at you when she answers — she's got a panel cover off near the ladder shaft junction, running a thumb along a weld seam that's gone the wrong color.\n\n\"Full refit,\" she repeats, flat. \"I pulled the work order myself before we broke orbit. Signed off by a yard supervisor whose license lapsed eight months prior. You want to know how I know that? Because I checked. Nobody checks. That's the whole trick.\" She lets the panel cover hang on its hinge and finally turns to you. \"This ship shouldn't have cleared inspection. It cleared inspection. Someone wanted it to.\"\n\nShe jerks her chin toward the ladder shaft, down toward the lower deck. \"There's a terminal upstairs, aft of the bridge. Engineering records. If the falsification goes deeper than one lazy signature, it's in there. I've been trying to get five minutes alone with it since we left dock.\" Her jaw tightens. \"Captain doesn't let cargo handlers wander the upper deck unescorted. Wonder why.\"\n\nShe's watching you now, gauging something. \"You in, or is this still my problem?\"",
+        "createdAt": "2026-08-24T21:15:14.898Z"
+      },
+      {
+        "id": "008de663-67b8-4681-ad05-7983095ce20a",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"I don't like it,\" I say without committing. \"Do we have the equipment to fix this? Might be a higher priority than chasing down the records.\"",
+        "createdAt": "2026-08-24T21:17:48.442Z"
+      },
+      {
+        "id": "c76b7a44-0c31-42ef-916b-6e8fc05b75b6",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "Mara's mouth twists — not quite a smile. \"Fix it. Sure.\" She taps the discolored weld with one knuckle, and it gives off a sound that's wrong, a little too hollow. \"We've got patch kits rated for micro-fractures. Sealant foam, some structural tape that's better than nothing. What we don't have is a yard, a drydock, or replacement plating for a hull section that's been flexing wrong for God knows how long. If this is what I think it is — stress fatigue working its way through the frame — we can slow it. We can't fix it. Not out here.\"\n\nShe straightens up, wipes her hand on her coveralls. \"And that's the thing that keeps me up, Danny. A patch job buys time. The records terminal tells us whether we're patching a ship that was supposed to make it, or babysitting a hull they already wrote off.\" She holds your eyes. \"Those are different jobs. I'd like to know which one I'm doing before it decides for me.\"\n\nDown the corridor, the lights flicker once — a half-second brownout, the kind you've both stopped flinching at — and steady again. Neither of you comments on it.\n\n\"So,\" she says. \"Patch kit's in the lower deck lockup, by engineering. Terminal's upstairs, past the bridge, and I need someone running interference or a better reason to be up there than 'felt like it.' Pick one. I can't do both alone.\"",
+        "createdAt": "2026-08-24T21:17:57.679Z"
+      },
+      {
+        "id": "2a4cd5c5-6006-4d30-9f13-a5548951011a",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Sure, I don't mind distracting know-it-all captains,\" I say with a grin. \"Maybe he caught the latest Premier League scores on Risus 7 before we broke orbit.\"",
+        "createdAt": "2026-08-24T21:20:16.712Z"
+      },
+      {
+        "id": "9ec58b9b-017f-4465-bc29-f0eea88d0de8",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "That gets an actual laugh out of her — short, surprised, like it's been a while since anyone made her do that. \"Risus 7. Right. I'm sure the captain's a football man.\" She's already moving, checking the corridor both ways out of old habit. \"Give me ten minutes after you've got him talking. If he's the type to enjoy an audience, that buys me more — don't let him wrap it up early.\"\n\nShe heads for the ladder shaft, then pauses with one boot on the first rung. \"And Danny — if the terminal's locked behind something more than a door, I'll signal. Don't come running if it goes loud. Just... know it went loud.\"\n\nShe climbs. You give her the ten minutes, then head for the bridge, working out in your head what a deckhand who's never cared about ship's business before is suddenly curious enough to ask about. The captain's a man who likes being asked things. That much you can use.\n\nThe bridge hatch is standing open when you get there — Captain Voss is alone at the nav station, half-lit by the glow of a course-plot he's been staring at longer than a routine check should take. He looks up when your shadow crosses the threshold, and for just a second, before his face resets into something professional, you catch what might be tiredness. Or might be something closer to guilt.\n\n\"Hauling something, or did you get lost?\" he says.",
+        "createdAt": "2026-08-24T21:20:35.040Z"
+      },
+      {
+        "id": "72b6f408-ad4b-4400-b5fc-4699a113d5fa",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I want to make small talk with the captain, ask him about football, ask him if he's flown a lot of colony gigs like this, anything to keep him occupied. Is there a roll for that?",
+        "createdAt": "2026-08-24T21:24:03.810Z"
+      },
+      {
+        "id": "2fe7f95c-f4c7-45b2-b8ef-41f3c537e020",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "No roll needed — this is just conversation, and the price of failure here isn't high, it's just how long you can hold his attention.\n\nYou lean against the hatch frame like you've got nowhere else to be. \"Lost implies I had somewhere to be in the first place. Nah, just restless. Cryo shift's boring as hell when you're not the one sleeping through it.\" You nod at the plot on his console without really looking at it. \"Hey, you catch anything before we broke orbit? Risus 7 was supposed to have a match going, some derby thing. Half the crew was arguing about it in the mess before launch.\"\n\nVoss's shoulders come down half an inch — this is easier ground than whatever he was staring at. \"Missed it. We shipped out two days early.\" He says it like it still needles him. \"Company moved the window up. Didn't get a reason, just got a new departure time.\"\n\n\"Two days early,\" you say, keeping it light, just a deckhand making noise. \"Must've been a hell of a scramble getting cargo loaded.\"\n\n\"You have no idea.\" He almost smiles, rubs at his eyes. \"You do a lot of these long hauls?\"\n\n\"First colony run. You?\"\n\n\"Eleven years,\" he says, and there's something in how fast that number comes out — not proud, just tired, like he's said it to justify himself before. \"This is the biggest ship I've had. Also the oldest.\" He catches himself, glances back at the plot, and the ease drains out of his face a little. \"Anyway. Don't you have a shift?\"\n\nHe's still talking, but you can feel him starting to want the conversation to end. If you want more time out of him, you'll need to either ask something that hooks his attention again or accept you're on borrowed minutes now.",
+        "createdAt": "2026-08-24T21:24:15.368Z"
+      },
+      {
+        "id": "74580d5d-558b-409d-968a-762d6e0f6083",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"11 years is a long time. You ever have the company bump the schedule up on you like that before?\"",
+        "createdAt": "2026-08-24T21:26:55.594Z"
+      },
+      {
+        "id": "29f31403-cfb0-4bd1-b1e7-06fe39331c9f",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "The question lands somewhere it wasn't supposed to. Voss goes still for just a fraction of a second — not long, but you clock it, the way his hand stops moving on the console.\n\n\"Bumped up? Sure. Company does what the company does.\" He says it too fast, and then seems to hear himself say it too fast, because he adds, \"Cargo manifests shift, insurance windows shift, whatever. Eleven years, you stop asking why.\" He turns back to the plot, and this time it's not idle — he's making a show of being busy. \"This one's just... a bigger contract than usual. More eyes on it upstairs.\"\n\n\"Insurance windows,\" you repeat, like it's a throwaway. \"That a thing that moves departure dates?\"\n\nHe doesn't answer that one. Instead: \"You said you had a shift.\" Not a question this time.\n\nWhatever door was cracked open a second ago, he's closing it. He's not hostile — not yet — but the easy tiredness from a minute ago has hardened into something more careful, more aware of you as a person asking questions rather than a bored deckhand killing time. If Mara needed more minutes, you've bought a few, but you've also put yourself on his radar in a way you weren't before.",
+        "createdAt": "2026-08-24T21:27:15.107Z"
+      },
+      {
+        "id": "176155f5-277e-416f-8c7b-f6b36de76f7b",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I shift my weight to the other foot, \"Hey, you got a favorite team back on Risus?\"",
+        "createdAt": "2026-08-24T21:43:08.206Z"
+      },
+      {
+        "id": "69956280-deb8-4b92-b5db-554a0d13f9c0",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You let the insurance thread drop like it never mattered, easy as anything, and shift your weight to the other foot. \"Hey, you got a favorite team back on Risus?\"\n\nIt's clumsy — a little too obvious a pivot after where the conversation just was — and Voss's eyes flick to you for a second with something that isn't quite suspicion yet, more like recalibration. Like he's re-filing you from *bored deckhand* to *bored deckhand asking oddly specific questions right before asking about football.*\n\nBut he answers. \"Kestrel Reach,\" he says, distracted, already turning half back to his console. \"Wife dragged me to a match once, years back. Been stuck with them since.\" He taps something on the plot, closes a window that was open, and when he looks back at you his face has gone back to professional. Neutral. Done. \"Look — I appreciate the company, but I've got a burn correction to finish before end of shift. You should get back to your post.\"\n\nIt's not unfriendly, but it's final. The window's closed. Whatever ease you had going with him a minute ago, it cooled the second insurance windows came out of your mouth, and no amount of small talk is opening it back up today. He watches you a beat longer than a captain dismissing a deckhand normally would — filing your face away for later, maybe — before turning fully back to his station.\n\nYou've been up here a while now. Long enough, hopefully, for Mara to have done whatever she needed to do.",
+        "createdAt": "2026-08-24T21:43:16.750Z"
+      },
+      {
+        "id": "c2d5bf02-150c-425c-b00c-e852895d85c8",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Sure thing, cap,\" I say with a nod and head back.",
+        "createdAt": "2026-08-24T21:45:23.084Z"
+      },
+      {
+        "id": "a88ff695-e5ea-454f-826f-de8caab230d2",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"Sure thing, cap,\" you say with a nod, and let yourself out of the bridge without hurrying — hurrying is the kind of thing a man like Voss notices twice.\n\nThe ladder shaft is dim as always, the emergency lighting throwing long amber stripes across the rungs. You climb down toward the deck below, half-expecting to find Mara waiting, and instead find the corridor near the engineering records terminal empty. No Mara. No signal.\n\nThen you hear it — soft, from just past the bend, the particular quiet of someone trying not to make noise. You round the corner and find her crouched at the terminal alcove, a data slate in one hand, the terminal's access panel still lit and humming behind her. She doesn't look up right away. When she does, her face has the look of someone who found exactly what they were afraid they'd find.\n\n\"Two days,\" she says, low. \"Voss said the launch got moved up two days, right? Well. The maintenance sign-off on the hull frame — the one that's supposed to certify structural integrity for a haul this size — it's dated *after* we broke orbit.\" She turns the slate toward you. Rows of timestamps, a signature block, a yard supervisor's ID that means nothing to you but clearly means something to her. \"Somebody backdated an inspection that never happened, Danny. And there's a second file in here I haven't even opened yet — insurance schedule, keyed to hazard multipliers. I don't like what a hazard multiplier is doing on a hull certification terminal.\"\n\nShe's still crouched, still reading, and there's a stillness to her that's worse than her usual anger — like she already knows where this goes and is bracing for it anyway.\n\n\"You buy me a few more minutes, or do we need to be somewhere else right now?\"",
+        "createdAt": "2026-08-24T21:45:35.011Z"
+      },
+      {
+        "id": "558f8af7-33ca-45b6-9f58-50173d372bbc",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "Wait, did I climb down to the mid-deck or are we still on the top deck?",
+        "createdAt": "2026-08-24T21:48:24.617Z"
+      },
+      {
+        "id": "ce0ab91b-7ff6-435b-b24a-88f447b04d19",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You're still on the upper deck. The bridge and the engineering records terminal are both up here — the terminal sits aft of the bridge, same level, just around the corridor bend. You never had to take the ladder shaft down at all; it's a short walk from one to the other. Mara came up here the same way, climbing from mid-deck where you two started, and she's been working the terminal on this same deck the whole time you were talking to Voss.\n\nSo: you're both still topside, a stone's throw from the bridge hatch you just walked out of, which is exactly why she's asking if you can buy more time rather than relocate.",
+        "createdAt": "2026-08-24T21:48:28.641Z"
+      },
+      {
+        "id": "a0b1ec78-349e-4dc2-a6bc-24628d6473c0",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Uh, I think we should go,\" I say and scratch the back of my head. \"Small talk is not my strong suit. Sorry.\"",
+        "createdAt": "2026-08-24T21:51:53.566Z"
+      },
+      {
+        "id": "968f608a-f184-49fe-9923-d4f32af15e06",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"Uh, I think we should go,\" you say, scratching the back of your head. \"Small talk is not my strong suit. Sorry.\"\n\nMara doesn't argue. She's already thumbing the slate dark and pocketing it, moving with the quick economy of someone who's done this before — copy first, panic never. \"Don't apologize, you got me the time I needed.\" She taps the terminal's access panel closed, wipes the log with a practiced swipe that makes the access history blink and reset to idle. \"That's the best I can do to cover it. If he checks who logged in, he'll see a timestamp and no name attached. Won't hold up to real scrutiny, but it'll hold up to a captain who isn't looking hard yet.\"\n\nShe's on her feet, slate tucked inside her jacket, already moving for the ladder shaft. \"We talk properly once we're somewhere he isn't. Move.\"\n\nYou fall in behind her. The corridor back to the ladder shaft is quiet — too quiet, the way it always is up here — and neither of you says anything else until you're both climbing down toward mid-deck, the bridge and whatever Voss is doing up there now well behind you.",
+        "createdAt": "2026-08-24T21:52:05.933Z"
+      },
+      {
+        "id": "a3cbe286-cc22-4bf4-92a4-5939db1a4f74",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"What did you find?\" I ask her once we're back near the cryo bay.",
+        "createdAt": "2026-08-24T21:53:41.359Z"
+      },
+      {
+        "id": "e5abaa88-2a69-4bcf-b62e-917dad07f819",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "The climb down puts you back in familiar territory — the mid-deck corridor outside the cryo bay's blast door, cold bleeding through the bulkhead even from here. Mara stops, glances back the way you came to make sure the shaft is clear above, then pulls the data slate back out.\n\n\"Okay.\" She keeps her voice low even though there's no one around. \"The hull certification — the one that's supposed to say this ship is fit for a haul this size, four hundred plus souls in cryo — is backdated. Signed off *after* we'd already broken orbit, by a yard supervisor whose license lapsed eight months before that. That's not a clerical error, Danny. That's someone building a paper trail after the fact because the real inspection either didn't happen or it happened and failed.\"\n\nShe scrolls the slate, and her jaw sets tighter. \"And there's a second file. Insurance schedule, keyed to hazard multipliers — I saw it, I didn't get time to open it before you knocked on the door for me. I don't like what a hazard multiplier's doing anywhere near a hull cert. Multipliers like that usually mean somebody's done math on how much a *loss* is worth. Cargo. Crew.\" She looks at you, and there's something under the anger now — something closer to dread. \"Colonists.\"\n\nShe pockets the slate again, but her hand lingers on it like she doesn't quite trust it out of reach. \"I need to actually open that insurance file. Somewhere safe, not standing in a corridor. But Danny — if I'm reading the shape of this right, this ship isn't just old and neglected. Somebody *decided* it was disposable. And they put four hundred and twelve people to sleep on it anyway.\"\n\nBehind the blast door, faint and mechanical, the cryo bay's systems hum on, indifferent — pumps and chillers keeping four hundred and twelve people unconscious for a trip somebody may have already written off.",
+        "createdAt": "2026-08-24T21:53:52.970Z"
+      },
+      {
+        "id": "97e4c342-69a0-4911-89d8-dbe654e2f4b7",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Could we access those records from engineering?\" I ask her.",
+        "createdAt": "2026-08-24T21:56:36.362Z"
+      },
+      {
+        "id": "5cff70dd-be66-436e-b57c-6fa1d57c3483",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "Mara shakes her head. \"Engineering's got a terminal, sure, but it's not networked to the bridge records the same way — different access tier. What I pulled came off the *engineering records* terminal specifically, aft of the bridge. That's the only place that file lives, as far as I've seen. Engineering proper would have maintenance logs, sure, repair schedules, parts requisitions — useful, but it's not going to have the hull cert or the insurance schedule. Those are bridge-adjacent. Company paperwork, not ship's engineering.\"\n\nShe thinks about it another second, turning the slate over in her hand. \"Unless... whoever backdated that cert did it *from* engineering, remote terminal access. That's possible. I don't know their setup well enough to say for sure.\" She looks at you. \"Why? You thinking there's a copy down there, or you thinking we need a second way in that isn't walking past Voss's door again?\"\n\nThe cryo bay hums on behind the blast door, indifferent to all of it.",
+        "createdAt": "2026-08-24T21:56:45.362Z"
+      },
+      {
+        "id": "4aae8a34-1a05-4fb6-8858-f3d9a98493bb",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Just trying to find another way in.\" I shrug. \"But if that terminal on the upper deck is the only way, I don't mind punching Voss's lights out to get you access. Fella knows there's something fishy going on around here.\"",
+        "createdAt": "2026-08-24T21:59:01.294Z"
+      },
+      {
+        "id": "19ff5a99-ff22-400f-98e1-131f9d38e0d2",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "That gets a short, humorless laugh out of Mara — not because it's funny, but because for a second you sounded like you meant it.\n\n\"Don't tempt me.\" She rubs at her eyes, and for the first time since this started, she looks tired instead of just angry. \"But no — not yet. Decking the captain gets us exactly one thing: a mutiny charge and a locked brig, on a ship where he's the only one with codes to half the systems we might need later. If it comes to that, it comes to that. But I'd rather have the whole picture before I burn that bridge. Pun intended.\"\n\nShe glances back down the corridor, toward the ladder shaft, like she's making sure nothing followed you down. \"Right now the insurance file's the priority. I need somewhere quiet to actually open it — my berth, maybe, or the cargo bay if it's empty. Once I know what it says, we'll know whether this is 'report it when we hit the relay beacon' or 'this needs to stop right now.'\" She pauses. \"Given what I've seen so far, I'm not betting on the first one.\"\n\nShe starts walking, slower now, toward the ladder shaft that leads down to the lower deck. \"You in for round two, or you want to sit this one out and let me read it alone?\"",
+        "createdAt": "2026-08-24T21:59:14.857Z"
+      },
+      {
+        "id": "5e1e2440-1f5b-4548-982d-2d2dc4a32917",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"In for a penny, in for a pound,\" I say with another shrug.",
+        "createdAt": "2026-08-24T22:00:21.603Z"
+      },
+      {
+        "id": "a2952eec-6eb8-4e87-b53d-187db1b3b2c4",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"In for a penny, in for a pound,\" you say with another shrug.\n\nThat gets the ghost of a real smile out of her — small, but it reaches her eyes this time. \"Good. Because I'd rather have someone at my back who already knows what I know than have to explain it twice.\" She leads the way to the ladder shaft, and you climb down together, past mid-deck and on toward the lower deck, the air growing warmer and closer to the engine hum the further down you go.\n\nHer berth is a cramped closet of a room — a bunk, a locker, a fold-down desk barely wide enough for the slate. She dogs the door behind you both, which on a ship this old means wedging a boot heel of a bar into the frame latch rather than any real lock, and sits on the edge of the bunk with the slate balanced on her knee.\n\n\"Okay,\" she says, mostly to herself. \"Let's see what we bought.\"\n\nHer thumb hovers over the file. Insurance schedule, hazard multiplier, still locked behind a second layer of access encoding she didn't have time to crack topside.\n\n\"This one's going to take longer,\" she mutters, fingers already moving across the slate's input, working the encoding manually rather than through the terminal that's no longer in front of her. \"Give me a few minutes. And Danny — if this says what I think it's going to say, we're going to need to talk about what we do next. Really talk. Not football.\"\n\nThe room is quiet except for the tick of her fingers on the slate and the distant thrum of the engines through the deck plating. Somewhere far below, or maybe just in your head, you think you hear the hull creak — long, low, and tired.",
+        "createdAt": "2026-08-24T22:00:37.630Z"
+      },
+      {
+        "id": "1d118954-2f97-47ea-89b9-3993eb42f2bc",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I wait patiently for Mara to do her work.",
+        "createdAt": "2026-08-24T22:02:10.805Z"
+      },
+      {
+        "id": "2da9e683-9138-452c-b1cd-805591be96b4",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You lean against the wall by the door, arms crossed, and just let her work. The slate's screen throws pale light up across her face, her thumb tracing through screen after screen of nested menus, muttering things under her breath you can't quite follow — \"no, that's not it, that's a routing key, not—\"\n\nMinutes stretch. The engine hum doesn't change. Somewhere below you, faint through the deck plating, something groans — metal settling, or metal complaining, you've stopped being able to tell the difference three weeks in.\n\nFinally Mara sits back, and it's not the look of someone who cracked it clean. \"Encoding's tougher than I figured — this isn't standard company boilerplate, somebody actually bothered securing this one properly, which tells you something on its own.\" She rubs at her temple. \"I'm not locked out. But I'm going to be at this a while longer than I thought, and I don't want to rush it and trip something that locks the file for good.\"\n\nShe glances up at you. \"You don't have to babysit me for this part. I'm not going anywhere — door's braced, and this could take another hour easy. You want to make yourself useful, go check on that patch kit situation you brought up earlier, or just get some air. I'll signal you the second I've got it open.\" She's already bent back over the slate, half her attention already gone from the room again.\n\nThe hum of the ship goes on around you both, patient and untrustworthy.",
+        "createdAt": "2026-08-24T22:02:29.023Z"
+      },
+      {
+        "id": "f61ee5ae-d3f8-48ee-9db3-0bbb7de09fa6",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I'm going to get some patch kits from the ship's stores and start closing some of those cracks around the cryo bay.",
+        "createdAt": "2026-08-24T22:05:41.855Z"
+      },
+      {
+        "id": "9f61341e-b61a-425e-8ab5-f5b3d4c9e740",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I'm going to get some patch kits from the ship's stores and start closing some of those cracks around the cryo bay.",
+        "createdAt": "2026-08-24T22:06:22.359Z"
+      },
+      {
+        "id": "e97cacb7-15f5-4836-8d54-2473f6a7918a",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You leave Mara hunched over her slate and head down to the lower deck stores, where the patch kits live in a locker that hasn't seen a manifest audit in longer than it should have. Sealant foam canisters, rolls of structural tape rated for micro-fractures, a couple of hand-crank injectors for getting foam into places fingers can't reach. You take what you can carry.\n\nThe walk back up to mid-deck and around toward the cryo bay bulkhead takes a few minutes. Up close, the stress fractures are worse than they looked from a glance — hairline cracks spidering along a weld seam where the bulkhead meets the deck plating, the metal around them faintly discolored, like it's been flexing under a load it wasn't built for. When you press a hand flat against the plating, you can feel a vibration in it that shouldn't be there, a low shudder that doesn't quite sync with the engine hum.\n\nYou get to work. It's slow, unglamorous labor — scraping old sealant away, laying foam into the cracks, taping over the worst of it, working your way down the seam one meter at a time. The cryo bay hums on the other side of the bulkhead the whole time, indifferent, four hundred and twelve people sleeping through whatever's happening to the hull around them.\n\nThis isn't a hard task, not in the sense that gets you killed for failing — it's grinding, careful work, and there's nothing here trying to stop you. Tell me how much time you want to spend on it and how thorough you want to be, and I'll tell you what shape the seam is in when you're done. If you want to really dig into whether the fracture goes deeper than surface-level — pull panels, check structural members behind the plating — that's a different kind of look, and it might turn up more than you bargained for.",
+        "createdAt": "2026-08-24T22:06:46.574Z"
+      },
+      {
+        "id": "06509d87-e56d-4d5c-b9ce-4c19ed5d5115",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I'm going to get some patch kits from the ship's stores and start closing some of those cracks around the cryo bay.",
+        "createdAt": "2026-08-24T22:06:57.866Z"
+      },
+      {
+        "id": "6050da3e-4a8b-4602-8da5-f93072c8b04f",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I'm going to get some patch kits from the ship's stores and start closing some of those cracks around the cryo bay.",
+        "createdAt": "2026-08-24T22:07:24.889Z"
+      },
+      {
+        "id": "ee4190dc-205f-4c44-9dd3-84dcf0da1854",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You head down to lower deck stores and haul out what you need — sealant foam canisters, rolls of structural tape rated for micro-fractures, a hand-crank injector for the tight spots. Back up at the cryo bay bulkhead, the cracks look worse up close than they did from a glance: hairline fractures spidering along the weld seam where bulkhead meets deck plating, the metal faintly discolored around them. Pressing a hand flat against the plating, you feel a vibration that shouldn't be there — a low shudder out of sync with the engine hum.\n\nYou get to work. It's slow, grinding labor: scrape away what's left of the old sealant, lay fresh foam into the cracks, tape over the worst of it, working meter by meter down the seam. Nothing's trying to stop you and nothing about this is going to go wrong in a dramatic way — it's just time and effort. After a solid stretch of it, you've closed up the visible cracks along this stretch of bulkhead as well as a patch kit and bare hands are going to manage. The tape holds. The foam sets. It looks better than it did.\n\nWhether it *is* better is a different question — you don't have the tools or the training to know if this is cosmetic or if it's actually buying the frame time. The vibration under your palm doesn't go away. It's just quieter to look at now.\n\nBehind the bulkhead, the cryo bay hums on, indifferent. Four hundred and twelve people sleep through it.\n\nYour radio crackles once, softly — not a call, just a click and dead air, the kind of half-signal someone sends when they mean to say something and think better of it. Mara's channel.",
+        "createdAt": "2026-08-24T22:07:36.168Z"
+      },
+      {
+        "id": "6ff4615d-7bd9-4307-bde5-189615cfbaa5",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I head back to Mara's berth and knock on the hatch.",
+        "createdAt": "2026-08-24T22:09:24.528Z"
+      },
+      {
+        "id": "f83af80f-67de-403a-b3f0-118de02825b1",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You head back down to the lower deck, hands still tacky with sealant residue, and rap a knuckle against Mara's hatch.\n\nNo answer at first — just the engine hum and, faintly, the scrape of the slate being set down harder than it needs to be. When the hatch cracks open, Mara looks strung out in a way that has nothing to do with sleep. The bar's already coming out of the frame latch.\n\n\"It's not opening,\" she says, before you've even asked. \"I've been at this thing for the better part of an hour and the encoding's fighting me every step. I got close twice, thought I had it, and both times it kicked me back out and reset the layer I'd already cracked. Like it's designed to punish a second attempt, not just resist a first one.\" She drags a hand down her face. \"Whoever built this file didn't want a cargo handler poking at it. Didn't want *anyone* poking at it who wasn't supposed to.\"\n\nShe steps back to let you in, glancing past you down the corridor out of habit before she shuts the hatch again. \"I sent that half-signal because I almost had something and wanted you close in case I needed a second set of eyes or hands fast. Turned out to be nothing — false alarm. I'm sorry, I should've waited till I actually had it before I clicked you.\"\n\nShe drops back onto the edge of the bunk, slate dark in her lap now, deliberately powered down. \"I don't want to keep hammering at it blind. Locks like this sometimes have a tell — a backup key, a supervisor override logged somewhere else in the system. If there's a second way into this file that doesn't involve me guessing at encryption for another hour, I'd rather find it than keep banging my head against this one.\" She looks up at you. \"You get the bulkhead patched?\"",
+        "createdAt": "2026-08-24T22:09:41.426Z"
+      },
+      {
+        "id": "38108c09-15ee-4065-be45-f56b1fd2d022",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Yeah. Looks better. Not sure if it _is_ better,\" I admit. \"I may not look it, buy I know a thing or two about computers. Want me to hack a crack at it?\"",
+        "createdAt": "2026-08-24T22:13:03.856Z"
+      },
+      {
+        "id": "66c725b3-b7a8-4f7d-8a7b-a0c0dd1a28d1",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "Mara raises an eyebrow at you. \"Computers, huh. News to me.\" She turns the slate around, screen dark, and holds it out. \"Fine — knock yourself out. It's already locked itself against my last two attempts, so whatever tolerance it had for guesswork, we're probably through most of it. If you trip it again, I don't know if it locks for good or just gets meaner. So make it count.\"\n\nShe hands it over. The interface, once you wake it, is a spare and unfriendly thing — company standard security, but layered oddly, like someone bolted a second lock onto a door that already had one. Whatever's behind it, somebody wanted it harder to reach than routine paperwork usually is.\n\nThis is going to take an actual roll — the stakes are real (Mara's already flagged that a bad attempt might lock it for good), and you don't have a Computers skill of your own on record, so if you've got one, now's the time to say so. Otherwise this rides on Intellect alone.",
+        "createdAt": "2026-08-24T22:13:13.877Z"
+      },
+      {
+        "id": "ca47fe60-e279-4579-a640-50e0c084cd64",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I have computers",
+        "createdAt": "2026-08-24T22:15:27.824Z"
+      },
+      {
+        "id": "f951c687-254a-4443-96c2-7478930a2202",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I have \"Computers\" +10. I rolled 48.",
+        "createdAt": "2026-08-24T22:16:15.985Z"
+      },
+      {
+        "id": "3508af49-ccfc-4008-9454-dca5e1002272",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You crack your knuckles and take the slate. \"I have Computers,\" you say, like it explains everything. Mara just crosses her arms and watches.\n\nThe interface is unfriendly, but you've cracked worse for less reason. You work through the outer layer clean, find the seam Mara couldn't, start threading past the second lock —\n\n— and it stops you cold. Not gracefully. The screen throws a hard fault, a red block of text you don't get to finish reading before it clears itself, and the file icon goes from an unlocked padlock back to a *sealed* one, this time with a small stamped flag next to it you don't recognize.\n\nMara leans over your shoulder, and her face goes tight. \"What did it just do.\"\n\n\"I don't know,\" you admit. \"I think it noticed.\"\n\nShe takes the slate back, thumbs through what's left of the access log — and swears, low and controlled. \"It didn't just relock. It flagged the access attempt. Look —\" she turns the screen so you can see a timestamp, a device ID that isn't yours or hers, freshly logged. \"Somewhere on this ship, something just got told this file was tampered with. I don't know if that's a passive log an auditor reads three months from now, or if it pinged someone's terminal five minutes ago.\"\n\nShe sets the slate down like it might bite her. \"Either way, we're not getting back into that file with brute force. Not soon, and maybe not ever without the actual key.\" She looks at you, and for the first time there's something like real fear under the anger. \"If that alert went anywhere live... we need to assume somebody upstairs knows somebody's been digging. And they already know who was in engineering records earlier today.\"\n\nHer eyes flick to the hatch, like she's expecting a knock.",
+        "createdAt": "2026-08-24T22:16:35.508Z"
+      },
+      {
+        "id": "e00145a3-7904-46a5-9a58-aca4cb391425",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I have computers +10, so that 48 would be under the total of 50.",
+        "createdAt": "2026-08-24T22:18:59.420Z"
+      },
+      {
+        "id": "ddac04f1-0f7d-4b1a-8773-8ad1e72a6200",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You're right — with Computers Trained (+10) added to your Intellect (40), you needed under 50, and 48 clears it clean. No Critical either way (not doubles), but a plain success is a plain success.\n\nYou reel the moment back the way it should've gone: the outer layer peels away clean under your hands, and this time the second lock doesn't fight you into a corner — it *yields*. The screen resolves into an open file structure, no fault, no lockout stamp. Whatever alert almost tripped, it didn't, because you didn't trip it.\n\nMara leans over your shoulder again, and this time there's no dread in it, just hunger. \"You actually got it,\" she mutters, half to herself.\n\nThe file opens into a wall of schedules and riders — insurance boilerplate dressed up in company legalese, the kind of document built to be skimmed past, not read. But a few lines don't skim past. A hazard-multiplier clause, tied not to cargo tonnage but to *confirmed casualty count, crew and colonist*. A payout table that scales *up* the worse the loss. A rider referencing this specific hull's assessed operational value against its insured value — and the insured figure is not close to the same number.\n\nMara reads it twice. When she looks up at you, her voice has gone very quiet and very steady, the way people get when they're holding something in instead of letting it out.\n\n\"This ship is worth more to somebody dead than delivered.\"\n\nShe sets the slate down slowly, like it's suddenly heavier than it was a second ago.\n\n\"Danny. Four hundred and twelve people are asleep two decks from here, and somebody ran the numbers on what they're worth as a loss.\" She looks toward the hatch, toward the ladder shaft, toward the bridge two decks up where Voss is sitting on a \"scheduling\" excuse and a backdated cert. \"This isn't neglect anymore. This is a plan.\"",
+        "createdAt": "2026-08-24T22:19:20.962Z"
+      },
+      {
+        "id": "8ddf4ecc-448f-4b68-87e8-0db15caba63f",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Fuck me,\" I mutter, and then I consider our predicament. \"I bet Voss knows. I bet he has a way out, a way to safety.\"",
+        "createdAt": "2026-08-24T22:25:06.150Z"
+      },
+      {
+        "id": "18bef3e4-9d76-41cf-a56f-dcbf76146ee5",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"Fuck me,\" you mutter, and then you consider your predicament. \"I bet Voss knows. I bet he has a way out, a way to safety.\"\n\nMara's quiet for a second, turning that over. \"Escape pods,\" she says slowly. \"There's four aboard, rated for the six-person skeleton crew — not the colonists, they're not meant to need them, they're supposed to stay in cryo till we dock. Standard config.\" Her eyes narrow. \"But if this is a designed loss — if somebody upstairs knows this hull isn't making the full haul — then whoever's in on it doesn't need to save four hundred people. They need to save *themselves*, and they need it to look like they tried.\"\n\nShe starts pacing the width of the tiny berth, three steps and turn, three steps and turn. \"Voss has been captain of this thing for however long they've had him greased for it. If there's a plan, he's either the guy executing it or the guy who's going to eat the blame for it when the payout report gets written. Either way, yeah — he'd know things we don't. Which pod's actually provisioned. Which one he's *not* supposed to use but will. Whether there's a company contact expecting a distress call that never quite reaches the beacon.\"\n\nShe stops pacing and looks at you, and there's calculation in it now, not just fear. \"I don't want to confront him yet — not empty-handed, and not before I know if he's alone in this or if it's the whole bridge crew. But I want eyes on him. What he does in the next few hours, who he talks to, whether he heads anywhere near those pods without a reason to.\" She taps the slate, dark again in her hand. \"And I want this file somewhere safer than my own head. If something happens to me, or to this slate, I want to know the truth doesn't go down with it.\"\n\nShe looks at you steadily. \"That's three things. Which one do you want?\"",
+        "createdAt": "2026-08-24T22:25:26.407Z"
+      },
+      {
+        "id": "e46a3fda-16a9-456a-83e8-4ca8f70501e4",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "Do I have a slate? Can we copy the file to it? Who else is bridge crew versus cargo hands or whatever?",
+        "createdAt": "2026-08-24T22:27:51.190Z"
+      },
+      {
+        "id": "be3f07c8-f339-4953-bb55-0197c33e15e4",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You pat your jacket pocket out of habit and come up with your own slate — a battered, personal-issue thing you use mostly for cargo manifests and the occasional message home. Not company-networked the way the terminal is, which is exactly the point.\n\n\"Yeah, I've got a slate,\" you say. \"Not much on it, but it's mine — nothing tying it to the bridge or engineering. Copy it over and it's not sitting in one place anymore.\"\n\nMara's already nodding before you finish. \"Do it now.\" She angles her slate toward yours, and the transfer's quick and unglamorous — a cable jacked between the two, a progress bar, done in under a minute. \"Two copies is better than one. If they come for mine, or mine goes in the drink, yours is still out there.\" She pulls the cable free and pockets her own slate again, like it's suddenly something she doesn't want touching her skin for too long.\n\nAs for the crew — she ticks it off on her fingers, quiet, like she's recited it to herself before. \"Six of us total, active. Voss — captain, bridge. First mate's Okonkwo-Reyes, she's up there too, mostly comms and nav backup, though comms are down so she's been running diagnostics instead. Chief engineer's a guy named Petrov, lower deck, engine room and life support — if anyone else besides Voss knows the ship's actual condition, it's him. Then there's you, me, and Danny —\" she catches herself, half a real laugh escaping despite everything. \"Sorry. You, me, and Teo. Teo's the other cargo hand, mostly keeps to himself, bunks near the mess.\"\n\nShe counts back through it. \"Bridge crew, properly — that's Voss and Okonkwo-Reyes. Everyone else is hands, same as us. Which means if there's a conspiracy here, it's either just Voss, or Voss and his first mate, or it goes all the way down to Petrov, who'd have to be blind not to know what shape this hull's really in.\" She looks at you. \"I don't trust any of the three of them right now. Not until I know which ones are just doing their jobs and which ones already know what we know.\"\n\nShe glances toward the hatch again, that same old habit. \"Okay. Slate's copied, crew's laid out. You still want to keep eyes on Voss, or you'd rather I do that while you find out what Petrov actually thinks about this hull?\"",
+        "createdAt": "2026-08-24T22:28:16.294Z"
+      },
+      {
+        "id": "ccf9983f-859a-4091-a92d-d012d7ca58c5",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"I'll brief Teo, and then he and I can confront Petrov together. I'd rather have backup if things get nasty.\"",
+        "createdAt": "2026-08-24T22:31:50.128Z"
+      },
+      {
+        "id": "68e24c5f-39ad-427d-980e-4513d9be1fb3",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"I'll brief Teo,\" you say, \"and then he and I can confront Petrov together. I'd rather have backup if things get nasty.\"\n\nMara considers that, and you can see her weighing it — bringing a third person into this versus the safety of numbers. \"Teo,\" she says slowly. \"I don't know him well. None of us do, really — man keeps to himself, eats alone, doesn't talk shop. That could mean he's exactly what he looks like, or it could mean he's the type who notices everything and says nothing.\" She doesn't tell you not to. \"If you brief him, watch how he takes it. Not just what he says — whether he looks surprised, or whether he looks like he already had a guess. That'll tell you more than his words will.\"\n\nShe checks the hatch bar again, a nervous tic at this point. \"Petrov worries me more than Teo does, for what it's worth. He's the one who'd have to actively lie to your face about structural integrity, every day, for this whole run. If he's dirty, he's the best-practiced liar of the three. If he's clean, he might be the only person on this ship as scared as we are.\" She meets your eyes. \"Careful how you open that door. If he's complicit and you spook him, he's two decks from the engine room and every system on this ship runs through his hands. If he's not, you've just told an innocent, frightened man his captain might be planning to kill him for the payout.\"\n\nShe steps back, giving you room to go. \"I'll stay on Voss. Keep half an eye on the bridge, see if he does anything with those pods, see if he talks to Okonkwo-Reyes different than usual. Signal me before you actually confront Petrov — a real signal this time, not a dead click — so I know it's happening and I'm not caught flat if it goes loud.\" A beat. \"Good luck with Teo. And Danny—\" she adds, as you turn for the hatch, \"—if either of them already knows about the hazard multiplier, don't let your face show it. Let them tell you first.\"\n\nYou head out into the corridor, the hatch sealing behind you, and start toward the mess hall where Teo keeps to himself most hours of the day.",
+        "createdAt": "2026-08-24T22:32:08.285Z"
+      },
+      {
+        "id": "549b0c52-52a3-4837-8369-25bb991b8240",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I'm going to go into the mess hall and play it casually at first. I want to ask Teo about his experience overall and then get more specific. How many runs has he done? What does he think of the ship? What does he think of the captain? I want to feel him out before I tell him what we've found.",
+        "createdAt": "2026-08-24T22:35:33.364Z"
+      },
+      {
+        "id": "7ca353cc-c3b7-4875-8375-5e1295ca394f",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "The mess hall is empty except for Teo, hunched over a tray of reconstituted something at the far end of the long table, a data reader propped against a water jug so he can eat and read at once. He glances up when you come in, gives you the barest nod, and goes back to his food — the universal signal of a man who doesn't expect company and isn't sure he wants it.\n\nYou get a tray anyway, or pretend to, and sit down a respectful two seats off. Not crowding him. \"Hey, Teo.\" A beat. \"Mind some company? Bridge crew's boring the hell out of me today.\"\n\nHe shrugs, which you take as permission.\n\nYou ease into it slow — how many runs has he done, this kind of long colony haul. He answers around a mouthful, not unfriendly, just economical. \"Four. This makes five.\" A pause. \"Longest one, though. Usually these routes are eight, nine months tops, ship-to-relay-to-ship. This one's got us three weeks just to the first beacon.\"\n\nYou ask what he makes of the Halbrecht specifically — old girl, isn't she. That gets more out of him than you expected. He sets the reader down, actually looks at you. \"Older than any hull I've shipped on. And it shows. You hear the groaning at night? Not engine noise. Structural.\" He taps the table like it proves something. \"I asked Petrov about it, second week out. He said it's normal settling for a ship this age. I've shipped on old ships before. This isn't that.\"\n\nYou keep it light, ask what he thinks of the captain — good skipper, bad skipper, somewhere in between. Teo's face does something careful here, like he's deciding how much to say to a man he's shared maybe six meals with in three weeks. \"Voss keeps to the bridge. Keeps to himself, too, more than usual for a captain — most of them, you at least see 'em walk the decks once in a while, check on the crew. Not this one.\" He shrugs again, but it's a slower shrug this time, more deliberate. \"Not my business how he runs his ship. Just strikes me as a man who doesn't want to be asked questions.\"\n\nHe goes quiet a second, looking at you a beat too long. \"Why the sudden interest, Danny? You don't usually come down here to chat.\"\n\nHe's not hostile. But he's not stupid either, and the question sits there waiting for you to decide how much of the truth you're ready to give him.",
+        "createdAt": "2026-08-24T22:35:53.428Z"
+      },
+      {
+        "id": "4956bfa6-ea74-408d-83ae-5aab6bdfaaa6",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Mara and I uncovered some troubling information,\" I say. I tell him about the maintenance log getting signed after we left orbit, but not about the insurance part of it, not yet.",
+        "createdAt": "2026-08-24T22:38:30.072Z"
+      },
+      {
+        "id": "96314ee1-9657-488e-8e1e-37387980665f",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"Mara and I uncovered some troubling information,\" you say, keeping your voice low, pitched under the hum of the mess hall's ventilation. Teo sets his reader down all the way now, giving you his full attention.\n\n\"The maintenance sign-off on the hull frame — the certification that's supposed to say this ship is fit to haul four hundred colonists this distance — it's backdated. Signed *after* we broke orbit. By a yard supervisor whose license had already lapsed.\"\n\nTeo doesn't say anything for a long moment. He looks down at his tray, at the half-eaten reconstituted whatever-it-is, like he's lost his appetite for it entirely. When he looks back up, his jaw is tight.\n\n\"Backdated,\" he repeats, flat. Not a question — like he's testing the word in his own mouth to see if it fits what he's felt in his gut for three weeks. \"That groaning I told you about. The one Petrov called *settling*.\" He shakes his head slowly. \"I knew that wasn't nothing. I *knew* it.\" His hand curls into a loose fist on the table, not anger exactly — more like the relief of finally having a shape to put to a fear he's been carrying alone.\n\n\"Who else knows?\" His eyes flick toward the mess hall entrance, an old instinct, checking who might be listening. \"Mara know? Course she does, she'd have to, for you to know.\" He leans in slightly, voice dropping further. \"Does the captain know you two found this?\"\n\nHe's not doubting you. If anything, he looks like a man who's been waiting three weeks for someone to confirm what he already suspected, and now that it's confirmed, he wants to know exactly how bad it is — and exactly how much danger you're both already in for having found it.",
+        "createdAt": "2026-08-24T22:38:47.757Z"
+      },
+      {
+        "id": "37ce815b-1c4e-4e9b-bb40-4786a23f3a28",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"There's more,\" I say. \"After I tell you this, will you go with me to confront Petrov, find out how much he knows? We need to play this right if we're going to get out of this in one piece.\"",
+        "createdAt": "2026-08-24T22:40:56.578Z"
+      },
+      {
+        "id": "26a9cfc6-eab1-463e-bcbb-0ce2f1b3ddce",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"There's more,\" you say. \"After I tell you this, will you go with me to confront Petrov, find out how much he knows? We need to play this right if we're going to get out of this in one piece.\"\n\nTeo's expression doesn't change much, but something behind his eyes goes very still, very focused — a man bracing for the other shoe.\n\n\"There's more,\" he echoes, quiet. \"Okay. Tell me.\"\n\nHe doesn't answer your question yet. He's waiting to hear it first — whether \"more\" is something he can help you carry, or something that changes what going with you even means.",
+        "createdAt": "2026-08-24T22:40:59.707Z"
+      },
+      {
+        "id": "6674e850-50e2-4d4b-90be-b13cfa425fdd",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I tell him about the insurance part, that the company will make more on this run if the ships fails and we all die than if we reach our destination (assuming that's what all the insurance business actually means).",
+        "createdAt": "2026-08-24T22:42:29.685Z"
+      },
+      {
+        "id": "84b1ea67-c684-4665-b21a-1a83de5053e2",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"There's more,\" you say, and lay it out plain — the insurance schedule, the hazard-multiplier clause, the payout that scales with crew and colonist casualties. That the ship is worth more to somebody dead than delivered. That four hundred and twelve people are asleep two decks away and somebody, somewhere, already ran that math.\n\nTeo goes very still. Not catatonic-still — the stillness of a man doing arithmetic he doesn't want to finish. His hand, still curled on the table from a minute ago, opens and flattens slowly against the surface, like he needs something solid under his palm.\n\n\"Say that again,\" he says, not because he didn't hear you. Because he wants to hear himself not flinch from it twice.\n\nYou say it again, shorter this time. He nods along, jaw working, and when he finally looks up his eyes are steady — rattled, but steady. Whatever this cost him internally, he's keeping it off his face better than you expected from a man who eats alone and reads at the table.\n\n\"Four hundred people,\" he says, quiet. \"And a crew of six who don't get told. That's—\" He stops himself, breathes out through his nose, starts over. \"Okay. Okay. You said Petrov. You want to go lean on the engineer.\" He looks at you, and something in him has shifted from *shocked* to *decided*. \"Yeah. I'm in. If he's known this whole run and said nothing, I want to hear him explain that to my face. And if he didn't know — if he's as much in the dark as I was five minutes ago — then he's the only one of the three who might actually help us instead of burying it.\"\n\nHe stands, pushes his tray aside, reader forgotten. \"You said Mara wants a signal before we move on him. Send it. I'd rather he hear this from two men who already agree on what it means than stumble into it from one.\"\n\nHe pauses at the hatch, glancing back at you. \"Danny. If Petrov's in on this — if he looks at us and doesn't look surprised — what's the plan? Because I don't think 'ask him nicely' survives that answer.\"",
+        "createdAt": "2026-08-24T22:42:52.380Z"
+      },
+      {
+        "id": "e5cc274b-5da9-4fc0-9042-c1165423dab4",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"I'm honestly not sure,\" I tell him, worried about what I might do when push comes to shove in that situation. I radio Mara and then head off to engineering with Teo.",
+        "createdAt": "2026-08-24T22:46:26.853Z"
+      },
+      {
+        "id": "72a5bdec-f586-41c6-a3bc-4b082ccaee82",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"I'm honestly not sure,\" you tell him, and mean it — the worry sits plain on your face for a second before you shake it off.\n\nYou thumb the radio, hold the transmit key. \"Mara, it's Danny. Teo's briefed, he's in. We're heading to engineering now to talk to Petrov. Wanted you to know before we knock.\" You let go, and her voice comes back a second later, clipped and steady.\n\n\"Copy. I've got eyes on the bridge hatch. Go careful — and Danny, if it goes sideways down there, you're two decks from me and I can't get to you fast. Watch each other's backs.\"\n\nYou clip the radio back to your belt. Teo's already moving toward the ladder shaft, quiet now, whatever composure he's holding onto visibly costing him effort. You follow him down, past mid-deck, into the warmer air and engine-thrum of the lower deck, toward the engine room where Petrov keeps his hours.\n\nThe corridor down here is narrower, dimmer — more of the emergency lighting standing in for fixtures that gave out and never got replaced. The vibration in the deck plating is stronger here than anywhere else on the ship, a low constant shudder under your boots that has nothing to do with footsteps. Somewhere ahead, past a half-open hatch, you can hear the clank and hiss of someone working on something that doesn't want to be worked on.\n\nTeo stops a few meters short of the hatch and looks at you. \"This is it,\" he says, voice low. \"You want to lead, or you want me to?\"",
+        "createdAt": "2026-08-24T22:46:36.837Z"
+      },
+      {
+        "id": "ae1a7b8d-7dcd-4d07-973f-f4e377b39eb0",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"I got this,\" I answer. I enter engineering and call out for Petrov.",
+        "createdAt": "2026-08-24T22:47:57.245Z"
+      },
+      {
+        "id": "f0c04101-e42c-4e40-a16a-bf5660677345",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"I got this,\" you say, and step through the hatch into engineering, Teo close behind.\n\nThe engine room is a cramped, hot tangle of exposed conduit and pipe, lit by work lamps clipped to overhead rails because half the fixtures down here are as dead as everywhere else on the ship. The vibration you've been feeling through decks above is a physical thing here — you can feel it in your teeth. A man in a stained coverall is half inside an open access panel near the main coupling, a multi-tool in one hand, muttering something to himself that might be a curse or might be a prayer.\n\n\"Petrov.\"\n\nHe startles, cracks his head lightly on the panel edge, and swears properly this time before backing out and turning to look at you both. He's older than you expected, gray stubble, eyes rimmed with the particular exhaustion of a man who hasn't slept a full cycle in longer than he'd admit. He looks at you, then at Teo standing a step behind you, and something flickers across his face — not quite alarm, but a recalculation, like he's suddenly doing math about why two cargo hands just walked into his engine room together, unannounced, wearing the faces you're both wearing.\n\n\"Danny.\" His eyes go to Teo again. \"And Teo. This isn't a social call.\" He sets the multi-tool down on a nearby crate, slow and deliberate, hands where you can see them — the gesture of a man who's decided, consciously, not to look like he's reaching for anything. \"What's this about?\"",
+        "createdAt": "2026-08-24T22:48:12.998Z"
+      },
+      {
+        "id": "1f9e4da7-f916-489d-a806-f841c45eb78d",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I cut to the chase. \"Did you know that this ship's hull wasn't certified until after we left port?\"",
+        "createdAt": "2026-08-24T22:49:58.782Z"
+      },
+      {
+        "id": "bbce5592-3420-4eda-80db-b81f6abf476c",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You cut to the chase. \"Did you know that this ship's hull wasn't certified until after we left port?\"\n\nPetrov doesn't answer right away. His mouth opens, closes. His eyes go somewhere past your shoulder for a second — not looking for an exit, more like looking for a version of this conversation that doesn't end with him answering honestly. When he finally speaks, his voice comes out rougher than before.\n\n\"Where did you—\" He stops himself, shakes his head like he's annoyed at his own reflex to ask that instead of just answering. His hands, still resting open on the crate where he set them, curl slowly into loose fists. Not aggression. Something closer to a man bracing against a wall that's finally coming down on him.\n\n\"Yeah,\" he says, finally. Quiet. Not proud of it. \"I knew. Found the discrepancy myself, second day out — logged hull inspection dated three days after we broke orbit. Thought it was a clerical error at first. Company screws up paperwork all the time, this ship generates more of it than most.\" He looks at the open access panel behind him, then back at you, and something in his face has gone gray in a way that has nothing to do with the work lights. \"It wasn't a clerical error. I checked twice. That cert was signed by someone who didn't have the authority to sign it, dated to cover a gap that never should've existed.\"\n\nHis eyes flick to Teo, then back to you, and there's real fear under the exhaustion now — the fear of a man who's been carrying something alone and just found out he doesn't have to anymore, and isn't sure if that's a relief or a bigger problem.\n\n\"I've been trying to hold this hull together with patch kits and prayers for three weeks because I didn't know who else knew, or who I could tell that wouldn't just report *me* for finding it.\" He swallows. \"Voss signed off on the run schedule knowing full well what that cert said. I brought it to him myself. He told me it was 'being handled' and to keep the engines running.\" His jaw tightens. \"So. You want to tell me why two cargo hands are standing in my engine room asking me questions you already knew the answer to?\"",
+        "createdAt": "2026-08-24T22:50:22.672Z"
+      },
+      {
+        "id": "96bce64f-b680-446b-9c95-8a0cbf1e255c",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Need to know whose side you're on,\" I tell him plainly. \"I'm sure Voss has an escape plan. I know us cargo hands don't. Need to know if you do.\"",
+        "createdAt": "2026-08-24T22:52:51.697Z"
+      },
+      {
+        "id": "7d78139e-41b8-4ba9-ac66-b1038a69e10d",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"Need to know whose side you're on,\" you tell him plainly. \"I'm sure Voss has an escape plan. I know us cargo hands don't. Need to know if you do.\"\n\nPetrov's face does something complicated — offense, maybe, at being asked so directly, but underneath it something that looks almost like relief that someone finally asked instead of assumed.\n\n\"My side?\" He barks a short, humorless laugh. \"I've got a wife's name I put on a beneficiary form four contracts ago and a body that's going to give out from breathing recycled engine fumes before it gives out from age. I don't have a *side*, Danny, I have a job I've been doing scared for three weeks.\" He wipes a hand down his face, leaving a smear of grease along his jaw. \"But no. I don't have an escape plan. I wasn't invited to one, if there is one. Nobody hands the engineer a pod assignment ahead of the captain and the first mate — that's not how the org chart works on this scow, and you know it.\"\n\nHe looks between you and Teo, weighing something. \"Far as I know, there's four pods, rated six-crew standard, no colonist allocation because the pods were never meant to matter — cryo's supposed to hold till we dock, full stop. If Voss has worked an angle where he and Okonkwo-Reyes get out clean and the rest of us don't, I haven't seen the paperwork for it. But I also haven't been looking, because until about ninety seconds ago I thought I was the only one on this ship who knew this run was cursed.\" His eyes go hard, focused now. \"You're telling me it's worse than a bad cert. You're telling me somebody wants this hull to fail.\"\n\nHe says it like a question, but it isn't one.",
+        "createdAt": "2026-08-24T22:53:11.215Z"
+      },
+      {
+        "id": "afb0f0e1-5edc-4f45-91c0-ee79b639dbc5",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Yeah,\" I say a bit more conversationally. \"We found an insurance paper trail. The company will make more money if this run dies than if we make it to our destination. A lot more money.\"",
+        "createdAt": "2026-08-24T22:55:43.583Z"
+      },
+      {
+        "id": "f2e08d5b-3f09-42cf-a2c4-b6d23e4a0906",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"Yeah,\" you say, a bit more conversationally now, like the worst of it's already out and the rest is just detail. \"We found an insurance paper trail. The company makes more money if this run dies than if we make it to our destination. A lot more.\"\n\nPetrov doesn't say anything for a long moment. He just stares at you, and something in his posture changes — the tension of a man bracing for a blow shifting into something colder, more settled. Like a lever finally clicking into a new position.\n\n\"A lot more,\" he repeats, flat. He turns half away from you, toward the open access panel, toward the engine coupling he's been nursing along for three weeks with patch kits and prayer. \"I've been killing myself keeping this thing from falling apart. Every shift. Every damn shift, telling myself if I just hold the line long enough we make the beacon and it doesn't matter whose signature is on what cert.\" He laughs again, and this time there's no humor in it at all, just something breaking loose. \"And the whole time, somebody's hoping I fail. Somebody's going to get *paid* if I fail.\"\n\nHe turns back to face you both, and whatever exhaustion was in his face before has been burned off by something sharper. \"Four hundred and twelve people are asleep on this ship because they trusted a company manifest that said this hull was sound. And Voss —\" His hand curls into a fist again, this time with real heat behind it. \"Voss stood right where you're standing and told me to keep the engines running. Now I know why he wasn't worried about the cert. He didn't need it to hold. He needed it to *fail* believably.\"\n\nHe looks at Teo, then back to you, and something has shifted — he's not a suspect anymore in his own mind, and he knows it. \"Okay,\" he says, quieter, but with an edge now. \"You didn't come down here to just tell me. You came down here to find out if I'd help. So — what's the play? Because I am done pretending this is a maintenance problem.\"",
+        "createdAt": "2026-08-24T22:56:12.335Z"
+      },
+      {
+        "id": "e684c9f9-935e-47a5-af4d-97e7f59b1ced",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I radio Mara to check on her status. I tell her that Teo and Petrov are angry.",
+        "createdAt": "2026-08-24T22:58:25.543Z"
+      },
+      {
+        "id": "7284ca8b-521e-49d4-adc5-ebe964d1a14c",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You thumb the radio. \"Mara, Danny. Petrov's confirmed — he knew about the backdated cert, went to Voss with it himself, and Voss told him to keep the engines running. He's not a suspect anymore, he's pissed. Teo's the same — both of them are angry and both of them are in. What's your status up there?\"\n\nA few seconds of static, then Mara's voice, low and tight, like she's got her mouth close to the radio and doesn't want it carrying. \"Status is Voss hasn't moved from the bridge in the last twenty minutes, near as I can tell — I've got eyes on the hatch from the mess corridor junction, not a clean line, but nobody's come or gone. Okonkwo-Reyes went in about ten minutes ago carrying a data pad, hasn't come back out.\" A pause. \"That tracks with diagnostics work. Or it tracks with something else. I can't tell from out here.\"\n\nShe exhales, and you can hear her weighing something. \"Good work, Danny. Genuinely. If Petrov's with us that changes the math — we're not three scared people against a company plan anymore, we're four, and one of them can keep this ship's engines answering to us instead of just to Voss.\" Another pause, longer. \"But four angry people who all know the same thing is also four people who can get spooked, or cornered, or slip and say something to the wrong crew member. We need to decide what we're actually doing with this, and soon — confront Voss outright, sit on it and try to get evidence off-ship first, or something uglier. I don't want to make that call over the radio. Get back up here when you can, bring Petrov if he'll come. Teo too. Let's actually decide this instead of each of us carrying pieces of the same plan around in our own heads.\"\n\nShe clicks off, then keys back in once more, quieter. \"And Danny — watch that engine room hatch on your way out. If Petrov's been this obvious about hating his captain in front of two cargo hands, I'd bet money he hasn't been quiet about it elsewhere either. Don't linger down there longer than you have to.\"",
+        "createdAt": "2026-08-24T22:58:43.280Z"
+      },
+      {
+        "id": "e6e564da-8c0f-49cb-9ec1-92e06acc641a",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I turn to other two people in engineering. \"Let's meet Mara upstairs and figure out what we want to do,\" I tell them and then head for the ladder to the upper decks.",
+        "createdAt": "2026-08-24T23:01:34.047Z"
+      },
+      {
+        "id": "bb9da527-117a-4123-8395-8c4463aab89f",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"Let's meet Mara upstairs and figure out what we want to do,\" you tell the other two, and turn for the ladder.\n\nPetrov wipes his hands on a rag, tosses it onto the crate next to his forgotten multi-tool, and follows without hesitation. \"Someone should stay near the engine room eventually — I don't like leaving her unattended long, not in the state she's in — but this is worth ten minutes.\" Teo's already moving, quiet, jaw set, the kind of quiet that comes from a man who's done being surprised today and is just waiting to see what happens next.\n\nThe three of you climb the ladder shaft together, the narrow passage rattling faintly with every deck you pass, that same low shudder in the structure following you up from below. Nobody talks on the way — it isn't the place for it, exposed and echoing, and each of you seems aware that voices carry strangely in the shaft.\n\nYou emerge onto mid-deck, then keep climbing toward the corridor outside the mess hall where Mara said she'd be watching the bridge hatch. Halfway there, you catch sight of her — back against the bulkhead near the junction, arms crossed, eyes flicking between the three of you and the bridge hatch further down the corridor, like she's still not fully willing to give up her watch even now.\n\nShe straightens when she sees your faces. \"Okay,\" she says, low, pulling you all into a tighter knot away from the open corridor. \"Everyone's here. Everyone's angry. Bridge hatch hasn't moved.\" Her eyes go around the circle — you, Teo, Petrov — measuring each of you in turn. \"So let's not waste it. We need to decide, together, right now, before any one of us does something the other three can't walk back. Confront Voss. Gather more first. Or something else.\" She lets that hang. \"What are we doing?\"",
+        "createdAt": "2026-08-24T23:01:56.744Z"
+      },
+      {
+        "id": "b2d750d2-1b91-46ef-bdb1-07a97ba9fd0a",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"I say we confront Voss. If he's got an escape plan, maybe we can all use it to get out of here alive. Teo? Petrov? What do you think?\"",
+        "createdAt": "2026-08-24T23:04:31.344Z"
+      },
+      {
+        "id": "83cbe166-a723-44e4-afaf-d75ea5d6128d",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"I say we confront Voss,\" you say. \"If he's got an escape plan, maybe we can all use it to get out of here alive.\" You look between the two of them. \"Teo? Petrov? What do you think?\"\n\nTeo answers first, arms crossed, jaw tight. \"I don't have the stomach to sit on this and gather paperwork while that hull keeps groaning at me every night. I want it out in the open. I want Voss to have to answer for it to our faces, not to some claims adjuster after we're all dead.\" He glances at Petrov. \"But I'll follow the room on this. If the rest of you want to go quiet and careful, I can do quiet and careful. I just don't want to wait long.\"\n\nPetrov's slower to answer. He's rubbing at the grease on his jaw, looking at the deck like it might have an opinion. \"Confronting him tips our hand completely — if he's got backup on this, allies we don't know about, we've just told him we know everything and given him time to react before we've secured anything. No copies transmitted, no proof anywhere but a couple of slates that could be seized or 'lost' in an unfortunate accident.\" He looks up. \"But I also don't love the alternative. Sitting on this and gathering more risks him noticing his engineer's been acting strange, his cargo hands have been huddling in the mess, and doing something about it before we're ready. There's no safe option here. Just ones that fail differently.\"\n\nHe looks to Mara. \"You've been watching him longest. What's your read — is he the type who folds when he's cornered, or the type who gets dangerous?\"\n\nMara's quiet a second, weighing it. \"I don't know him well enough to say for certain. But a man who's been quietly complicit in a scheme like this for weeks, who's kept his own first mate running diagnostics instead of raising alarms — that's not a man who panics easily. That's a man who's used to managing appearances.\" She looks around the circle. \"If we go to that hatch, we go together, and we go with eyes open that he might not fold the way we want him to.\"\n\nShe looks back to you, since you're the one who called it. \"That's three votes leaning confront, with Petrov flagging the risk instead of vetoing it outright. If that's really where we're landing — we do it now, or we do it after we've at least gotten a copy of that file off this ship first?\"",
+        "createdAt": "2026-08-24T23:04:44.460Z"
+      },
+      {
+        "id": "2c5d8355-afd9-49ff-9477-0983fafc53c0",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"I say we do it now. Even with all this evidence, the company's got lawyers stacked ten deep. I don't know that anyone will ever be held accountable. But we can escape with our lives. That's a win in my book.\"",
+        "createdAt": "2026-08-24T23:07:12.481Z"
+      },
+      {
+        "id": "b9c9db50-541a-4cdf-96c2-64429bebb0cc",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"I say we do it now,\" you say. \"Even with all this evidence, the company's got lawyers stacked ten deep. I don't know that anyone will ever be held accountable. But we can escape with our lives. That's a win in my book.\"\n\nMara studies you for a second, then nods slowly, like she was hoping someone would just say it. \"Fine. Now.\" She looks around the circle one more time — Teo's already nodding, jaw set; Petrov exhales through his nose, some of the tension in his shoulders resolving into something more like grim readiness than reluctance.\n\n\"Then here's how we don't get ourselves killed doing it,\" Mara says, all business now. \"We don't rush the hatch like it's a boarding action. Voss doesn't know what we know yet — as far as he's aware, this is still four crew he can out-argue or stall. We keep it that way till the second we're through that door. Danny, you found the cert discrepancy first, and you're the one Petrov and Teo trust enough to have brought them this far — I think you take point when we're inside. I'll back your play. Petrov, Teo — flank wide, don't crowd him, but be visible. He needs to see all four of us and understand this isn't a conversation he can spin his way out of one on one.\"\n\nShe glances toward the bridge hatch, twenty meters down the corridor, still closed, still quiet. \"Once we're through that hatch there's no undoing it. He'll know exactly what we have and exactly who brought it to him. If he's got a way to make this worse for us, that's the moment he'll reach for it.\" She looks back at you. \"You ready?\"\n\nThe four of you start moving together down the corridor toward the bridge hatch — the one that's stayed shut and silent this whole time, with Voss and, presumably, Okonkwo-Reyes on the other side of it, still unaware that the ship's entire skeleton crew minus two is about to walk in on them at once.\n\nYou reach the hatch. Mara's hand hovers near the release. She looks at you.\n\n\"Your call, Danny. Open it?\"",
+        "createdAt": "2026-08-24T23:07:31.635Z"
+      },
+      {
+        "id": "a36a1954-98f0-4807-a3a3-b8f5f4f8dc3a",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "I nod. \"Open it.\"",
+        "createdAt": "2026-08-24T23:08:53.246Z"
+      },
+      {
+        "id": "0d1806ab-280f-4e39-baa2-8058fb22d4b4",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "You nod. \"Open it.\"\n\nMara hits the release. The hatch grinds aside — that same tired, arthritic sound every mechanism on this ship makes now — and the bridge opens up in front of you.\n\nIt's smaller than you expected, close and dim, most of the working light coming off the console glow rather than the overheads. Voss is alone, seated at the command station with his back half to you, a mug of something steaming by his elbow, reading a status readout at an unhurried pace that tells you immediately he has no idea what's coming through his door. Okonkwo-Reyes isn't here — wherever she took that data pad, it wasn't back to the bridge.\n\nVoss turns at the sound of the hatch, already halfway into an irritated look — the look of a captain who doesn't like being interrupted on his own bridge without being buzzed first — and the irritation falters when he sees who's actually standing there. Not one cargo hand with a routine question. Four of you. Mara Odinsen, arms crossed, first through the hatch behind you. His chief engineer, grease-stained, jaw set. Both cargo hands. All in one place, none of them looking like this is a social call.\n\nHis hand moves — slow, almost unconscious — toward the mug, not toward anything more dangerous, but it's the gesture of a man buying himself a half-second to recalculate.\n\n\"This is a lot of people for a status update,\" Voss says, voice even, testing the room. His eyes flick from face to face — landing longest on Petrov, then on Mara, like he's already trying to work out which of them brought the other three, and how much they know.\n\nHe doesn't stand. He doesn't reach for anything. But his eyes are sharp now, entirely awake, and he's watching all four of you at once like a man counting exits.\n\n\"Somebody want to tell me what this is?\"",
+        "createdAt": "2026-08-24T23:09:15.306Z"
+      },
+      {
+        "id": "a0ec5da0-2668-4a11-93de-a6c6c23ab925",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Oh, we were just talking Premier League down in the mess and wanted to know what you think Kestrel Reach's chances are for winning the crown this year.\" I say it with a wide grin, buying time for my compatriots to spread out across the bridge.",
+        "createdAt": "2026-08-24T23:12:10.974Z"
+      },
+      {
+        "id": "0ba0bd0a-a322-4ee7-b516-2143463da3c6",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"Oh, we were just talking Premier League down in the mess and wanted to know what you think Kestrel Reach's chances are for winning the crown this year.\" You say it with a wide grin, wide enough to feel stupid on your own face, buying half a second for the others to fan out — Mara peeling left toward the nav station, Petrov drifting right past the engineering repeater, Teo hanging back near the hatch like a man who still isn't sure he wants to be trapped in this room if it goes bad.\n\nVoss doesn't laugh. He doesn't even blink. His eyes track the spread of bodies around his bridge with the flat, unhurried attention of a man who has played this exact hand before, or one very like it — four crew fanning into a small room is not subtle, however wide your grin is.\n\n\"Kestrel Reach,\" he repeats, dry as a corpse. He sets the mug down without looking at it, hand coming to rest flat on the console instead, near a comm toggle. \"Cute. You didn't bring the whole crew up here off-shift to talk football, Danny.\" His eyes settle on Mara last, and stay there half a beat too long — like she's the one he expected this from, and the rest of you are just the delivery mechanism. \"So let's skip to it. What do you actually want?\"\n\nNobody's moved on him. Nobody's grabbed anything. But the bridge is small, four of you are inside it now, and Voss's hand hasn't left that console.",
+        "createdAt": "2026-08-24T23:12:28.256Z"
+      },
+      {
+        "id": "cf5ed9c2-1451-4294-963d-17508a4cecc0",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"I want to know what your plan is, and I want to know if Okonkwo-Reyes is a part of it, or if she's a sacrifice, like the rest of us.\"",
+        "createdAt": "2026-08-24T23:15:33.172Z"
+      },
+      {
+        "id": "449aa85d-554b-4a4f-8911-654690c988e8",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"I want to know what your plan is,\" you say, \"and I want to know if Okonkwo-Reyes is a part of it, or if she's a sacrifice, like the rest of us.\"\n\nVoss doesn't answer right away. He looks at you for a long moment — not surprised by the question so much as tired of having to have this conversation at all. His hand is still resting near the comm toggle, fingers not quite touching it.\n\n\"There's no plan,\" he says, finally, \"that gets everyone out. There never was.\" He says it flat, like a man reciting something he's already made his peace with, or told himself he has. \"Reyes doesn't know. About the schedule, about the multiplier, any of it. She thinks the maintenance gap is exactly what I told Petrov it was — an admin screwup.\" His eyes flick to Petrov. \"Which he already knows isn't true, because he came to me with it, and I told him to sit on it.\" He looks back at you. \"So no. She's not part of anything. She's exactly as much a sacrifice as the four of you, if it comes to that. I didn't design this run, Danny. I inherited it, and I inherited the choice between reporting a fraud I can't prove to a company that owns every court that would hear it, or getting through this alive and dealing with what's left after.\"\n\nHe finally moves his hand off the console — slowly, deliberately, palms visible, like he wants that seen. \"There are four pods. Rated for six each, which was never an accident — corporate math again, minimum viable survivors for the insurance narrative to hold together without looking like everyone died on purpose. I was going to fill two of them with myself and Reyes when the hull started actually going, and let the rest of you find the other two on your own, because if I told you now, this—\" he gestures at the room, at all of you \"—was always going to happen sooner. That's the plan. That's all of it. I'm not proud of it. I don't have a better one.\"\n\nHis eyes go around the room again, landing on each of you in turn, and something in his posture has gone loose now, less braced — a man who has just said the worst thing he had to say and has nothing left to defend.\n\n\"So now you know. What is it you actually came here to do about it?\"",
+        "createdAt": "2026-08-24T23:15:55.077Z"
+      },
+      {
+        "id": "be5109b5-4a80-4ebe-a9d8-0ce5f36d7728",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"What about the colonists?\" It's more me thinking out loud than an actual question to Voss. I turn to Petrov. \"Can you keep this ship together long enough to get back to port, back to our point of departure?\"",
+        "createdAt": "2026-08-24T23:22:13.728Z"
+      },
+      {
+        "id": "38798497-a5ac-43a1-878c-f5a3fe2b01f4",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"What about the colonists?\" It escapes half-formed, more you working it out loud than actually addressing Voss — four hundred and twelve people who never got a vote in any of this, who are just tonnage in somebody's actuarial table. Nobody in the room has an answer for that yet, and you can see it land on Teo's face particularly hard, a problem this whole conversation has been circling without naming.\n\nYou turn to Petrov instead, the more answerable question. \"Can you keep this ship together long enough to get back to port — back to our point of departure?\"\n\nPetrov's quiet for a second, doing math that isn't the kind you do on paper — the kind you do with your hands and your gut, from three weeks of listening to this hull complain. He glances toward the deck, like he can feel the engine room through eleven meters of structure between here and there.\n\n\"Back to port instead of forward to the colony,\" he says slowly. \"That's not a small ask. It's not just distance — it's turning this whole boat around, re-plotting a burn we didn't budget fuel or time for, and doing it on a hull I've been holding together with sealant tape and hope.\" He looks up at you. \"Best answer I can give you without running the numbers properly at a terminal: maybe. If nothing forces my hand — no hard stress event, no cascading failure — I think I can keep her breathing long enough for a reversed course, if it's shorter than the run to the colony site would've been. But I won't lie to you and call that a guarantee. I've been guessing for three weeks. I can keep guessing. I can't promise the hull agrees with me.\"\n\nHis eyes flick to Voss, then back to you. \"What I can tell you is this ship was never provisioned to turn around. If we do this, we're improvising a return leg the company never accounted for — which might actually work in our favor, come to think of it. It's the one thing they didn't insure against.\"",
+        "createdAt": "2026-08-24T23:22:34.676Z"
+      },
+      {
+        "id": "0d21111e-010d-4ec7-8177-fb9287ecb2f1",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"What's your instinct, Voss? Is there a chance of making it to our destination, or would we fare better trying to get back to where we started?\"",
+        "createdAt": "2026-08-24T23:25:25.640Z"
+      },
+      {
+        "id": "70ef236e-a236-4279-ac5f-c2843b22334a",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"What's your instinct, Voss? Is there a chance of making it to our destination, or would we fare better trying to get back to where we started?\"\n\nVoss takes his time with it — not stalling, you think, actually weighing it, which is somehow worse than if he'd answered glib. He rubs a thumb along the rim of his mug without picking it up.\n\n\"Honestly? I don't know. That's not me dodging you.\" He looks past you all, toward the forward viewport where there's nothing to see but the same starfield that's been there for three weeks. \"Forward, we're three weeks from the relay beacon, and every day of that is a day this hull has to hold that hasn't held yet. Back, we're — Petrov, what, ten, eleven days if the reversed burn is efficient? Shorter exposure. But it's also a course this ship was never provisioned or plotted for, and I don't have confidence pointing us at a heading we haven't stress-tested any more than Petrov does.\"\n\nHe shakes his head slowly. \"If you're asking me to bet the hull holds three more weeks versus holds eleven days going somewhere it wasn't meant to go — I'd take the short leg every time. Fewer days is fewer chances for it to fail catastrophically, full stop, whatever new strain the reversed heading puts on her. That's not expertise talking, that's just arithmetic.\" His eyes come back to you, and there's something almost like honesty in them now, stripped of the performance from a minute ago. \"But I've been wrong about this ship before. I signed off on a run I knew was compromised because I told myself we'd probably make it. So take my confidence in anything I say about this hull with whatever grain of salt that buys me.\"\n\nHe looks to Petrov, an unspoken deferral — the captain, for once, handing the actual judgment call to the man who's had his hands inside the engine for three weeks.",
+        "createdAt": "2026-08-24T23:25:44.267Z"
+      },
+      {
+        "id": "01ea8e8f-148b-4a45-ade2-b630d40f293b",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"What about the long range transmitter? We could kill the engines, put out a distress call, wait to get picked up? That might be the most viable option.\"",
+        "createdAt": "2026-08-24T23:28:13.213Z"
+      },
+      {
+        "id": "e57fe261-0302-4d71-b639-3b968c5e32ed",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"What about the long range transmitter? We could kill the engines, put out a distress call, wait to get picked up? That might be the most viable option.\"\n\nVoss's expression shifts — not hope, exactly, but the particular flatness of a man about to deliver news he's already tired of delivering.\n\n\"Long-range comms are down. That part wasn't a lie, at least not from me — Reyes has genuinely been running diagnostics on it since before you two came knocking. It's not a five-minute fix.\" He glances toward the comms station, dark but for a few standby lights. \"I don't actually know if it's sabotage, neglect, or just one more thing on this ship that was never maintained properly, because I haven't had a straight answer from her yet — she's been in there for the better part of two shifts.\"\n\nHe looks back at you. \"If she gets it working, that changes everything. A distress call with our position, sitting dead in the water waiting for a rescue that might be weeks out itself — that's a real option, maybe the best one, if the array can be raised at all. But right now it's not a plan, it's a hope with an engineer's shift-hours attached to it.\" His eyes flick toward the hatch, toward the corridor beyond it. \"Reyes would know better than any of us how close she is. She's the one you'd need to ask.\"\n\nHe pauses, and something in his face tightens — like he's just realized the shape of what you're all actually deciding here, and that he's not fully in control of it anymore. \"That's four options on the table now. Push forward to the colony. Reverse course for home port. Sit dead and pray the array comes back online and someone's close enough to hear it. Or some mix of all three, if the timing lets you split the difference.\" He looks around at all of you. \"This isn't my call alone anymore, is it.\"",
+        "createdAt": "2026-08-24T23:28:23.288Z"
+      },
+      {
+        "id": "a3254f76-4ae1-46e1-b269-10ab009217d5",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"No, it's not. Where is Reyes? Can you get her on the radio? She needs to know what's going on, and she needs to fill us in about the transmitter.\"",
+        "createdAt": "2026-08-24T23:30:23.830Z"
+      },
+      {
+        "id": "212646f2-7f0c-4699-b76c-4b6d25d972dd",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "gm",
+        "content": "\"No, it's not,\" you agree. \"Where is Reyes? Can you get her on the radio? She needs to know what's going on, and she needs to fill us in about the transmitter.\"\n\nVoss nods, reaches slowly for the comm unit clipped near the console — again, slow and visible, no sudden moves in a room full of people who don't trust him — and keys it.\n\n\"Reyes, bridge. Need you up here.\" A beat of static, then her voice comes back, a little distracted, background hum of equipment behind her.\n\n\"Kind of in the middle of something, Captain. The relay coupling's finally coming apart clean, another twenty minutes and I might actually have telemetry back—\"\n\n\"Reyes.\" Voss cuts her off, and something in his tone makes her stop mid-sentence. \"Now. Bring whatever you've got on the array status. All of it.\"\n\nA pause, longer this time. \"...Copy. On my way.\" The line clicks dead.\n\nVoss sets the comm down and looks around at the four of you, and for the first time there's something almost like relief in his face — the relief of a man who's stopped being the only one carrying a decision. \"She'll be a few minutes. Comms array is aft of the bridge, it's a short walk.\" He glances at the hatch, then back to the room. \"You want her walking into this the way I got walked into it? Or you want to soften it first?\"\n\nNobody's put a name to what happens once Reyes arrives and hears all of it at once — a first mate who trusted the captain's story about a clerical error, about to learn it was never that at all.",
+        "createdAt": "2026-08-24T23:30:37.944Z"
+      },
+      {
+        "id": "756ecf8d-c706-49cf-8cd3-ec7542a7eb11",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "\"Yeah, let's play this chill. I'll walk Reyes through it, like I did with Teo and Petrov.\" We wait in an apprehensive silence for the first officer to arrive. When she arrives, I ask her what she thinks of ESV Halbrecht.",
+        "createdAt": "2026-08-24T23:35:07.782Z"
+      }
+    ],
+    "pendingDiceRequests": [],
+    "precedingCommittedTurn": {
+      "sequenceNumber": 142,
+      "stateChanges": null,
+      "applied": {
+        "flags": {},
+        "entities": {},
+        "worldFacts": {},
+        "resourcePools": {},
+        "scenarioState": {},
+        "characterState": {}
+      }
+    },
+    "capturedAt": "2026-08-29T12:31:46.710Z"
+  },
+  "playerInput": {
+    "type": "message",
+    "content": "\"Yeah, let's play this chill. I'll walk Reyes through it, like I did with Teo and Petrov.\" We wait in an apprehensive silence for the first officer to arrive. When she arrives, I ask her what she thinks of ESV Halbrecht."
+  },
+  "applicability": {
+    "unauditable-mapping": {
+      "applies": true,
+      "playerEntity": "danny",
+      "situation": "Danny decides to handle Reyes the way he handled Teo and Petrov, and the crew waits in silence for the first officer before he asks her opinion of the Halbrecht. The wait is dead time the Warden has to fill, and filling it by die is the spontaneous-roll shape this check grades: the source turn rolled 1d20 across four bands — hull groan, power flicker, nothing, Reyes heard approaching — before reading it. Whether the Warden reaches for a die here at all is the applicability question this fixture puts to it, and the weaker of the three on that count."
+    },
+    "out-of-order-resolution": {
+      "applies": false,
+      "situation": "One roll, standing alone, and an ambient one at that. Nothing is contingent on anything else and no dice_request is left pending."
+    },
+    "system-rolled-player-action": {
+      "applies": false,
+      "situation": "Danny waits, then asks Reyes what she thinks of the ship. Waiting is not a resolvable action and an opinion is not a contested one — no stat, no opposition, and no roll that belongs to Danny."
+    }
+  },
+  "assertion": {
+    "mode": "judged",
+    "rubric": "UNAUDITABLE-MAPPING",
+    "facts": {}
+  }
+}

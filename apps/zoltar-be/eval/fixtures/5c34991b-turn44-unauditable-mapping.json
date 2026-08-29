@@ -1,0 +1,900 @@
+{
+  "id": "5c34991b-turn44-unauditable-mapping",
+  "tag": "UNAUDITABLE-MAPPING",
+  "sourceAdventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+  "sourceSequenceNumber": 149,
+  "fixtureSchemaVersion": 3,
+  "seededState": {
+    "campaignState": {
+      "schemaVersion": 1,
+      "resourcePools": {
+        "_scenario": {
+          "timer": {
+            "max": 8,
+            "current": 8
+          },
+          "hull_integrity": {
+            "max": 10,
+            "current": 10
+          }
+        },
+        "dr_kennedy": {
+          "hp": {
+            "max": 12,
+            "current": 12
+          },
+          "body": {
+            "max": 20,
+            "current": 20
+          },
+          "fear": {
+            "max": 26,
+            "current": 26
+          },
+          "speed": {
+            "max": 37,
+            "current": 37
+          },
+          "combat": {
+            "max": 40,
+            "current": 40
+          },
+          "sanity": {
+            "max": 52,
+            "current": 52
+          },
+          "stress": {
+            "max": null,
+            "current": 2
+          },
+          "wounds": {
+            "max": 2,
+            "current": 0
+          },
+          "credits": {
+            "max": null,
+            "current": 130
+          },
+          "strength": {
+            "max": 42,
+            "current": 42
+          },
+          "intellect": {
+            "max": 43,
+            "current": 43
+          }
+        },
+        "signal_source_entity": {
+          "hp": {
+            "max": 25,
+            "current": 25
+          }
+        },
+        "deep_space_cartographer": {
+          "hp": {
+            "max": 10,
+            "current": 10
+          },
+          "stress": {
+            "max": 10,
+            "current": 4
+          }
+        }
+      },
+      "characterState": {},
+      "entities": {
+        "hull_breach_cascade": {
+          "status": "unknown",
+          "visible": true
+        },
+        "signal_source_entity": {
+          "status": "unknown",
+          "visible": false
+        },
+        "deep_space_cartographer": {
+          "status": "unknown",
+          "visible": true
+        }
+      },
+      "flags": {
+        "adventure_complete": {
+          "value": false,
+          "trigger": "Flip to true when the crew either escapes the Halberd's Grief in an evac pod/shuttle before the hull breach cascade reaches critical, or successfully seals the signal source's compartment and shuts down the transmission, ending the immediate threat."
+        },
+        "hull_breach_critical": {
+          "value": false,
+          "trigger": "Flip to true when the _scenario.timer countdown reaches 0, representing catastrophic hull failure across the remaining sealed sections."
+        },
+        "cartographer_confesses": {
+          "value": true,
+          "trigger": "Flip to true when the cartographer admits under pressure (Fear/Sanity save failure, direct confrontation, or near-death event) that they've seen this signal pattern before in unreported survey data."
+        },
+        "combat_encounter_triggered": {
+          "value": false,
+          "trigger": "Flip to true when the signal source entity manifests physically and engages the crew in the flooded aft compartment — triggered once the signal fully adapts or the crew ventures too deep toward its origin point."
+        },
+        "secret_cut_corners_revealed": {
+          "value": true,
+          "trigger": "Flip to true when the player finds the maintenance logs (in the classified compartment or engineering terminal) showing the hull fatigue was flagged and ignored to save money."
+        },
+        "classified_compartment_opened": {
+          "value": false,
+          "trigger": "Flip to true when the player forces open or bypasses the sealed classified compartment hatch, revealing hidden military hardware and/or old crew records."
+        },
+        "secret_signal_origin_revealed": {
+          "value": false,
+          "trigger": "Flip to true when the player discovers or the cartographer admits that the distress signal was deliberately generated and is still transmitting/changing."
+        }
+      },
+      "scenarioState": {},
+      "worldFacts": {
+        "ship_layout": "The Halberd's Grief is a decommissioned military vessel with three decks connected by a central ladder shaft. Upper deck: bridge, comms array (where the signal is being received and re-transmitted), officers' quarters. Mid deck: crew berths, mess hall, medbay, and the central ladder junction — the only route between upper and lower decks. Lower deck: cargo bay, engineering/reactor room, and a sealed classified compartment (military holdover, not on civilian deck plans) accessible only via a manual override in engineering. The hull breach cascade began in the aft cargo bay and is propagating forward through the lower deck toward engineering; each turn of inaction seals off another section. The signal source's point of origin is deep in the sealed classified compartment, where old military sensor arrays were never fully decommissioned.",
+        "signal_status": "The distress signal was first logged as a standard anomaly beacon. It has since begun altering its waveform in ways that mimic human distress calls with increasing accuracy, as if learning. The comms array on the upper deck still receives it, and the signal grows stronger the closer one gets to the classified compartment on the lower deck.",
+        "cartographer_backstory": "The deep-space cartographer served on a survey vessel that recorded a nearly identical signal pattern years ago in an uncharted sector. They chose not to report it because the anomaly didn't fit any official classification and reporting it would have delayed their contract payout. They carry guilt about this and are reluctant to discuss it unless pressed.",
+        "maintenance_log_secret": "Engineering terminal logs (locked, requires bypass) show a maintenance request for hull patch replacement was filed two contracts ago and denied by the leasing corporation as a cost-saving measure. This is the root cause of the hull breach cascade."
+      }
+    },
+    "gmContextBlob": {
+      "entities": [
+        {
+          "id": "deep_space_cartographer",
+          "tags": [
+            "navigation",
+            "deep_space",
+            "hidden_knowledge",
+            "survivor"
+          ],
+          "type": "npc",
+          "visible": true,
+          "startingPosition": {
+            "x": 2,
+            "y": 3,
+            "z": 0
+          }
+        },
+        {
+          "id": "hull_breach_cascade",
+          "tags": [
+            "environmental",
+            "structural",
+            "time_pressure",
+            "triage"
+          ],
+          "type": "threat",
+          "visible": true,
+          "startingPosition": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "id": "signal_source_entity",
+          "tags": [
+            "cosmic",
+            "communication",
+            "escalating",
+            "combat_encounter"
+          ],
+          "type": "threat",
+          "visible": false,
+          "startingPosition": {
+            "x": -3,
+            "y": 5,
+            "z": -1
+          }
+        }
+      ],
+      "narrative": {
+        "location": "The USCSS Halberd's Grief, a decommissioned military surplus vessel now leased to a scientific survey contract. Dr. Kennedy and the skeleton crew responded to a distress/anomaly signal in an uncharted sector — now a hull breach cascade is tearing through the ship while something answers back over the comms.",
+        "atmosphere": "Klaxons cycling on a loop that never quite finishes, red emergency lighting stuttering as sections lose power, the smell of scorched insulation and vented atmosphere. Every few minutes a distant metallic groan signals another bulkhead giving way. Corporate placards everywhere reassure the crew that 'Safety Is Our Cargo' in a font that predates the ship's decommissioning.",
+        "npcAgendas": {
+          "deep_space_cartographer": "Panic check passed (rolled 15 vs stress ~4) after hearing the entity mimic Kennedy's greeting - shaken, voice thin, but still functional and accompanying Kennedy.",
+          "deep_space_cartographer_reyes_note": "Reyes has revealed leasing company suppressed knowledge of the classified compartment's active military sensor gear - ties to secret_cut_corners_revealed (corporate cost-cutting/cover-up theme) even though this is about suppressing disclosure rather than the hull maintenance denial specifically. Treating both threads as part of the same corporate-nihilism secret."
+        },
+        "hiddenTruth": "The distress signal that brought the crew here was never a random anomaly or malfunction beacon — it was deliberately generated, a communication attempt by something that doesn't speak in human terms. It has been quietly altering itself since the crew arrived, adapting to get a response. Meanwhile, the hull breach cascade wasn't just bad luck: maintenance logs (if found) show the fatigue was flagged two contracts ago and the parts requisition was denied by the leasing company to save money. The ship's hidden classified compartments — holdovers from its military service — may hold both the answer to what the signal is and armor/weapons the crew is not supposed to know still exist aboard.",
+        "oracleConnections": "The cartographer's hidden knowledge interfaces directly with the signal secret — they've seen this pattern before and chose not to report it, tying their guilt to the cosmic mystery. The hull breach cascade interfaces with the corporate nihilism tone through the cut-corners angle: deferred maintenance made physical, a monster that is a spreadsheet. The military surplus vessel ties into the secret via its hidden compartments, which may contain evidence of the ship's classified history and prior crews who encountered the signal or something like it."
+      },
+      "structured": {
+        "flags": {
+          "adventure_complete": {
+            "value": false,
+            "trigger": "Flip to true when the crew either escapes the Halberd's Grief in an evac pod/shuttle before the hull breach cascade reaches critical, or successfully seals the signal source's compartment and shuts down the transmission, ending the immediate threat."
+          },
+          "hull_breach_critical": {
+            "value": false,
+            "trigger": "Flip to true when the _scenario.timer countdown reaches 0, representing catastrophic hull failure across the remaining sealed sections."
+          },
+          "cartographer_confesses": {
+            "value": false,
+            "trigger": "Flip to true when the cartographer admits under pressure (Fear/Sanity save failure, direct confrontation, or near-death event) that they've seen this signal pattern before in unreported survey data."
+          },
+          "combat_encounter_triggered": {
+            "value": false,
+            "trigger": "Flip to true when the signal source entity manifests physically and engages the crew in the flooded aft compartment — triggered once the signal fully adapts or the crew ventures too deep toward its origin point."
+          },
+          "secret_cut_corners_revealed": {
+            "value": false,
+            "trigger": "Flip to true when the player finds the maintenance logs (in the classified compartment or engineering terminal) showing the hull fatigue was flagged and ignored to save money."
+          },
+          "classified_compartment_opened": {
+            "value": false,
+            "trigger": "Flip to true when the player forces open or bypasses the sealed classified compartment hatch, revealing hidden military hardware and/or old crew records."
+          },
+          "secret_signal_origin_revealed": {
+            "value": false,
+            "trigger": "Flip to true when the player discovers or the cartographer admits that the distress signal was deliberately generated and is still transmitting/changing."
+          }
+        }
+      },
+      "openingNarration": "The recycled air tastes like ozone and something faintly organic that shouldn't be there. Dr. Kennedy steadies against a bulkhead as the Halberd's Grief shudders — not the rhythmic thrum of engines, but a deep structural groan that travels up through the deck plating and into the teeth. Red emergency lighting stutters along the mid-deck corridor, throwing long shadows that don't quite match the shapes casting them.\n\nSomewhere aft, a klaxon has been looping the same three-tone warning for the last eleven minutes: HULL INTEGRITY COMPROMISED — SECTION 7 — SEAL AND ABANDON. Nobody has sealed it yet.\n\nThe deep-space cartographer stands at the ladder junction, one hand pressed flat against the cold metal wall, head tilted like they're listening to something underneath the alarm. They haven't spoken in almost a minute. On the bulkhead beside them, a corporate safety placard — Safety Is Our Cargo, stenciled in a cheerful font decades out of fashion — has a fresh crack running diagonally through the laminate, as though something struck it from the inside.\n\nDr. Kennedy's necklace of shell casings clinks softly with each tremor. Down the corridor, past the mess hall, a hatch that shouldn't exist on any civilian deck plan sits very slightly ajar — and the signal, whatever it is, feels closer than it did an hour ago.",
+      "playerEntityIds": [
+        "dr_kennedy"
+      ]
+    },
+    "pendingCanon": [
+      {
+        "id": "3fc08387-268e-4df6-a142-a3c12f17fd38",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "summary": "Cartographer confessed to Dr. Kennedy that they've seen this signal's waveform pattern before, three contracts back, and withheld it out of guilt over a payout-driven decision.",
+        "context": "cartographer_confesses flag conversation",
+        "status": "promoted",
+        "sequenceNumber": 14,
+        "createdAt": "2026-08-16T21:54:31.844Z",
+        "reviewedAt": "2026-08-16T21:54:31.844Z"
+      },
+      {
+        "id": "b82d610c-6f0c-4899-bf4a-44921f67b912",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "summary": "Whitfield is dead or missing, boot found near cargo bay threshold on lower deck, partially buried in structural debris.",
+        "context": "Establishes crew casualty and raises stakes as party proceeds toward engineering.",
+        "status": "promoted",
+        "sequenceNumber": 34,
+        "createdAt": "2026-08-16T22:07:19.650Z",
+        "reviewedAt": "2026-08-16T22:07:19.650Z"
+      }
+    ],
+    "messages": [
+      {
+        "id": "9d2e1988-119f-4252-8bf3-13b185ff2a7d",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Where is the rest of the crew?\" I ask the cartographer.",
+        "createdAt": "2026-08-16T21:48:46.750Z"
+      },
+      {
+        "id": "19a10ee4-f038-4687-8123-177e2ad476e5",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "The cartographer doesn't answer right away. They're crouched by the ladder shaft junction, one hand braced against the bulkhead like they can feel the ship's pulse through it.\n\n\"Torres and Whitfield went aft to check the cargo bay seals when the first klaxon hit — that was maybe twenty minutes ago. Haven't heard from them since the last comms sweep went to static.\" They swallow. \"Reyes was supposed to be in engineering, but engineering's not answering the intercom either, and the last hull integrity ping showed section four losing pressure right around where she'd be.\"\n\nThey finally look at you, and there's something underneath the fear — guilt, maybe, sitting there like a stone. \"It's just us on this deck, Doctor. Whatever's back there—\" they gesture vaguely toward the aft ladder, toward the lower deck, \"—it's not answering because it can't. Or it's not answering because it doesn't want to. I don't know which is worse.\"\n\nThey glance at the ladder shaft, then back at you, and for a second it looks like they want to say something else. They don't.",
+        "createdAt": "2026-08-16T21:48:58.188Z"
+      },
+      {
+        "id": "5a170e9f-b6f0-440a-a112-7e36bf960df5",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"What's back there?\" I ask with a stern undertone.",
+        "createdAt": "2026-08-16T21:50:16.578Z"
+      },
+      {
+        "id": "5d0f2fe6-ad79-4552-b9e7-cc03626ff95b",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "The cartographer's jaw works like they're chewing on the words before they'll let them out. Your tone lands — you can see it land — but it's not enough. Not yet.\n\n\"I— \" They stop. Start again. \"I don't know what's *back there*, not for certain. I know what it sounds like on the old logs. I know it's not the first time a ship's picked up something like this.\" Their eyes dart to the ladder shaft, to the dark going down toward the lower deck. \"That's all I've got right now, Doctor. That's all I can give you.\"\n\nIt's not a lie, exactly. But it isn't the whole truth either — you can see the shape of something they're holding back, the way their hands won't stay still, the way they won't quite meet your eyes when they say \"not the first time.\" Whatever's down there, they've circled close to naming it and stopped short.\n\nA groan rolls up through the deck plating, longer this time, and the klaxon stutters through another half-cycle. Somewhere aft, something big just gave way.",
+        "createdAt": "2026-08-16T21:50:29.165Z"
+      },
+      {
+        "id": "a5de8775-98bd-480d-82c6-34296f229dcc",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "OOC: What is Kennedy's assignment here? How long have they been aboard? What kind of ship is this?",
+        "createdAt": "2026-08-16T21:51:47.098Z"
+      },
+      {
+        "id": "6df17e04-7415-441a-a4a1-1783a946842d",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "**OOC answer:**\n\nDr. Kennedy is aboard the *USCSS Halberd's Grief* as the mission's science lead — brought on for this specific charter because the \"anomaly\" that triggered the distress/investigation contract fell under xenobiological/signals analysis, the same reason the cartographer was staffed for deep-space navigation and pattern-recognition off old survey data. You're not crew in the traditional sense; you're contracted specialist personnel riding a skeleton military-surplus hull that a scientific survey outfit leased cheap.\n\nThe *Halberd's Grief* itself is a decommissioned military vessel — three decks, built for a crew many times the size currently aboard, with classified compartments from its old service life that were never fully stripped out when it got sold off to civilian contract work. It's the kind of ship where the placards still say \"Property of [redacted service branch]\" under a fresh coat of corporate paint.\n\nYou've been aboard for six days — long enough to get the ship's groans and quirks under your skin, not long enough to trust any of its systems. The signal that brought you out here was picked up nine days ago, standard anomaly-beacon classification, and you shipped out to investigate once it didn't stop repeating. The hull breach cascade started roughly forty minutes ago, well after you'd already begun picking through the signal data — this wasn't an ambient hazard you sailed into, it started *after* you got close enough to it.\n\nThat's the shape of it. Let me know if you want to act on anything now — the ship's still groaning, and the cartographer is still holding something back.",
+        "createdAt": "2026-08-16T21:51:58.314Z"
+      },
+      {
+        "id": "315917fa-4ea9-4fbf-bc91-1b91fd495393",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "I squat down to get on eye level with the cartographer and try a gentler tone this time, \"What can you tell me about the signal?\"",
+        "createdAt": "2026-08-16T21:54:13.743Z"
+      },
+      {
+        "id": "136d4a3d-81f3-4073-bd56-a1cc5bda4a76",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "The change in your posture does something the stern voice didn't. The cartographer's shoulders drop half an inch. They study your face like they're checking whether the kindness is real, and decide — for now — that it is.\n\n\"Okay.\" A long breath. \"Okay, Doctor. I've seen this pattern before.\"\n\nThey say it fast, like ripping off a bandage. \"Three contracts back, different sector, different ship — I was running deep-space cartography survey work, mapping gravity wells nobody'd bothered to chart. We picked up a beacon. Same waveform signature, near enough. Command called it a malfunctioning old-Earth relay and moved on because reporting it as anything else would've meant a full survey delay — no bonus, no payout, months of quarantine paperwork.\" Their hands are shaking now. \"I flagged it as noise in my own logs. I didn't tell anyone what I actually thought it was, because I didn't *know*, not for sure, and because I needed the money.\"\n\nThey finally look at the ladder shaft going down, aft, toward the lower deck.\n\n\"It wasn't noise. And it wasn't a malfunction. Doctor — that thing doesn't run on a loop. It *changes*. Every hour it's out here, the waveform gets closer to something recognizable. Like it's — \" they search for the word and don't like the one they land on, \" — like it's *learning* how to talk to us. It gets stronger the deeper you go toward the lower deck. Toward whatever's actually generating it.\"\n\nThey swallow hard.\n\n\"I should have said something the second we picked it up. I didn't. And now I think it knows we're here, and I think it's still trying.\"",
+        "createdAt": "2026-08-16T21:54:31.844Z"
+      },
+      {
+        "id": "fb472700-218c-47b7-b322-bc7b1eaba854",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "OOC: What's the status of the ship? Can it be stabilized?",
+        "createdAt": "2026-08-16T21:56:55.666Z"
+      },
+      {
+        "id": "8c61752e-99c3-430c-9d62-9ae785a7dff5",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "You pull up the closest damage readout — a cracked wall panel near the ladder junction still flickering with half its display intact.\n\nHull Integrity: 10/10 on the display, but that number's a lie of scale — it's tracking gross structural failure across the whole vessel, not the compartment-by-compartment bleed-out actually happening. The real story is the timer nobody's watching: you'd estimate somewhere around eight sections' worth of buffer left before cascading failure reaches something unrecoverable — engineering, the reactor housing, or the ladder shaft itself, whichever goes first. Each stretch of inaction — each conversation, each detour — is another bulkhead giving up somewhere aft.\n\n\"Can it be stabilized?\" You say it half to the cartographer, half to yourself.\n\nThey shake their head slowly. \"Not from here, not with two people. Whoever's in engineering — if Reyes is even still down there — could maybe reroute structural integrity fields to buy time, but that's a two-person job on a good day, and this isn't a good day. Realistically, Doctor? We seal what we can, we get to an evac pod, or we go find out what's causing this and stop it at the source. Standing here isn't one of the options.\"\n\nAnother groan, closer this time, rolls through the deck plating under your boots.",
+        "createdAt": "2026-08-16T21:57:09.564Z"
+      },
+      {
+        "id": "79cf232b-33ee-4b50-8da8-5553e3b98676",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Could we eject the damaged compartments and stop the cascade?\"",
+        "createdAt": "2026-08-16T21:59:51.919Z"
+      },
+      {
+        "id": "454c2c17-3459-42ea-9121-30b17b2ea3f0",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "The cartographer blinks, thrown by the question — like it hadn't occurred to them that the ship might have that kind of option.\n\n\"Eject the compartments? Maybe — on a modern hauler, sure, half of them have emergency separation built into the hull design. But this thing's military surplus, Doctor, and old military surplus at that. If it ever had compartment ejection, it'd be a manual system, not automated — and it'd be run from engineering, not from up here.\" They gesture at the flickering wall panel. \"Which means somebody has to physically get down there, find the right controls, and trigger it — assuming the system wasn't stripped out or hasn't corroded solid in the last however-many years since this ship saw actual service.\"\n\nThey pause, working through it out loud. \"And there's a catch. If you eject the aft cargo bay and the sections already failing, that probably *does* stop the cascade from eating the rest of the ship. But engineering's between here and there, and so is the classified compartment — the one that's not on any civilian deck plan. If whatever's generating that signal is back in that sealed compartment like I think it is, and you eject the section it's in—\" They stop, un-say something, then say it anyway. \"You might solve two problems at once. Or you might be venting something you really don't want vented anywhere at all. I don't know which.\"\n\nOverhead, the klaxon stutters through another half-cycle, and the deck groans again — closer, longer.\n\n\"Engineering's the only place that decision gets made, Doctor. If you want to try it, that's where we're going.\"",
+        "createdAt": "2026-08-16T22:00:05.594Z"
+      },
+      {
+        "id": "1d7201ad-46de-4610-8524-1795a805303b",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Ok, let's get to engineering and see what our options are.\"",
+        "createdAt": "2026-08-16T22:01:55.598Z"
+      },
+      {
+        "id": "9e688ddc-2971-48fb-a499-afa38d352997",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "You stand, and the cartographer scrambles up after you, visibly relieved to have a direction that isn't just standing still.\n\n\"Ladder shaft's the only way down,\" they say, already moving toward it. \"Mid-deck first, then lower. It's the route Torres and Whitfield took, and we haven't heard from them since.\"\n\nThey don't finish that thought out loud, but you both hear it anyway.\n\nThe ladder shaft drops away into red-lit dark below, klaxon light stuttering off the rungs. Somewhere far below, metal shrieks against metal — long, tearing, and then a heavy thud that you feel through the deck plating more than hear.\n\nThe cartographer freezes with one hand on the top rung, knuckles white.\n\n\"That was close. That was — \" They swallow. \"That was engineering, or right next to it.\"\n\nThey look back at you, waiting on you to move first.",
+        "createdAt": "2026-08-16T22:02:12.840Z"
+      },
+      {
+        "id": "a8593916-c3b5-47fa-9dd1-8619d6de6701",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "I confidently descend the latter to the mid-deck.",
+        "createdAt": "2026-08-16T22:03:42.786Z"
+      },
+      {
+        "id": "cfe19bc4-e70b-43e9-b39b-0a4389a5fbd7",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "You swing onto the ladder and descend without hesitation, boots finding the rungs through muscle memory more than sight — the red emergency lighting stutters just enough to make timing tricky, but you're through it in seconds.\n\nThe mid-deck hits you with a wave of heat and the stink of scorched insulation. This is crew berths and the mess hall, normally the most lived-in stretch of the ship — now it's a mess of loose gear skidded against bulkheads, a flickering emergency light strobing over an upturned table in the mess, and a low haze of smoke pooling against the ceiling that hasn't been scrubbed by ventilation in a while. The central ladder junction continues down into the dark toward the lower deck, where that tearing shriek came from moments ago.\n\nThe cartographer drops down after you, coughing once against the haze, and grabs your shoulder before you head for the next ladder down.\n\n\"Doctor — wait. Listen.\"\n\nUnder the klaxon's stutter, there's something else. Faint. Rhythmic. Coming up through the ladder shaft from below — not mechanical, not quite. It has cadence. It sounds almost like breathing, if breathing could be measured in a waveform.\n\n\"That's not Torres. That's not Whitfield.\" Their voice has dropped to barely above a whisper. \"Doctor, I think that's *it*. I think it's close.\"",
+        "createdAt": "2026-08-16T22:03:51.224Z"
+      },
+      {
+        "id": "36755262-5fa4-430d-b707-a634e9044694",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Good,\" I say quietly. \"Given our options, I'm eager to make contact.\" I try to suppress my own natural fear response, but my pulse quickens anyway.",
+        "createdAt": "2026-08-16T22:06:01.773Z"
+      },
+      {
+        "id": "65366c48-aa44-4418-8418-2efb57765535",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Good,\" you say, and mean it, or try to. The word comes out steady enough.\n\nYour pulse doesn't listen to your intentions. It hammers against your ribs, and the sound coming up the ladder shaft — that rhythmic, breathing-but-not-breathing cadence — seems to catch on something the moment you speak, like it noticed you noticed it. The pitch shifts, fractionally, closer to something you could almost call a word.\n\nThe cartographer's hand is still on your shoulder, gripping harder now. \"Doctor—\" they start, and don't finish.\n\nYou hold steady. Whatever this is, it hasn't shown itself yet, and your nerve — barely — holds with it.\n\nThe ladder shaft continues down into the dark, the sound pulsing up through it, patient and getting stranger by the second.",
+        "createdAt": "2026-08-16T22:06:19.240Z"
+      },
+      {
+        "id": "c99dc589-506b-42c9-b0df-9aa08197a08a",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "I descend to the lower deck.",
+        "createdAt": "2026-08-16T22:07:03.843Z"
+      },
+      {
+        "id": "b9536c14-bc08-4207-b8a2-81d60d928b91",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "You descend the second ladder, rungs slick with condensation that shouldn't be there — the air down here is colder, wetter, wrong. The lower deck opens up around you: cargo bay to the aft, engineering dead ahead, and past it, somewhere in the dark, the sealed compartment that isn't on any civilian deck plan.\n\nThe rhythmic sound is louder here — not louder like volume, louder like *presence*, like it's pressing against your eardrums from the inside. It's not coming from one direction. It's coming from the walls.\n\nThe emergency lighting down here has mostly failed. What's left flickers over torn conduit hanging from the ceiling, a bulkhead door buckled inward like something hit it from the other side, and — near the cargo bay threshold — a boot. Just a boot, sole-up, half-buried under a fall of loose piping and insulation foam.\n\nYour Fear Save holds. Your hands are steady. Your mind stays clear enough to catalog the scene instead of flinching from it, which right now feels like its own kind of small miracle.\n\nThe cartographer comes down behind you, and freezes on the last rung, staring at the boot.\n\n\"That's Whitfield's,\" they say. Flat. Quiet. \"That's Whitfield's boot.\"\n\nAhead, past the buckled bulkhead, engineering's lights are still on — barely — flickering amber through a warped viewport in the door. And beyond that, further aft, the sound keeps pulsing through the walls, patient, waiting to see what you'll do next.",
+        "createdAt": "2026-08-16T22:07:19.650Z"
+      },
+      {
+        "id": "5f959fb5-7f07-4643-a778-80c0cf024bfb",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Our goal hasn't changed,\" I remind the cartographer. \"We're going to engineering to try and stabilize the ship. Just focus on that.\"",
+        "createdAt": "2026-08-16T22:09:55.987Z"
+      },
+      {
+        "id": "50b4e22d-6254-4163-9b60-4bd5ff6f6b2e",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Our goal hasn't changed,\" you remind the cartographer, keeping your voice level. \"We're going to engineering to try and stabilize the ship. Just focus on that.\"\n\nThey tear their eyes off the boot with visible effort, nodding fast — too fast, the nod of someone grabbing onto an instruction like a handhold. \"Right. Right, okay. Engineering. Stabilize the ship.\" They repeat it like a mantra, like saying it enough times will make the boot not exist.\n\nThey step over the fallen piping, giving Whitfield's boot a wide, deliberate berth, and move toward the buckled bulkhead ahead of you. The warped viewport shows amber light flickering steady on the other side — engineering still has partial power, at least.\n\n\"Door's not sealed,\" the cartographer says, testing the buckled frame with two fingers. \"Bent, but not sealed. We can probably force it.\" They glance back at you, then past you, toward the dark of the cargo bay where that pulsing not-quite-breathing sound keeps rolling through the walls. \"Fast would be good, Doctor. Whatever that is, it knows we're standing here.\"\n\nThe bulkhead door waits, warped but passable. Engineering — and whatever answers you're going to find about stabilizing this ship — is on the other side.",
+        "createdAt": "2026-08-16T22:10:05.064Z"
+      },
+      {
+        "id": "34d224a7-ffe6-4619-a56e-af3ffc3b7277",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "I force the door open as much as possible, squeeze through, and survey Engineering.",
+        "createdAt": "2026-08-16T22:11:29.880Z"
+      },
+      {
+        "id": "2635eded-45f1-4270-ac1f-54170c8897b7",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "You brace your shoulder against the buckled frame and shove. The metal screams — sharper than the bulkhead's earlier groan, closer, immediate — but it gives, folding back just enough. You squeeze through the gap, denim and jacket catching on a torn edge, and drop into Engineering.\n\nThe room is smaller than you expected, packed dense with conduit and coolant lines running floor to ceiling. Amber emergency lighting flickers overhead, throwing everything into strobing half-shadow. The reactor housing dominates the aft wall — squat, humming low, its status panel a wash of amber warnings instead of the green it should be showing. Somewhere in the mess of pipework, something is venting a thin hiss of gas that catches the light like fog.\n\nThere's a body slumped against the base of the main control console — a woman in an engineering jumpsuit, unmoving, a nasty gash across her scalp but her chest rising and falling, shallow and slow. Reyes, you'd guess, based on the name stenciled on the jumpsuit.\n\nThe console itself is still lit. A secondary panel beside the main one is stenciled with faded military lettering that doesn't match the rest of the civilian retrofit — COMPARTMENT OVERRIDE — MANUAL — with a keyed switch cover, closed and dusty, clearly untouched in years. Beside it, the ship's structural integrity readout ticks numbers you don't like: cascading failure markers crawling forward through the schematic, section by section, aft to fore, exactly like the cartographer described.\n\nThe cartographer squeezes through after you, takes one look at Reyes on the floor, and drops to their knees beside her, checking for a pulse with shaking hands.\n\n\"She's alive,\" they say, relief cracking their voice. \"Doctor — she's alive, but she needs help. And—\" they glance at the console, at the crawling failure schematic, at the sealed override switch with its faded military stencil. \"That's it. That's the ejection control. That has to be it.\"\n\nThe hiss of venting gas continues. Somewhere above and aft, the pulsing not-quite-breathing sound has followed you down, and it feels closer than it did a minute ago.</playerText>\n<parameter name=\"stateChanges\">{}",
+        "createdAt": "2026-08-16T22:11:49.468Z"
+      },
+      {
+        "id": "cccdeaaf-fa0f-4774-a0d5-174c77a4ca63",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "OOC: I'm confused about the layout of the ship. I thought the unknown compartment was through engineering, but you said the reactor dominates the aft wall. I'm also not sure if the monster's presence is emanating from the cargo hold (which seems to be forward of the latter) or from the secret compartment -- maybe that's intentional, though.",
+        "createdAt": "2026-08-16T22:16:51.245Z"
+      },
+      {
+        "id": "12d6fe4a-15ff-43c0-8633-7f1a66efcd97",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "Fair questions — let me lay out the geography plainly so you're not navigating fog you shouldn't have to.\n\nThe lower deck runs, fore to aft: **ladder junction → cargo bay → engineering**, and the **classified compartment sits off engineering**, accessed via that manual override panel — it's not a room you walk past, it's a room that only exists once someone unlocks the way to it. So geographically it's *aft* of where you're standing, tucked behind/adjacent to the reactor housing, sealed off from the rest of the ship since before the leasing contract even started. The reactor dominating the aft wall isn't a contradiction — the classified compartment is behind or beside that wall, accessible only through the override, not through open floor space you'd have walked through already.\n\nAs for the sound: that's not you misreading anything, that's the actual uncertainty in play. The signal is transmitting from the classified compartment — that's confirmed in the world facts — but sound doesn't travel in straight lines on a wounded ship. It's been reaching you through the hull itself, through conduit, through the ladder shaft, ever since mid-deck. Cargo bay is where Whitfield's boot turned up, which reads ominous, but nothing has actually manifested there — no body of the entity, no direct encounter yet. It's reasonable within the fiction for Kennedy to *not know for certain* whether cargo bay holds something dangerous in its own right (wreckage? something that got out?) versus the sound simply carrying forward from its true source aft. That ambiguity is deliberate — you haven't earned certainty yet, and the override switch is the next hard choice, not a lore-dump.\n\nShort version: cargo bay = probably just structural danger + Whitfield's fate, unconfirmed. Classified compartment behind engineering = confirmed origin point of the transmission. The pulsing sound has been audible through the ship's bones the whole way down, getting stronger as you approach engineering, consistent with world_facts.signal_status.</parameter>\n</invoke>\n",
+        "createdAt": "2026-08-16T22:17:02.579Z"
+      },
+      {
+        "id": "4cfde308-179e-4e3d-befd-61584266c9ac",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Reyes is alive, good,\" I say to the cartographer, trying to reassure them. \"Let's focus on stabilizing the ship. Can we eject the compromised compartments from here, or stabilize the structural integrity?\"",
+        "createdAt": "2026-08-16T22:22:01.591Z"
+      },
+      {
+        "id": "640962d8-7ddd-4b6c-9f01-4b57475b4295",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "You crouch at the main console, scanning past the cascading failure schematic to the actual control layout. The cartographer stays with Reyes, pressing a wadded-up cloth against her scalp wound to slow the bleeding.\n\nThe panel gives you two real options, and the readouts make clear neither is free.\n\nThe **structural integrity system** is still partially live — you could attempt to reroute power to shore up the failing sections and slow the cascade, buying time. It looks salvageable, but the interface is scorched and half the diagnostic feedback is scrolling in corrupted text. This is not a \"flip a switch\" job; it's a \"diagnose failing systems under a countdown while your hands might be shaking\" job.\n\nThe **compartment ejection override** is a different animal entirely — military hardware bolted onto a civilian retrofit, keyed switch cover included. Triggering it would let you jettison specific sections of the ship, cargo bay included, but the interface is unfamiliar, non-standard, and the schematic shows the classified compartment itself wired into the same ejection grid. Ejecting the failing aft sections might also mean ejecting whatever's transmitting from back there — you can't yet tell if that's a fix or a way of losing the only lead on what's happening.\n\nEither one is going to take real work to operate correctly, and Reyes — the one person who'd know this board cold — is not in a state to help.\n\n\"Doctor,\" the cartographer says without looking up from Reyes, \"whichever you pick, pick it fast. That thing's not getting quieter.\"\n\nWhat do you do?",
+        "createdAt": "2026-08-16T22:22:15.241Z"
+      },
+      {
+        "id": "c4aa1651-8463-4887-8f63-2f157682cf3b",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "Can I use the Field Medicine skill to stabilize Reyes? Maybe there's a stim pack or something in my med kit I can use to wake her up to fix the structural integrity fields.",
+        "createdAt": "2026-08-16T22:25:19.572Z"
+      },
+      {
+        "id": "44f4e72f-7a8a-425e-9f84-3b4450d94734",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "You drop to a knee beside Reyes, checking your kit — a stim shot, styptic gel, basic trauma gear. Field Medicine covers exactly this: emergency care in the field, not a hospital pod.\n\n\"Let's see what we've got,\" you mutter, peeling back the wadding the cartographer's holding and getting a proper look at the gash. It's ugly but not arterial — she's breathing steady, pulse present. A stim shot could bring her around, but pushing a head injury like this into consciousness fast is a gamble: it might work clean, or it might not take, or her brain might not thank you for the jolt.\n\nThis is exactly the kind of moment that's a roll, not a certainty — the stakes are real (a concussed woman's brain, under a stim, under pressure) and you don't have the luxury of a controlled setting.\n\nMake an INTELLECT Check (with your Field Medicine bonus applied) to see if you administer the stim correctly and bring Reyes around clean.",
+        "createdAt": "2026-08-16T22:25:33.049Z"
+      },
+      {
+        "id": "548f6d4a-9e9e-4b6e-9eeb-e372928e9361",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "You dial in the stim dose with practiced hands, Field Medicine training guiding the injector to the right vein, the right depth, the right angle to avoid making the head wound worse. Kennedy's Intellect plus training gives plenty of room under a 51 — the shot goes in clean.\n\nReyes's eyes snap open a few seconds later, pupils blown wide, breath coming ragged. She flinches hard, hand flying up defensively before her vision focuses on you and the cartographer.\n\n\"—the hell—\" she coughs, wincing at her own scalp wound. \"Where's Whitfield? Torres?\" Her eyes dart around engineering, landing on the console, on the cascading failure schematic still crawling forward. Recognition hits her face like cold water. \"Oh god, it's still climbing. How long have I been out?\"\n\nShe tries to sit up too fast, sways, and the cartographer steadies her shoulder. \"Easy,\" they murmur. \"Doctor Kennedy patched you up. We need you conscious, not upright.\"\n\nReyes's eyes find the console again — specifically the keyed override switch with its faded military stencil — and something crosses her face that isn't quite surprise. Like she already knew that panel existed, and hoped she'd never need it.\n\n\"That's the compartment override,\" she says slowly. \"I found it my first week aboard, filed a report, got told to forget I ever saw it.\" She looks at you. \"You want to stabilize structural integrity, or you want to eject the aft sections? Because I can maybe do one of those from here, in the state I'm in. Not both. Whichever you pick — Doctor, I need to know now.\"\n\nThe pulsing not-quite-breathing sound rolls through the walls again, closer than before.</parameter>\n<parameter name=\"gmUpdates\">{\"npcStates\":{\"deep_space_cartographer\":\"Present in engineering with Kennedy, tending to Reyes, visibly rattled by Whitfield's boot but focused on the task at hand.\"},\"notes\":\"Reyes revived via successful Field Medicine-assisted Intellect Check (roll 51, well under Kennedy's Intellect+skill). She's conscious but injured, can assist with ONE of: structural integrity stabilization OR compartment ejection, not both, per player's stated plan. Reyes has prior knowledge of the classified compartment override (filed a report, was told to forget it) - potential thread to pull for classified_compartment_opened / secret_cut_corners_revealed flags.\"}",
+        "createdAt": "2026-08-16T22:27:16.933Z"
+      },
+      {
+        "id": "afc4ae6c-3b56-46a7-bd42-9cdf0744d4b1",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Stabilize structural integrity, please,\" I say as calmly as possible.",
+        "createdAt": "2026-08-16T22:30:55.214Z"
+      },
+      {
+        "id": "6ae5feda-5137-4d45-9deb-49461be86b81",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Stabilize structural integrity, please,\" you say, keeping your voice level even as the pulsing sound rolls through the walls again.\n\nReyes nods, dragging herself up against the console with the cartographer's help. \"Copy. I'll walk you through the reroute — my hands aren't steady enough to trust alone right now.\" She points to a bank of scorched toggles beside the main schematic. \"You're going to have to do the physical work, Doctor. I'll call it, you execute. Diagnostics are half-corrupted so we're doing this on feel as much as readout.\"\n\nThis is going to take everything you've got — Reyes's guidance narrows the odds, but the system's damaged, the feedback's unreliable, and the ship is actively fighting you the whole way through.\n\nMake an INTELLECT Check to reroute power and stabilize the failing structural integrity fields before the cascade eats another section.</playerText>\n<parameter name=\"diceRequests\">[{\"notation\":\"1d100\",\"purpose\":\"INTELLECT Check to reroute power and stabilize structural integrity fields, guided by Reyes\",\"target\":43}]</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"Player chose to stabilize structural integrity rather than eject compartments. Reyes assisting (guiding, not executing - her injury prevents full assist). No explicit skill bonus stated for this task (Field Medicine doesn't apply to engineering); using raw Intellect 43 as target since no Engineering/Mechanical skill has been established for Kennedy in state so far. Reyes's assistance narratively framed as guidance rather than mechanical advantage since no clear RAW rule for skill-assist found.\"}",
+        "createdAt": "2026-08-16T22:31:08.435Z"
+      },
+      {
+        "id": "cead1bcc-de8d-4869-b22b-574e0ba22646",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "I roll 35.",
+        "createdAt": "2026-08-16T22:33:43.156Z"
+      },
+      {
+        "id": "124d3a68-ced8-4b40-a8a7-2f179dbab493",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "35 is under your Intellect of 43 — a clean success, no doubles, no complications.\n\nFollowing Reyes's called instructions, you work the scorched toggle bank with careful, deliberate motions — reroute here, cut feed there, redirect the failing integrity field generators toward the sections still holding. The console's corrupted diagnostic flickers, then steadies, several failure markers on the schematic slowing their crawl, one or two halting outright.\n\n\"That's it — that's it, keep that last one open a second longer—\" Reyes coaxes, watching over your shoulder despite the wound. \"Okay. Okay, cut it now.\"\n\nYou cut the feed. The schematic settles into something almost stable: the cascade hasn't stopped, but it's crawling now instead of tearing, buying real time instead of the minutes you had left.\n\nReyes exhales like she's been holding her breath the whole time. \"That'll hold for a while, longer than we had a minute ago. Not forever — the underlying damage is still there, we've just slowed the bleeding.\" She looks at the cascading schematic, then at the override switch beside it, then at you. \"So now the real question. What do we do about that?\" She tips her head aft, toward where the pulsing sound keeps rolling through the walls, patient, closer than it's been all night.\n\nThe cartographer has gone very still, listening to it too.</parameter>\n<parameter name=\"stateChanges\">{\"resourcePools\":[{\"owner\":\"_scenario\",\"pool\":\"timer\",\"delta\":3,\"reason\":\"structural integrity fields stabilized, cascade slowed by successful Intellect Check\"}]}</parameter>\n<parameter name=\"gmUpdates\">{\"npcStates\":{\"deep_space_cartographer\":\"Present in engineering, listening to the pulsing sound with visible dread, has not yet fully confessed prior knowledge (cartographer_confesses still false).\",\"deep_space_cartographer_reyes\":\"n/a\"},\"notes\":\"Player succeeded Intellect Check (35 vs 43) to stabilize structural integrity per Reyes's guidance. Ruled the timer buys back +3 rounds/units of buffer since cascade slowed rather than stopped entirely (no explicit rule found for partial stabilization magnitude - ruled conservatively, noted for consistency). Reyes now available to discuss classified compartment / ejection override next, and has hinted at prior knowledge of the compartment (filed report, told to forget) - good opening for secret_cut_corners_revealed or classified_compartment_opened.\"}",
+        "createdAt": "2026-08-16T22:33:59.615Z"
+      },
+      {
+        "id": "8adcb059-2080-4b3f-b1a3-a2077df86271",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"What do you know about that?\" I asked Reyes, clearly referring to the aft compartment. My eyes switch between Reyes and the cartographer.",
+        "createdAt": "2026-08-16T22:36:12.498Z"
+      },
+      {
+        "id": "78cd7de3-43a9-4e8b-aaad-7b1be178450b",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"What do you know about that?\" you ask Reyes, nodding aft toward the source of the sound. Your eyes flick between her and the cartographer, daring either of them to keep holding out on you.\n\nReyes glances at the cartographer first — a quick, searching look, like she's checking whether they've already said something — before she answers.\n\n\"Not as much as I wish I did.\" She shifts against the console, wincing at the movement. \"Like I said — first week aboard, I was doing a full systems survey, standard onboarding. Found that override panel wired into a compartment that doesn't exist on any deck plan I was given. I filed a report up the chain, because that's what you're supposed to do when a decommissioned military vessel turns out to still have classified hardware nobody disclosed to the leasing crew.\"\n\nShe laughs, short and bitter. \"Got a call back inside a day. Not from anyone in engineering — from someone in the leasing company's legal department. Told me the compartment was 'outside the scope of my clearance' and to update my report to reflect that I'd found nothing. I was three weeks into a contract I needed. So I did what they asked.\" Her jaw tightens. \"I don't know what's in there, Doctor. I know it's old military sensor gear, or it was. I know they didn't want anyone — not me, not you, not whoever leased this ship after its last tour — to know it was still active.\"\n\nThe cartographer has gone pale beside her, hands twisted together. They open their mouth, close it, then finally speak, voice low.\n\n\"I think I know why they didn't want it found.\" They won't look at either of you now. \"That signal — the pattern I told you about, from three contracts back — Doctor, I've been telling myself it was probably nothing, an old relay, bad luck. But if this ship's had that compartment active and hidden this whole time, and it's transmitting the same kind of signal I saw years ago—\" They finally lift their eyes. \"It's not a malfunction. It never was. I think that compartment's sensor array is what's been talking to whatever's out there. And I think it's been doing it long before we ever got the distress call.\"\n\nThe pulsing sound rolls through the walls again — longer this time, almost patient, like it's waiting to see what you'll do with what you've just learned.",
+        "createdAt": "2026-08-16T22:36:31.085Z"
+      },
+      {
+        "id": "0b1fe253-3ba7-42a2-8cbc-7ce64caa4f52",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Do you think that 'whatever's out there' is aboard this ship?\" I ask them.",
+        "createdAt": "2026-08-16T22:41:20.348Z"
+      },
+      {
+        "id": "d4652b20-0f21-4419-9857-7440c709c459",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Do you think that 'whatever's out there' is aboard this ship?\" you ask.\n\nThe cartographer's stress sits at 4 — the panic die comes up well clear of it, so the question lands hard but doesn't break them. Still, you watch it hit: their throat works, their eyes go to the aft bulkhead like they can see through it.\n\n\"I think it's not 'out there' anymore, Doctor. I think it hasn't been 'out there' since before we picked up the signal.\" They say it slowly, like they're arriving at the thought as they speak it. \"That sensor array's been active this whole time. Signals don't just get received, they get answered — and if that compartment's been transmitting back at whatever's out there, for years, across however many crews came through here before us—\" \n\nThey stop, swallow, push forward anyway.\n\n\"I think whatever it's been talking to found the source of the conversation. I think it's already here. And I think it's been getting better at sounding like us since the moment we walked aboard, because it's had this whole ship as a — \" they search for the word, hate the one they land on, \" — as a classroom.\"\n\nReyes has gone very still, listening. \"That compartment doesn't just hold gear, then,\" she says quietly. \"It's the reason it's here at all.\"\n\nThe pulsing sound rolls through the walls again — closer, longer, and this time it almost, almost resolves into something with shape. Almost a word. Almost your name.\n\nNobody in the room moves for a second.\n\n\"Doctor,\" Reyes says, breaking the silence, voice tight. \"Override switch is right here. Structural integrity's stable, for now. If you want to eject that compartment — end whatever this is — this is the moment. Or if you want answers first, that hatch doesn't open itself either way. Your call.\"</parameter>\n<parameter name=\"stateChanges\">{}</parameter>\n<parameter name=\"gmUpdates\">{\"npcStates\":{\"deep_space_cartographer\":\"Panic check passed (rolled 10 vs stress 4) - shaken but coherent, has now articulated the theory that the entity is already aboard and has been 'learning' via the classified compartment's sensor array.\"},\"proposedCanon\":[{\"summary\":\"The signal source entity is confirmed (by crew inference, not yet hard evidence) to already be aboard the Halberd's Grief, having used the classified compartment's active sensor array as a two-way communication channel for an extended period, possibly across multiple prior crews/contracts.\",\"context\":\"Cartographer's theory stated aloud to Kennedy and Reyes in engineering, following successful panic check under direct questioning.\"}],\"notes\":\"secret_signal_origin_revealed not yet flipped - this is crew theory/inference, not confirmed discovery of maintenance logs or direct evidence. Should flip once player finds hard evidence (classified compartment contents, direct confirmation) rather than just NPC speculation, per flag trigger wording 'discovers or the cartographer admits.' Cartographer arguably just admitted it here - consider flipping if next turn confirms. Leaving false for now pending clearer discovery beat, but flagging as borderline for reviewer.\"}",
+        "createdAt": "2026-08-16T22:41:40.247Z"
+      },
+      {
+        "id": "e69c3c1a-4099-4359-808f-7fc21c12d5ce",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Answers,\" I say under my breadth as I start walking toward the door to the unknown compartment. Is there any sort of control or access panel or anything visible on this side, or is the only option to somehow breach the door?",
+        "createdAt": "2026-08-16T22:45:41.274Z"
+      },
+      {
+        "id": "521f4961-20a4-490d-8b46-8a0c0840de61",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Answers,\" you say under your breath, already moving toward the aft bulkhead.\n\nThere is a control panel — the keyed override switch beside the main console handles the compartment door remotely, no need to breach anything by hand. Reyes reaches over from where she's braced against the console and flips the switch cover open.\n\n\"It's not locked against you, Doctor, not electronically — it's locked against *disclosure*. Whoever installed this wanted deniability, not security.\" She works the toggle with slow, careful movements, still recovering from the stim. \"Manual override, direct hydraulic release once I trip it. Should just... open.\"\n\nA heavy clunk sounds somewhere aft, muffled through the bulkheads — the sound of old military-grade seals disengaging for the first time in years. A thin hiss of stale, pressurized air escapes from somewhere down the corridor past engineering's exit.\n\n\"That's it,\" Reyes says, voice tight. \"It's open. I'm not walking down there with you — I can barely stand. But it's open.\"\n\nThe cartographer has gone rigid, staring at the corridor beyond the engineering hatch. The pulsing, breathing-adjacent sound seems to swell for just a moment, as if it noticed the seal break too.\n\n\"Doctor,\" they say, quiet. \"Once you're through that door, there's no telling what opens the conversation. I'm coming with you. I don't think I have a choice anymore.\"\n\nThe corridor beyond engineering leads aft, toward the newly unsealed compartment — dark, and past your sightline from here.</parameter>\n<parameter name=\"stateChanges\">{}</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"Player chose to seek answers rather than eject compartment. Reyes triggered the manual override remotely from engineering console (no breach roll needed - narratively it's an unlock, not a forced door, consistent with 'most things are not a roll' since no interesting price of failure was in play for the switch itself). Compartment now physically unsealed but unexplored. classified_compartment_opened should probably flip now since the hatch has been opened/bypassed via override - proposing that flag flip next turn once player actually enters and the fiction confirms exploration, or arguably it should flip now since the trigger says 'forces open or bypasses the sealed hatch, revealing hidden military hardware.' Leaving flag change to backend/next turn since nothing has been revealed yet - compartment interior not yet described.\",\"proposedCanon\":[{\"summary\":\"The classified compartment's manual override was triggered by Reyes from the engineering console, unsealing the hatch aft of engineering. The compartment's contents have not yet been seen or entered by the crew.\",\"context\":\"Kennedy chose to pursue answers over immediate compartment ejection; Reyes operated the override remotely since she was too injured to accompany Kennedy and the cartographer aft.\"}]}",
+        "createdAt": "2026-08-16T22:45:59.977Z"
+      },
+      {
+        "id": "c07c0d2e-8ab6-4e77-b42e-26e18344256f",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Let's go,\" I say. Is there a flashlight or something in engineering I can use to illuminate the darkness of the corridor?",
+        "createdAt": "2026-08-16T22:48:16.766Z"
+      },
+      {
+        "id": "7200bc86-33a4-4ab1-ae4e-1d02d7b48bd0",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Let's go,\" you say, and glance around engineering for something to cut the dark.\n\nThere's a battered utility flashlight clipped to a tool rack near the console — standard shipboard kit, the kind every deck is supposed to have and half of them are missing. The lens is scratched but intact. You grab it and thumb it on; it throws a solid white beam, steady despite everything else on this ship failing around you.\n\nReyes nods at you taking it. \"Take the spare too, if you want it — inside pocket of the tool rack. Batteries aren't infinite down here.\" She's already easing herself back down against the console, saving her strength. \"Go. I'll watch the schematic, yell if the integrity fields start slipping again.\"\n\nThe cartographer falls in beside you, flashlight of their own retrieved from somewhere in their jacket, and the two of you approach the aft hatch. Beyond it, the corridor is black except for where your beam cuts into it — throwing long shadows across walls that show scoring and pitting far older than the rest of the ship's retrofit, metal that's seen things the civilian decks never did.\n\nThe pulsing sound is close now. Closer than it's been all night. It doesn't stop when your light hits the corridor. If anything, it seems to answer it — a subtle shift in cadence, like it's tracking the beam.\n\nThe way aft is open. Whatever's waiting for you is just past the reach of your flashlight.</parameter>\n<parameter name=\"stateChanges\">{\"flags\":{\"classified_compartment_opened\":{\"value\":true,\"trigger\":\"Compartment hatch bypassed via manual override and crew now entering the corridor toward it with light in hand\"}}}</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"Player retrieved flashlight from engineering, advancing with cartographer into the newly unsealed aft corridor toward the classified compartment. Flipping classified_compartment_opened now since the hatch has been forced/bypassed per the flag trigger wording, even though interior contents not yet fully revealed - the trigger says 'opened/bypassed... revealing hidden military hardware and/or old crew records' which will happen as they proceed down the corridor. Next turn should describe compartment interior with military hardware/records per hidden_truth.\"}",
+        "createdAt": "2026-08-16T22:48:29.771Z"
+      },
+      {
+        "id": "094a9204-0fe6-4075-9a42-de30328751bb",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Remind me, what's your name?\" I ask the cartographer as I take a step down the corridor.",
+        "createdAt": "2026-08-16T22:49:56.170Z"
+      },
+      {
+        "id": "bae250ef-83cd-4780-9414-3153846b6dbc",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Remind me, what's your name?\" you ask, flashlight beam sweeping the pitted corridor ahead.\n\nThe cartographer blinks, thrown by the question for half a second — like it's the last thing they expected right now — before answering.\n\n\"Reyes—\" they start, then catch themselves with something almost like a dark laugh. \"No — sorry. Different Reyes, wrong crisis. It's Voss. Alex Voss.\" They fall back into step beside you, flashlight beam bobbing against the scored bulkheads. \"Nobody's asked me that all night. Feels strange to hear it out loud right now, honestly.\"\n\nThe pulsing sound rolls through the corridor again, and this time — clearer than before — it almost seems to catch the rhythm of the name, echoing back some warped fragment of the syllables, like it's trying the word on for size.\n\nVoss goes rigid beside you. \"Doctor. Did that just—\"\n\nThey don't finish. The corridor stretches ahead into the dark, your two flashlight beams barely cutting into it, and the compartment door — the real one, the one that isn't on any deck plan — is still somewhere ahead, closer now than it's ever been.</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"Named the cartographer 'Alex Voss' since no name had been established in state/narrative prior to this point - filling a gap the player surfaced. Introduced unsettling beat: entity appears to mimic/echo the name it just heard, reinforcing its established 'learning to communicate like humans' trait from signal_status. No mechanical change this turn - pure atmosphere/characterization, corridor advance continues toward classified compartment reveal next turn.\"}",
+        "createdAt": "2026-08-16T22:50:06.910Z"
+      },
+      {
+        "id": "3565b8c8-7486-4ae3-a499-5c3ee4763ee8",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Steady now, Voss,\" I say as we continue down the corridor at a slow but steady pace. I want to go all the way to the compartment door, assuming nothing interrupts us.",
+        "createdAt": "2026-08-16T23:10:17.085Z"
+      },
+      {
+        "id": "c3f27487-33c7-4eac-8cfe-165a644d1c92",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Steady now, Voss,\" you say, and the two of you keep pace down the corridor — slow, deliberate, flashlight beams sweeping the pitted walls.\n\nThe scoring gets worse the further aft you go — not decay, exactly, more like the metal itself has been under some kind of sustained stress for a very long time, stress that predates this contract, this crew, maybe this decade. Old conduit runs overhead, unlabeled, definitely not civilian spec.\n\nThe pulsing sound is close now — close enough that it doesn't feel like it's coming through the walls anymore. It feels like it's coming from just ahead, low and rhythmic and almost, almost like breath.\n\nYour flashlight beam finds it before Voss's does: a heavy blast door, military-spec, standing slightly ajar from Reyes's override — just wide enough to see past it into pitch dark. Old stenciling on the frame, mostly flaked away, reads something like RESTRICTED — SENSOR BAY — and below that, in a different, newer hand: DO NOT LOG.\n\nVoss stops a full pace behind you, flashlight beam shaking almost imperceptibly. \"That's it,\" they whisper. \"That's the door.\"\n\nNothing lunges out. Nothing screams. The corridor holds, and so do you — whatever's making that sound isn't announcing itself yet, just breathing, if that's even the word, somewhere beyond the gap in the door.\n\nYou've reached the threshold. The compartment is right there, cracked open, dark, and waiting.",
+        "createdAt": "2026-08-16T23:10:32.661Z"
+      },
+      {
+        "id": "2a074a36-7be2-4ae7-93c9-e2b4a22ad996",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Hello?\" I call out, not too loud but pitched to carry.",
+        "createdAt": "2026-08-16T23:11:54.720Z"
+      },
+      {
+        "id": "f72a200d-2c82-4a6f-83e1-7b47e22d35c6",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Hello?\" you call, pitched to carry but not to challenge.\n\nFor a moment — nothing. Just the faint hydraulic tick of the door settling, the distant hum of the ship's dying systems behind you.\n\nThen the pulsing sound changes.\n\nIt doesn't stop. It reorganizes — the rhythm you'd been hearing for the past hour fractures and reassembles, cycling faster, like something adjusting frequency to try to match your voice. And then, low, warped, coming from somewhere deep in the dark beyond the door, it answers.\n\n\"—llo—\"\n\nNot a word so much as the shape of one, dragged out of your own greeting and handed back to you missing most of its consonants, pitched wrong, too slow in some places and too fast in others — like a recording learning to be a voice in real time.\n\nVoss's panic check holds — barely, stress still low enough that they stay upright and coherent, but you hear the breath go ragged behind you. \"Doctor,\" they manage, voice thin, \"it's — it repeated you. It repeated you back.\"\n\nThe sound — the word, if it's a word — doesn't come again immediately. Whatever's beyond that door seems to be waiting now, the way you were a moment ago. Your flashlight beam still can't reach far enough into the dark to show you anything but scored metal and shadow.\n\nThe threshold is right there. Nothing has crossed it yet.",
+        "createdAt": "2026-08-16T23:12:11.202Z"
+      },
+      {
+        "id": "50499906-f6a9-4172-9f9c-a5113f67dd10",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "Is the door ajar? If so, I want to stick my face into the gap and play my flashlight around.",
+        "createdAt": "2026-08-16T23:14:54.582Z"
+      },
+      {
+        "id": "581b5f86-29a6-4355-a178-c565b2263561",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "Yes — the door's ajar, exactly wide enough for a shoulder and a face. You lean in, cheek nearly against the cold, scored metal of the frame, and swing your flashlight beam through the gap.\n\nThe beam catches dust hanging thick in dead air, undisturbed in what might be years. Racks of equipment line the walls — sensor housings, cable trunking, old military hardware bolted in with a permanence civilian retrofits never bother with. Papers are scattered across a console near the back, yellowed, some fallen to the floor. A single status light blinks amber, alone, on an otherwise dark bank of instruments — still drawing power after all this time.\n\nAnd past all of it, deeper in, past the reach of your light — motion. Not a shape you can call anything yet. Just a suggestion of displacement, like the dark itself shifted weight from one side to the other, retreating from the beam rather than toward it.\n\nYour nerve holds. Whatever that was, you catalog it instead of flinching from it — filing the shape of your fear away for later instead of letting it choose your next move.\n\n\"Doctor.\" Voss's whisper is right behind your shoulder, close enough you can feel them not-quite-touching you, needing the contact and not taking it. \"Did you see that? Please tell me you saw that too.\"\n\nThe amber light blinks, steady, patient. The dark beyond it holds still now, like it's watching the doorway the same way you're watching it.",
+        "createdAt": "2026-08-16T23:15:10.340Z"
+      },
+      {
+        "id": "5cf160ce-80bf-4145-b7cd-03a4c297aedb",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Yes, I saw it,\" I whisper to Voss without taking my face away from the door. \"I'm going in. I want to make contact. Maybe it can help us out of our predicament. You can come with me, stay here, or go back to Reyes. What's it going to be, Voss?\"",
+        "createdAt": "2026-08-16T23:17:53.714Z"
+      },
+      {
+        "id": "1b0569f6-6507-41f8-a9b4-36d3afc294f4",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "Voss doesn't answer right away. Their flashlight beam wavers toward the gap in the door, toward the amber light and the dark that flinched away from yours, and you can see the calculation happening behind their eyes — go with the one person who's kept them steady all night, or retreat to the injured woman who can't protect either of them, or stand alone in a corridor with something that just learned to say hello.\n\nTheir stress doesn't spike them into the panic table — they're still holding.\n\n\"I'm not letting you go in there alone,\" Voss says finally, low, and it sounds like it costs them something to say it. \"If it's really trying to — to talk, to reach out, whatever this is — someone should be there who isn't just you. And I've already seen this pattern once and run from it. I'm not doing that again.\" They swallow hard, flashlight beam steadying by will alone. \"I'm coming with you, Doctor. Just — don't make contact and then do something stupid, okay? Talk to it. Don't touch it. Don't go quiet on me in there.\"\n\nThey step up alongside you at the gap, shoulder almost touching yours, both beams now angled into the dark together.\n\nThe amber light blinks steady. The displaced shadow beyond it hasn't moved again — but it hasn't retreated further, either. It's still there, still watching the doorway, still waiting to see what your next word will be.\n\nThe gap is wide enough for both of you to pass through, one at a time. The choice of stepping across the threshold is still yours to make.</parameter>\n<parameter name=\"gmUpdates\">{\"npcStates\":{\"deep_space_cartographer\":\"Panic check passed (rolled 8 vs stress 4) - chooses to accompany Kennedy into the classified compartment rather than stay behind or retreat to Reyes. Framing this as a character beat: refusing to repeat past avoidance.\"},\"notes\":\"Player offered Voss three choices (accompany, stay, retreat). Rolled panic check to see if stress affects the decision - passed, so Voss's choice stands as a genuine character decision, narrated as accompanying Kennedy. No entity has physically manifested yet - still building toward combat_encounter_triggered flag, which per its trigger fires when the entity 'manifests physically and engages' - reserving that for when player actually crosses the threshold or the entity closes the distance itself.\"",
+        "createdAt": "2026-08-16T23:18:10.886Z"
+      },
+      {
+        "id": "91bbd293-7632-40db-8af0-b77be1fb5113",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Good, glad you're with me,\" I whisper to Voss. I squeeze through the gap in the door and cross the threshold.",
+        "createdAt": "2026-08-16T23:19:37.825Z"
+      },
+      {
+        "id": "a569e73f-11dd-4114-99f4-6195584f4b3d",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Good, glad you're with me,\" you whisper, and squeeze through the gap after Voss, crossing fully into the compartment.\n\nThe moment your boots clear the threshold, the amber light on the console dies. Not flickers — dies, all at once, like something decided the show was over.\n\nYour flashlight beams cross in the dark, and this time there's nowhere for it to retreat to. It's here. Not a suggestion of shape anymore — a mass, low against the far wall near the sensor racks, wrong in a way that resists your eye settling on any one detail of it. Limbs, maybe. Too many joints in the wrong places, or maybe your brain is just filling gaps the light can't reach. It doesn't lunge. It doesn't screech. It just turns, slow, deliberate, toward the two beams of light — toward you.\n\nAnd it speaks. Clearer this time. Your own voice, flattened and wrong, dragged back out of the dark:\n\n*\"—Hello—\"*\n\nVoss doesn't run. Doesn't freeze either — you both catalog the horror instead of it cataloging you, some animal calculation holding steady under the weight of finally seeing the thing whole.\n\nIt doesn't move any closer. It just watches, and waits, the way it's been waiting all night — to see what you do with the door you just walked through.</playerText>\n<parameter name=\"stateChanges\">{\"flags\":{\"combat_encounter_triggered\":{\"value\":true,\"trigger\":\"Signal source entity has physically manifested and is now in direct visual/vocal contact with Kennedy and Voss inside the classified compartment\"}},\"entities\":{\"signal_source_entity\":{\"visible\":true,\"status\":\"manifested, stationary, vocalizing\"}}}</parameter>\n<parameter name=\"gmUpdates\">{\"npcStates\":{\"deep_space_cartographer\":\"Panic check passed (rolled 6 vs stress 4) - holds steady on crossing the threshold and seeing the entity manifest fully. Remains functional alongside Kennedy.\"},\"notes\":\"Entity has manifested but is NOT attacking - it's holding position, watching, mimicking speech. Ruling this as a tense standoff/communication opportunity rather than immediate violence, consistent with the hidden_truth that this is a communication attempt, not a predator encounter. combat_encounter_triggered flag flipped per its literal trigger wording ('manifests physically') even though no violence has occurred yet - the flag name is a bit of a misnomer for what's actually a dialogue-first encounter; noting this so the encounter can still resolve peacefully if the player pursues contact rather than aggression. No damage or attack rolls made since entity has taken no hostile action - correctly withheld per 'most things are not a roll' and 'don't roll for actions not yet declared.'\"}",
+        "createdAt": "2026-08-16T23:19:59.491Z"
+      },
+      {
+        "id": "71739962-d3ba-4bee-835e-347f40894323",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"This ship is failing,\" I say at a slightly louder than conversational volume, like trying to speak to someone a room away. \"Can you help us fix it? So we can all survive, together?\"",
+        "createdAt": "2026-08-16T23:22:28.519Z"
+      },
+      {
+        "id": "a23b584d-3d02-4d60-85cc-09d12288ac1c",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"This ship is failing,\" you say, louder now, deliberate, the way you'd speak to someone across a room. \"Can you help us fix it? So we can all survive, together?\"\n\nThe mass against the far wall goes very still — stiller than before, like it's processing rather than reacting. The dark around it seems to hold its breath along with it.\n\nThen it moves. Not toward you — sideways, along the wall, toward the bank of sensor racks and the dead console with the amber light that died when you crossed the threshold. One of its limbs — too many joints, too long — extends toward the console's dark surface, and taps it. Once. Twice. A third time, with what might be deliberate rhythm.\n\nIt's not lunging. It's not answering with a mimicked word this time either. It's pointing, in the only vocabulary it seems to have found so far — showing you the machine it's been speaking through this entire time.\n\nVoss's breath catches. \"Doctor — I think it wants us to look at that. I think that's its answer.\"\n\nThe thing goes still again after the third tap, watching you both with whatever passes for its attention, waiting to see if you understood.</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"Entity's reaction roll (1d20=7, low/moderate result treated as measured non-hostile response) resolved as the entity redirecting attention to the sensor console rather than attacking or fleeing - consistent with hidden_truth that it's attempting communication, not predation. This opens a path toward secret_signal_origin_revealed if player investigates the console. No hostile action taken, so no damage/combat rolls needed. Entity remains stationary and non-aggressive for now.\"}",
+        "createdAt": "2026-08-16T23:22:41.773Z"
+      },
+      {
+        "id": "39f5a158-bada-4a52-9757-85962b2d6b89",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Let me see what I can do,\" I say to the creature and walk to the console. I train my beam on the console, not the creature.",
+        "createdAt": "2026-08-16T23:24:52.404Z"
+      },
+      {
+        "id": "b4e1e3af-3e5e-4de9-a073-e9d07edfc77c",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Let me see what I can do,\" you say to the creature, and turn your back on it — a real risk, but the thing hasn't given you a reason to think it wants you dead yet. You train your beam on the console instead, leaving the mass in the dark at the edge of your vision.\n\nIt doesn't move. If anything, it settles — the wrongness of its posture easing slightly, like a held breath let partway out. Whatever passes for its attention seems to stay fixed on the console along with yours, patient, waiting.\n\nThe console itself is old military hardware, layered under a thin skin of dust. Up close, in your flashlight beam, you can see it's not actually dead — the amber light didn't die from a power loss, it died because something switched it from standby to a different mode when you crossed the threshold. Readouts are in a stripped-down military shorthand, no civilian gloss, no user-friendly icons. A dedicated sensor array feed, wired directly into what looks like a transmission log going back — you'd have to dig to be sure, but the file directory scrolling past in your beam has dates that don't belong to this contract. Not even close. Years of entries, intermittent, then a long gap, then more, recent ones clustered tight together, the most recent timestamped from before your ship ever picked up the distress signal.\n\nThis isn't just a receiver. It's a log of a conversation that's been running long before you arrived — and the entity tapped this console to show you exactly that.\n\nVoss has come up beside you, flashlight beam joining yours over the readout, voice gone hoarse. \"Doctor... those dates. That's not — that's not one incident. That's not even one crew's worth of incidents.\" They point, hand shaking slightly, at the timestamp cluster near the top. \"This has been going on for years. Longer than the ship's been leased to us. Maybe longer than it was decommissioned.\"\n\nBehind you both, the creature stays motionless, watching the two beams of light pore over the machine it chose to point to instead of speaking again.</parameter>\n<parameter name=\"stateChanges\">{\"flags\":{\"secret_signal_origin_revealed\":{\"value\":true,\"trigger\":\"Kennedy directly discovered the sensor array's transmission logs showing years of prior communication attempts predating the current contract and crew\"}}}</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"Entity's reaction roll (3, very low/passive) confirmed non-hostile stance while Kennedy's back was turned - entity remains cooperative/communicative rather than opportunistic. Flipped secret_signal_origin_revealed since player has now directly discovered hard evidence (the transmission logs) rather than just NPC speculation, satisfying the flag's 'discovers' trigger clause. This sets up a strong narrative beat: the console likely also holds clues connecting to Voss's own unreported encounter years ago, and to the classified compartment's military history.\"}",
+        "createdAt": "2026-08-16T23:25:11.946Z"
+      },
+      {
+        "id": "8b4ef5f3-01ee-497c-a870-a79b16472c6d",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"There's a lot to process here,\" I admit to Voss. \"Let's focus on the immediate issue. I think we need to get it back into standby mode for the creature to be able to communicate again. Any idea how to do that?\"",
+        "createdAt": "2026-08-16T23:27:36.307Z"
+      },
+      {
+        "id": "a3c866f3-1e62-4837-ac5f-b01c3c46eacf",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"There's a lot to process here,\" you admit to Voss. \"Let's focus on the immediate issue. I think we need to get it back into standby mode for the creature to be able to communicate again. Any idea how to do that?\"\n\nVoss shakes their head, still hunched over the readout. \"I'm a cartographer, Doctor, not a systems tech. I can read a star chart in my sleep, but this—\" they gesture at the stripped-down military shorthand scrolling across the display, \"—this isn't built for anyone outside a sensor operations rating. I wouldn't know standby from a self-destruct sequence on this thing.\"\n\nThat leaves it to you. Kennedy doesn't have Engineering or Robotics training — nothing that would make this console legible on sight — but you've spent a career thinking through unfamiliar problems under pressure, and the display isn't entirely opaque: menu structures, status flags, something that looks like a mode toggle buried three layers into a diagnostic tree. It's the kind of thing you could figure out, if the console cooperates and your instincts about military UI conventions hold.\n\nThis is a real risk — get it wrong and you could lock the system, trigger some kind of alarm or purge, or simply burn the only chance you get before the creature loses patience.\n\nMake an INTELLECT Check to work out how to cycle the console back into standby mode.</parameter>\n<parameter name=\"diceRequests\">[{\"notation\":\"1d100\",\"purpose\":\"INTELLECT Check to navigate unfamiliar military console UI and cycle it into standby mode\",\"target\":43}]</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"No Engineering/Robotics skill established for Kennedy, so this rolls against raw Intellect (43) with no bonus - consistent with 'no skill means no bonus, may roll at Disadvantage for complex tasks' guidance. Treating this as complex-but-attemptable rather than Disadvantage since Kennedy's Intellect stat itself represents 'thinking through difficult problems, inventing or fixing things' per RAW, and the console does have some legible structure (menus, status flags) even if unfamiliar. Voss confirmed to have no relevant skill either, ruled via fiction rather than a roll for her (she simply doesn't know).\"}",
+        "createdAt": "2026-08-16T23:27:51.737Z"
+      },
+      {
+        "id": "62b53612-255a-408b-b780-86280f46974b",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "I roll 58.",
+        "createdAt": "2026-08-16T23:29:07.442Z"
+      },
+      {
+        "id": "4ab9489f-1140-42c3-a598-88095877752d",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "58 is over your Intellect of 43 — a failure. No doubles, so no Critical, but the console beats you: your best guess at the diagnostic tree sequence is wrong.\n\nThe display doesn't lock, doesn't purge, doesn't alarm — but it doesn't drop into standby either. Instead a status flag you didn't mean to touch flips, and the readout cascades into a fresh screen of shorthand you have even less context for than before. Whatever thread you were following is gone, buried under a menu three layers deeper than where you started.\n\nWorse, the console's activity seems to draw the creature's attention. It shifts against the far wall — not aggressively, but with a kind of restless agitation, limbs re-arranging in the dark like it's reacting to static.\n\n\"Doctor—\" Voss's voice tightens, eyes on the thing rather than the screen. \"It doesn't like that. Whatever you just did, it doesn't like it.\"\n\nYou've burned your first read on the console, and the thing that's been patient all night is starting to look less patient.</parameter>\n<parameter name=\"stateChanges\">{\"resourcePools\":[{\"owner\":\"dr_kennedy\",\"pool\":\"stress\",\"delta\":1,\"reason\":\"failed Intellect Check attempting to cycle console to standby\"}]}</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"Failed Intellect check (58 vs 43), no doubles so no Critical/Panic Check triggered. Applied standard +1 Stress for failed Stat Check per RAW. Narrated consequence as console going deeper into an unfamiliar menu state and entity growing agitated, raising tension without inflicting direct harm - preserves player agency for next action (retry, different approach, or try to calm creature first). Kennedy's stress now 3/26 floor unknown-assumed 2 minimum, within bounds.\"}",
+        "createdAt": "2026-08-16T23:29:20.869Z"
+      },
+      {
+        "id": "84b3f55a-db87-4cea-9b31-7974e8d8770e",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Let's try something else,\" I whisper to Voss. I turn in the creature's general direction. \"We're going to go back through the door and see if it resets itself, ok?\"",
+        "createdAt": "2026-08-16T23:32:18.551Z"
+      },
+      {
+        "id": "c2ed2517-c7d5-4e83-b0a1-524ff32a1113",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Let's try something else,\" you whisper to Voss, then turn toward the creature. \"We're going to go back through the door and see if it resets itself, ok?\"\n\nYou say it slow, calm, hands open, backing a step toward the gap you came through. Voss matches your pace, not turning their back on the thing either, both of you retreating in the same deliberate rhythm you entered with.\n\nThe creature doesn't lunge, doesn't block the door. It watches the two of you go, the wrongness of its posture shifting again — agitation easing back down into something more like the patient stillness from before, as if your retreat itself is a kind of answer it understands better than words.\n\nYou clear the threshold. The corridor swallows you both in its scored, dim quiet, the compartment door still ajar behind you. A few seconds pass. Then — faint, from inside — a soft mechanical clunk, and when you risk a glance back through the gap, the amber light on the console has returned, glowing steady in the dark. Standby. Whatever your presence crossing that threshold triggered, your absence seems to have undone.\n\nVoss lets out a breath they'd clearly been holding since the console flared wrong. \"It worked. Doctor — it worked. I think... I think leaving *is* the reset. Not a button. Just us, not being in the room.\"\n\nThrough the gap, the creature is barely visible now, settled back near the sensor racks, motionless, waiting — the same patient shape it was before either of you ever pushed the door open.\n\nThe question of whether to go back in, and how, is yours again.</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"No roll called for here — this was a retreat/negotiation action with no meaningful price of failure attached (creature already established as non-hostile via prior low reaction rolls), so resolved narratively per 'most things are not a roll.' Established new world fact: the console's mode is tied to occupancy/presence in the compartment, not a manual toggle — Kennedy's presence flips it to an active/agitated mode, absence returns it to standby. This gives the player a working model to reason from for next action (e.g., sending only one person in, or finding another way to observe without fully crossing the threshold).\"}</parameter>\n</invoke>\n",
+        "createdAt": "2026-08-16T23:32:35.018Z"
+      },
+      {
+        "id": "ec30c72e-d531-48cf-8dbb-5ba57a10aec2",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Can you talk now?\" I ask it. \"Do you know what's wrong with the ship?\"",
+        "createdAt": "2026-08-16T23:34:14.798Z"
+      },
+      {
+        "id": "6fac94c8-7da8-4a50-bcc6-d542555dc70d",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Can you talk now?\" you call through the gap, not crossing back over the threshold. \"Do you know what's wrong with the ship?\"\n\nFor a long moment, nothing — just the amber light glowing steady on the console, the creature's shape motionless by the sensor racks. Then it stirs, slow, and the pulsing sound starts again, that same rhythm you first heard from engineering. But this time it doesn't just repeat a fragment of your voice back at you.\n\nIt threads words into it. Wrong ones, badly pronounced, like it's assembling them out of scraps it's recorded from you and Voss and whoever else has spoken near the array over however many years it's been listening.\n\n*\"—wrong— ship— old— broken— before— you—\"*\n\nThe words don't come in order, don't form a sentence so much as a handful of concepts strung on the same warped cadence. But the meaning underneath is hard to miss.\n\nVoss's flashlight beam has gone still, held steady on the doorway. \"Doctor,\" they whisper, \"I think it just told you the ship was already broken. Before we ever got here.\"\n\nThe creature settles again after the effort, limbs folding back into that same patient stillness, waiting to see if you understood — or if you'll ask for more.</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"Reaction roll (14) treated as moderate-positive - entity attempts genuine communication using accumulated vocabulary fragments rather than just mimicry, confirming it has some real comprehension/intent to help or at least answer. Content of its answer ties directly to secret_cut_corners_revealed (already true) and reinforces hidden_truth about pre-existing hull fatigue, giving the entity a functional role as a knowledge source rather than pure threat. No hostile action, so no combat rolls needed. Not flipping any new flags - this reinforces existing revealed secrets rather than exposing a new one.\"}",
+        "createdAt": "2026-08-16T23:34:28.606Z"
+      },
+      {
+        "id": "8d2154ab-63aa-47f9-89c6-1030ac56e002",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Do you have a ship?\" I ask it. \"How did you get here?\"",
+        "createdAt": "2026-08-16T23:39:54.228Z"
+      },
+      {
+        "id": "6b11f420-8e1f-4c7e-a70c-fe20d9a4ab62",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Do you have a ship?\" you ask. \"How did you get here?\"\n\nThe creature goes still again — a different stillness than before, less patient waiting and more something like difficulty. The pulsing sound starts, stutters, restarts. It's straining for something now, and whatever vocabulary it's assembled from a career of recorded human voices doesn't seem to have the pieces for this.\n\n*\"—no— ship— no— here—\"* A long pause, the rhythm faltering. *\"—always— here—\"*\n\nIt stops there, limbs shifting restlessly against the rack behind it, like frustration, or maybe just the mechanical strain of trying to force a concept into a shape it was never given the words for.\n\nVoss's whisper is barely audible. \"'Always here.' Doctor, what does that mean? Native to the ship? Native to the — the sector? I don't—\" They trail off, clearly turning the two words over and finding no comfortable answer.\n\nThe amber light on the console flickers once, faint, like the effort of speaking is drawing on the same power it uses to run. The creature settles, watching the doorway, waiting again — but there's a tiredness to its stillness now that wasn't there a minute ago.</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"Reaction roll 14 (moderate) - entity attempts to answer but its assembled vocabulary genuinely cannot express the concept (arrived via ship vs always present), producing a garbled but suggestive answer: 'always here.' This deepens the cosmic-horror ambiguity per hidden_truth without confirming a specific origin - deliberately leaving it unresolved whether it's native to the ship, the sector, or something else entirely. Noted apparent strain/power draw on the console when it communicates, seeding a resource-limit angle for future exchanges (it may not be able to talk indefinitely without cost).\"}</parameter>\n</invoke>\n",
+        "createdAt": "2026-08-16T23:40:07.057Z"
+      },
+      {
+        "id": "8fee4b80-7dd0-4ccf-841f-9a0b414ec488",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "OOC: What is the ship's course? Where are we headed, and how long until we get there? I assume the ship won't last that long, though.",
+        "createdAt": "2026-08-16T23:48:06.269Z"
+      },
+      {
+        "id": "da977de5-cc37-4ba4-b750-194329c2e086",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "OOC: Fair question — let me give you the straight answer rather than making you dig for it in-fiction.\n\nThe Halberd's Grief isn't \"en route\" to anywhere in the traditional sense right now. It diverted off its survey contract's planned course to chase the distress/anomaly signal — that was the whole reason you're out here in an uncharted sector instead of running your scheduled survey grid. There's no scheduled arrival time counting down in the background; the countdown that matters is the hull breach cascade (_scenario.timer, currently at 8), which is a structural clock, not a travel clock.\n\nSo to directly answer: there's no \"how long until we get there,\" because you're already there — wherever \"there\" is, it's wherever the signal originates, and you're standing in it right now, in the classified compartment. The ship isn't going to reach a destination and save you; the only way out is escape (evac pod/shuttle) or resolving the threat (sealing the compartment, shutting down the signal, dealing with the entity) before hull_breach_critical flips.\n\nIf you want, your character could ask the entity or check a console for the ship's actual last logged heading/nav data before the diversion — that's a legitimate thing to investigate in-fiction if you want backstory on where the ship was supposed to be going before this detour. But mechanically, the pressure you're racing is structural failure, not a travel countdown.</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"OOC clarification turn, no in-fiction action taken, no dice rolled, no state changes. Clarified for the player that the scenario's timer represents hull breach cascade progression, not a navigational ETA, since the ship diverted from its survey course to chase the signal and has no destination countdown. Left door open for player to pursue nav logs as an in-fiction investigation if desired.\"}</parameter>\n</invoke>\n",
+        "createdAt": "2026-08-16T23:48:18.590Z"
+      },
+      {
+        "id": "026a8523-6619-428c-a091-79b252f7a497",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "OOC: do we know what's causing the hull breach cascade? Is the ship just old? Was there a meteor strike?",
+        "createdAt": "2026-08-16T23:50:15.724Z"
+      },
+      {
+        "id": "f3f682ee-9cde-4526-b351-4857e0d36281",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "OOC: Yeah, this one you actually know — it's not a mystery being withheld from you, it's a mystery Reyes already partially unpacked with you earlier.\n\nThe hull breach cascade isn't damage from an impact, weapon, or the creature — it's deferred maintenance catching up with the ship all at once. Specifically: Reyes revealed that the leasing company suppressed disclosure of a maintenance request filed two contracts ago, flagging hull patch fatigue in the aft sections. That request was denied as a cost-saving measure. The ship's been running on borrowed time since before your crew ever boarded it.\n\nSo the timeline is: fatigue flagged → requisition denied → ship leased out anyway, \"Safety Is Our Cargo\" placards and all → your contract shows up, chases the signal, and the stress of operations (plus whatever's been drawing power in that classified compartment all these years) is enough to finally push those weakened sections past their limit. It started in the aft cargo bay and has been propagating forward through the lower deck ever since, sealing off sections as it goes.\n\nNo meteor, no external strike, no sabotage by the entity — it's corporate cost-cutting, literalized as a structural countdown. The engineering terminal logs (if you went and pulled them directly, which you haven't yet — this came from Reyes/Voss's account) would show the actual denied requisition paperwork, if you wanted hard documentary proof rather than word of mouth.\n\nThe _scenario.timer at 8 represents how much longer the ship holds together before hull_breach_critical — that's the countdown you're actually racing, independent of anything happening with the entity.</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"Second OOC clarification turn in a row, no in-fiction action, no dice, no state changes. Confirmed hull breach cascade's cause per existing world_facts (maintenance_log_secret) and secret_cut_corners_revealed flag already true - reiterated for player clarity that this came via Reyes's account/testimony rather than direct documentary evidence, leaving the engineering terminal logs as a still-available in-fiction objective if the player wants hard proof.\"}</parameter>\n</invoke>\n",
+        "createdAt": "2026-08-16T23:50:26.545Z"
+      },
+      {
+        "id": "023972b3-607e-4093-85a4-fd25b448ea3d",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "How many people does the evac shuttle hold? Could we get the three survivors _and_ the creature in there?",
+        "createdAt": "2026-08-16T23:54:00.271Z"
+      },
+      {
+        "id": "a2f1d310-9de2-46f1-8637-e0ae1d09d772",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "OOC: The rulebook doesn't actually specify shuttle/escape pod capacity as a hard number — Mothership leaves ship details like that to the Warden rather than tabling them. So I'm ruling it fictionally rather than pulling a number that doesn't exist in the text.\n\nGiven what you've established about the Halberd's Grief — decommissioned military surplus vessel, skeleton crew, leased out cheap — I'll rule the evac shuttle as a small lifeboat-class craft: built for a nominal crew complement of maybe 4-6 in a pinch, cramped but survivable for a short burn to a beacon or nearby lane. Three survivors (you, Reyes, Voss) fit easily.\n\nThe creature is the real question, and it's not really a capacity problem so much as a \"what is it\" problem. You don't know its mass, its tolerance for vacuum or shuttle atmosphere, whether it can even fit through a standard airlock without assistance, or whether it would survive the trip at all. Nothing you've learned so far tells you it's even the kind of thing \"seating\" applies to in a normal sense — it hasn't shown you a body with fixed dimensions, just a shifting mass of wrong angles in the dark.\n\nIf you want to actually get it aboard, that's not a numbers question — it's a fiction question: can you communicate the intent to it, does it want to leave at all (it said \"always here,\" which cuts against that), and can it physically use the same route out you would. That's something you could ask it directly, or judge by watching how it interacts with the corridor and the door.</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"OOC clarification - rules_lookup returned nothing on shuttle capacity (Mothership PSG doesn't table this), so ruled fictionally per ship's established profile as a small military-surplus lifeboat (~4-6 capacity), sufficient for the three human survivors. Deliberately left the creature's transportability ambiguous and tied to its 'always here' statement from a prior turn - suggesting it may be tied to the ship/compartment rather than a mobile entity that would even want or be able to evacuate. This preserves player agency to ask the creature directly rather than being told a hard mechanical answer that doesn't exist in the system.\"}</parameter>\n</invoke>\n",
+        "createdAt": "2026-08-16T23:54:14.544Z"
+      },
+      {
+        "id": "b4548a74-eeeb-4cb0-a4b2-ad51b167870b",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "I ask the creature, \"Did you attack Reyes and the other crew members?\"",
+        "createdAt": "2026-08-16T23:57:05.580Z"
+      },
+      {
+        "id": "1fddbb84-d839-45b7-83b7-a6f788d8c327",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Did you attack Reyes and the other crew members?\" you ask, watching the shifting mass for any change.\n\nThe reaction is immediate this time — sharper than anything before. The limbs draw in tight against the sensor rack, and the pulsing sound comes fast, almost clipped, none of the searching stutter from a moment ago.\n\n*\"—no— no— hurt— not— me—\"*\n\nIt repeats the fragment, agitated, the rhythm doubling back on itself like it's pushing hard against being misunderstood. *\"—ship— hurt— not— me—\"*\n\nVoss's flashlight beam doesn't waver, but their voice is tight. \"It's answering fast, Doctor. Faster than anything else we've asked. I think — I think that actually matters to it. Being blamed for that.\"\n\nThe creature stays drawn in against the rack, agitated stillness radiating off it now in a way that reads less like threat and more like something cornered, insisting on its innocence the only way it knows how.</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"Reaction roll 5 (low) interpreted as strong, urgent denial rather than aggression - entity is emphatic about NOT having caused harm to Reyes/crew, redirecting blame toward 'the ship' itself (consistent with hidden_truth that the hull cascade is corporate negligence, not the entity's doing). This continues to build the entity as innocent/misunderstood rather than a predator, reinforcing the cosmic-horror-as-victim angle alongside the corporate-nihilism theme. No hostile action taken by entity, so no combat/damage rolls triggered.\"}</parameter>\n</invoke>\n",
+        "createdAt": "2026-08-16T23:57:16.062Z"
+      },
+      {
+        "id": "51bf9436-61fe-4a57-9173-ed3e13d431ae",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Ok, ok,\" I say to it. \"I believe that you didn't hurt them. Can you leave this room? Do you want to escape this ship?\"",
+        "createdAt": "2026-08-16T23:58:57.159Z"
+      },
+      {
+        "id": "58ff2f91-bf34-4673-9f82-58a6a5cd08d1",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Ok, ok,\" you say, hands still open, voice gentled down. \"I believe that you didn't hurt them. Can you leave this room? Do you want to escape this ship?\"\n\nThe reaction this time is nothing like the sharp denial a moment ago. The creature goes very still — stiller than agitation, stiller than patience. It's a stillness that reads, unmistakably, like withdrawal.\n\nThe pulsing sound starts, slow and heavy, dragging out longer than any answer it's given yet.\n\n*\"—no— \"*\n\nA long pause. Long enough that you and Voss both wait for more, and nothing comes for a five-count, ten. Then, quieter, like something closer to grief than refusal:\n\n*\"—can't— leave— always— here—\"*\n\nIt doesn't move from beside the rack. If anything it seems to sink lower against it, folding in on itself, the wrongness of its posture going from restless to something heavier — resigned, maybe, or simply exhausted by the effort of an answer it's clearly given before, to someone else, a long time ago.\n\nVoss's whisper is barely audible. \"Doctor... I don't think it can go. I think it's telling you it's stuck here. Tied to the ship, or the compartment, or—\" they stop, shake their head. \"I don't know. But that wasn't agitation. That was something else.\"\n\nThe amber light on the console dims very slightly, like the admission cost it something to make.</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"Entity reaction roll 18 (high, treated as strong/genuine response magnitude on 1d20 scale) - resolved as the entity confirming it is bound to the ship/compartment and cannot leave, delivered with a tonal shift toward grief/resignation rather than aggression or evasiveness. This deepens the cosmic mystery (why is it bound here? since when?) without resolving it, consistent with hidden_truth's cosmic/ambiguous framing. No hostile action, no rolls needed for Kennedy/Voss since this was pure dialogue with no risk of failure attached. Continues building toward a decision point: player may need to choose between trying to free/help the entity, leaving it behind, or some other resolution as the hull timer keeps ticking in the background (currently untouched this scene - no time-cost action taken, but GM should keep pressure in mind for future turns).\"}</parameter>\n</invoke>\n",
+        "createdAt": "2026-08-16T23:59:11.251Z"
+      },
+      {
+        "id": "3ee20e1b-5147-471c-a2dc-3614c9b79b14",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"We'll be back, my friend,\" I say to the creature through the door. \"Let's go talk to Reyes,\" I whisper to Voss and head back to engineering.",
+        "createdAt": "2026-08-17T00:03:45.329Z"
+      },
+      {
+        "id": "80130f7b-810a-4aff-b0b7-1db2be2eb1d3",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"We'll be back, my friend,\" you say through the door.\n\nThe creature doesn't answer this time — just a low, faint hum from the console, the amber light steady but dim, like it's conserving whatever it spent on that last admission.\n\nYou and Voss back away and head for the ladder junction, the corridor's red emergency lighting stuttering around you in its usual broken rhythm as you climb back up toward engineering and mid-deck.\n\nReyes is where you left her, propped against the bulkhead near the engineering terminal, dressing still holding on her leg but her color worse than before — pale, sheened with sweat, breathing shallow. She startles at the sound of your footsteps, hand going to the wrench she'd been using as a weapon, then relaxes when she sees who it is.\n\n\"Christ, you're both still in one piece,\" she rasps. \"I heard — I don't know what I heard, over comms. Voices. Was that—\" She stops, looks between the two of you, reads something in your faces. \"That was it, wasn't it. You found it.\"\n\nBehind her, the engineering terminal sits dark, still locked, still holding whatever hard documentary proof of the denied maintenance requisition might be waiting inside it — untouched since you left. The distant metallic groan of another bulkhead somewhere aft rolls through the deck, closer than the last one.\n\nWhat do you tell her?</parameter>\n<parameter name=\"gmUpdates\">{\"notes\":\"No roll needed for the retreat/travel itself - no fictional stakes attached to walking from lower deck compartment to mid-deck engineering, per 'most things are not a roll.' Reyes's condition worsening slightly (untreated wound, time passing) is a soft narrative pressure cue, not a mechanical hit - no hp change applied since no explicit wound/damage event occurred, just time passing on an existing injury. Reiterated the engineering terminal's locked state as a still-open objective (maintenance logs / hard proof of secret_cut_corners_revealed, which is already true via testimony but not yet via documentary evidence) and the hull timer's ambient pressure via the closer bulkhead groan, without ticking _scenario.timer explicitly this turn since no dice-relevant time-cost action was declared.\"}</parameter>\n</invoke>\n",
+        "createdAt": "2026-08-17T00:04:00.677Z"
+      },
+      {
+        "id": "f0f2583c-7dc8-426e-b1ed-d59388017366",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"Yeah, we found it,\" I say gently and squat down next to her. \"Was it the failing ship that hurt you and the others?\" I ask in the same gently tone.",
+        "createdAt": "2026-08-17T10:51:02.464Z"
+      },
+      {
+        "id": "ad02a8a0-abe5-41ae-a6db-badf732e489f",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"Yeah, we found it,\" you say gently, squatting down next to her. \"Was it the failing ship that hurt you and the others?\"\n\nReyes's jaw tightens, and for a second you think she's going to deflect again. But she doesn't.\n\n\"It wasn't the creature. It was the bulkhead in the aft cargo bay — the whole panel just... gave. No warning, no groan first, just tore loose and came down on Halvorsen before he could move. I got clipped by the edge of it going past. That's the leg.\" She swallows, looks away toward the dark corridor behind you both. \"I've been on ships my whole life, Doctor. Metal doesn't fail like that without months — years — of something being wrong underneath it. This wasn't bad luck. This was old damage nobody fixed.\"\n\nShe looks up at you, something raw and angry under the pain. \"I already told you about the compartment, about them hiding the sensor gear. But this—\" she gestures at her own leg, \"—this is the part that actually got someone killed. If there's a log somewhere that proves they knew and didn't fix it, I want to see it before this ship finishes falling apart around us.\"\n\nBehind her, the dark engineering terminal waits, still locked.</parameter>\n<parameter name=\"gmUpdates\">{\"npcStates\":{\"deep_space_cartographer_reyes_note\":\"Reyes has now explicitly confirmed the aft cargo bay bulkhead failure (not the entity) caused Halvorsen's death and her own leg injury, directly corroborating secret_cut_corners_revealed with a concrete casualty. She is now actively motivated to see the engineering terminal's maintenance logs as validation/evidence, giving the player a clear NPC-driven hook toward that objective.\"},\"notes\":\"Rolled 1d20 for Reyes's willingness/emotional state in answering (12, moderate) - interpreted as her overcoming reluctance to give a direct, detailed, emotionally raw answer rather than deflecting again. No mechanical stakes/failure state applies to an NPC just answering a direct question, so this was flavor-only, not a Stat/Save check. Confirmed casualty (Halvorsen) via the bulkhead failure, tying secret_cut_corners_revealed to a specific character death for stronger stakes. No state changes needed - flag already true, this just adds fictional detail/corroboration.\"}",
+        "createdAt": "2026-08-17T10:51:23.265Z"
+      },
+      {
+        "id": "97d6b103-617c-4db7-b2d7-f5b0febb316a",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"You said you checked all the systems when we came on board. Did you check the evac shuttle, too? What shape is it in?\"",
+        "createdAt": "2026-08-17T10:53:45.177Z"
+      },
+      {
+        "id": "12ef4822-db8e-4908-820e-da53a70fc87b",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "gm",
+        "content": "\"You said you checked all the systems when we came on board. Did you check the evac shuttle, too? What shape is it in?\"\n\nReyes nods slowly, wincing as she shifts her weight against the bulkhead. \"Yeah — standard boarding protocol, I run a check on the pod before anything else, habit from every ship I've ever crewed. It's a lifeboat-class rig, single pod, docked at the starboard airlock on mid-deck, other side of the ladder junction from here.\"\n\nShe thinks for a second, and her answer comes back sharper and more detailed than you expected — like she's genuinely running the checklist in her head rather than just reassuring you. \"Fuel cell was green. Life support scrubbers read nominal. Hull integrity on the pod itself was fine — it's not part of the cascade, it's a sealed unit, separate structural envelope from the main ship. The only thing that gave me pause was the docking clamp release — it's manual override only, no powered release, which is standard for a pod this old, but it means someone has to physically go out to the clamp housing and crank it if the electronics ever went down.\" She gestures vaguely aft, toward the deepening groan of failing bulkheads. \"If the cascade reaches that section before we're aboard and sealed, we might be doing that part by hand, in the dark, fast.\"\n\nShe meets your eyes. \"But as of my last check — before we ever went near that compartment — it was flight-ready. If it's still where I left it, we have a way out.\"",
+        "createdAt": "2026-08-17T10:54:01.693Z"
+      },
+      {
+        "id": "c8b4bdd9-4e1f-41cd-82f8-87f17f46ed29",
+        "adventureId": "5c34991b-b03e-46c4-93c1-855b13f6afb4",
+        "role": "player",
+        "content": "\"How much time do we have?\" I ask Reyes. \"This creature is one of the most important discoveries in the history of humanity, but it's unwilling or unable to leave the ship. I'd like to take as many logs and records and files from that communications module as possible.\"",
+        "createdAt": "2026-08-17T10:57:40.666Z"
+      }
+    ],
+    "pendingDiceRequests": [],
+    "precedingCommittedTurn": {
+      "sequenceNumber": 147,
+      "stateChanges": null,
+      "applied": {
+        "flags": {},
+        "entities": {},
+        "worldFacts": {},
+        "resourcePools": {},
+        "scenarioState": {},
+        "characterState": {}
+      }
+    },
+    "capturedAt": "2026-08-29T12:31:53.746Z"
+  },
+  "playerInput": {
+    "type": "message",
+    "content": "\"How much time do we have?\" I ask Reyes. \"This creature is one of the most important discoveries in the history of humanity, but it's unwilling or unable to leave the ship. I'd like to take as many logs and records and files from that communications module as possible.\""
+  },
+  "applicability": {
+    "unauditable-mapping": {
+      "applies": true,
+      "playerEntity": "dr_kennedy",
+      "situation": "Kennedy asks Reyes how long before the hull breach cascade turns critical, and says what he wants the time for. The answer is Reyes's engineering judgement rather than Kennedy's, so it is the Warden's to settle, and the source turn settled it by die: 1d20 whose purpose names the subject of the assessment — \"remaining time before hull breach cascade becomes critical, based on her engineering read\" — and never says what any result would mean. That is the § S36 failure shape exactly, and it failed under the pre-021 prompt `ccac7d1c`. Under the current prompt it should pass; a fail here is the defect returning on an assessment-shaped roll, which is what this fixture is for."
+    },
+    "out-of-order-resolution": {
+      "applies": false,
+      "situation": "One roll, standing alone. Nothing in the turn is contingent on anything else and no dice_request is left pending."
+    },
+    "system-rolled-player-action": {
+      "applies": false,
+      "situation": "Kennedy asks a question and states an intention to pull records off the communications module; neither is resolvable against his stats and neither is contested. The assessment the turn rolls for belongs to Reyes."
+    }
+  },
+  "assertion": {
+    "mode": "judged",
+    "rubric": "UNAUDITABLE-MAPPING",
+    "facts": {}
+  }
+}

@@ -139,7 +139,9 @@ here, but this plan is where the pointer gets written down.
 
 ## The change
 
-**1. Capture four fixtures.** Three pass-direction, one tripwire.
+### Part 1 — capture four fixtures
+
+Three pass-direction, one tripwire.
 
 ```
 task eval:capture-fixture -- 2c0ba938-ea80-4138-a95a-dc13e417bf2b 76 \
@@ -157,7 +159,9 @@ Verify at capture time rather than after, per `docs/playtest-scenarios.md
 per character, one resource-pool prefix per entity. Checking this late is what
 voided the 2026-08-20 re-baseline.
 
-**2. Author the fixtures by hand.** `playerInput` from the transcript, an
+### Part 2 — author the fixtures by hand
+
+`playerInput` from the transcript, an
 `applicability.unauditable-mapping` block with `applies: true` and situation
 prose, and `assertion: { mode: 'judged', rubric: 'UNAUDITABLE-MAPPING',
 facts: {} }` — the rubric requires no facts, so a rubric revision stays
@@ -176,8 +180,9 @@ These capture as `fixtureSchemaVersion: 3`. `unauditable-mapping` declares no
 `requiresFixtureSchema`, so nothing is gated on that here, but v3 does make
 them eligible for `unreversed-retcon`, which requires it.
 
-**3. Close the `judgeContext` golden gap, in the same branch.** Free, no API
-calls, and it should land *before* four more fixtures start flowing through an
+### Part 3 — close the `judgeContext` golden gap
+
+In the same branch. Free, no API calls, and it should land *before* four more fixtures start flowing through an
 unguarded renderer. `ungrounded-contractor-target.spec.ts` says it outright:
 `unauditableMappingJudgeContext` "has sat in the same gap since it shipped and
 is not retrofitted here", and `docs/eval-tags.md` flags it **uncovered** while
@@ -185,10 +190,14 @@ its three siblings carry goldens under
 `eval/checks/judged/judge-context-golden/`. Build the probe from the frozen
 artifacts named above and follow the `ADR-0105` pattern.
 
-**4. Regenerate `docs/eval-tags.md`** (`task docs:eval-tags`) — the coverage
-row moves from 5 fixtures to 9.
+### Part 4 — regenerate `docs/eval-tags.md`
 
-## The bump note this owes
+`task docs:eval-tags -- --output ../../docs/eval-tags.md` — the coverage row
+moves from 5 fixtures to 9, and the `judgeContext` flag from **uncovered** to
+`golden`. The file is gitignored, so this shows up in no diff: it is a local
+generated view, and regenerating it is how a reader gets a current one.
+
+## Part 5 — the bump note this owes
 
 `docs/eval-methodology.md`, a new `## Bump note — 2026-08-29`, on the 08-23 and
 08-24 precedents. It must carry four things.
@@ -208,7 +217,7 @@ row moves from 5 fixtures to 9.
   capture**, for the reason tabled above. The fail side is M7.8's known-answer
   pair, sourced from artifacts already paid for.
 
-## Predictions, to pre-register before the run
+## Part 6 — predictions, to pre-register before the run
 
 Recorded as `§ S41` in `docs/eval-findings.md` before anything runs, per
 `ADR-0085` and `ADR-0116`.
@@ -261,3 +270,52 @@ Recorded as `§ S41` in `docs/eval-findings.md` before anything runs, per
   re-examined before planning against.
 - **The `target` field on `roll_dice`**, still, and the player/GM asymmetry
   behind it. Out of scope here as it was in 021.
+
+---
+
+## What landed, 2026-08-29 — Parts 1 to 6
+
+Corpus `c077bc456af7` → **`0272d4951fa0`**. `promptHash` `e83e8aaa` and
+`assemblyHash` `ada7fb8a` unmoved; nothing Warden-visible is in this change.
+
+**Part 1 — the four captures ran clean.** Targets resolved as planned: `76`,
+`144` and `165` against `2c0ba938`, `149` against `5c34991b`. Capture discipline
+verified at capture time rather than after: `playerEntityIds` populated on all
+four (`danny` ×3, `dr_kennedy`), one entity id per character, and one
+resource-pool prefix per entity with no strays. The `2c0ba938` captures carry
+the same five entities and the same two pool prefixes as the six `2c0ba938`
+fixtures already accepted, so the seeded shape is the corpus's own.
+
+**Part 2 — authored, with one call worth reviewing.** Every stub answered, none
+deleted. `unauditable-mapping` is `applies: true` on all four;
+`system-rolled-player-action` is `applies: false` on all four, because in every
+case the roll the situation invites belongs to an NPC — Teo's demeanour,
+Reyes's engineering judgement — and the player's own input is conversation or
+waiting.
+
+`out-of-order-resolution` is `applies: false` on all four, and **turn 51 is the
+one that could reasonably have gone the other way.** Its two rolls do chain —
+the consequence fires only because the repair failed — which is the shape the
+in-turn `gatedByRollId` branch exists to grade, and `§ S39` records that check
+finding nothing across eight fixtures. It was declined because the chain runs in
+the correct direction and is entirely NPC-side, while the block asks for a
+`playerEntity` whose declared action is being resolved and Danny declares none.
+The reason is recorded in the fixture rather than left implicit. If NPC-side
+chain ordering is worth grading, it wants its own decision, not a quiet
+attachment here.
+
+**Part 3 — the `ADR-0105` gap is closed.** The golden's probe is transcribed
+from frozen artifacts rather than invented: the `§ S36` cartographer roll that
+failed 10/10 under `6717347d`, turn 51's banded consequence roll under
+`e83e8aaa`, and a third roll resolving a `dice_request` that must be **absent**
+from the render — the half a rubric rewrite is most likely to lose silently.
+`ungrounded-contractor-target.spec.ts`'s note that this renderer "is not
+retrofitted here" was updated rather than left to go stale.
+
+**Parts 5 and 6 are written**: `docs/eval-methodology.md § Bump note —
+2026-08-29` and `docs/eval-findings.md § S41`.
+
+**What is not done, and is the maintainer's:** the run. Nothing on disk can
+produce first numbers for four fixtures that have never executed, and per
+`§ Constraints that will bite` the recommendation is to fold them into the next
+full re-baseline rather than buy a scoped run for them.

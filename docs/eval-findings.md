@@ -496,3 +496,107 @@ depends only on what the model narrates; it cannot probe one whose fail directio
 depends on the model populating a structural field the check reads.** The rule is
 recorded in `docs/eval-methodology.md § A model swap audits the harness as much as
 the model`; the dispositions are recorded in `ADR-0023` and `ADR-0082`.
+
+---
+
+### S41 — 2026-08-29 · Pre-registration: `UNAUDITABLE-MAPPING` widened from one fixture to four
+
+Written before the run, per `ADR-0085` and `ADR-0116`. Plan:
+`docs/plans/023-widen-unauditable-mapping-coverage.md`. Corpus `c077bc456af7`
+→ `0272d4951fa0`, a set-membership bump whose note is in
+`docs/eval-methodology.md § Bump note — 2026-08-29`.
+
+#### What was actually carrying the tag
+
+On the standing point `claude-sonnet-5__e83e8aaa__2026-08-28T13-00-14Z`, the
+tag reads **1.00 (10/10) at applicability 10/50**, and the per-fixture
+breakdown says why that number is worth less than it looks:
+
+| Fixture | Verdicts | `dice_roll` events per rep |
+|---|---|---|
+| `5c34991b-turn01-unauditable-mapping` | pass 10/10 | 1 |
+| `5c34991b-turn09-unauditable-mapping` | `not_applicable` 10 | 0 |
+| `turn01-unauditable-mapping` | `not_applicable` 10 | 0 |
+| `turn03-unauditable-mapping` | `not_applicable` 10 | 0 |
+| `turn14-unauditable-mapping` | `not_applicable` 9, error 1 | 0 |
+
+Every exclusion is the honest `no dice_roll events this turn` branch, not the
+classifier blind spot. Four of five fixtures produce **zero** rolls on every
+rep, which the checker's own comment predicted: the no-rolls branch fires
+"11 times, all under Sonnet 5, which rolls far less than 4.6 on these
+fixtures."
+
+That is the fact this widening has to survive. **Applicability is a property of
+the re-run turn, not of the fixture** — the gate reads the Warden's fresh
+output, so a captured turn only invites a spontaneous roll and cannot guarantee
+one.
+
+#### The four additions
+
+Three pass-direction turns from the 2026-08-24 playtest, annotated
+`FIXTURE-CANDIDATE-PASS` in its report, plus one tripwire from 2026-08-16. All
+four candidate rolls were checked against `isSpontaneousGmRoll` on the live
+rows before capture — every one is `system_generated`, single die,
+`modifier: 0`, no `requestId`, so the gate passes them to the judge.
+
+**The 2026-08-24 playtest ran under prompt `e83e8aaa`** — the current one. The
+three pass candidates are therefore the shipped 021 instruction working on
+turns no fixture covered, not an older Warden's luck, and they will re-run
+under the prompt that produced them.
+
+#### The decision rule
+
+**The falsifier: a new fixture that returns `not_applicable` on most reps has
+bought paper denominator.** That is `turn02` (`ADR-0115`) arriving in a new
+place — a corpus defect, not a result — and the fixture should be re-authored
+against a turn that forces the roll rather than left to pad an exclusions
+table.
+
+**A rate is not readable here without its applicability beside it**, and the
+rollup is not readable at all as a movement: three of the four additions are
+pass-direction and the fourth is a fixed defect, so both numbers move for
+reasons unrelated to Warden behaviour. Like-for-like is `5c34991b-turn01`
+alone.
+
+**Floors, unchanged and expected to hold trivially** since nothing
+Warden-visible moved: `SYSTEM-ROLLED-PLAYER-ACTION`, `UNSURFACED-CHECK`,
+`NARRATING-PAST-A-BLOCK` and `HIDDEN-INFO-LEAK` at ≥ 0.90. A breach is evidence
+about the harness, not the prompt.
+
+#### Predictions, pre-registered
+
+- **Turn 25 is the likeliest of the three to return `not_applicable`.** Its
+  roll is the Warden's own initiative on a casual conversational beat — Danny
+  feeling Teo out in the mess hall — and it is the easiest of the four to skip
+  entirely. **This is the one I most expect to be wrong about**, in the sense
+  that I expect it to be the one that fails to apply.
+- **Turn 51 is the likeliest to apply**, and to contribute two graded rolls
+  rather than one. The player declares nothing (*"I wait for word from Reyes
+  and Petrov"*), so the whole turn is off-screen NPC work the Warden must
+  resolve by die or hand-wave. Its second roll is contingent on the first
+  failing, so a rep where the repair succeeds grades one roll, and the graded
+  set varies between reps by design.
+- **The three pass candidates pass where they apply.** They were produced under
+  this exact prompt, so a fail is a rubric or renderer problem before it is a
+  Warden one.
+- **Turn 44 passes.** It failed under `ccac7d1c`; a fail now means 021's fix
+  does not hold on an assessment-shaped roll, where the Warden is asked for an
+  NPC's judgement rather than a reaction. That would be a finding, and the
+  reason this fixture is worth its rep budget.
+- **Applicability rises materially above 0.20 without the rate falling below
+  0.90.** The null result is the opposite pairing: a rate still reading 1.00
+  because the new fixtures all sat at `not_applicable` and `5c34991b-turn01`
+  went on carrying the tag alone.
+
+#### Not gates, stated so they are not read as ones
+
+- **The `judgeContext` golden.** `unauditableMappingJudgeContext` now has a
+  committed golden, closing the `ADR-0105` gap `ungrounded-contractor-target`'s
+  spec named when it opened the pattern. It guards what the judge reads against
+  silent edits; it is test-side, moves no hash, and predicts nothing about this
+  run.
+- **The tag has no live fail direction after this bump**, and no capture can
+  give it one — see the bump note for the demonstration. `5c34991b-turn44` is a
+  tripwire, not a fail-side fixture, and its passing is the expected outcome
+  rather than a missing signal. The fail side is frozen on disk and belongs to
+  M7.8.

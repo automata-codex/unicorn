@@ -1183,6 +1183,64 @@ ambiguously and the Warden skips the transit — which this fixture never tested
 
 ---
 
+## Bump note — 2026-08-29, `UNAUDITABLE-MAPPING` widened from one fixture to four
+
+Corpus `c077bc456af7` → **`0272d4951fa0`**, a **set-membership** bump. Four
+fixtures added, none removed, no surviving fixture's `seededState`,
+`playerInput`, `applicability` or `assertion` touched. **`promptHash`
+`e83e8aaa` and `assemblyHash` `ada7fb8a` are unmoved** — nothing Warden-visible
+is in this change. Plan: `docs/plans/023-widen-unauditable-mapping-coverage.md`.
+
+| Fixture | Source | Direction |
+|---|---|---|
+| `2c0ba938-turn25-unauditable-mapping` | 2026-08-24 playtest, seq 76 | pass |
+| `2c0ba938-turn45-unauditable-mapping` | 2026-08-24 playtest, seq 144 | pass |
+| `2c0ba938-turn51-unauditable-mapping` | 2026-08-24 playtest, seq 165 | pass |
+| `5c34991b-turn44-unauditable-mapping` | 2026-08-16 playtest, seq 149 | tripwire |
+
+**The rate and the applicability will both move for reasons that have nothing
+to do with the Warden.** The tag went into this bump reading 1.00 (10/10) at
+applicability 10/50, with every row from `5c34991b-turn01`. Three of the four
+additions are turns the Warden already handled correctly, annotated
+`FIXTURE-CANDIDATE-PASS` in the playtest report, and the fourth is a turn it
+handled incorrectly under a prompt that has since been fixed. A rollup that
+comes back 1.00 at applicability 40/90 has measured a wider corpus, not a
+better Warden, and quoting it as a milestone gain would credit M7.7 with an
+improvement it did not earn.
+
+**Like-for-like is `5c34991b-turn01` alone.** Per `§ Two kinds of corpus bump`,
+a set-membership bump moves denominators without moving the Warden, so per-tag
+movement has to be restricted to fixtures present on both sides before it means
+anything — the same treatment `§ S35` and `§ S37` give a widened check.
+
+**No rescore can settle this one.** Frozen artifacts for the twenty-seven
+survivors stay exactly as valid as they were, and `eval:rescore` remains a real
+measurement for them. But the four new fixtures have never executed, so there
+is nothing on disk to re-grade: their first numbers cost a Warden run. Fold
+them into the next full re-baseline rather than buying a scoped run — the
+pass-direction caveat above means the result is not decision-bearing on its
+own.
+
+**After this bump the tag has no live fail-direction fixture, and cannot get
+one by capture.** A fixture is seeded state plus player input, re-run under
+whatever prompt is current, so a turn captured from a pre-fix playtest stops
+failing the moment the fix works. `5c34991b-turn01` is the demonstration:
+**fail 10/10** under `6717347d`, **pass 10/10** under `e83e8aaa`, from
+byte-identical seeded state. `5c34991b-turn44` is therefore a regression
+tripwire — it failed under `ccac7d1c` and should now pass, and a fail is the
+defect returning — not a fail-side fixture. The real fail side is already
+frozen on disk across three runs (`6717347d` reps 001–010, `e83e8aaa`
+2026-08-24 rep 010, `e83e8aaa` 2026-08-28 reps 001–010) and belongs to M7.8's
+known-answer pairs, which need no Warden call.
+
+**One thing in the same change moves no hash at all**, stated so nobody hunts
+for it: `unauditableMappingJudgeContext` now has a committed golden under
+`eval/checks/judged/judge-context-golden/`, closing the `ADR-0105` gap that
+`ungrounded-contractor-target.spec.ts` named. It guards what the judge reads;
+it is test-side only, and `rubricHash` `c97c75ba` is unmoved.
+
+---
+
 ## A model swap audits the harness as much as the model
 
 The first full-corpus run against a new model is two experiments wearing one coat. It
