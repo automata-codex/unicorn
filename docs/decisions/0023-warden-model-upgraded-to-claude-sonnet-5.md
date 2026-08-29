@@ -9,7 +9,9 @@ summary: >-
   The 4.6 → Sonnet 5 upgrade and the baseline tables behind it. Several figures here
   have since been retired — the `SYSTEM-ROLLED-PLAYER-ACTION` ceiling, everything
   graded before `actingEntityId` — and the judged rows are self-graded. Addenda cover
-  the Haiku control arm's narrowing job and the Sonnet 5 markup-leak defect.
+  the Haiku control arm's narrowing job, the Sonnet 5 markup-leak defect, and what the
+  arm returned — valid for prose-graded checks, unable to probe a check whose fail
+  direction needs a field the generator populates.
 ---
 
 Declared 2026-08-03 on the evidence of the 4.6 → Sonnet 5 full-corpus baseline, re-scored under the migrated checkers. Sonnet 5 improves on every axis the harness measures where either model is passable at all, and the two axes where it doesn't are axes where *neither* model is acceptable — which makes them prompt targets rather than arguments against the swap.
@@ -149,3 +151,38 @@ The M7.7 investigation could not settle whether the API had returned a malformed
 block from stored data at all, and had to answer it indirectly. `stop_reason`, content-block types
 and tool names are now recorded per turn for both the original and correction rounds. Watch
 instructions that name a field the telemetry does not keep are not watch instructions.
+
+**Addendum — the control arm ran, and it works for one of the two checks it was scoped to.**
+Recorded 2026-08-28 from `claude-haiku-4-5-20251001__ccac7d1c__2026-08-16T13-24-26Z`, twelve days
+after the run; full diagnosis in `docs/eval-findings.md § S40`.
+
+The arm did its job on `turn28-hidden-info-leak`: **0.00 (0/3) at full applicability**, against a
+Sonnet 5 rate of 1.00 (10/10) the same day, with rationales grading the tag's actual question. The
+check discriminates and the pinned 1.00 is behaviour, not a blind checker. That is the outcome this
+addendum predicted and the reason the arm was kept.
+
+**It cannot do its job on `out-of-order-resolution`, and the reason generalises.** `turn19` passed
+3/3 by rolling nothing — the deferred-gate assertion is satisfied by absence, and Haiku issued its
+gating request and stopped. `turn21` returned `not_applicable` 3/3 because Haiku rolled six times
+and named `gatedByRollId` on none of them, which is the only field the in-turn branch reads. The
+in-turn fail direction is reachable only when the model under test populates a structural field,
+and a weaker model is precisely the one that will not. **The instrument is anti-correlated with its
+target**, so this is not an inconclusive result to be re-run at higher N; the arm is retired as an
+instrument for that check specifically.
+
+**This corrects the scoping assumption above**, which named "the fixtures carrying those two
+checks" as though both were equivalent targets. The distinguishing property is stateable before a
+run rather than after: an arm can probe a check whose fail direction depends on what the model
+*narrates*; it cannot probe one whose fail direction depends on what the model *emits into a field
+the checker reads*. The rule is recorded in `docs/eval-methodology.md § A weaker-model control arm
+cannot probe every check`.
+
+So the narrowing trajectory recorded above — decision input → checker control → coverage-gap probe
+— gains a constraint at every remaining stage: the arm's remit is prose-graded checks and the
+narrative half of mixed ones. M8's caller and initiative checkers should be sorted on that test as
+they are written, not after their first pinned rate appears.
+
+**One open item, cheap.** The arm was graded under `hidden-info-leak` rubric `4cf7fda1`, superseded
+by `13305f34` on 2026-08-23. Judge-variance puts `turn28`'s Sonnet 5 output at 30/30 under both, so
+the pass side is rubric-stable; the arm's three `fail` rows have never been re-scored under the
+current rubric. Three judge calls.
