@@ -119,12 +119,9 @@ rather than its `reps/` rows wherever `SCENE-JUMP` is involved — the two disag
 by half a point under different rubrics.
 
 **What the next full-corpus run owes.** A standing list, emptied as each item
-is scored. `task docs:baseline-check` enforces that a *run* gets dispositioned;
-nothing enforces that an outstanding *pre-registration* gets scored. That is
-`§ S40`'s failure one stage earlier — a control arm is not a baseline candidate,
-so nothing verified it was dispositioned; a pre-registration is not a run, so
-nothing verifies it was scored. This list is the manual stand-in until something
-checks it.
+is scored. It is the manual stand-in for a check that does not exist — see
+**What `baseline-check` does not check** below for why, and for the two shapes
+that keep falling through.
 
 - **`docs/eval-findings.md § S41`**, outstanding since 2026-08-29. The four
   fixtures the `UNAUDITABLE-MAPPING` widening added (corpus `c077bc456af7` →
@@ -139,6 +136,36 @@ directories against this file by full run id, so a prompt hash or a truncated
 timestamp does not count as having dispositioned a run — and the first version of
 this paragraph, which used bare hashes, is what the check caught. It also omitted
 `995083c8` entirely.
+
+**What `baseline-check` does not check.** The tool verifies exactly one
+pairing: every run directory under `$ZOLTAR_EVAL_ROOT/eval-runs` newer than the
+standing point is named somewhere in this file. Everything outside that pairing
+is enforced by memory, and two shapes have now fallen through it. They share a
+root, so they are recorded together rather than each beside its own incident.
+
+- **A run on disk that is not a baseline candidate.** The Haiku 4.5 control arm
+  (`§ S40`) sat undispositioned for twelve days. The check could not catch it —
+  a control arm is not a baseline candidate, and neither is a `--fixtures`-scoped
+  rider run, so nothing verifies one was ever read. Diagnosed in `ADR-0082`'s
+  closing addendum. **The proposed fix, recorded here because it was raised when
+  `§ S40` was written and left only in that session's transcript:** teach
+  `baseline-check` about `--fixtures`-scoped rider runs, rather than adding a
+  separate target for them. Cheaper than it sounds — a rider run is already a
+  directory with a manifest, and the manifest names its fixture scope.
+- **A pre-registration with no run at all.** `§ S41` predicts the behaviour of
+  four fixtures that have never executed, against a run that has no date. There
+  is no run directory for the check to enumerate, so it cannot key on anything.
+  Earlier pre-registrations never exposed this because they were written days
+  before the run they were for — `§ S38` was written for a run that landed the
+  same day, and `§ S39` scored it.
+
+Both are the same failure at different stages of one pipeline, which is what
+`ADR-0082`'s addendum means by "the same failure, one stage later": the arm was
+two days from being dropped from a checklist, then its result sat for twelve,
+and now a prediction about a result waits on nothing but this list. **Neither
+fix subsumes the other** — one teaches the check about run directories it
+currently skips, the other about a record that has no run directory yet. Both
+belong to M7.8, which already owns grading the harness rather than the Warden.
 
 **Check the archive before citing a baseline**, and when one is accepted, say so here rather than by adding a fourth
 dated section: three of them accreted because each new baseline was recorded

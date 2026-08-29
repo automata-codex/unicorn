@@ -470,6 +470,7 @@ Known-answer fixtures that grade the harness rather than the Warden: tiny hand-a
 - `judgeContext` renderer covered by a committed golden
 - Judge field-order study widened to the remaining six judged checks
 - The "pinned at 1.00 is a harness suspect" reframe recorded as a decision
+- `baseline-check` extended to the two shapes it cannot currently see — scoped rider runs, and pre-registrations awaiting a run
 
 Decisions: ADR-0074, ADR-0076, ADR-0080, ADR-0082, ADR-0105, ADR-0108 · Source material: `milestones/m7.7-turns-50-52-transcript.md`
 
