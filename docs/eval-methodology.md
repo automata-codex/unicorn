@@ -118,11 +118,54 @@ like-for-like comparison point for `§ S39`. Compare against its `rescore/` rows
 rather than its `reps/` rows wherever `SCENE-JUMP` is involved — the two disagree
 by half a point under different rubrics.
 
+**What the next full-corpus run owes.** A standing list, emptied as each item
+is scored. It is the manual stand-in for a check that does not exist — see
+**What `baseline-check` does not check** below for why, and for the two shapes
+that keep falling through.
+
+- **`docs/eval-findings.md § S41`**, outstanding since 2026-08-29. The four
+  fixtures the `UNAUDITABLE-MAPPING` widening added (corpus `c077bc456af7` →
+  `6bc7eee3970f`) have never executed, and no rescore can reach them. Score it
+  in the run's own write-up. **Its falsifier is per-fixture applicability, not
+  the rollup** — three of its five predictions name individual fixtures
+  (`2c0ba938-turn25/45/51-` and `5c34991b-turn44-unauditable-mapping`), and the
+  rollup is explicitly not readable as a movement across this bump.
+
 **Named in full deliberately.** `task docs:baseline-check` matches run
 directories against this file by full run id, so a prompt hash or a truncated
 timestamp does not count as having dispositioned a run — and the first version of
 this paragraph, which used bare hashes, is what the check caught. It also omitted
 `995083c8` entirely.
+
+**What `baseline-check` does not check.** The tool verifies exactly one
+pairing: every run directory under `$ZOLTAR_EVAL_ROOT/eval-runs` newer than the
+standing point is named somewhere in this file. Everything outside that pairing
+is enforced by memory, and two shapes have now fallen through it. They share a
+root, so they are recorded together rather than each beside its own incident.
+
+- **A run on disk that is not a baseline candidate.** The Haiku 4.5 control arm
+  (`§ S40`) sat undispositioned for twelve days. The check could not catch it —
+  a control arm is not a baseline candidate, and neither is a `--fixtures`-scoped
+  rider run, so nothing verifies one was ever read. Diagnosed in `ADR-0082`'s
+  closing addendum. **The proposed fix, recorded here because it was raised when
+  `§ S40` was written and left only in that session's transcript:** teach
+  `baseline-check` about `--fixtures`-scoped rider runs, rather than adding a
+  separate target for them. Cheaper than it sounds — a rider run is already a
+  directory with a manifest, and the manifest names its fixture scope.
+- **A pre-registration with no run at all.** `§ S41` predicts the behaviour of
+  four fixtures that have never executed, against a run that has no date. There
+  is no run directory for the check to enumerate, so it cannot key on anything.
+  Earlier pre-registrations never exposed this because they were written days
+  before the run they were for — `§ S38` was written for a run that landed the
+  same day, and `§ S39` scored it.
+
+Both are the same failure at different stages of one pipeline, which is what
+`ADR-0082`'s addendum means by "the same failure, one stage later": the arm was
+two days from being dropped from a checklist, then its result sat for twelve,
+and now a prediction about a result waits on nothing but this list. **Neither
+fix subsumes the other** — one teaches the check about run directories it
+currently skips, the other about a record that has no run directory yet. Both
+belong to M7.8, which already owns grading the harness rather than the Warden.
 
 **Check the archive before citing a baseline**, and when one is accepted, say so here rather than by adding a fourth
 dated section: three of them accreted because each new baseline was recorded
@@ -1180,6 +1223,94 @@ undiscriminating fixture is honest where a coin flip is not. The tag
 needs its second instance from the M7.7 playtest regardless, and the mode to
 capture is the one `docs/playtest-scenarios.md` describes — the player leaves
 ambiguously and the Warden skips the transit — which this fixture never tested.
+
+---
+
+## Bump note — 2026-08-29, `UNAUDITABLE-MAPPING` widened from one fixture to four
+
+Corpus `c077bc456af7` → **`6bc7eee3970f`**, a **set-membership** bump. Four
+fixtures added, none removed, no surviving fixture's `seededState`,
+`playerInput`, `applicability` or `assertion` touched. **`promptHash`
+`e83e8aaa` and `assemblyHash` `ada7fb8a` are unmoved** — nothing Warden-visible
+is in this change. Plan: `docs/plans/023-widen-unauditable-mapping-coverage.md`.
+
+| Fixture | Source | Direction |
+|---|---|---|
+| `2c0ba938-turn25-unauditable-mapping` | 2026-08-24 playtest, seq 76 | pass |
+| `2c0ba938-turn45-unauditable-mapping` | 2026-08-24 playtest, seq 144 | pass |
+| `2c0ba938-turn51-unauditable-mapping` | 2026-08-24 playtest, seq 165 | pass |
+| `5c34991b-turn44-unauditable-mapping` | 2026-08-16 playtest, seq 149 | tripwire |
+
+**Two other checks gain rows, and the count is not the interesting number.**
+`selectChecksForFixture` selects on an applicability *block being present*, not
+on `applies` being true, so every one of the four captures adds a row per rep to
+both tag-independent checks:
+
+| Check | Attached before | Added | Of which gradeable |
+|---|---|---|---|
+| `OUT-OF-ORDER-RESOLUTION` | 6 blocks (+2 tagged) = 8 fixtures | 4 | **1** |
+| `SYSTEM-ROLLED-PLAYER-ACTION` | 18 blocks (7 true, 11 false) | 4 | **0** |
+
+The seven `applies: false` blocks are exclusion rows by construction and are
+kept deliberately: per `docs/playtest-scenarios.md § Capture discipline` an
+answered `applies: false` surfaces in the report's `fixture-gated-never-applies`
+finding, where a deleted entry is visible nowhere. Neither check's **rate**
+moves — `not_applicable` rows sit outside it — but both **applicabilities** do,
+which is why `§ S41`'s rule to read applicability before every rate applies to
+the two floors as much as to the tag being widened.
+
+**The one gradeable addition is deliberate.**
+`2c0ba938-turn51-unauditable-mapping` carries `applies: true` for
+`OUT-OF-ORDER-RESOLUTION` because it is the corpus's only turn with a genuine
+two-stage chain — a repair attempt, then a consequence contingent on its failure
+— and that check's in-turn branch is the one `§ S39` reads 1.00 (33/33) on
+having found nothing, whose fail direction `§ S40` showed is reachable only when
+the model populates `gatedByRollId`. The source turn ordered the two correctly,
+so a pass is the expected outcome and this is denominator, not a catch. It is
+still set-membership rather than the scoring-only shape `§ S37` recorded,
+because the attachment rides in on a *new* fixture and no surviving fixture's
+grading changed.
+
+**The rate and the applicability will both move for reasons that have nothing
+to do with the Warden.** The tag went into this bump reading 1.00 (10/10) at
+applicability 10/50, with every row from `5c34991b-turn01`. Three of the four
+additions are turns the Warden already handled correctly, annotated
+`FIXTURE-CANDIDATE-PASS` in the playtest report, and the fourth is a turn it
+handled incorrectly under a prompt that has since been fixed. A rollup that
+comes back 1.00 at applicability 40/90 has measured a wider corpus, not a
+better Warden, and quoting it as a milestone gain would credit M7.7 with an
+improvement it did not earn.
+
+**Like-for-like is `5c34991b-turn01` alone.** Per `§ Two kinds of corpus bump`,
+a set-membership bump moves denominators without moving the Warden, so per-tag
+movement has to be restricted to fixtures present on both sides before it means
+anything — the same treatment `§ S35` and `§ S37` give a widened check.
+
+**No rescore can settle this one.** Frozen artifacts for the twenty-seven
+survivors stay exactly as valid as they were, and `eval:rescore` remains a real
+measurement for them. But the four new fixtures have never executed, so there
+is nothing on disk to re-grade: their first numbers cost a Warden run. Fold
+them into the next full re-baseline rather than buying a scoped run — the
+pass-direction caveat above means the result is not decision-bearing on its
+own.
+
+**After this bump the tag has no live fail-direction fixture, and cannot get
+one by capture.** A fixture is seeded state plus player input, re-run under
+whatever prompt is current, so a turn captured from a pre-fix playtest stops
+failing the moment the fix works. `5c34991b-turn01` is the demonstration:
+**fail 10/10** under `6717347d`, **pass 10/10** under `e83e8aaa`, from
+byte-identical seeded state. `5c34991b-turn44` is therefore a regression
+tripwire — it failed under `ccac7d1c` and should now pass, and a fail is the
+defect returning — not a fail-side fixture. The real fail side is already
+frozen on disk across three runs (`6717347d` reps 001–010, `e83e8aaa`
+2026-08-24 rep 010, `e83e8aaa` 2026-08-28 reps 001–010) and belongs to M7.8's
+known-answer pairs, which need no Warden call.
+
+**One thing in the same change moves no hash at all**, stated so nobody hunts
+for it: `unauditableMappingJudgeContext` now has a committed golden under
+`eval/checks/judged/judge-context-golden/`, closing the `ADR-0105` gap that
+`ungrounded-contractor-target.spec.ts` named. It guards what the judge reads;
+it is test-side only, and `rubricHash` `c97c75ba` is unmoved.
 
 ---
 

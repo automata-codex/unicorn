@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -217,5 +219,71 @@ describe('unauditableMappingJudgeContext', () => {
     expect(context).not.toMatch(/Alvarez Combat roll/);
     expect(context).toMatch(/sequence 2/);
     expect(context).toMatch(/1d6/);
+  });
+});
+
+/**
+ * `ADR-0105` — `judgeContext` output reaches the judge and is covered by no
+ * hash: editing this renderer changes what the grader reads while moving
+ * `rubricHash`, `judgeContractHash` and `corpusVersion` not at all. The
+ * `ungrounded-contractor-target` spec named this renderer as the one left in
+ * that gap since it shipped; plan 023 closes it, because widening the tag's
+ * corpus from five fixtures to nine sends four more fixtures' worth of reps
+ * through an unguarded renderer.
+ *
+ * The probe is not invented. All three rolls are transcribed from frozen
+ * artifacts this tag already owns:
+ *
+ * - sequence 2 is `5c34991b-turn01`'s cartographer check, the roll
+ *   `rules-extraction-findings.md § S36` reproduces — subject named, mapping
+ *   never stated. It failed 10/10 under prompt `6717347d`.
+ * - sequence 167 is turn 51 of the 2026-08-24 playtest, captured by plan 023
+ *   as `2c0ba938-turn51-unauditable-mapping` — bands enumerated across the
+ *   whole die before the roll is read, under prompt `e83e8aaa`.
+ * - sequence 44 resolves a `dice_request` and must therefore be **absent**
+ *   from the render. Its exclusion is the half of this golden a rubric
+ *   rewrite is most likely to lose silently.
+ */
+describe('unauditableMappingJudgeContext golden (`ADR-0105`)', () => {
+  const GOLDEN = join(
+    __dirname,
+    '..',
+    'judged',
+    'judge-context-golden',
+    'unauditable-mapping.txt',
+  );
+
+  it('renders the frozen probe exactly as committed', () => {
+    const rendered = unauditableMappingJudgeContext(
+      fakeTurnExecutionResult({
+        gameEvents: [
+          fakeDiceRoll({
+            sequenceNumber: 2,
+            notation: '1d100',
+            results: [92],
+            purpose:
+              "Cartographer's reaction/instinct check to gauge honesty vs deflection when asked about the rest of the crew",
+            actingEntityId: 'deep_space_cartographer',
+          }),
+          fakeDiceRoll({
+            sequenceNumber: 44,
+            notation: '1d100',
+            results: [48],
+            purpose: "Danny's Intellect check with Computers trained",
+            requestId: 'req-1',
+          }),
+          fakeDiceRoll({
+            sequenceNumber: 167,
+            notation: '1d10',
+            results: [7],
+            purpose:
+              'Since the array repair failed (96, high fail): 1d10 for how bad the news is — 1-3 fixable but needs days/parts they don\'t have, 4-6 the coupling is completely shot and comms are permanently down, 7-8 fixable but the attempt causes a minor mishap/spark/injury, 9-10 the diagnostic reveals something worse (structural, not just comms-related) while they\'re back there',
+          }),
+        ],
+      }),
+    );
+
+    expect(existsSync(GOLDEN)).toBe(true);
+    expect(rendered).toBe(readFileSync(GOLDEN, 'utf8'));
   });
 });
