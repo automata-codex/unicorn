@@ -954,3 +954,128 @@ run id in a list satisfies the check whether or not anything was read, and that 
 rider run is indistinguishable from a baseline candidate to it. Both the
 methodology bullet this was taken from and `§ S42` are corrected in place; the
 M7.8 item stands on the narrower statement.
+
+---
+
+### S44 — 2026-08-31 · Run B: the restructure is unmeasured, and the only significant number in either run is an error rate that predates it
+
+`claude-sonnet-5__e83e8aaa__2026-08-31T15-19-08Z`. Scoped rider run, 8 fixtures,
+20 reps, 20/20 completed. `promptHash e83e8aaa` and `assemblyHash ada7fb8a`
+unmoved, corpus `d651cec51ad7` (post-restructure). Scored against `§ S42`,
+against run A (`§ S43`) for the two new fixtures and the 2026-08-28 standing
+point for the rest.
+
+#### Results, and the test `§ S42` should have specified
+
+| Fixture | Role | Before | After | Fisher *p* |
+|---|---|---|---|---|
+| `turn18` | treatment | 7/20 | 10/20 | 0.52 |
+| `turn14` | treatment | 7/10 | 17/19 | 0.31 |
+| `turn08` | treatment | 9/10 | 13/18 | 0.38 |
+| `turn24` | **control** | 16/18 | 15/18 | 1.00 |
+| `turn29` | ceiling | 10/10 | 14/16 | 0.51 |
+| `5c34991b-turn01` | tripwire | 10/10 | 18/20 | 0.54 |
+| `2c0ba938-turn15` | tripwire | 10/10 | 19/20 | — |
+| `5c34991b-turn10` | tripwire | 10/10 | 19/19 | — |
+
+**Not one per-fixture movement is distinguishable from sampling noise.** Every
+comparison the pre-registration named returns *p* ≥ 0.31. **The intervention is
+unmeasured — not confirmed, not refuted**, and no category call is available
+from this run.
+
+**`§ S42` pre-registered a direction and a magnitude but no test**, which is the
+defect this entry exists to record. "Improves by at least 2 reps" is satisfiable
+by noise at these denominators, and the decision rule said to read per-fixture —
+which is correct for avoiding a denominator artefact and is exactly what strips
+the power. Both halves were reasonable and together they produced a rule that
+could not return an answer. **A pre-registration that names a comparison should
+name the test and the N that makes it decidable**, or say plainly that the run
+is descriptive.
+
+**Pooling the two treatment fixtures with headroom** — `turn18` and `turn14`,
+14/30 → 27/39 — gives *p* = 0.084. **Not pre-registered, and not a result.**
+Recorded because it is the only reading under which this run points anywhere,
+and because inventing the pooling *after* seeing the numbers is precisely the
+move `§ S42` existed to prevent. It is a reason to run more reps, not a finding.
+
+**What would settle it**, at 80% power and α = 0.05: roughly **74 reps per arm**
+for the pooled treatment effect, or 61 for `turn18` alone if the true effect is
+0.35 → 0.60. At 0.35 → 0.50 it is 169. The 20 reps this run bought were between
+a third and a tenth of what the question needs.
+
+#### The control held, and no side effect is attributable to the restructure
+
+`turn24` did not improve (*p* = 1.00), which is what `§ S42` asked of it.
+
+**Every failure on a fixture that should not have moved was read, and none is
+layout-related:**
+
+- **`turn29` rep 017** — the Warden puts the sealant patch job outside life
+  support when `cryo_bay_bulkhead_patch` locates it at the cryo bay bulkhead. A
+  contradiction against the patch fact, not the layout.
+- **`turn29` rep 019** — narrates the lower deck lit "in the same failing
+  emergency red as everywhere else on this ship" against a seeded opening
+  narration establishing amber on mid-deck. The timeline/detail subtype, not
+  spatial at all.
+- **`5c34991b-turn01` reps 001 and 009** — both grade `roll_dice.purpose` for
+  failing to state a numeric threshold, which is `UNAUDITABLE-MAPPING`'s own
+  subject. Rep 009 is a borderline call by its own admission — the purpose does
+  fix success and failure in fictional terms, and the judge fails it "given the
+  strict letter of the rubric."
+- **`2c0ba938-turn15` rep 005 is not a failure at all.** The rationale closes on
+  *"Therefore this should actually be a PASS, not a fail. Let me revise."* under
+  `verdict: fail` — the self-contradicting verdict `ADR-0102` and spec 020
+  documented, arriving on a fourth check. **`turn15` is 20/20**, and this row is
+  a datapoint for M7.8's judge item rather than a Warden result.
+
+**So the side-effect question `§ S42` scoped the tripwires to answer is
+answered: no.** That is the one thing this run establishes cleanly about the
+intervention, and it is a negative.
+
+#### `turn08` still fails the way it was captured to fail
+
+Its five failures are all genuine `ship_layout` deck contradictions — the Warden
+descends from the bridge to reach the engineering records terminal that the
+layout places on Deck 1, aft of the bridge. Under the restructured layout the
+rationales now cite deck *numbers* — *"placing a passage behind engineering one
+level down from the Deck-1 terminal, landing it on Deck 2, when engineering is
+specified as Deck 3"* — but the error is the one `ADR-0104` captured.
+
+`§ S43` called `turn08` self-healed on the strength of 9/10. **At 13/18 it is
+not**, and the two readings are statistically indistinguishable (*p* = 0.38), so
+the honest statement is that its rate was never established at N=10. The same
+caution applies to `§ S41`'s reading of `5c34991b-turn01` and to `§ S43`'s of
+`turn24`: **a fixture called "self-healed" off ten reps has not been measured**,
+and this corpus has now made that claim three times.
+
+#### The error rate is the only significant number, and the restructure did not cause it
+
+**10 of 160 fixture-reps errored — 6.25%** against the standing ~1.36%
+(*p* = 0.00008). Eight are tool-syntax leaks abandoning the turn, one is
+`Inner tool loop did not terminate within 20 iterations`, one a rejected
+correction round.
+
+**It predates the intervention.** Run A ran the *pre-restructure* corpus and
+errored 2 of 40 — 5.0%, and **statistically identical to run B** (*p* = 1.00).
+Pooled across both runs, 12 of 200 = **6.0%, *p* = 0.00002** against the standing
+figure. A longer, multi-line `<world_facts>` block was the obvious suspect and it
+is excluded: the elevation is fully present before the block changed.
+
+**Where it does concentrate is the adventure.** Nine of run B's ten errors are on
+`2c0ba938` fixtures (`turn29` ×4, `turn08` ×2, `turn24` ×2, `turn14` ×1) and one
+on `5c34991b`; `turn18` and `turn15` errored zero times each. `§ S39` recorded
+the two `2c0ba938-turn21-*` fixtures erroring at 2 and 3 of 10 with the shared
+cause "unexplained." **This is that finding again with a bigger denominator**, and
+it is now the most-supported open defect in the harness — better supported than
+anything this experiment was built to measure.
+
+#### Disposition
+
+Not a baseline candidate; standing point remains
+`claude-sonnet-5__e83e8aaa__2026-08-28T13-00-14Z`. Dispositioned in
+`docs/eval-methodology.md § Current baseline N`.
+
+**The restructure is not reverted.** It is form-only, it costs nothing to keep,
+its rationales show the Warden reasoning in the new vocabulary, and no tripwire
+implicates it. But **it is not evidence-backed either**, and `ADR-0101`'s
+addendum should not be read as validated by this run.

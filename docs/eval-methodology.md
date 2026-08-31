@@ -147,6 +147,18 @@ rather than a bare mention, until M7.8's `baseline-check` item closes.
   `turn18` stands as the treatment fixture run B is read on. **Not a standing
   point**, and nothing in it supersedes the entry above.
 
+- **`claude-sonnet-5__e83e8aaa__2026-08-31T15-19-08Z`** — run B, the
+  post-restructure measurement. 8 fixtures, 20 reps, corpus `d651cec51ad7`,
+  `promptHash e83e8aaa` and `assemblyHash ada7fb8a` unmoved. **Read and
+  dispositioned in `§ S43`'s successor, `§ S44`.** **The intervention is
+  unmeasured**: no per-fixture movement `§ S42` named is distinguishable from
+  noise (every Fisher *p* ≥ 0.31), so no category call is available. The control
+  held and no tripwire failure implicates the restructure, which settles the
+  side-effect question negatively. The one significant number in either run is an
+  error rate of 6.0% pooled against a standing ~1.36% — **not caused by the
+  restructure**, since run A ran the pre-restructure corpus at a statistically
+  identical rate. **Not a standing point.**
+
 **Named in full deliberately.** `task docs:baseline-check` matches run
 directories against this file by full run id, so a prompt hash or a truncated
 timestamp does not count as having dispositioned a run — and the first version of
