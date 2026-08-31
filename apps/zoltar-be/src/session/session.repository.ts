@@ -143,17 +143,30 @@ export class SessionRepository {
    * Migrated on the way out (`ADR-0118`). This is the read that feeds the
    * prompt builder, so an unmigrated v1 blob here renders `scenario_premise:
    * undefined` to the Warden on every turn of an old adventure.
+   *
+   * **`schemaVersion` is part of the projection, and must stay there.** It is
+   * what selects which migrations run; dropping it from this select is how the
+   * migration would silently stop happening. There is deliberately no default
+   * on `migrateGmContextBlob`'s second parameter, so removing it here is a type
+   * error rather than a quiet regression.
    */
   async getGmContextBlob(
     adventureId: string,
   ): Promise<Record<string, unknown> | null> {
     const rows = await this.db
-      .select({ blob: schema.gmContexts.blob })
+      .select({
+        blob: schema.gmContexts.blob,
+        schemaVersion: schema.gmContexts.schemaVersion,
+      })
       .from(schema.gmContexts)
       .where(eq(schema.gmContexts.adventureId, adventureId))
       .limit(1);
-    const blob = rows[0]?.blob as Record<string, unknown> | undefined;
-    return blob ? migrateGmContextBlob(blob) : null;
+    const row = rows[0];
+    if (!row) return null;
+    return migrateGmContextBlob(
+      row.blob as Record<string, unknown>,
+      row.schemaVersion,
+    );
   }
 
   async getPlayerEntityIds(campaignId: string): Promise<string[]> {

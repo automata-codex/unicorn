@@ -363,6 +363,18 @@ export async function seedScratchAdventure(
       })
       .returning();
 
+    // `schemaVersion` is left to the column default of 1, which is correct:
+    // every fixture in the corpus was captured before `ADR-0118` and carries
+    // `narrative.location`. The run reads this back through
+    // `SessionRepository.getGmContextBlob`, which migrates it — which is why
+    // the rename needed no fixture re-capture and moved no `corpusVersion`.
+    //
+    // **A fixture captured in a later shape would be mislabelled here**, and
+    // the fixture schema has no version field to read one from. Today that is
+    // harmless — v1→v2 is a no-op on an already-renamed blob — but that is a
+    // property of this particular migration, not a guarantee. A future step
+    // that restructures rather than renames would corrupt such a fixture.
+    // Re-capturing the corpus means teaching this insert the fixture's version.
     await tx.insert(schema.gmContexts).values({
       adventureId: adventure.id,
       blob: fixture.seededState.gmContextBlob,

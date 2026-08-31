@@ -171,3 +171,66 @@ quality, which would implicate the instruction-to-parameter move. Or a second
 game system whose synthesis needs prose the schema genuinely cannot carry — at
 which point the split is between systems rather than between homes, and this
 entry's test needs restating rather than its conclusion.
+
+## Addendum, 2026-08-31 — the migration is keyed on the version, not the shape, and the original reasoning did not survive review
+
+This entry shipped with a migration that decided what to do by **inspecting the
+blob**, and justified it thus: not every read path selects `schema_version`, so
+a version-gated migration would silently no-op wherever a caller had not thought
+to fetch the column, handing the prompt builder a v1 blob that renders
+`scenario_premise: undefined` to the Warden on every turn.
+
+**That is a defect to close, not to route around.** The column is `NOT NULL` on
+both tables that hold a blob. `reconstruct-state.ts` already did a bare
+`.select()` and had it in hand. `getGmContextBlob` selected `blob` alone only
+because it was written that way — a one-line projection change. There was never
+a read site where the version was genuinely unavailable; the risk being defended
+against was a hypothetical careless future caller, and the defence cost more
+than the risk.
+
+**What shape-keying costs shows up later, which is why it read as free.** With
+one migration it is indistinguishable from a chain. With several:
+
+- **Sniffers do not compose.** A chain is N independent `vN → vN+1` steps and a
+  runner. Sniffers must each be correct *and* correctly ordered against each
+  other, and nothing checks the second.
+- **A round trip is inexpressible.** Rename `a → b` at v2 and `b → a` at v4, and
+  no amount of looking at the blob says which side of the loop it is on.
+- **"Old" and "absent" collapse.** A v1 blob with no `narrative` and a v5 blob
+  with no `narrative` are the same object to a sniffer.
+
+**The one thing shape detection was good for survives, in the right role.**
+Catching a row whose `schema_version` is lying is real value, and it is an
+assertion about the *output*, not a mechanism for choosing the input. A blob
+labelled current that still carries a retired key now throws
+`GmContextMigrationError` rather than being silently repaired — which is the
+difference between finding out and not. Silent repair is what the original
+design did, and it would have concealed exactly the write-path bug most worth
+knowing about.
+
+**Adopting the chain now was free, and will not stay free.** Every existing
+`gm_context` row is genuinely v1, and the column default of 1 happens to label
+them all correctly, because nothing ever wrote v2 shape before today. So no
+repair pass was owed. That accident does not recur: once two versions are in
+flight, converting a shape-keyed migration to a version-keyed one requires first
+establishing that the labels can be trusted, which is a data audit rather than a
+refactor.
+
+**The version is now derived from the chain** (`MIGRATIONS.length + 1`) rather
+than declared beside it, so a step cannot be added without the version
+following, and `migrateGmContextBlob`'s `fromVersion` parameter has **no
+default** — dropping the column from a projection is a type error rather than a
+quiet regression.
+
+**One latent hazard is now recorded rather than accidental.**
+`harness-runner.ts` inserts fixture blobs at the column default of 1, which is
+correct for every fixture in the corpus and needs no version field on the fixture
+schema. A fixture captured in a later shape would be mislabelled there. Today
+that is harmless because v1 → v2 is a no-op on an already-renamed blob — a
+property of this particular migration, not a guarantee — and a future step that
+restructures rather than renames would corrupt such a fixture. Re-capturing the
+corpus means teaching that insert the fixture's version.
+
+**Nothing else in this entry changes.** The policy, the rename, the version bump
+to 2, the corpus staying at `d651cec51ad7`, and the `assemblyHash` move to
+`94bc6c74` all stand exactly as recorded above.

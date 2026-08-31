@@ -108,8 +108,12 @@ export async function reconstructStateAsOfTurn(
   // every adventure created before the rename carries `narrative.location`
   // here. Migrating at the read keeps replay working on both playtest
   // campaigns — which is the reason the rename migrates rather than rejecting.
+  // The snapshot table carries its own version column, distinct from
+  // `gm_context.schema_version`, and the row above is a bare `.select()` so it
+  // is already in hand.
   let gmContextBlob = migrateGmContextBlob(
     snapshot.gmContextBlob as Record<string, unknown>,
+    snapshot.gmContextSchemaVersion,
   );
 
   // Steps 2-3: fold every prior turn's validated deltas forward. Only two

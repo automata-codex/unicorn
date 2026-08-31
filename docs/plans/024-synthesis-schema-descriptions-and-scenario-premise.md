@@ -337,11 +337,17 @@ nothing set it. It is now written explicitly on all three `gm_context` write
 paths, the per-turn `update` included, so an old adventure's row is relabelled
 by its first turn after this landed.
 
-**2. The migration keys on the shape, not the version.** The plan assumed a
-version-gated read migration. `getGmContextBlob` selects `blob` alone, so gating
-on a column the projection does not fetch would silently no-op and hand the
-prompt builder a v1 blob. Shape-keying is total; the version stays as the
-declaration of what new writes produce.
+**2. The migration was shape-keyed, then corrected back to version-keyed.**
+It first shipped keying on the blob's shape, on the argument that
+`getGmContextBlob` selects `blob` alone so a version-gated migration would
+silently no-op. That reasoning did not survive review: the missing column was a
+one-line projection fix, not a constraint, and shape sniffers do not compose
+into a chain, cannot express a field renamed away and back, and cannot tell an
+old blob missing a key from a current one missing it. It is now an ordered
+`vN → vN+1` chain with the version required and undefaulted, and shape detection
+demoted to an assertion that catches a row whose `schema_version` is lying.
+**The plan's original instinct was right and this section's first version was
+wrong.** See `ADR-0118`'s addendum.
 
 **3. Two read sites, not three.** `adventure.repository.ts` reads only
 `openingNarration` off the blob and never touches `narrative`, so it needs

@@ -6,6 +6,15 @@ import * as schema from '../db/schema';
 
 import type { Db } from '../db/db.provider';
 
+/**
+ * Only the fields this repository reads, which is one — and it has survived
+ * every `gm_context` schema version so far, so the reads below are unmigrated
+ * on purpose (`ADR-0118`).
+ *
+ * **If a migration ever touches `openingNarration`, this becomes a read site
+ * that needs `migrateGmContextBlob` and the `schema_version` column with it.**
+ * Widening this type is the signal to check.
+ */
 type GmContextBlob = { openingNarration?: string | null };
 
 @Injectable()
