@@ -11,21 +11,26 @@
             "type": "object",
             "properties": {
               "category": {
-                "type": "string"
+                "type": "string",
+                "description": "The oracle category the conflict originates in, as one of the category names given in the selections: survivor, threat, secret, vessel_type, tone. Where two categories collide, name the one that would have to change."
               },
               "description": {
-                "type": "string"
+                "type": "string",
+                "description": "What the contradiction is, in one or two sentences, naming both entries and why they cannot both hold. Concrete enough that a reader who has not seen the selections can judge it."
               },
               "rerollable": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "Whether swapping this one category would resolve the conflict, leaving the rest of the selections intact. `false` when the contradiction is spread across several entries, so that changing any single one does not fix it."
               }
             },
             "required": [
               "category",
               "description",
               "rerollable"
-            ]
-          }
+            ],
+            "additionalProperties": false
+          },
+          "description": "Every hard contradiction found — combinations the adventure cannot narratively support without rewriting the seed content. An empty array is the expected result and means the selections are coherent. Tension that ordinary synthesis can resolve is not a conflict."
         },
         "resolution": {
           "type": "string",
@@ -33,16 +38,20 @@
             "proceed",
             "reroll",
             "surface"
-          ]
+          ],
+          "description": "What should happen next. `proceed` — the selections are coherent, or the tension is resolvable through narrative means. `reroll` — one specific category could be swapped to resolve it; set `rerollCategory` when you choose this. `surface` — the conflict is unresolvable and the player must adjust their filters."
         },
         "rerollCategory": {
-          "type": "string"
+          "type": "string",
+          "description": "Which oracle category to reroll, as one of: survivor, threat, secret, vessel_type, tone. REQUIRED when `resolution` is \"reroll\" — a reroll report without it is rejected. Omit it for every other resolution."
         }
       },
       "required": [
         "conflicts",
         "resolution"
-      ]
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
     }
   }
 ]
