@@ -131,6 +131,22 @@ that keep falling through.
   (`2c0ba938-turn25/45/51-` and `5c34991b-turn44-unauditable-mapping`), and the
   rollup is explicitly not readable as a movement across this bump.
 
+**Scoped rider runs, dispositioned by hand.** These are not baseline candidates,
+and while `baseline-check` does enumerate them, all it asks is that the run id
+appear somewhere in this file — see the correction under **What `baseline-check`
+does not check**. Each is recorded here on landing, with a real disposition
+rather than a bare mention, until M7.8's `baseline-check` item closes.
+
+- **`claude-sonnet-5__e83e8aaa__2026-08-31T13-18-04Z`** — run A of the
+  `ship_layout` restructure experiment, pre-registered in
+  `docs/eval-findings.md § S42`. Scoped to the two newly captured fixtures, 20
+  reps, `promptHash e83e8aaa` and `assemblyHash ada7fb8a` unmoved, corpus
+  `301302000143`. **Read and dispositioned in `§ S43`.** Baseline only, no
+  comparison drawn: `2c0ba938-turn18` 0.35 (7/20), `2c0ba938-turn24` 0.89
+  (16/18), applicability full on both. Its void condition did not fire, so
+  `turn18` stands as the treatment fixture run B is read on. **Not a standing
+  point**, and nothing in it supersedes the entry above.
+
 **Named in full deliberately.** `task docs:baseline-check` matches run
 directories against this file by full run id, so a prompt hash or a truncated
 timestamp does not count as having dispositioned a run — and the first version of
@@ -144,14 +160,32 @@ is enforced by memory, and two shapes have now fallen through it. They share a
 root, so they are recorded together rather than each beside its own incident.
 
 - **A run on disk that is not a baseline candidate.** The Haiku 4.5 control arm
-  (`§ S40`) sat undispositioned for twelve days. The check could not catch it —
-  a control arm is not a baseline candidate, and neither is a `--fixtures`-scoped
-  rider run, so nothing verifies one was ever read. Diagnosed in `ADR-0082`'s
+  (`§ S40`) sat undispositioned for twelve days. Diagnosed in `ADR-0082`'s
   closing addendum. **The proposed fix, recorded here because it was raised when
   `§ S40` was written and left only in that session's transcript:** teach
   `baseline-check` about `--fixtures`-scoped rider runs, rather than adding a
   separate target for them. Cheaper than it sounds — a rider run is already a
   directory with a manifest, and the manifest names its fixture scope.
+
+  **Correction, 2026-08-31 — this bullet overstated the gap, and the overstatement
+  has been repeated since.** It read "the check could not catch it — a control arm
+  is not a baseline candidate, and neither is a `--fixtures`-scoped rider run, so
+  nothing verifies one was ever read." Two things are wrong with that. The check
+  did not exist during the twelve days (`docs/tooling/baseline-check.ts` landed
+  2026-08-28 in `709d7ba`, the same day the arm was dispositioned), so it did not
+  fail to catch anything. And it does **not** skip rider runs: it enumerates every
+  directory under `eval-runs` carrying a `manifest.json`, which a scoped run
+  writes like any other. Demonstrated 2026-08-31 — `baseline-check` went from "0
+  newer run(s)" to "1 newer run(s), all accounted for" across run A of the
+  `ship_layout` experiment, having required it be named first.
+
+  **The real gap is narrower and still worth the M7.8 item.** The check verifies
+  that a run id *appears in this file*, not that anything was read: a bare mention
+  in a list satisfies it, and a rider run that needs a different kind of
+  disposition than a baseline candidate is indistinguishable to it. That is what
+  the fixture-scope hook in the manifest would buy. `§ S42` and `§ S43` were
+  drafted against the overstated version and say the runs are "invisible" to the
+  check; they are corrected in place.
 - **A pre-registration with no run at all.** `§ S41` predicts the behaviour of
   four fixtures that have never executed, against a run that has no date. There
   is no run directory for the check to enumerate, so it cannot key on anything.

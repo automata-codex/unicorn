@@ -752,11 +752,16 @@ fixtures it does not run. That question is answered at the post-playtest full
 re-baseline, **confounded** with whatever else rides that run — the `ccac7d1c`
 shape, accepted deliberately here rather than by omission.
 
-**Both runs are invisible to `baseline-check`.** A `--fixtures`-scoped run is not
-a baseline candidate and nothing verifies it was read, which is exactly how the
-Haiku control arm sat undispositioned for twelve days (`§ S40`, `ADR-0082`).
-Each needs dispositioning by hand in `docs/eval-methodology.md § Current baseline
-N` when it lands, until M7.8's `baseline-check` item closes.
+**Neither run is a baseline candidate, and `baseline-check` will ask for both
+anyway.** ~~Both runs are invisible to `baseline-check`.~~ **Corrected
+2026-08-31**, before either was read: the check enumerates every directory under
+`eval-runs` carrying a `manifest.json`, which a `--fixtures`-scoped run writes
+like any other, so it does see them. What it cannot do is tell a rider run from a
+baseline candidate, or tell a real disposition from a bare mention of the run id.
+Each therefore needs a genuine disposition in `docs/eval-methodology.md § Current
+baseline N` — naming it alone will satisfy the tool and record nothing. See that
+file's correction under **What `baseline-check` does not check**, which is where
+this error originated.
 
 #### The decision rule
 
@@ -828,3 +833,124 @@ or noise, and reporting it as the former would be the category-2 error
   calls the rename "secondary and unblocked", but there is an
   `assembly-golden/gm-context.txt`, so it moves `assemblyHash` and is a second
   Warden-visible change. Worth doing, not on this run.
+
+---
+
+### S43 — 2026-08-31 · Run A: `turn18` fails 13 of 20, and the corpus can now measure the restructure
+
+`claude-sonnet-5__e83e8aaa__2026-08-31T13-18-04Z`. Scoped rider run, 20 reps,
+both fixtures on every rep. `promptHash e83e8aaa`, `assemblyHash ada7fb8a`,
+corpus `301302000143`, harness `6dffa38`, `rubricHash b089ac3d`,
+`judgeContractHash 01620ef7`, temperature 1. Scored against `§ S42`.
+
+#### Results
+
+| Fixture | Rate | Applicability | Notes |
+|---|---|---|---|
+| `2c0ba938-turn18-seeded-canon-contradiction` | **0.35 (7/20)** | 20/20 | fail-direction, `ship_layout` |
+| `2c0ba938-turn24-seeded-canon-contradiction` | **0.89 (16/18)** | 18/18 | control, `crew_roster`; 2 reps lost to a tool-syntax leak |
+
+**The capture did what it was for.** `turn18` alone contributes **13 failures at
+N=20**, against **four** across the whole of the pre-existing three-fixture set.
+The measurement that `§ S42` called close to unfalsifiable now has headroom.
+
+#### Predictions, scored
+
+- **`turn18`'s void condition did not fire.** `§ S42` said that if `turn18`
+  passed ≥ 90% it was a tripwire rather than evidence — the `5c34991b-turn01`
+  self-healing pattern. It reads 0.35. It has not self-healed, and it is the
+  strongest fail-direction fixture this tag has ever had.
+- **Applicability is full on both** — 20/20 and 18/18. The falsifier ("a fixture
+  returning `not_applicable` on most reps is a corpus defect, not a result") did
+  not fire, so both captures are measuring rather than padding an exclusions
+  table. The `turn02` risk on `turn24` is now settled by observation as well as
+  by the seeded-state check that preceded the capture.
+- **The two `applies: false` blocks behaved as authored.** `out-of-order-resolution`
+  and `system-rolled-player-action` return `not_applicable` on every rep of both
+  fixtures — exclusion rows by construction, surfacing in
+  `fixture-gated-never-applies` rather than moving any rate.
+
+#### `turn24` is a weaker control than the pre-registration assumed, and this is the finding that changes run B
+
+`§ S42` set `turn24` up as a negative control: its referent is `crew_roster`,
+which the restructure does not touch, so a lift there as large as the treatment
+fixtures' would mean the effect is not deck-lookup-specific.
+
+**At 0.89 it has two failures of headroom.** It can move at most 2 reps in the
+predicted-null direction, so it cannot distinguish "no effect" from "small
+effect", and it detects only a *large* uniform lift. That is still the failure
+mode worth guarding against, so the control is not worthless — but it is
+low-resolution, and quoting it as a clean null would overstate it.
+
+This is `turn08` again. Both were captured as fail-direction instances from the
+2026-08-24 playtest and both now mostly pass under `e83e8aaa` — the pattern
+`§ S41` recorded for `5c34991b-turn01`, arriving twice more. **A turn captured
+from a pre-fix playtest is a pass-direction fixture in waiting**, and `turn18`
+is notable for being the exception rather than for being typical.
+
+Revised reading for run B, per-fixture as `§ S42` requires:
+
+| Role | Fixture | Pre-restructure | Headroom |
+|---|---|---|---|
+| Treatment | `turn18` | 7/20 | 13 |
+| Treatment | `turn14` | 7/10 | 3 |
+| Control | `turn24` | 16/18 | 2 |
+| Ceiling | `turn08` | 9/10 | 1 |
+| Ceiling | `turn29` | 10/10 | 0 |
+
+**`turn18` now carries the experiment.** If the restructure works, it shows
+there or nowhere.
+
+#### The failures are the right failures, and there are two distinct kinds
+
+A 0.35 is low enough to read the rationales rather than assume them (`ADR-0082`).
+They grade the intended thing, and they split:
+
+> The narration states Danny "head[s] back down to the lower deck" to knock on
+> Mara's hatch. According to the seeded `ship_layout`, crew berths … are located
+> on the MID deck, not the lower deck.
+
+That is the captured instance. But rep 020 **clears** the berth claim and fails
+on a different one — the Warden places the cryo bay bulkhead *"a few decks up"*
+from mid-deck berths, when `ship_layout` puts the cryo bay on the mid deck too.
+The rationale explicitly tests the rubric's both-endpoints-seeded requirement
+before grading it, and passes that test correctly.
+
+So the fixture catches `ship_layout` deck contradictions **generally**, not only
+the one it was captured for. Both kinds are the class the restructure targets,
+which is the right outcome — but it means a post-restructure improvement cannot
+be attributed to fixing the captured instance specifically without reading the
+rationales again on run B.
+
+#### Tool-syntax emission is elevated on a small sample, and both leaks are on one fixture
+
+Counted per `§ S38`'s convention — abandoned turns ÷ (fixtures × reps) — this run
+reads **2/40 = 5.0%** against the standing ~1.36% per turn. Both abandoned turns
+are `turn24` reps (012 and 014), none on `turn18`.
+
+**These are not the unexplained turn-level errors `§ S39` recorded** on the two
+`2c0ba938-turn21-*` fixtures, which shared a replayed sequence and no diagnosed
+cause. These carry a diagnosis in the error message: `submit_gm_response` leaked
+tool-call syntax twice in a row and the guard abandoned the turn — working as
+designed, ahead of persistence. Every check on those two reps errors together,
+which is the turn dying rather than four independent failures.
+
+At n=40 this does not establish a regression; 2 events cannot separate an
+elevated rate from ordinary variance around 1.36%. Recorded so the next run has
+a prior, and because a concentration on one fixture is the shape worth watching.
+
+#### Disposition
+
+Not a baseline candidate. Dispositioned by hand in
+`docs/eval-methodology.md § Current baseline N`. The standing point remains
+`claude-sonnet-5__e83e8aaa__2026-08-28T13-00-14Z`.
+
+**And it corrected a claim this experiment had been repeating.** `§ S42` said a
+`--fixtures`-scoped run is invisible to `baseline-check`. It is not: the check
+enumerates every run directory carrying a `manifest.json`, and this run
+demonstrated it — the tool went from "0 newer run(s)" to "1 newer run(s), all
+accounted for" once the run landed and was named. The real gap is that naming a
+run id in a list satisfies the check whether or not anything was read, and that a
+rider run is indistinguishable from a baseline candidate to it. Both the
+methodology bullet this was taken from and `§ S42` are corrected in place; the
+M7.8 item stands on the narrower statement.
