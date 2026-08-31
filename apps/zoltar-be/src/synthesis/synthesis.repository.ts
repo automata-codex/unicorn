@@ -4,6 +4,7 @@ import { eq, sql } from 'drizzle-orm';
 import { CanonRepository } from '../canon/canon.repository';
 import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
+import { GM_CONTEXT_SCHEMA_VERSION } from '../session/gm-context.migration';
 
 import type { Db } from '../db/db.provider';
 
@@ -48,11 +49,16 @@ export class SynthesisRepository {
         .insert(schema.gmContexts)
         .values({
           adventureId: args.adventureId,
+          schemaVersion: GM_CONTEXT_SCHEMA_VERSION,
           blob: args.gmContextBlob,
         })
         .onConflictDoUpdate({
           target: schema.gmContexts.adventureId,
-          set: { blob: args.gmContextBlob, updatedAt: sql`now()` },
+          set: {
+            schemaVersion: GM_CONTEXT_SCHEMA_VERSION,
+            blob: args.gmContextBlob,
+            updatedAt: sql`now()`,
+          },
         });
 
       await tx
@@ -72,14 +78,17 @@ export class SynthesisRepository {
       // never updated (onConflictDoNothing). `commitGmContext` commits
       // synthesis exactly once per adventure in practice, so there's no
       // retry-with-different-content path that could make this stale.
-      // Hardcoded schema versions of 1 match `gm_context.schema_version` /
-      // `campaign_state.schema_version`'s column defaults (schema.ts) —
-      // the same value this write path implicitly produces above.
+      // The two schema versions are no longer the same number, and neither is
+      // a column default any more. `gm_context.schema_version` went to 2 with
+      // `ADR-0118`'s rename of `narrative.location`, and is now written
+      // explicitly above rather than left to the column default of 1 — a
+      // default that is now wrong for anything this code writes.
+      // `campaign_state.schema_version` is untouched at 1.
       await tx
         .insert(schema.adventureSynthesisSnapshots)
         .values({
           adventureId: args.adventureId,
-          gmContextSchemaVersion: 1,
+          gmContextSchemaVersion: GM_CONTEXT_SCHEMA_VERSION,
           gmContextBlob: args.gmContextBlob,
           campaignStateSchemaVersion: 1,
           campaignStateData: args.campaignStateData,

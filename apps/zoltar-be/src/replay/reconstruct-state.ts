@@ -1,6 +1,7 @@
 import { and, asc, eq, lt, sql } from 'drizzle-orm';
 
 import * as schema from '../db/schema';
+import { migrateGmContextBlob } from '../session/gm-context.migration';
 import { applyValidatedTurn } from '../session/session.applier';
 
 import type { MothershipCampaignState } from '@uv/game-systems';
@@ -103,7 +104,13 @@ export async function reconstructStateAsOfTurn(
   }
 
   let campaignState = snapshot.campaignStateData as MothershipCampaignState;
-  let gmContextBlob = snapshot.gmContextBlob as Record<string, unknown>;
+  // `ADR-0118`. The snapshot is the turn-0 baseline captured at synthesis, so
+  // every adventure created before the rename carries `narrative.location`
+  // here. Migrating at the read keeps replay working on both playtest
+  // campaigns — which is the reason the rename migrates rather than rejecting.
+  let gmContextBlob = migrateGmContextBlob(
+    snapshot.gmContextBlob as Record<string, unknown>,
+  );
 
   // Steps 2-3: fold every prior turn's validated deltas forward. Only two
   // event types carry data the applier needs — `state_update.payload.applied`

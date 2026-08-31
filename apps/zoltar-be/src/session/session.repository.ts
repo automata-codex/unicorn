@@ -7,6 +7,10 @@ import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
 
 import {
+  GM_CONTEXT_SCHEMA_VERSION,
+  migrateGmContextBlob,
+} from './gm-context.migration';
+import {
   insertDiceRollEvent,
   nextSequenceNumber,
   type PendingSystemRoll,
@@ -135,6 +139,11 @@ export class SessionRepository {
     private readonly canonRepo: CanonRepository,
   ) {}
 
+  /**
+   * Migrated on the way out (`ADR-0118`). This is the read that feeds the
+   * prompt builder, so an unmigrated v1 blob here renders `scenario_premise:
+   * undefined` to the Warden on every turn of an old adventure.
+   */
   async getGmContextBlob(
     adventureId: string,
   ): Promise<Record<string, unknown> | null> {
@@ -143,7 +152,8 @@ export class SessionRepository {
       .from(schema.gmContexts)
       .where(eq(schema.gmContexts.adventureId, adventureId))
       .limit(1);
-    return (rows[0]?.blob as Record<string, unknown> | undefined) ?? null;
+    const blob = rows[0]?.blob as Record<string, unknown> | undefined;
+    return blob ? migrateGmContextBlob(blob) : null;
   }
 
   async getPlayerEntityIds(campaignId: string): Promise<string[]> {
@@ -632,9 +642,18 @@ export class SessionRepository {
         await this.canonRepo.autoPromoteCanon(args.adventureId, tx);
       }
 
+      // The version moves with the blob. `getGmContextBlob` migrated this
+      // adventure's context on the way in, so what is being written back is
+      // v2 regardless of what the row held before — an old adventure's first
+      // turn after `ADR-0118` is what actually migrates its row, and leaving
+      // the column at 1 would label a v2 blob as v1.
       await tx
         .update(schema.gmContexts)
-        .set({ blob: args.gmContextBlob, updatedAt: sql`now()` })
+        .set({
+          schemaVersion: GM_CONTEXT_SCHEMA_VERSION,
+          blob: args.gmContextBlob,
+          updatedAt: sql`now()`,
+        })
         .where(eq(schema.gmContexts.adventureId, args.adventureId));
 
       const persistedMessage = await this.insertMessage({
