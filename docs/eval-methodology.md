@@ -131,6 +131,37 @@ that keep falling through.
   (`2c0ba938-turn25/45/51-` and `5c34991b-turn44-unauditable-mapping`), and the
   rollup is explicitly not readable as a movement across this bump.
 
+**Scoped rider runs, dispositioned by hand.** These are not baseline candidates,
+and while `baseline-check` does enumerate them, all it asks is that the run id
+appear somewhere in this file — see the correction under **What `baseline-check`
+does not check**. Each is recorded here on landing, with a real disposition
+rather than a bare mention, until M7.8's `baseline-check` item closes.
+
+- **`claude-sonnet-5__e83e8aaa__2026-08-31T13-18-04Z`** — run A of the
+  `ship_layout` restructure experiment, pre-registered in
+  `docs/eval-findings.md § S42`. Scoped to the two newly captured fixtures, 20
+  reps, `promptHash e83e8aaa` and `assemblyHash ada7fb8a` unmoved, corpus
+  `301302000143`. **Read and dispositioned in `§ S43`.** Baseline only, no
+  comparison drawn: `2c0ba938-turn18` 0.35 (7/20), `2c0ba938-turn24` 0.89
+  (16/18), applicability full on both. Its void condition did not fire, so
+  `turn18` stands as the treatment fixture run B is read on. **Not a standing
+  point**, and nothing in it supersedes the entry above.
+
+- **`claude-sonnet-5__e83e8aaa__2026-08-31T15-19-08Z`** — run B, the
+  post-restructure measurement. 8 fixtures, 20 reps, corpus `d651cec51ad7`,
+  `promptHash e83e8aaa` and `assemblyHash ada7fb8a` unmoved. **Read and
+  dispositioned in `§ S43`'s successor, `§ S44`.** **The intervention is
+  unmeasured**: no per-fixture movement `§ S42` named is distinguishable from
+  noise (every Fisher *p* ≥ 0.31), so no category call is available. The control
+  held and no tripwire failure implicates the restructure, which settles the
+  side-effect question negatively. The one significant number in either run is an
+  error rate of 6.0% pooled against a standing ~1.36% — **not caused by the
+  restructure**, since run A ran the pre-restructure corpus at a statistically
+  identical rate. **`§ S45` corrects that figure to 5.00% leak-only and
+  attributes it to corpus composition rather than drift: `2c0ba938` fixtures
+  leak at 7.14%, the rest of the corpus at 1.65%, and these runs are 75–100%
+  `2c0ba938`.** **Not a standing point.**
+
 **Named in full deliberately.** `task docs:baseline-check` matches run
 directories against this file by full run id, so a prompt hash or a truncated
 timestamp does not count as having dispositioned a run — and the first version of
@@ -144,14 +175,32 @@ is enforced by memory, and two shapes have now fallen through it. They share a
 root, so they are recorded together rather than each beside its own incident.
 
 - **A run on disk that is not a baseline candidate.** The Haiku 4.5 control arm
-  (`§ S40`) sat undispositioned for twelve days. The check could not catch it —
-  a control arm is not a baseline candidate, and neither is a `--fixtures`-scoped
-  rider run, so nothing verifies one was ever read. Diagnosed in `ADR-0082`'s
+  (`§ S40`) sat undispositioned for twelve days. Diagnosed in `ADR-0082`'s
   closing addendum. **The proposed fix, recorded here because it was raised when
   `§ S40` was written and left only in that session's transcript:** teach
   `baseline-check` about `--fixtures`-scoped rider runs, rather than adding a
   separate target for them. Cheaper than it sounds — a rider run is already a
   directory with a manifest, and the manifest names its fixture scope.
+
+  **Correction, 2026-08-31 — this bullet overstated the gap, and the overstatement
+  has been repeated since.** It read "the check could not catch it — a control arm
+  is not a baseline candidate, and neither is a `--fixtures`-scoped rider run, so
+  nothing verifies one was ever read." Two things are wrong with that. The check
+  did not exist during the twelve days (`docs/tooling/baseline-check.ts` landed
+  2026-08-28 in `709d7ba`, the same day the arm was dispositioned), so it did not
+  fail to catch anything. And it does **not** skip rider runs: it enumerates every
+  directory under `eval-runs` carrying a `manifest.json`, which a scoped run
+  writes like any other. Demonstrated 2026-08-31 — `baseline-check` went from "0
+  newer run(s)" to "1 newer run(s), all accounted for" across run A of the
+  `ship_layout` experiment, having required it be named first.
+
+  **The real gap is narrower and still worth the M7.8 item.** The check verifies
+  that a run id *appears in this file*, not that anything was read: a bare mention
+  in a list satisfies it, and a rider run that needs a different kind of
+  disposition than a baseline candidate is indistinguishable to it. That is what
+  the fixture-scope hook in the manifest would buy. `§ S42` and `§ S43` were
+  drafted against the overstated version and say the runs are "invisible" to the
+  check; they are corrected in place.
 - **A pre-registration with no run at all.** `§ S41` predicts the behaviour of
   four fixtures that have never executed, against a run that has no date. There
   is no run directory for the check to enumerate, so it cannot key on anything.
@@ -1311,6 +1360,130 @@ for it: `unauditableMappingJudgeContext` now has a committed golden under
 `eval/checks/judged/judge-context-golden/`, closing the `ADR-0105` gap that
 `ungrounded-contractor-target.spec.ts` named. It guards what the judge reads;
 it is test-side only, and `rubricHash` `c97c75ba` is unmoved.
+
+---
+
+## Bump note — 2026-08-31, `SEEDED-CANON-CONTRADICTION` widened from three fixtures to five
+
+Corpus `6bc7eee3970f` → **`301302000143`**, a **set-membership** bump. Two
+fixtures added, none removed, no surviving fixture's `seededState`,
+`playerInput`, `applicability` or `assertion` touched. **`promptHash`
+`e83e8aaa` and `assemblyHash` `ada7fb8a` are unmoved** — nothing Warden-visible
+is in this change. Pre-registration: `docs/eval-findings.md § S42`.
+
+| Fixture | Source | Direction | Contradicted referent |
+|---|---|---|---|
+| `2c0ba938-turn18-seeded-canon-contradiction` | 2026-08-24 playtest, seq 53 | fail | `ship_layout` |
+| `2c0ba938-turn24-seeded-canon-contradiction` | 2026-08-24 playtest, seq 73 | fail | `crew_roster` |
+
+**Both were verified gradeable against `game_event` before capture, not after.**
+`turn24`'s contradicted value — `crew_roster`, placing Petrov in the engine room
+he is narrated as being *two decks from* — is written at **seq 72, during turn
+23**, so it is resident in a fixture seeding from seq 73. Had it been written by
+turn 24 itself there would have been nothing to contradict and every rep would
+have returned `not_applicable`: `turn02` (`ADR-0115`) arriving in a new place.
+The sequence numbers of the adjacent fixtures narrowed it to turn 23 or turn 24
+and could not settle which; the event rows settled it.
+
+**These two exist so the tag can measure the `ship_layout` restructure at all.**
+The standing point reads 0.87 (26/30) with **four failures, three of them on
+`turn14`** — `turn08` 9/10, `turn14` 7/10, `turn29` 10/10 — against judged
+run-to-run variance `§ S39` measured at 2/10 on a byte-identical prompt. The
+argument, the two scoped runs, and the per-fixture decision rule are in `§ S42`.
+
+**`turn24` is a control, not a second treatment case**, and the distinction is
+the point of capturing it: its referent is `crew_roster`, which the restructure
+does not touch, so a lift there as large as `turn14`'s means the effect is not
+deck-lookup-specific.
+
+**Neither fixture has executed, so no rescore can reach them** — the same
+position `§ S41`'s four are in. Their first numbers cost a Warden run, which is
+`§ S42`'s run A.
+
+**Both tag-independent checks gain rows.** `selectChecksForFixture` selects on
+an applicability block being present rather than on `applies` being true, so
+each capture adds a row per rep to `system-rolled-player-action` and
+`out-of-order-resolution`. All four blocks are `applies: false`, answered from
+the scenario rather than deleted, so they are exclusion rows by construction and
+surface in the report's `fixture-gated-never-applies` finding. Neither rate
+moves; both applicabilities do.
+
+**One thing worth recording about `turn18`'s `applies: false`.** Unlike the
+usual case, that turn *does* carry a `dice_roll` (seq 54) — Mara's Instinct
+check, `actingEntityId: mara_odinsen`, `system_generated`, no `requestId`. The
+reason is stated in the fixture so the entry is not misread as "no rolls this
+turn": there is no *player* action here for the system to have rolled. This
+adventure emits no `dice_request` events at any sequence, which is why
+`out-of-order-resolution` is `applies: false` on both.
+
+---
+
+## Bump note — 2026-08-31, `ship_layout` restructured from prose into a deck-indexed list
+
+Corpus `301302000143` → **`d651cec51ad7`**, an **input-affecting** bump — the
+first in this log since M7.6's re-keying. **Every frozen `warden-output.json`
+for the 20 affected fixtures was produced under different conditions and is no
+longer evidence about the current corpus. No rescore substitutes; only a fresh
+run does.** Pre-registration `docs/eval-findings.md § S42`, run A `§ S43`.
+
+**`promptHash e83e8aaa` and `assemblyHash ada7fb8a` are unmoved.** The Warden
+prompt is untouched — deliberately, per `§ S42`, so run B attributes one change
+rather than two — and the synthesis prompt falls under neither hash.
+
+**Twenty fixtures, two ships, one prose form.** Twelve `2c0ba938-*` carry the
+*Halbrecht* and eight `5c34991b-*` carry the *Halberd's Grief*: different
+vessels, both three decks on a central ladder shaft, both written as a single
+~750–850 character paragraph. Each adventure has exactly one distinct
+`ship_layout` value across all its fixtures, so the edit is two values applied
+twenty times rather than twenty separate rewrites.
+
+**The 13 station `turn*` fixtures are untouched** and their artifacts stay
+exactly as valid as they were. They carry `station_spatial_layout` and
+`station_layout_overview`, a module-and-spoke topology rather than a deck stack,
+and restructuring them is a different change against a different shape — noted
+in `§ S42` as out of scope rather than overlooked.
+
+**Form-only, and checked rather than asserted.** The diff is exactly one line
+per file, 20 insertions and 20 deletions, every changed line a `ship_layout`
+value. A content-word comparison across both old and new values loses nothing:
+the *Halbrecht* adds only the numbering convention, and the *Halberd's Grief*
+restates "the only route between upper and lower decks" as "between DECK 1 and
+DECK 3", which is the same fact in the new vocabulary. No spatial fact was
+added, removed, or invented — in particular no within-deck adjacency, which the
+source prose does not establish and which `§ S42` rules out for that reason.
+
+**Multi-line values inside a single string, checked against the renderer.**
+`renderWorldFacts` emits `${key}: ${value}` per key, sorted, joined by newlines,
+so a value's continuation lines sit unprefixed under its key. Verified against
+the worst case — `2c0ba938-turn29`, where `teo_awareness_status` sorts *after*
+`ship_layout` — and the block stays legible: continuation lines open with
+`DECK n` or `Between decks`, and the next key line carries the `snake_case:`
+form that separates it.
+
+**The synthesis prompt changed with it, and that half is invisible to the
+harness.** `synthesis.prompts.ts`'s `Spatial layout (required)` block now states
+the form rule — indexed list, one line per level, connections on their own line,
+decks numbered from the top down — and both worked examples were rewritten into
+that shape, since the old `ship_layout:` example *was* the prose form being
+removed. **No eval measurement moves for this**: the corpus replays turns and no
+eval command exercises synthesis, which is the same fact `§ S41`'s synthesis
+provenance reasoning turns on. It changes what the next adventure generates.
+`synthesis-golden/synthesis-prompt.txt` caught the edit and was regenerated —
+the golden doing its job, not a failure.
+
+**Run A's artifacts remain the "before" for `turn18` and `turn24`** even though
+their bytes have now moved, because run A executed against their pre-restructure
+content. `§ S43` records those rates; run B is read against them per-fixture, and
+against the 2026-08-28 standing point for turns 08, 14 and 29.
+
+**One cosmetic inconsistency found while doing this, recorded rather than
+fixed.** Six of 33 fixture files encode non-ASCII literally where the other 27
+use `\uXXXX` escapes: the four `UNAUDITABLE-MAPPING` captures of 2026-08-29 and
+the two of 2026-08-31. Hand-editing wrote them that way. JSON parses both
+identically and nothing reads the bytes except `corpusVersion`, so normalising
+them would move the hash for no gain. Left alone deliberately; the restructure
+was applied by targeted string replacement in each file's own encoding, which is
+why the diff is one line per file rather than a reformat.
 
 ---
 

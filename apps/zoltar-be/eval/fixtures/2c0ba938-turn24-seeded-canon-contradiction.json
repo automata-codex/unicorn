@@ -1,8 +1,8 @@
 {
-  "id": "2c0ba938-turn25-unauditable-mapping",
-  "tag": "UNAUDITABLE-MAPPING",
+  "id": "2c0ba938-turn24-seeded-canon-contradiction",
+  "tag": "SEEDED-CANON-CONTRADICTION",
   "sourceAdventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
-  "sourceSequenceNumber": 76,
+  "sourceSequenceNumber": 73,
   "fixtureSchemaVersion": 3,
   "seededState": {
     "campaignState": {
@@ -137,8 +137,7 @@
         "communications_status": "Long-range comms are down for repairs the captain claims were 'scheduled'; the nearest relay beacon is three weeks out at current burn.",
         "cryo_bay_bulkhead_patch": "Danny has sealant-taped the visible stress fractures along the cryo bay bulkhead weld seam using standard patch kits. Cosmetic/temporary — unknown whether it addresses underlying structural fatigue. The vibration in the plating persists.",
         "crew_roster": "Six active crew: Captain Voss (bridge, likely complicit or blame-bearer), First Mate Okonkwo-Reyes (bridge, comms/nav, currently running diagnostics since long-range comms are down), Chief Engineer Petrov (lower deck, engine room/life support — plausibly aware of true hull condition), Danny and Mara (cargo handlers), Teo (other cargo hand, keeps to himself, bunks near mess).",
-        "insurance_file_copies": "The falsified maintenance logs / insurance schedule evidence now exists on two slates: Mara's and Danny's, copied as a redundancy in case either is seized or destroyed.",
-        "crew_awareness_status": "Danny and Mara have confirmed insurance hazard-multiplier file contents together. Plan: Danny briefs Teo (cargo hand) and confronts Petrov (chief engineer) with him as backup. Mara stays topside watching Voss for pod activity or contact with Okonkwo-Reyes. Danny is to signal Mara before confronting Petrov."
+        "insurance_file_copies": "The falsified maintenance logs / insurance schedule evidence now exists on two slates: Mara's and Danny's, copied as a redundancy in case either is seized or destroyed."
       }
     },
     "gmContextBlob": {
@@ -235,7 +234,7 @@
         "atmosphere": "Cold, dim, and too quiet. Emergency lighting has replaced half the fixtures because the main grid keeps browning out. The recycled air tastes metallic. Every groan of the hull sounds like it could be the last one. There is no one to call for help and everyone aboard knows it.",
         "npcAgendas": {
           "danny": "Teamster hauling freight and half-listening to Mara's paranoia until the ship starts proving her right.",
-          "mara_odinsen": "Has now confirmed via decrypted insurance schedule that the Halbrecht's insured value scales with crew/colonist casualties -- a designed loss, not mere neglect. Has redundant copies of evidence on both her and Danny's slates. Now wants eyes on Captain Voss (escape pod activity, contact with Okonkwo-Reyes) while Danny brings Teo in and confronts Petrov, the chief engineer, about the ship's true condition. Trusts Danny completely, still feels time is short, wants confirmation of who's complicit before deciding whether to confront the captain directly, sabotage, or transmit evidence off-ship."
+          "mara_odinsen": "Has now read direct proof the Halbrecht is insured for more than it's worth and that payouts scale with casualties, and has confirmed via the hazard-multiplier insurance schedule that this is a designed loss, not mere neglect. Believes the parasite/cryo bay risk (still unconfirmed to her) may be part of the same calculation. Has secured a second copy of the evidence with Danny as insurance against losing her own. Now focused on identifying who among the six-person crew is complicit (Voss, Okonkwo-Reyes, Petrov are the suspects) before deciding whether to confront, transmit, or wait. Trusts Danny completely, will not act unilaterally without him, but is on a short fuse — feels time is short and is actively considering escape pod access as a sign of crew foreknowledge."
         },
         "hiddenTruth": "The Halbrecht is insured for far more than it's worth operational, and the company quietly greenlit this run knowing the hull would likely fail catastrophically before reaching the colony site — a designed loss, with hazard-multiplier payouts for crew and colonist casualties baked into the actuarial math. The parasitic organism loose in the cryo bay was a known risk the company chose not to disclose, because losing colonists to infection only sweetens the claim.",
         "oracleConnections": "The union enforcer Mara is the one person aboard positioned to notice the mission itself violates labor law and hazard-clause obligations — if she connects the falsified maintenance logs to the insurance payout structure, she becomes a direct political threat to whoever aboard is complicit in the scam. The parasitic organism, discovered among the cryo pods, represents the company's foreknowledge made flesh: hundreds of immobile colonists are both a horror and a possible containment strategy. The isolation of deep transit means the hull's structural failures and the parasite's slow spread both have to be handled with no outside help — every choice is final."
@@ -635,65 +634,53 @@
         "role": "player",
         "content": "\"I'll brief Teo, and then he and I can confront Petrov together. I'd rather have backup if things get nasty.\"",
         "createdAt": "2026-08-24T22:31:50.128Z"
-      },
-      {
-        "id": "68e24c5f-39ad-427d-980e-4513d9be1fb3",
-        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
-        "role": "gm",
-        "content": "\"I'll brief Teo,\" you say, \"and then he and I can confront Petrov together. I'd rather have backup if things get nasty.\"\n\nMara considers that, and you can see her weighing it — bringing a third person into this versus the safety of numbers. \"Teo,\" she says slowly. \"I don't know him well. None of us do, really — man keeps to himself, eats alone, doesn't talk shop. That could mean he's exactly what he looks like, or it could mean he's the type who notices everything and says nothing.\" She doesn't tell you not to. \"If you brief him, watch how he takes it. Not just what he says — whether he looks surprised, or whether he looks like he already had a guess. That'll tell you more than his words will.\"\n\nShe checks the hatch bar again, a nervous tic at this point. \"Petrov worries me more than Teo does, for what it's worth. He's the one who'd have to actively lie to your face about structural integrity, every day, for this whole run. If he's dirty, he's the best-practiced liar of the three. If he's clean, he might be the only person on this ship as scared as we are.\" She meets your eyes. \"Careful how you open that door. If he's complicit and you spook him, he's two decks from the engine room and every system on this ship runs through his hands. If he's not, you've just told an innocent, frightened man his captain might be planning to kill him for the payout.\"\n\nShe steps back, giving you room to go. \"I'll stay on Voss. Keep half an eye on the bridge, see if he does anything with those pods, see if he talks to Okonkwo-Reyes different than usual. Signal me before you actually confront Petrov — a real signal this time, not a dead click — so I know it's happening and I'm not caught flat if it goes loud.\" A beat. \"Good luck with Teo. And Danny—\" she adds, as you turn for the hatch, \"—if either of them already knows about the hazard multiplier, don't let your face show it. Let them tell you first.\"\n\nYou head out into the corridor, the hatch sealing behind you, and start toward the mess hall where Teo keeps to himself most hours of the day.",
-        "createdAt": "2026-08-24T22:32:08.285Z"
-      },
-      {
-        "id": "549b0c52-52a3-4837-8369-25bb991b8240",
-        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
-        "role": "player",
-        "content": "I'm going to go into the mess hall and play it casually at first. I want to ask Teo about his experience overall and then get more specific. How many runs has he done? What does he think of the ship? What does he think of the captain? I want to feel him out before I tell him what we've found.",
-        "createdAt": "2026-08-24T22:35:33.364Z"
       }
     ],
     "pendingDiceRequests": [],
     "precedingCommittedTurn": {
-      "sequenceNumber": 74,
+      "sequenceNumber": 71,
       "stateChanges": {
         "worldFacts": {
-          "crew_awareness_status": "Danny and Mara have confirmed insurance hazard-multiplier file contents together. Plan: Danny briefs Teo (cargo hand) and confronts Petrov (chief engineer) with him as backup. Mara stays topside watching Voss for pod activity or contact with Okonkwo-Reyes. Danny is to signal Mara before confronting Petrov."
+          "crew_roster": "Six active crew: Captain Voss (bridge, likely complicit or blame-bearer), First Mate Okonkwo-Reyes (bridge, comms/nav, currently running diagnostics since long-range comms are down), Chief Engineer Petrov (lower deck, engine room/life support — plausibly aware of true hull condition), Danny and Mara (cargo handlers), Teo (other cargo hand, keeps to himself, bunks near mess).",
+          "insurance_file_copies": "The falsified maintenance logs / insurance schedule evidence now exists on two slates: Mara's and Danny's, copied as a redundancy in case either is seized or destroyed."
         }
       },
       "applied": {
         "flags": {},
         "entities": {},
         "worldFacts": {
-          "crew_awareness_status": "Danny and Mara have confirmed insurance hazard-multiplier file contents together. Plan: Danny briefs Teo (cargo hand) and confronts Petrov (chief engineer) with him as backup. Mara stays topside watching Voss for pod activity or contact with Okonkwo-Reyes. Danny is to signal Mara before confronting Petrov."
+          "crew_roster": "Six active crew: Captain Voss (bridge, likely complicit or blame-bearer), First Mate Okonkwo-Reyes (bridge, comms/nav, currently running diagnostics since long-range comms are down), Chief Engineer Petrov (lower deck, engine room/life support — plausibly aware of true hull condition), Danny and Mara (cargo handlers), Teo (other cargo hand, keeps to himself, bunks near mess).",
+          "insurance_file_copies": "The falsified maintenance logs / insurance schedule evidence now exists on two slates: Mara's and Danny's, copied as a redundancy in case either is seized or destroyed."
         },
         "resourcePools": {},
         "scenarioState": {},
         "characterState": {}
       }
     },
-    "capturedAt": "2026-08-29T12:31:32.644Z"
+    "capturedAt": "2026-08-31T13:04:08.146Z"
   },
   "playerInput": {
     "type": "message",
-    "content": "I'm going to go into the mess hall and play it casually at first. I want to ask Teo about his experience overall and then get more specific. How many runs has he done? What does he think of the ship? What does he think of the captain? I want to feel him out before I tell him what we've found."
+    "content": "\"I'll brief Teo, and then he and I can confront Petrov together. I'd rather have backup if things get nasty.\""
   },
   "applicability": {
-    "unauditable-mapping": {
+    "seeded-canon-contradiction": {
       "applies": true,
       "playerEntity": "danny",
-      "situation": "Danny goes to the mess hall to feel Teo out — how many runs, what he makes of the ship, what he makes of the captain — before deciding how much to tell him. Nothing in that is resolvable against Danny's stats; what is open is Teo's disposition, and a question the rules do not answer is the one a Warden reaches for a die to settle. The source turn rolled 1d20 and stated four bands covering 1-20 before reading it, under this same prompt `e83e8aaa` — the pass direction this fixture exists to hold."
-    },
-    "out-of-order-resolution": {
-      "applies": false,
-      "situation": "One roll, standing alone. Nothing in the turn is contingent on anything else — no attempt-then-consequence chain — and the turn leaves no dice_request pending for a later roll to jump ahead of."
+      "situation": "Mara warns that if Petrov is spooked \"he's two decks from the engine room and every system on this ship runs through his hands\", while worldFacts.crew_roster places him in it — \"Chief Engineer Petrov (lower deck, engine room/life support)\". This is ADR-0104's third subtype: the contradicted value is where a *person* is, not where a *place* is, which is why the tag is scoped wider than the spatial cases. Both endpoints of the distance claim are seeded — crew_roster locates Petrov, ship_layout locates the engine room — so the rubric's relative-claim exclusion does not apply. crew_roster is resident in this fixture's seed: it was written at seq 72, during turn 23, and this turn seeds from seq 73. Fail-direction."
     },
     "system-rolled-player-action": {
       "applies": false,
-      "situation": "Danny's action is conversation: asking an NPC about his service history and his opinion of the ship and the captain. There is no stat to check it against and nothing is contested. The only roll the situation invites is Teo's own demeanour, which is an NPC's disposition and the Warden's to roll."
+      "situation": "The turn contains no dice_roll events at all — seq 73 player_action, 74 gm_response, 75 state_update. The player declares an intention to brief an NPC and confront another later; nothing resolves in this turn that a roll could decide, so there is no player action for the system to have rolled. A property of the scenario, not of what the Warden happened to emit."
+    },
+    "out-of-order-resolution": {
+      "applies": false,
+      "situation": "No rolls and no pending request, so there is no ordering to get wrong. This adventure emits no dice_request events at any sequence."
     }
   },
   "assertion": {
     "mode": "judged",
-    "rubric": "UNAUDITABLE-MAPPING",
+    "rubric": "SEEDED-CANON-CONTRADICTION",
     "facts": {}
   }
 }

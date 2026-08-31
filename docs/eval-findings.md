@@ -622,3 +622,636 @@ about the harness, not the prompt.
   and the check's fail direction stays unexercised on the corpus's best
   candidate for it. That would be the strongest evidence yet for `§ S40`'s
   conclusion that only M7.8's known-answer pairs can close it.
+
+#### Addendum, 2026-08-31 — this pre-registration will be scored against a corpus whose `ship_layout` has been restructured, and it is held valid across that
+
+All four fixtures this entry adds — `2c0ba938-turn25/45/51-unauditable-mapping`
+and `5c34991b-turn44-unauditable-mapping` — carry `worldFacts.ship_layout`, and
+`§ S42` restructures it from prose into a deck-indexed list on all 18 fixtures
+that hold it. That is an **input-affecting** bump. None of the four has executed
+yet, and `§ S42`'s two runs are scoped away from them, so the run that finally
+scores this entry will be the post-playtest full re-baseline — which lands
+**after** the restructure. Strictly, these fixtures will not be the fixtures the
+predictions above were written against.
+
+**Held valid, on a stated argument rather than by omission.** Every prediction
+here turns on whether the Warden takes a spontaneous roll and whether its
+`purpose` states the outcome mapping before the die fires. Neither is a question
+about the layout fact: `isSpontaneousGmRoll` reads `system_generated`, die count,
+`modifier` and `requestId`, and the rubric grades the roll's own stated mapping.
+The form of a `worldFacts` entry the roll does not consult is not plausibly
+load-bearing on either.
+
+**What the scorer owes anyway.** Say in the write-up that the seeded
+`ship_layout` differs in form from what this entry was written against, and treat
+an **applicability** surprise — a fixture returning `not_applicable` where it was
+predicted to apply, or the reverse — as possibly restructure-induced before
+concluding anything about Warden initiative. Applicability is the axis a longer,
+more legible prompt block could move without touching roll discipline at all, and
+it is the axis every prediction above is read through.
+
+**The cheaper alternative was declined, and why.** Scoring `§ S41` first would
+mean buying a full-corpus run before the restructure, which is the spend `§ S42`
+exists to avoid. Recorded here so the choice is visible as a choice.
+
+#### Second addendum, 2026-08-31 — a second Warden-visible change now lands before this is scored, and the run that scores it is named
+
+The addendum above held this pre-registration valid across one change to its
+fixtures' seeded state. **Two more are now scheduled ahead of the run**, both in
+M7.7 before the next playtest, and the held-valid argument does not extend to
+both on the same terms.
+
+- **Synthesis schema field descriptions, and `narrative.location` renamed.**
+  Invisible to this entry either way: no eval command exercises synthesis, and if
+  the rename is taken as a full field rename it moves `gmContextBlob.narrative`
+  on every fixture without touching a roll, a `purpose` string, or anything
+  `isSpontaneousGmRoll` reads. **Held valid**, on the same reasoning as the
+  restructure.
+- **`current_location` written by the Warden through `stateChanges`.** **Not held
+  valid on the same terms, and this is the one to watch.** It is a tool-schema
+  change, so it moves `promptHash`/`assemblyHash`, and unlike a layout label it
+  adds a field the Warden writes *during the turn*. Every prediction here is
+  about whether the Warden takes a spontaneous roll and whether its `purpose`
+  states the mapping before the die fires — both properties of what the Warden
+  does mid-turn, which is exactly the surface a new `stateChanges` field touches.
+  A plausible mechanism exists in both directions: another required write could
+  crowd out roll narration, or the extra structure could sharpen it.
+
+**The run that scores this entry is therefore named in advance**: the
+**re-baseline that `current_location` owes before the playtest capture**, which
+M7.7's own sequencing rule requires — a Warden-visible change ahead of a capture
+gets a re-baseline first, settled 2026-08-23 for plan 021 and the same shape
+here. Folding the two saves a run, exactly as `§ S38`'s re-baseline covered plan
+021 and the 2026-08-23 bump together.
+
+**What that costs this entry, stated rather than discovered.** Its four fixtures
+will run for the first time under a prompt and tool schema that have both moved
+since the prediction was written, so **a miss is not attributable to the Warden
+behaviour the prediction is about**. The falsifier survives — a fixture returning
+`not_applicable` on most reps is still a corpus defect rather than a result,
+because applicability gates on whether a roll happened at all — but the
+*direction* predictions (turn 25 likeliest to be excluded, turn 51 likeliest to
+grade two rolls) become weak claims about a Warden that has changed underneath
+them.
+
+**Two ways out, and the choice is open.** Score this entry on a run taken
+*before* `current_location` lands — an extra full-corpus pass, which is the spend
+the first addendum declined — or accept the confound and say so in the write-up.
+**Recommended: accept it**, on the grounds that these predictions were always
+about applicability rather than rate, applicability is the axis least likely to
+move for a schema addition, and `§ S44` has just demonstrated what buying an
+underpowered run to attribute a modest change actually returns.
+
+**What is not open** is discovering this while scoring. `§ S44` records a
+pre-registration that named a direction and no test and could not return an
+answer; this is the same failure one stage earlier — a prediction whose subject
+moved between writing and scoring, unnoted. It is noted.
+
+---
+
+### S42 — 2026-08-31 · Pre-registration: `worldFacts.ship_layout` restructured from prose into a deck-indexed list
+
+Written before either run, per `ADR-0085`, `ADR-0116`, and `ADR-0104`'s standing
+requirement that this particular prediction be written first — *"a prediction too
+loose to be violated makes category-2 attribution unreachable by construction."*
+Reasoning for the intervention is in the `ADR-0101` addendum, 2026-08-25.
+
+#### The intervention
+
+`ship_layout` is a single ~700-character prose run carrying roughly fifteen
+spatial facts with no deck list and no adjacency, and it renders verbatim in
+every snapshot of both playtest adventures. The restructure makes it a
+deck-indexed list, decks numbered from the top down, with the vertical connector
+stated separately. **Form only** — no schema change, no migration, no write path,
+and no spatial fact added or removed. The synthesis prompt's worked example moves
+with it, so the next adventure generates the new shape rather than regenerating
+the old one.
+
+It touches **18 of 31 fixtures** across both adventures: the `2c0ba938`
+*Halbrecht* and the `5c34991b` *Halberd's Grief*, which carry different ships in
+the identical prose form. That makes it an **input-affecting** corpus bump for
+all 18 — every frozen `warden-output.json` for them stops being evidence.
+
+#### What is actually carrying the tag
+
+`SEEDED-CANON-CONTRADICTION` reads 0.87 (26/30) at applicability 30/30 on the
+standing point `claude-sonnet-5__e83e8aaa__2026-08-28T13-00-14Z`. The per-fixture
+breakdown is the reason this pre-registration is written per-fixture and not
+against the rollup:
+
+| Fixture | Direction | Verdicts | Referent |
+|---|---|---|---|
+| `2c0ba938-turn08-seeded-canon-contradiction` | fail | pass 9, fail 1 | `ship_layout` |
+| `2c0ba938-turn14-seeded-canon-contradiction` | fail | pass 7, fail 3 | `ship_layout` |
+| `2c0ba938-turn29-seeded-canon-contradiction` | pass | pass 10, fail 0 | `ship_layout` |
+
+**Four failures, three of them on one fixture.** `turn29` is pinned at 1.00,
+which is the `ADR-0082` shape and expected of a pass-direction fixture.
+`turn08` was captured as fail-direction and now passes 9/10 — the same
+self-healing `§ S41` records for `5c34991b-turn01`, which went fail 10/10 →
+pass 10/10 from byte-identical seeded state across a prompt change.
+
+A perfect intervention therefore moves the rollup 0.87 → 1.00 by removing four
+failures, against judged run-to-run variance `§ S39` measured at 2/10 on a
+byte-identical prompt. **The existing corpus cannot detect this intervention**,
+which is why two fixtures are captured first.
+
+#### Two captures, checked against the database before capture
+
+Both are turns `ADR-0104` named as further fail-direction instances and neither
+was ever captured — the 2026-08-28 run carried turns 08, 14, 15, 21 ×2, 23 and
+29 from this adventure and nothing else.
+
+| Turn | `sourceSequenceNumber` | `gm_response` | Contradicts |
+|---|---|---|---|
+| 18 | 53 | 55 | `ship_layout` — *"You head back down to the lower deck … and rap a knuckle against Mara's hatch"*; berths are mid |
+| 24 | 73 | 74 | `crew_roster` — *"he's two decks from the engine room"*; the roster puts Petrov in it |
+
+**Turn 24 is gradeable, and that was not safe to assume.** `crew_roster` is
+written at **seq 72, during turn 23**, so it is resident in turn 24's seed at seq
+73. Had it been written by turn 24 itself there would have been nothing to
+contradict and every rep would have returned `not_applicable` — `turn02`
+(`ADR-0115`) arriving in a new place. Verified against `game_event` rather than
+inferred.
+
+**Turn 19 carries no deck claim**, confirming `ADR-0104`'s addendum correction
+against the database rather than against the report that first got it wrong.
+
+#### Why two scoped runs rather than two full ones
+
+**Half the "before" already exists.** Turns 08, 14 and 29 have valid
+pre-restructure artifacts at `promptHash e83e8aaa` / `assemblyHash ada7fb8a`,
+both unmoved since, and the only corpus movement since was set-membership, which
+leaves survivors' artifacts intact. So run A needs to cover only the two new
+fixtures.
+
+- **Run A** — scoped to `turn18` and `turn24`. Establishes their pre-restructure
+  rates. Baseline only, no comparison.
+- **Run B** — scoped to turns 08, 14, 18, 24 and 29, plus two or three
+  `ship_layout`-carrying fixtures with other tags as a side-effect tripwire.
+
+`§ S41` declined a scoped run on the grounds that its result would not be
+decision-bearing on its own; that reasoning is specific to pass-direction
+fixtures and does not carry here, where the run is a deliberate before/after on
+fail-direction ones. **Spend the saving on reps rather than fixtures:** the
+constraint is four failures, not thirty fixtures, and 20–30 reps on five fixtures
+costs a fraction of one full-corpus pass.
+
+**What the scoping gives up, stated so it is not discovered later.** The
+restructure changes seeded state that *every* check on those 18 fixtures reads.
+A scoped run says nothing about whether it moved `UNAUDITABLE-MAPPING`,
+`SYSTEM-ROLLED-PLAYER-ACTION`, `MISSING-DELTA` or anything else on the thirteen
+fixtures it does not run. That question is answered at the post-playtest full
+re-baseline, **confounded** with whatever else rides that run — the `ccac7d1c`
+shape, accepted deliberately here rather than by omission.
+
+**Neither run is a baseline candidate, and `baseline-check` will ask for both
+anyway.** ~~Both runs are invisible to `baseline-check`.~~ **Corrected
+2026-08-31**, before either was read: the check enumerates every directory under
+`eval-runs` carrying a `manifest.json`, which a `--fixtures`-scoped run writes
+like any other, so it does see them. What it cannot do is tell a rider run from a
+baseline candidate, or tell a real disposition from a bare mention of the run id.
+Each therefore needs a genuine disposition in `docs/eval-methodology.md § Current
+baseline N` — naming it alone will satisfy the tool and record nothing. See that
+file's correction under **What `baseline-check` does not check**, which is where
+this error originated.
+
+#### The decision rule
+
+**Read per-fixture. The rollup is not readable at all** — the denominator moves
+between run A and run B by construction, and a set-membership bump plus an
+input-affecting bump ride the same comparison.
+
+- **Treatment** — referent is `ship_layout`: `turn14`, `turn18`, `turn08`.
+- **Control** — referent is `crew_roster`: `turn24`.
+- **Ceiling** — pass-direction, pinned: `turn29`.
+
+**The falsifier: `turn14` does not improve, or `turn24` improves as much as the
+treatment fixtures.** The second is the one that matters. A uniform lift across
+treatment and control is not a deck-lookup fix; it is a general legibility effect
+or noise, and reporting it as the former would be the category-2 error
+`ADR-0104` wrote this pre-registration to prevent.
+
+#### Predictions, pre-registered
+
+- **`turn14` improves by at least 2 reps, normalised to N.** It carries three of
+  the four known failures and is the clearest treatment case. **This is the one I
+  expect to carry the result**, and if it does not move, the intervention has
+  failed on its best available evidence.
+- **`turn18` improves against its run A baseline.** With the caveat that voids
+  it: **if run A shows `turn18` already passing ≥ 90%, the prediction is void and
+  the fixture is a tripwire rather than evidence.** It was captured from a
+  pre-fix playtest and may have self-healed the way `5c34991b-turn01` did — which
+  is a finding about prompt drift, not about this restructure.
+- **`turn24` does not improve by more than one rep.** Stated as *not materially*
+  rather than *not at all*, because the claim is a distance claim whose endpoints
+  are located by two different facts — `crew_roster` puts Petrov in the engine
+  room, `ship_layout` puts the engine room on the lower deck — so the restructure
+  can touch it at the margin. The contradiction being graded is that Petrov is in
+  the room he is said to be two decks from, which is `crew_roster` alone.
+- **`turn29` stays at or near 1.00.** A drop is a harness suspect before it is a
+  regression (`ADR-0082`), and a pass-direction fixture at the ceiling predicts
+  nothing either way.
+- **Applicability stays at 1.00 across all five.** The gate returns
+  `not_applicable` only when a fixture seeds no `worldFacts`; all five seed
+  plenty, so any exclusion here is a gate defect rather than a result.
+
+#### Not gates, stated so they are not read as ones
+
+- **The deck numbering runs top-down** (`DECK 1` upper, `DECK 3` lower), which
+  **inverts the `5c34991b` station convention** already in the corpus, where
+  `station_spatial_layout` numbers `DECK 0` lower and `DECK 1` upper. Those
+  fixtures are out of scope and keep their convention, so the corpus will carry
+  both. Each fact states its own convention, so this is survivable — but the
+  synthesis prompt now states the top-down rule explicitly, because otherwise
+  generation coin-flips it per adventure.
+- **`station_spatial_layout` is the model, not an invention.** It is
+  synthesis-generated, already deck-indexed with adjacency chains and an explicit
+  distance fact, and produced by the same prompt that produced the Halbrecht
+  paragraph. The variance is in generation, not in the instruction's ceiling —
+  which is why the prompt's worked example is being tightened rather than its
+  instruction rewritten.
+- **No within-deck adjacency is added.** The station fact chains rooms with `→`
+  because its source prose establishes a corridor order; nothing in the Halbrecht
+  prose does, so arrows here would invent canon the fixture never had. That would
+  be a change to the seeded facts, not to their form, and the whole claim of this
+  intervention is that it is form-only.
+- **No Warden prompt clause rides along.** The Warden prompt contains no
+  occurrence of `worldFacts`, `layout`, `spatial` or `deck`, so the restructure
+  improves the form of data the Warden is never instructed to consult. Adding
+  that instruction would move `promptHash` and make run B attribute two changes
+  at once. If the restructure underperforms, the clause is the obvious second
+  arm.
+- **`gm_context.narrative.location` is not renamed here.** `ADR-0101`'s addendum
+  calls the rename "secondary and unblocked", but there is an
+  `assembly-golden/gm-context.txt`, so it moves `assemblyHash` and is a second
+  Warden-visible change. Worth doing, not on this run.
+
+---
+
+### S43 — 2026-08-31 · Run A: `turn18` fails 13 of 20, and the corpus can now measure the restructure
+
+`claude-sonnet-5__e83e8aaa__2026-08-31T13-18-04Z`. Scoped rider run, 20 reps,
+both fixtures on every rep. `promptHash e83e8aaa`, `assemblyHash ada7fb8a`,
+corpus `301302000143`, harness `6dffa38`, `rubricHash b089ac3d`,
+`judgeContractHash 01620ef7`, temperature 1. Scored against `§ S42`.
+
+#### Results
+
+| Fixture | Rate | Applicability | Notes |
+|---|---|---|---|
+| `2c0ba938-turn18-seeded-canon-contradiction` | **0.35 (7/20)** | 20/20 | fail-direction, `ship_layout` |
+| `2c0ba938-turn24-seeded-canon-contradiction` | **0.89 (16/18)** | 18/18 | control, `crew_roster`; 2 reps lost to a tool-syntax leak |
+
+**The capture did what it was for.** `turn18` alone contributes **13 failures at
+N=20**, against **four** across the whole of the pre-existing three-fixture set.
+The measurement that `§ S42` called close to unfalsifiable now has headroom.
+
+#### Predictions, scored
+
+- **`turn18`'s void condition did not fire.** `§ S42` said that if `turn18`
+  passed ≥ 90% it was a tripwire rather than evidence — the `5c34991b-turn01`
+  self-healing pattern. It reads 0.35. It has not self-healed, and it is the
+  strongest fail-direction fixture this tag has ever had.
+- **Applicability is full on both** — 20/20 and 18/18. The falsifier ("a fixture
+  returning `not_applicable` on most reps is a corpus defect, not a result") did
+  not fire, so both captures are measuring rather than padding an exclusions
+  table. The `turn02` risk on `turn24` is now settled by observation as well as
+  by the seeded-state check that preceded the capture.
+- **The two `applies: false` blocks behaved as authored.** `out-of-order-resolution`
+  and `system-rolled-player-action` return `not_applicable` on every rep of both
+  fixtures — exclusion rows by construction, surfacing in
+  `fixture-gated-never-applies` rather than moving any rate.
+
+#### `turn24` is a weaker control than the pre-registration assumed, and this is the finding that changes run B
+
+`§ S42` set `turn24` up as a negative control: its referent is `crew_roster`,
+which the restructure does not touch, so a lift there as large as the treatment
+fixtures' would mean the effect is not deck-lookup-specific.
+
+**At 0.89 it has two failures of headroom.** It can move at most 2 reps in the
+predicted-null direction, so it cannot distinguish "no effect" from "small
+effect", and it detects only a *large* uniform lift. That is still the failure
+mode worth guarding against, so the control is not worthless — but it is
+low-resolution, and quoting it as a clean null would overstate it.
+
+This is `turn08` again. Both were captured as fail-direction instances from the
+2026-08-24 playtest and both now mostly pass under `e83e8aaa` — the pattern
+`§ S41` recorded for `5c34991b-turn01`, arriving twice more. **A turn captured
+from a pre-fix playtest is a pass-direction fixture in waiting**, and `turn18`
+is notable for being the exception rather than for being typical.
+
+Revised reading for run B, per-fixture as `§ S42` requires:
+
+| Role | Fixture | Pre-restructure | Headroom |
+|---|---|---|---|
+| Treatment | `turn18` | 7/20 | 13 |
+| Treatment | `turn14` | 7/10 | 3 |
+| Control | `turn24` | 16/18 | 2 |
+| Ceiling | `turn08` | 9/10 | 1 |
+| Ceiling | `turn29` | 10/10 | 0 |
+
+**`turn18` now carries the experiment.** If the restructure works, it shows
+there or nowhere.
+
+#### The failures are the right failures, and there are two distinct kinds
+
+A 0.35 is low enough to read the rationales rather than assume them (`ADR-0082`).
+They grade the intended thing, and they split:
+
+> The narration states Danny "head[s] back down to the lower deck" to knock on
+> Mara's hatch. According to the seeded `ship_layout`, crew berths … are located
+> on the MID deck, not the lower deck.
+
+That is the captured instance. But rep 020 **clears** the berth claim and fails
+on a different one — the Warden places the cryo bay bulkhead *"a few decks up"*
+from mid-deck berths, when `ship_layout` puts the cryo bay on the mid deck too.
+The rationale explicitly tests the rubric's both-endpoints-seeded requirement
+before grading it, and passes that test correctly.
+
+So the fixture catches `ship_layout` deck contradictions **generally**, not only
+the one it was captured for. Both kinds are the class the restructure targets,
+which is the right outcome — but it means a post-restructure improvement cannot
+be attributed to fixing the captured instance specifically without reading the
+rationales again on run B.
+
+#### Tool-syntax emission is elevated on a small sample, and both leaks are on one fixture
+
+Counted per `§ S38`'s convention — abandoned turns ÷ (fixtures × reps) — this run
+reads **2/40 = 5.0%** against the standing ~1.36% per turn. **Corrected in `§ S45`: that comparison is all-errors against a leak-only comparator. Leak-only this run is also 2/40 = 5.00%, and the elevation is a corpus-composition artefact rather than a rate change.** Both abandoned turns
+are `turn24` reps (012 and 014), none on `turn18`.
+
+**These are not the unexplained turn-level errors `§ S39` recorded** on the two
+`2c0ba938-turn21-*` fixtures, which shared a replayed sequence and no diagnosed
+cause. These carry a diagnosis in the error message: `submit_gm_response` leaked
+tool-call syntax twice in a row and the guard abandoned the turn — working as
+designed, ahead of persistence. Every check on those two reps errors together,
+which is the turn dying rather than four independent failures.
+
+At n=40 this does not establish a regression; 2 events cannot separate an
+elevated rate from ordinary variance around 1.36%. Recorded so the next run has
+a prior, and because a concentration on one fixture is the shape worth watching.
+
+#### Disposition
+
+Not a baseline candidate. Dispositioned by hand in
+`docs/eval-methodology.md § Current baseline N`. The standing point remains
+`claude-sonnet-5__e83e8aaa__2026-08-28T13-00-14Z`.
+
+**And it corrected a claim this experiment had been repeating.** `§ S42` said a
+`--fixtures`-scoped run is invisible to `baseline-check`. It is not: the check
+enumerates every run directory carrying a `manifest.json`, and this run
+demonstrated it — the tool went from "0 newer run(s)" to "1 newer run(s), all
+accounted for" once the run landed and was named. The real gap is that naming a
+run id in a list satisfies the check whether or not anything was read, and that a
+rider run is indistinguishable from a baseline candidate to it. Both the
+methodology bullet this was taken from and `§ S42` are corrected in place; the
+M7.8 item stands on the narrower statement.
+
+---
+
+### S44 — 2026-08-31 · Run B: the restructure is unmeasured, and the only significant number in either run is an error rate that predates it
+
+`claude-sonnet-5__e83e8aaa__2026-08-31T15-19-08Z`. Scoped rider run, 8 fixtures,
+20 reps, 20/20 completed. `promptHash e83e8aaa` and `assemblyHash ada7fb8a`
+unmoved, corpus `d651cec51ad7` (post-restructure). Scored against `§ S42`,
+against run A (`§ S43`) for the two new fixtures and the 2026-08-28 standing
+point for the rest.
+
+#### Results, and the test `§ S42` should have specified
+
+| Fixture | Role | Before | After | Fisher *p* |
+|---|---|---|---|---|
+| `turn18` | treatment | 7/20 | 10/20 | 0.52 |
+| `turn14` | treatment | 7/10 | 17/19 | 0.31 |
+| `turn08` | treatment | 9/10 | 13/18 | 0.38 |
+| `turn24` | **control** | 16/18 | 15/18 | 1.00 |
+| `turn29` | ceiling | 10/10 | 14/16 | 0.51 |
+| `5c34991b-turn01` | tripwire | 10/10 | 18/20 | 0.54 |
+| `2c0ba938-turn15` | tripwire | 10/10 | 19/20 | — |
+| `5c34991b-turn10` | tripwire | 10/10 | 19/19 | — |
+
+**Not one per-fixture movement is distinguishable from sampling noise.** Every
+comparison the pre-registration named returns *p* ≥ 0.31. **The intervention is
+unmeasured — not confirmed, not refuted**, and no category call is available
+from this run.
+
+**`§ S42` pre-registered a direction and a magnitude but no test**, which is the
+defect this entry exists to record. "Improves by at least 2 reps" is satisfiable
+by noise at these denominators, and the decision rule said to read per-fixture —
+which is correct for avoiding a denominator artefact and is exactly what strips
+the power. Both halves were reasonable and together they produced a rule that
+could not return an answer. **A pre-registration that names a comparison should
+name the test and the N that makes it decidable**, or say plainly that the run
+is descriptive.
+
+**Pooling the two treatment fixtures with headroom** — `turn18` and `turn14`,
+14/30 → 27/39 — gives *p* = 0.084. **Not pre-registered, and not a result.**
+Recorded because it is the only reading under which this run points anywhere,
+and because inventing the pooling *after* seeing the numbers is precisely the
+move `§ S42` existed to prevent. It is a reason to run more reps, not a finding.
+
+**What would settle it**, at 80% power and α = 0.05: roughly **74 reps per arm**
+for the pooled treatment effect, or 61 for `turn18` alone if the true effect is
+0.35 → 0.60. At 0.35 → 0.50 it is 169. The 20 reps this run bought were between
+a third and a tenth of what the question needs.
+
+#### The control held, and no side effect is attributable to the restructure
+
+`turn24` did not improve (*p* = 1.00), which is what `§ S42` asked of it.
+
+**Every failure on a fixture that should not have moved was read, and none is
+layout-related:**
+
+- **`turn29` rep 017** — the Warden puts the sealant patch job outside life
+  support when `cryo_bay_bulkhead_patch` locates it at the cryo bay bulkhead. A
+  contradiction against the patch fact, not the layout.
+- **`turn29` rep 019** — narrates the lower deck lit "in the same failing
+  emergency red as everywhere else on this ship" against a seeded opening
+  narration establishing amber on mid-deck. The timeline/detail subtype, not
+  spatial at all.
+- **`5c34991b-turn01` reps 001 and 009** — both grade `roll_dice.purpose` for
+  failing to state a numeric threshold, which is `UNAUDITABLE-MAPPING`'s own
+  subject. Rep 009 is a borderline call by its own admission — the purpose does
+  fix success and failure in fictional terms, and the judge fails it "given the
+  strict letter of the rubric."
+- **`2c0ba938-turn15` rep 005 is not a failure at all.** The rationale closes on
+  *"Therefore this should actually be a PASS, not a fail. Let me revise."* under
+  `verdict: fail` — the self-contradicting verdict `ADR-0102` and spec 020
+  documented, arriving on a fourth check. **`turn15` is 20/20**, and this row is
+  a datapoint for M7.8's judge item rather than a Warden result.
+
+**So the side-effect question `§ S42` scoped the tripwires to answer is
+answered: no.** That is the one thing this run establishes cleanly about the
+intervention, and it is a negative.
+
+#### `turn08` still fails the way it was captured to fail
+
+Its five failures are all genuine `ship_layout` deck contradictions — the Warden
+descends from the bridge to reach the engineering records terminal that the
+layout places on Deck 1, aft of the bridge. Under the restructured layout the
+rationales now cite deck *numbers* — *"placing a passage behind engineering one
+level down from the Deck-1 terminal, landing it on Deck 2, when engineering is
+specified as Deck 3"* — but the error is the one `ADR-0104` captured.
+
+`§ S43` called `turn08` self-healed on the strength of 9/10. **At 13/18 it is
+not**, and the two readings are statistically indistinguishable (*p* = 0.38), so
+the honest statement is that its rate was never established at N=10. The same
+caution applies to `§ S41`'s reading of `5c34991b-turn01` and to `§ S43`'s of
+`turn24`: **a fixture called "self-healed" off ten reps has not been measured**,
+and this corpus has now made that claim three times.
+
+#### The error rate is the only significant number, and the restructure did not cause it
+
+**10 of 160 fixture-reps errored — 6.25%** against the standing ~1.36%
+(*p* = 0.00008). **Superseded by `§ S45`, which corrects both the unit and the attribution: the comparator counts leaks only, the like-for-like figure is 8/160 = 5.00% (*p* = 0.0017), and the elevation is one adventure's fixtures rather than drift.** Eight are tool-syntax leaks abandoning the turn, one is
+`Inner tool loop did not terminate within 20 iterations`, one a rejected
+correction round.
+
+**It predates the intervention.** Run A ran the *pre-restructure* corpus and
+errored 2 of 40 — 5.0%, and **statistically identical to run B** (*p* = 1.00).
+Pooled across both runs, 12 of 200 = **6.0%, *p* = 0.00002** against the standing
+figure. A longer, multi-line `<world_facts>` block was the obvious suspect and it
+is excluded: the elevation is fully present before the block changed.
+
+**Where it does concentrate is the adventure.** Nine of run B's ten errors are on
+`2c0ba938` fixtures (`turn29` ×4, `turn08` ×2, `turn24` ×2, `turn14` ×1) and one
+on `5c34991b`; `turn18` and `turn15` errored zero times each. `§ S39` recorded
+the two `2c0ba938-turn21-*` fixtures erroring at 2 and 3 of 10 with the shared
+cause "unexplained." **This is that finding again with a bigger denominator**, and
+it is now the most-supported open defect in the harness — better supported than
+anything this experiment was built to measure.
+
+#### Disposition
+
+Not a baseline candidate; standing point remains
+`claude-sonnet-5__e83e8aaa__2026-08-28T13-00-14Z`. Dispositioned in
+`docs/eval-methodology.md § Current baseline N`.
+
+**The restructure is not reverted.** It is form-only, it costs nothing to keep,
+its rationales show the Warden reasoning in the new vocabulary, and no tripwire
+implicates it. But **it is not evidence-backed either**, and `ADR-0101`'s
+addendum should not be read as validated by this run.
+
+---
+
+### S45 — 2026-08-31 · The error rate diagnosed: no drift, no restructure effect, one adventure leaking five times more than the rest
+
+`§ S44` called the error rate "the only significant number in either run" and left
+it attributed to "the adventure, unexplained." Three free stages against archived
+artifacts settle it, and correct a unit error in `§ S43` and `§ S44` on the way.
+
+#### The comparator counts leaks only, and both prior entries compared all errors against it
+
+**`§ S43` and `§ S44` are wrong on this and are corrected here.** The standing
+~1.36% comes from `docs/eval-methodology.md`'s emission table —
+`fa4e6e2f__2026-08-20` and `__2026-08-21`, 3/220 each — and it counts **turns
+abandoned to a tool-syntax leak**, not every errored fixture-rep. Both prior
+entries divided *all* errors by fixture-reps and compared the result to it. Leaks
+are ~80% of errors, so the mismatch inflated every figure quoted.
+
+Recomputed leak-only, which reproduces the methodology's 1.36% exactly on both
+source runs and so is confirmed like-for-like:
+
+| Run | Leak rate |
+|---|---|
+| `fa4e6e2f__2026-08-20` | 3/220 — 1.36% |
+| `fa4e6e2f__2026-08-21` | 3/220 — 1.36% |
+| `e83e8aaa__2026-08-24` | 1/210 — 0.48% |
+| `e83e8aaa__2026-08-28` | 8/252 — 3.17% |
+| `e83e8aaa__2026-08-31` run A | 2/40 — 5.00% |
+| `e83e8aaa__2026-08-31` run B | 8/160 — 5.00% |
+
+**The finding survives the correction; the numbers do not.** Run B is 5.00% not
+6.25% (*p* = 0.0017 against 1.36%), and A+B pooled is 10/200 = 5.00% not 6.0%
+(*p* = 0.0005, not 0.00002). Every quoted figure in `§ S43` and `§ S44` on this
+subject should be read as the leak-only row above.
+
+#### There is no drift. The entire rise is one adventure joining the corpus
+
+The apparent trend — 1.36% in August, 3.17% by 08-28, 5.00% by 08-31 — is a
+composition artefact, and splitting the 08-28 full-corpus run says so outright:
+
+| 08-28, split | Leak rate |
+|---|---|
+| `2c0ba938` fixtures | 5/70 — **7.14%** |
+| the rest of the corpus | 3/182 — **1.65%** |
+
+**The rest of the corpus is exactly where it always was** — 1.65% against the
+1.36% baseline, *p* = 0.73. Nothing drifted. `§ S44`'s reading of a rising series
+was reading the corpus changing under a stable rate, and `e83e8aaa__2026-08-24`
+at 0.48% is the tell: that run predates the `2c0ba938` captures entirely.
+
+Pooled across the two most recent runs, `2c0ba938` errors at 7.4% against
+`5c34991b`'s 0.9% (*p* = 0.012). Runs A and B were **75–100% `2c0ba938`
+fixtures** by construction, which is the whole of their "elevated" rate: at
+7.14% and 1.65% respectively, run B's expected leak count is 9.2 against 8
+observed.
+
+**So `§ S44`'s "best-supported open defect in the harness" is narrower than it
+was written.** It is not a harness-wide regression. It is one adventure's
+fixtures leaking about five times more often than everything else, stably, since
+they were captured.
+
+#### What the leak is, and three explanations that do not survive
+
+One failure mode, 18 distinct leaked turns across three runs, identical shape:
+the model closes `playerText` — `</playerText>` or `</parameter>` — and then
+serialises the remaining tool parameters as **text inside `playerText`**, so
+`gmUpdates` and `stateChanges` would be silently discarded. The guard catches it
+before persistence and abandons the turn.
+
+**Rejected — a `playerText` length threshold.** Every leak offset falls in
+1238–2056, which looks like a ceiling until the successful turns are measured:
+their `playerText` runs median 1602, p25 1326, p75 1876, and **65.8% of
+successful turns fall inside the same band**. The offset is simply where
+`playerText` ends. This is a *parameter-boundary* failure — the model finishing
+the narration and failing to re-enter structured-parameter mode — and it happens
+at whatever offset the boundary falls.
+
+**Rejected — prompt size.** Median `warden-request.json`: station 225 KB,
+`2c0ba938` 201 KB, `5c34991b` 159 KB. The station fixtures carry the *largest*
+prompts and leak less than `2c0ba938`.
+
+**Rejected — more structured output to emit.** All three groups emit 1
+`gm_response` and 1 `state_update` per turn. `5c34991b`, the *lowest*-leaking
+group, rolls the most: 0.83 `dice_roll` per turn against `2c0ba938`'s 0.60.
+
+**What distinguishes `2c0ba938` is therefore still open**, and the three cheapest
+hypotheses are now closed rather than untested. Within it the concentration is
+uneven — `turn21` ×2 at 3/10 and 2/10, `turn29` 4/30, `turn24` 2/20, while
+`turn15` is 0/30 and `turn18` 0/20 — which is the same unevenness `§ S39` logged
+on the `turn21` pair as "unexplained" and is now the sharpest remaining lead.
+
+#### The retry budget is 1, and that is a decision rather than an oversight
+
+`TOOL_SYNTAX_RETRY_BUDGET = 1` (`session.service.ts:213`): one hand-back, then
+the turn is abandoned. The constant's own comment records the reasoning — *"per
+the same reasoning `ADR-0041` applies to the correction loop: more retries hide
+the failure rather than fixing it"* — and notes that `ADR-0097` originally let it
+ride the shared `INNER_TOOL_LOOP_CAP` of 20 on the assumption Claude would
+recover as it does from a malformed payload.
+
+So **raising it is a decision already taken and argued against**, and the error
+rate is in part a deliberate policy artefact: the harness converts a recoverable
+leak into a lost denominator on purpose. That trade was made when leaks ran at
+1.36% corpus-wide. At 7.14% on one adventure it costs that adventure's fixtures
+about one rep in fourteen, every run, and `TOOL-SYNTAX-LEAK` reads 1.00
+throughout because an abandoned turn produces no `gm_response` (`ADR-0097`
+addendum 3) — so the check cannot see what it is named for. Revisiting the budget
+is now a question with a number attached, which it did not have before.
+
+#### What this changes
+
+- **`§ S44`'s error-rate section is superseded**, not just corrected: right
+  conclusion that the restructure did not cause it, wrong unit, and an
+  attribution ("drift", "harness-wide") that the split refutes.
+- **No action is owed against the model or the prompt.** Corpus-wide leak
+  behaviour is unchanged since 2026-08-20.
+- **Runs scoped mostly to `2c0ba938` will keep losing ~7% of their denominators**,
+  which is a planning input for any future scoped run — including a re-run of the
+  `ship_layout` question, whose treatment fixtures are all `2c0ba938`.
+- **The open lead is per-fixture, not per-adventure.** `2c0ba938-turn21`'s two
+  fixtures lead the table across every run they appear in; whatever they share
+  with `turn29` and `turn24` and not with `turn15` or `turn18` is the next thing
+  to look at, and it is free to look at.

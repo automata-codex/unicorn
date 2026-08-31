@@ -134,3 +134,35 @@ discovery, the removal of `renderEntities`' filter, and the conclusion that no f
 needed re-capture all stand. The two-mechanism model stands. What moves is the claim that
 the structural half is presently vacuous: it is vacuous for the grid, and it was never
 vacuous for the vertical topology Phase 1 has been narrating since M1.
+
+**Addendum, 2026-08-31 — the restructure this entry recommended has landed, and it
+is unmeasured. Do not read the recommendation as validated.**
+
+The 2026-08-25 addendum above argued that `ship_layout`'s prose form is why the
+deck lookups fail — *"answering how many decks from the mess to the cryo bay means
+re-parsing that paragraph on every turn"* — and put the restructure first in the
+fix ordering. It shipped on 2026-08-31 across twenty fixtures and the synthesis
+prompt (`ADR-0117`), after the measurement `ADR-0104` required.
+
+**The measurement could not detect an effect either way.** `eval-findings.md
+§ S44`: no per-fixture movement was distinguishable from sampling noise, every
+Fisher *p* ≥ 0.31, against a pre-registration that named a direction and a
+magnitude but no test. Settling it needs roughly 74 reps per arm; 20 were bought.
+The restructure is kept on the argument in `ADR-0117`, which is a cost argument
+rather than a result.
+
+**So the causal claim in the addendum above is still an argument.** It is a good
+one — the errors cluster on the mid deck, which is the middle clause of the
+sentence — but nothing in this project has yet shown that prose form causes the
+lookup failures, and the entry should not be cited as though it had. The one
+thing the run did settle is negative and worth keeping: no tripwire failure
+implicates the restructure, so the change is at least harmless.
+
+**The second and third items in that fix ordering are untouched.**
+`current_location` was never added, and the rename of `gm_context.narrative.location`
+— which the addendum calls "nearly free" — is **not** nearly free: the field is
+rendered at `session.prompt.ts:41`, frozen in `assembly-golden/gm-context.txt`,
+declared at `synthesis.schema.ts:82`, and present in `gmContextBlob.narrative` on
+all 33 fixtures. The full rename is an input-affecting corpus bump plus an
+`assemblyHash` move. Relabelling only what the Warden reads is the cheap version
+and gets most of the benefit; which of the two is meant is an open decision.

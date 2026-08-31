@@ -19,7 +19,7 @@ Each entry records what was decided, what the alternatives were, and why.
   `task docs:decisions:check` fails if either is stale.
 -->
 
-**This is the summary log.** 81 of 116 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
+**This is the summary log.** 82 of 117 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
 
 ---
 
@@ -298,6 +298,10 @@ Why `messages` carries no sequence key and ordering rests on `createdAt` alone, 
 ### [ADR-0101](decisions/0101-visible-is-line-of-sight-not-discovery-only-position-is-stru.md) — `visible` is line of sight, not discovery — only position is structurally withheld
 
 Splits the overloaded `visible` into line of sight plus a monotonic `revealed`, removes `renderEntities`' filter, and narrows the design doc's structural-secrecy claim to position alone. Two addenda carry weight: `npcState` on the entity, and the correction that 'structurally vacuous' held only for the grid — Phase 1's vertical ship topology was already producing position errors.
+
+### [ADR-0117](decisions/0117-the-ship-layout-restructure-ships-unmeasured-and-decks-are-n.md) — The `ship_layout` restructure ships unmeasured, and decks are numbered top-down
+
+`ADR-0101`'s addendum recommended restructuring `worldFacts.ship_layout` from prose into a deck-indexed list, and `ADR-0104` required the measurement come first. Both happened. The measurement could not detect an effect either way, and the restructure is kept anyway — on the argument that a form-only change costing nothing needs a reason to revert rather than a result to justify it. Also fixes deck numbering top-down as a standing convention, inverting the one example already in the corpus.
 
 ---
 
