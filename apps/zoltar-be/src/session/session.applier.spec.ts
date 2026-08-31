@@ -254,7 +254,7 @@ describe('applyValidatedTurn', () => {
     ): Record<string, unknown> {
       return {
         narrative: {
-          location: 'Corridor 7',
+          scenarioPremise: 'Corridor 7',
           atmosphere: 'Silent',
           npcAgendas,
           hiddenTruth: 'Reactor is primed',
@@ -350,7 +350,7 @@ describe('applyValidatedTurn', () => {
       });
 
       const narrative = newGmContextBlob.narrative as Record<string, unknown>;
-      expect(narrative.location).toBe('Corridor 7');
+      expect(narrative.scenarioPremise).toBe('Corridor 7');
       expect(narrative.hiddenTruth).toBe('Reactor is primed');
     });
 

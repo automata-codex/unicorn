@@ -67,7 +67,12 @@ export const ASSEMBLY_PROBE: {
   gmContextBlob: {
     openingNarration: 'Deliberately not rendered — see the doc comment above.',
     narrative: {
-      location: 'Probe Station',
+      // A premise, not a place name — `ADR-0118`. The probe read `Probe
+      // Station` while the field was called `location`, and left as-is it
+      // would freeze the exact misreading the rename exists to stop.
+      scenarioPremise:
+        'A relay station that stopped answering four days ago, boarded by a ' +
+        'crew with no orders past "find out why".',
       atmosphere: 'Cold, and quieter than it should be.',
       npcAgendas: {
         probe_npc_one: 'Wants the reactor kept online.',

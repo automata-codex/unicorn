@@ -166,3 +166,38 @@ declared at `synthesis.schema.ts:82`, and present in `gmContextBlob.narrative` o
 all 33 fixtures. The full rename is an input-affecting corpus bump plus an
 `assemblyHash` move. Relabelling only what the Warden reads is the cheap version
 and gets most of the benefit; which of the two is meant is an open decision.
+**Addendum, 2026-08-31 (second) — the rename shipped as the *full* field rename,
+and the open decision above resolves on a fact the addendum did not have.**
+
+The addendum immediately above priced the full rename as "an input-affecting
+corpus bump plus an `assemblyHash` move" and concluded that relabelling only what
+the Warden reads was the cheap version. **The corpus bump was not real.** It
+assumed the fixtures would have to be rewritten because they carry
+`gmContextBlob.narrative.location`. They do — and they never had to be touched,
+because the eval corpus reaches that blob *through the database*:
+`harness-runner.ts` inserts the fixture's blob into `gm_context` and the run
+reads it back through the same repository production uses. A read-migration
+sited there covers all 33 fixtures for free.
+
+That is the difference from this entry's own shape change, and it is worth
+naming because this entry is the precedent that would otherwise be followed.
+`ADR-0101` needed two mechanisms — `V20__entity_revealed_backfill.sql` plus
+`backfillEntityRevealed` in the harness — on the reasoning that "the eval corpus
+is not in the database." That reasoning is correct **for `campaignState`**, which
+the harness seeds down a different path. It does not generalize: it is false for
+`gmContextBlob`. Which half a shape change falls in decides whether it costs one
+mechanism or two, and the answer is not a property of the corpus but of the
+particular field.
+
+So the full rename cost an `assemblyHash` move and nothing else. `narrative.location`
+is `narrative.scenarioPremise`, rendering as `scenario_premise:`, with
+`gm_context.schema_version` at 2 and a shape-keyed read migration. Recorded in
+full as `ADR-0118`, which also sets the policy that per-field synthesis guidance
+lives on the field rather than in the prompt — the deeper reason `visible` was
+undescribed in the first place, as this entry observed and did not fix.
+
+**Part two of the fix ordering remains untouched.** `current_location` was never
+added. Read this entry's warning before implementing it: the obvious
+implementation is the one it rejects, what the field buys is auditability rather
+than accuracy, and its "second in the ordering" position rests on a premise that
+did not survive `§ S44` — re-derive the ordering rather than inheriting it.

@@ -5,7 +5,7 @@ import { submitGmContextSchema } from './synthesis.schema';
 const validInput = {
   openingNarration: 'The emergency lights cast everything in amber.',
   narrative: {
-    location: 'Derelict hauler, mid-deck',
+    scenarioPremise: 'Derelict hauler, mid-deck',
     atmosphere: 'Cold, humming, wrong',
     npcAgendas: { dr_chen: 'Conceal the manifest at any cost.' },
     hiddenTruth: 'The cargo is alive.',

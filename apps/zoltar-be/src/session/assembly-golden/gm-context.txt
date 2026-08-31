@@ -1,7 +1,7 @@
 <gm_context>
 
 <narrative>
-location: Probe Station
+scenario_premise: A relay station that stopped answering four days ago, boarded by a crew with no orders past "find out why".
 atmosphere: Cold, and quieter than it should be.
 npc_agendas:
 - probe_npc_one: Wants the reactor kept online.

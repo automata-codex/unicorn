@@ -64,9 +64,9 @@ describe('placeholderApplicability', () => {
     const keys = Object.keys(applicability);
 
     expect(keys).toContain('system-rolled-player-action');
-    expect(keys.filter((k) => k === 'system-rolled-player-action')).toHaveLength(
-      1,
-    );
+    expect(
+      keys.filter((k) => k === 'system-rolled-player-action'),
+    ).toHaveLength(1);
     expect(new Set(keys).size).toBe(keys.length);
   });
 

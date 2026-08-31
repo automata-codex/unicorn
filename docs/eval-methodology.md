@@ -93,6 +93,25 @@ what is current.
   Accepted 2026-08-28 against the rule pre-registered in
   `docs/eval-findings.md § S38`; results and disposition in `§ S39`.
 
+**`assemblyHash` moved `ada7fb8a` → `94bc6c74` on 2026-08-31 with no run, and
+that is the disposition, not an omission.** `ADR-0118` renamed
+`gm_context.narrative.location` to `scenarioPremise` and its rendered label to
+`scenario_premise:`, which is one line of the `<narrative>` block and therefore
+Warden-visible. Per `ADR-0094` it does not buy its own run; the natural
+batch-mate is `current_location`, a tool-schema change that owes one outright.
+
+- **Corpus is unchanged at `d651cec51ad7`.** The rename touched no fixture byte:
+  the corpus reaches `gmContextBlob` through the database, so `ADR-0118`'s
+  read-migration covers all 33 fixtures on load. A cross-corpus warning from
+  `eval:compare` would be wrong here; a cross-`assemblyHash` one is right.
+- **Everything else in `ADR-0118` is invisible to both hashes.** The synthesis
+  schema descriptions and the prompt-to-schema migration reach only the
+  synthesis model, and no eval command exercises synthesis.
+- **What the next run owes:** it pairs against `e83e8aaa__2026-08-28` across an
+  `assemblyHash` boundary. `eval:compare` will warn, correctly. The label is the
+  only Warden-visible change in the batch so far, so the delta is interpretable
+  — but say so in the write-up rather than suppressing the warning.
+
 **Superseded `claude-sonnet-5__fa4e6e2f__2026-08-21T11-05-26Z` (prompt
 `fa4e6e2f`, corpus `abbce198026c`) on 2026-08-28.** That run stays the correct
 comparison point for anything measured before plan 021's `roll_dice.purpose`

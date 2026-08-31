@@ -9,6 +9,7 @@ import {
 } from '../../test/db-test-helper';
 import { CanonRepository } from '../canon/canon.repository';
 import * as schema from '../db/schema';
+import { GM_CONTEXT_SCHEMA_VERSION } from '../session/gm-context.migration';
 
 import { SynthesisRepository } from './synthesis.repository';
 
@@ -113,7 +114,7 @@ describe('SynthesisRepository (integration)', () => {
       };
       const gmContextBlob = {
         openingNarration: 'Amber lights pulse.',
-        narrative: { location: 'loc' },
+        narrative: { scenarioPremise: 'loc' },
         entities: [{ id: 'dr_chen' }],
       };
 
@@ -182,7 +183,15 @@ describe('SynthesisRepository (integration)', () => {
       expect(snapshotRow).toBeDefined();
       expect(snapshotRow.gmContextBlob).toEqual(gmContextBlob);
       expect(snapshotRow.campaignStateData).toEqual(campaignStateData);
-      expect(snapshotRow.gmContextSchemaVersion).toBe(1);
+      // Asserted against the constant rather than a literal: the version is
+      // derived from the migration chain (`GM_CONTEXT_SCHEMA_VERSION`), so a
+      // literal here would be a second place to update on every future
+      // migration. The literal is pinned once, in
+      // `gm-context.migration.spec.ts`. `campaign_state` has no chain and
+      // keeps its literal.
+      expect(snapshotRow.gmContextSchemaVersion).toBe(
+        GM_CONTEXT_SCHEMA_VERSION,
+      );
       expect(snapshotRow.campaignStateSchemaVersion).toBe(1);
       expect(snapshotRow.capturedAt).toBeInstanceOf(Date);
     });

@@ -20,6 +20,7 @@ import { CampaignRepository } from '../campaign/campaign.repository';
 import { CanonRepository } from '../canon/canon.repository';
 import * as schema from '../db/schema';
 
+import { GM_CONTEXT_SCHEMA_VERSION } from './gm-context.migration';
 import { nextSequenceNumber } from './session.events';
 import { SessionRepository } from './session.repository';
 import {
@@ -127,10 +128,14 @@ async function seedFixture(): Promise<{
   // Seed a gm_context blob so sendMessage-level tests can run.
   await db.insert(schema.gmContexts).values({
     adventureId: adv.id,
+    // Declared, not defaulted: this blob is in the current shape, and a row
+    // that claims v1 while holding v2 content is exactly what
+    // `migrateGmContextBlob`'s tripwire exists to catch.
+    schemaVersion: GM_CONTEXT_SCHEMA_VERSION,
     blob: {
       openingNarration: 'x',
       narrative: {
-        location: 'loc',
+        scenarioPremise: 'loc',
         atmosphere: 'atmo',
         npcAgendas: {},
         hiddenTruth: 'h',

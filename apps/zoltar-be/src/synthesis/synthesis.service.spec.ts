@@ -228,7 +228,7 @@ describe('SynthesisService.runSynthesis', () => {
   const validGmContext = {
     openingNarration: 'Amber lights pulse overhead.',
     narrative: {
-      location: 'Derelict hauler',
+      scenarioPremise: 'Derelict hauler',
       atmosphere: 'Cold, humming, wrong',
       npcAgendas: { dr_chen: 'Hide the manifest.' },
       hiddenTruth: 'The cargo is alive.',
@@ -328,7 +328,7 @@ describe('SynthesisService.commitGmContext', () => {
   const validInput = {
     openingNarration: 'Amber lights pulse overhead.',
     narrative: {
-      location: 'Derelict hauler',
+      scenarioPremise: 'Derelict hauler',
       atmosphere: 'Cold, humming, wrong',
       npcAgendas: { dr_chen: 'Hide the manifest.' },
       hiddenTruth: 'The cargo is alive.',

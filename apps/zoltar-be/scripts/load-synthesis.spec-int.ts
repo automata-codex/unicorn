@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { CanonRepository } from '../src/canon/canon.repository';
 import * as schema from '../src/db/schema';
+import { GM_CONTEXT_SCHEMA_VERSION } from '../src/session/gm-context.migration';
 import { SynthesisRepository } from '../src/synthesis/synthesis.repository';
 import {
   getTestDb,
@@ -34,11 +35,11 @@ const VALID_EXPORT: SynthesisExport = {
   },
   system: { slug: 'mothership' },
   gmContext: {
-    schemaVersion: 1,
+    schemaVersion: GM_CONTEXT_SCHEMA_VERSION,
     blob: {
       openingNarration: 'The airlock cycles.',
       narrative: {
-        location: 'Persephone',
+        scenarioPremise: 'Persephone',
         atmosphere: 'stale',
         npcAgendas: { engineer_kowalski: 'reach engine room' },
         hiddenTruth: 'the manifest is forged',
@@ -113,6 +114,11 @@ async function seedAdventureWithSnapshot(overrides?: {
       mode: overrides?.mode ?? 'freeform',
     })
     .returning();
+  // **Deliberately a genuine v1 row**, blob shape and declared version
+  // agreeing. `loadSynthesisSnapshot` exports whatever version the row carries
+  // and `load-synthesis.core.ts` re-inserts it unchanged, so a legacy snapshot
+  // clones as legacy and is migrated later, at the read. Making this fixture
+  // current would delete the only integration coverage of that path.
   await db.insert(schema.adventureSynthesisSnapshots).values({
     adventureId: adventure.id,
     gmContextSchemaVersion: 1,
@@ -187,6 +193,7 @@ describe('loadSynthesisSnapshot', () => {
     expect(exportPayload.source.campaignName).toBe('Snapshot Source Campaign');
     expect(exportPayload.system.slug).toBe('mothership');
     expect(exportPayload.adventure.mode).toBe('freeform');
+    // Both v1: the export preserves the row's version and does not migrate.
     expect(exportPayload.gmContext.schemaVersion).toBe(1);
     expect(exportPayload.gmContext.blob).toEqual({
       openingNarration: 'Snapshot narration.',
@@ -280,7 +287,7 @@ describe('load-synthesis round trip (capture -> load)', () => {
 
     const sourceGmContextBlob = {
       openingNarration: 'The reactor hums.',
-      narrative: { location: 'Engine bay' },
+      narrative: { scenarioPremise: 'Engine bay' },
     };
     const sourceCampaignStateData = {
       schemaVersion: 1,
@@ -379,7 +386,10 @@ describe('buildAndRunLoad — happy path', () => {
       .select()
       .from(schema.gmContexts)
       .where(eq(schema.gmContexts.adventureId, result.adventureId));
-    expect(gmContext.schemaVersion).toBe(1);
+    // Verbatim means verbatim: whatever version the export declared, not
+    // whatever this build happens to write. Sourced from the export rather
+    // than the constant so the assertion keeps its meaning if the two diverge.
+    expect(gmContext.schemaVersion).toBe(VALID_EXPORT.gmContext.schemaVersion);
     expect(gmContext.blob).toEqual(VALID_EXPORT.gmContext.blob);
 
     // campaign_state preserves data + schemaVersion verbatim.

@@ -19,6 +19,7 @@ import { CampaignRepository } from '../campaign/campaign.repository';
 import { CanonRepository } from '../canon/canon.repository';
 import * as schema from '../db/schema';
 
+import { GM_CONTEXT_SCHEMA_VERSION } from './gm-context.migration';
 import { SessionRepository } from './session.repository';
 import { SessionCorrectionError, SessionService } from './session.service';
 
@@ -221,9 +222,13 @@ async function seedReadyAdventure(): Promise<{
     .returning();
   await db.insert(schema.gmContexts).values({
     adventureId: adventure.id,
+    // Declared, not defaulted: this blob is in the current shape, and a row
+    // that claims v1 while holding v2 content is exactly what
+    // `migrateGmContextBlob`'s tripwire exists to catch.
+    schemaVersion: GM_CONTEXT_SCHEMA_VERSION,
     blob: {
       narrative: {
-        location: 'Derelict freighter',
+        scenarioPremise: 'Derelict freighter',
         atmosphere: 'dim',
         npcAgendas: { corporate_spy_1: 'Watch the player' },
         hiddenTruth: 'truth',
@@ -336,7 +341,7 @@ describe('SessionService (integration) — happy path', () => {
       .where(eq(schema.gmContexts.adventureId, adventureId));
     const blob = ctxRow.blob as {
       narrative: {
-        location: string;
+        scenarioPremise: string;
         hiddenTruth: string;
         npcAgendas: Record<string, string>;
       };
@@ -346,7 +351,7 @@ describe('SessionService (integration) — happy path', () => {
       'Now following the player',
     );
     // Untouched narrative fields pass through the merge unchanged.
-    expect(blob.narrative.location).toBe('Derelict freighter');
+    expect(blob.narrative.scenarioPremise).toBe('Derelict freighter');
     expect(blob.narrative.hiddenTruth).toBe('truth');
     // `playerEntityIds` is a per-request prompt-building addition
     // (session.snapshot.ts) spliced onto the blob in memory for Claude's

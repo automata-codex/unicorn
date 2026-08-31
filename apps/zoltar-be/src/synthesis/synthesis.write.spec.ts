@@ -16,7 +16,7 @@ function makeInput(overrides: Partial<SubmitGmContext> = {}): SubmitGmContext {
   return {
     openingNarration: 'Amber lights pulse.',
     narrative: {
-      location: 'loc',
+      scenarioPremise: 'loc',
       atmosphere: 'atmo',
       npcAgendas: {},
       hiddenTruth: 'truth',
@@ -335,11 +335,11 @@ describe('buildGmContextBlob', () => {
   it('stores narrative, openingNarration, and the raw entities array', () => {
     const blob = buildGmContextBlob(makeInput()) as {
       openingNarration: string | null;
-      narrative: { location: string };
+      narrative: { scenarioPremise: string };
       entities: Array<{ id: string }>;
     };
     expect(blob.openingNarration).toBe('Amber lights pulse.');
-    expect(blob.narrative.location).toBe('loc');
+    expect(blob.narrative.scenarioPremise).toBe('loc');
     expect(blob.entities.map((e) => e.id)).toEqual([
       'dr_chen',
       'shadow_threat',

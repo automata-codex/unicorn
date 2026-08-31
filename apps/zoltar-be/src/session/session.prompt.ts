@@ -38,7 +38,7 @@ export function formatGmContextBlob(blob: GmContextBlob): string {
     sections.push(
       [
         '<narrative>',
-        `location: ${n.location}`,
+        `scenario_premise: ${n.scenarioPremise}`,
         `atmosphere: ${n.atmosphere}`,
         'npc_agendas:',
         ...(agendaLines.length > 0 ? agendaLines : ['- (none)']),

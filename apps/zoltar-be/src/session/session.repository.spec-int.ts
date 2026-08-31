@@ -10,6 +10,7 @@ import {
 import { CanonRepository } from '../canon/canon.repository';
 import * as schema from '../db/schema';
 
+import { GM_CONTEXT_SCHEMA_VERSION } from './gm-context.migration';
 import { SessionRepository } from './session.repository';
 
 let repo: SessionRepository;
@@ -413,5 +414,85 @@ describe('SessionRepository (integration)', () => {
         repo.listMessagesWithTurnNumber(adventureId),
       ).resolves.toEqual([]);
     });
+  });
+});
+
+/**
+ * `ADR-0118`'s read migration, end to end against a real row.
+ *
+ * The unit tests in `gm-context.migration.spec.ts` cover the chain itself.
+ * What only an integration test can show is that the version actually
+ * *reaches* it: `getGmContextBlob` has to keep `schemaVersion` in its
+ * projection, and a v1 row has to come back renamed. This is the read that
+ * builds the Warden's prompt on every turn, so the failure it guards against —
+ * `scenario_premise: undefined`, silently, for the whole adventure — is the
+ * one worth a live row.
+ */
+describe('SessionRepository.getGmContextBlob — gm_context migration', () => {
+  it('migrates a genuine v1 row on read', async () => {
+    const db = getTestDb();
+    const { adventureId } = await seedFixture();
+
+    await db.insert(schema.gmContexts).values({
+      adventureId,
+      schemaVersion: 1,
+      blob: {
+        openingNarration: 'The airlock cycles.',
+        narrative: {
+          location: 'Derelict freighter Persephone.',
+          atmosphere: 'Dim corridors.',
+          npcAgendas: { dr_chen: 'wants out' },
+        },
+      },
+    });
+
+    const blob = await repo.getGmContextBlob(adventureId);
+
+    expect(blob?.narrative).toEqual({
+      scenarioPremise: 'Derelict freighter Persephone.',
+      atmosphere: 'Dim corridors.',
+      npcAgendas: { dr_chen: 'wants out' },
+    });
+    expect(blob?.openingNarration).toBe('The airlock cycles.');
+  });
+
+  it('leaves a current row alone', async () => {
+    const db = getTestDb();
+    const { adventureId } = await seedFixture();
+    const narrative = { scenarioPremise: 'A relay station gone quiet.' };
+
+    await db.insert(schema.gmContexts).values({
+      adventureId,
+      schemaVersion: GM_CONTEXT_SCHEMA_VERSION,
+      blob: { narrative },
+    });
+
+    const blob = await repo.getGmContextBlob(adventureId);
+    expect(blob?.narrative).toEqual(narrative);
+  });
+
+  /**
+   * The tripwire, against a real row. A v1 row that was written by the current
+   * write path — i.e. one whose version was never stamped — is the shape this
+   * catches, and silently repairing it is what the shape-keyed first draft did.
+   */
+  it('throws on a row whose declared version and blob disagree', async () => {
+    const db = getTestDb();
+    const { adventureId } = await seedFixture();
+
+    await db.insert(schema.gmContexts).values({
+      adventureId,
+      schemaVersion: GM_CONTEXT_SCHEMA_VERSION,
+      blob: { narrative: { location: 'never migrated' } },
+    });
+
+    await expect(repo.getGmContextBlob(adventureId)).rejects.toThrow(
+      /retired key `narrative\.location`/,
+    );
+  });
+
+  it('returns null when the adventure has no gm_context row', async () => {
+    const { adventureId } = await seedFixture();
+    expect(await repo.getGmContextBlob(adventureId)).toBeNull();
   });
 });
