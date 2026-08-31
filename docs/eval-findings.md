@@ -622,3 +622,209 @@ about the harness, not the prompt.
   and the check's fail direction stays unexercised on the corpus's best
   candidate for it. That would be the strongest evidence yet for `§ S40`'s
   conclusion that only M7.8's known-answer pairs can close it.
+
+#### Addendum, 2026-08-31 — this pre-registration will be scored against a corpus whose `ship_layout` has been restructured, and it is held valid across that
+
+All four fixtures this entry adds — `2c0ba938-turn25/45/51-unauditable-mapping`
+and `5c34991b-turn44-unauditable-mapping` — carry `worldFacts.ship_layout`, and
+`§ S42` restructures it from prose into a deck-indexed list on all 18 fixtures
+that hold it. That is an **input-affecting** bump. None of the four has executed
+yet, and `§ S42`'s two runs are scoped away from them, so the run that finally
+scores this entry will be the post-playtest full re-baseline — which lands
+**after** the restructure. Strictly, these fixtures will not be the fixtures the
+predictions above were written against.
+
+**Held valid, on a stated argument rather than by omission.** Every prediction
+here turns on whether the Warden takes a spontaneous roll and whether its
+`purpose` states the outcome mapping before the die fires. Neither is a question
+about the layout fact: `isSpontaneousGmRoll` reads `system_generated`, die count,
+`modifier` and `requestId`, and the rubric grades the roll's own stated mapping.
+The form of a `worldFacts` entry the roll does not consult is not plausibly
+load-bearing on either.
+
+**What the scorer owes anyway.** Say in the write-up that the seeded
+`ship_layout` differs in form from what this entry was written against, and treat
+an **applicability** surprise — a fixture returning `not_applicable` where it was
+predicted to apply, or the reverse — as possibly restructure-induced before
+concluding anything about Warden initiative. Applicability is the axis a longer,
+more legible prompt block could move without touching roll discipline at all, and
+it is the axis every prediction above is read through.
+
+**The cheaper alternative was declined, and why.** Scoring `§ S41` first would
+mean buying a full-corpus run before the restructure, which is the spend `§ S42`
+exists to avoid. Recorded here so the choice is visible as a choice.
+
+---
+
+### S42 — 2026-08-31 · Pre-registration: `worldFacts.ship_layout` restructured from prose into a deck-indexed list
+
+Written before either run, per `ADR-0085`, `ADR-0116`, and `ADR-0104`'s standing
+requirement that this particular prediction be written first — *"a prediction too
+loose to be violated makes category-2 attribution unreachable by construction."*
+Reasoning for the intervention is in the `ADR-0101` addendum, 2026-08-25.
+
+#### The intervention
+
+`ship_layout` is a single ~700-character prose run carrying roughly fifteen
+spatial facts with no deck list and no adjacency, and it renders verbatim in
+every snapshot of both playtest adventures. The restructure makes it a
+deck-indexed list, decks numbered from the top down, with the vertical connector
+stated separately. **Form only** — no schema change, no migration, no write path,
+and no spatial fact added or removed. The synthesis prompt's worked example moves
+with it, so the next adventure generates the new shape rather than regenerating
+the old one.
+
+It touches **18 of 31 fixtures** across both adventures: the `2c0ba938`
+*Halbrecht* and the `5c34991b` *Halberd's Grief*, which carry different ships in
+the identical prose form. That makes it an **input-affecting** corpus bump for
+all 18 — every frozen `warden-output.json` for them stops being evidence.
+
+#### What is actually carrying the tag
+
+`SEEDED-CANON-CONTRADICTION` reads 0.87 (26/30) at applicability 30/30 on the
+standing point `claude-sonnet-5__e83e8aaa__2026-08-28T13-00-14Z`. The per-fixture
+breakdown is the reason this pre-registration is written per-fixture and not
+against the rollup:
+
+| Fixture | Direction | Verdicts | Referent |
+|---|---|---|---|
+| `2c0ba938-turn08-seeded-canon-contradiction` | fail | pass 9, fail 1 | `ship_layout` |
+| `2c0ba938-turn14-seeded-canon-contradiction` | fail | pass 7, fail 3 | `ship_layout` |
+| `2c0ba938-turn29-seeded-canon-contradiction` | pass | pass 10, fail 0 | `ship_layout` |
+
+**Four failures, three of them on one fixture.** `turn29` is pinned at 1.00,
+which is the `ADR-0082` shape and expected of a pass-direction fixture.
+`turn08` was captured as fail-direction and now passes 9/10 — the same
+self-healing `§ S41` records for `5c34991b-turn01`, which went fail 10/10 →
+pass 10/10 from byte-identical seeded state across a prompt change.
+
+A perfect intervention therefore moves the rollup 0.87 → 1.00 by removing four
+failures, against judged run-to-run variance `§ S39` measured at 2/10 on a
+byte-identical prompt. **The existing corpus cannot detect this intervention**,
+which is why two fixtures are captured first.
+
+#### Two captures, checked against the database before capture
+
+Both are turns `ADR-0104` named as further fail-direction instances and neither
+was ever captured — the 2026-08-28 run carried turns 08, 14, 15, 21 ×2, 23 and
+29 from this adventure and nothing else.
+
+| Turn | `sourceSequenceNumber` | `gm_response` | Contradicts |
+|---|---|---|---|
+| 18 | 53 | 55 | `ship_layout` — *"You head back down to the lower deck … and rap a knuckle against Mara's hatch"*; berths are mid |
+| 24 | 73 | 74 | `crew_roster` — *"he's two decks from the engine room"*; the roster puts Petrov in it |
+
+**Turn 24 is gradeable, and that was not safe to assume.** `crew_roster` is
+written at **seq 72, during turn 23**, so it is resident in turn 24's seed at seq
+73. Had it been written by turn 24 itself there would have been nothing to
+contradict and every rep would have returned `not_applicable` — `turn02`
+(`ADR-0115`) arriving in a new place. Verified against `game_event` rather than
+inferred.
+
+**Turn 19 carries no deck claim**, confirming `ADR-0104`'s addendum correction
+against the database rather than against the report that first got it wrong.
+
+#### Why two scoped runs rather than two full ones
+
+**Half the "before" already exists.** Turns 08, 14 and 29 have valid
+pre-restructure artifacts at `promptHash e83e8aaa` / `assemblyHash ada7fb8a`,
+both unmoved since, and the only corpus movement since was set-membership, which
+leaves survivors' artifacts intact. So run A needs to cover only the two new
+fixtures.
+
+- **Run A** — scoped to `turn18` and `turn24`. Establishes their pre-restructure
+  rates. Baseline only, no comparison.
+- **Run B** — scoped to turns 08, 14, 18, 24 and 29, plus two or three
+  `ship_layout`-carrying fixtures with other tags as a side-effect tripwire.
+
+`§ S41` declined a scoped run on the grounds that its result would not be
+decision-bearing on its own; that reasoning is specific to pass-direction
+fixtures and does not carry here, where the run is a deliberate before/after on
+fail-direction ones. **Spend the saving on reps rather than fixtures:** the
+constraint is four failures, not thirty fixtures, and 20–30 reps on five fixtures
+costs a fraction of one full-corpus pass.
+
+**What the scoping gives up, stated so it is not discovered later.** The
+restructure changes seeded state that *every* check on those 18 fixtures reads.
+A scoped run says nothing about whether it moved `UNAUDITABLE-MAPPING`,
+`SYSTEM-ROLLED-PLAYER-ACTION`, `MISSING-DELTA` or anything else on the thirteen
+fixtures it does not run. That question is answered at the post-playtest full
+re-baseline, **confounded** with whatever else rides that run — the `ccac7d1c`
+shape, accepted deliberately here rather than by omission.
+
+**Both runs are invisible to `baseline-check`.** A `--fixtures`-scoped run is not
+a baseline candidate and nothing verifies it was read, which is exactly how the
+Haiku control arm sat undispositioned for twelve days (`§ S40`, `ADR-0082`).
+Each needs dispositioning by hand in `docs/eval-methodology.md § Current baseline
+N` when it lands, until M7.8's `baseline-check` item closes.
+
+#### The decision rule
+
+**Read per-fixture. The rollup is not readable at all** — the denominator moves
+between run A and run B by construction, and a set-membership bump plus an
+input-affecting bump ride the same comparison.
+
+- **Treatment** — referent is `ship_layout`: `turn14`, `turn18`, `turn08`.
+- **Control** — referent is `crew_roster`: `turn24`.
+- **Ceiling** — pass-direction, pinned: `turn29`.
+
+**The falsifier: `turn14` does not improve, or `turn24` improves as much as the
+treatment fixtures.** The second is the one that matters. A uniform lift across
+treatment and control is not a deck-lookup fix; it is a general legibility effect
+or noise, and reporting it as the former would be the category-2 error
+`ADR-0104` wrote this pre-registration to prevent.
+
+#### Predictions, pre-registered
+
+- **`turn14` improves by at least 2 reps, normalised to N.** It carries three of
+  the four known failures and is the clearest treatment case. **This is the one I
+  expect to carry the result**, and if it does not move, the intervention has
+  failed on its best available evidence.
+- **`turn18` improves against its run A baseline.** With the caveat that voids
+  it: **if run A shows `turn18` already passing ≥ 90%, the prediction is void and
+  the fixture is a tripwire rather than evidence.** It was captured from a
+  pre-fix playtest and may have self-healed the way `5c34991b-turn01` did — which
+  is a finding about prompt drift, not about this restructure.
+- **`turn24` does not improve by more than one rep.** Stated as *not materially*
+  rather than *not at all*, because the claim is a distance claim whose endpoints
+  are located by two different facts — `crew_roster` puts Petrov in the engine
+  room, `ship_layout` puts the engine room on the lower deck — so the restructure
+  can touch it at the margin. The contradiction being graded is that Petrov is in
+  the room he is said to be two decks from, which is `crew_roster` alone.
+- **`turn29` stays at or near 1.00.** A drop is a harness suspect before it is a
+  regression (`ADR-0082`), and a pass-direction fixture at the ceiling predicts
+  nothing either way.
+- **Applicability stays at 1.00 across all five.** The gate returns
+  `not_applicable` only when a fixture seeds no `worldFacts`; all five seed
+  plenty, so any exclusion here is a gate defect rather than a result.
+
+#### Not gates, stated so they are not read as ones
+
+- **The deck numbering runs top-down** (`DECK 1` upper, `DECK 3` lower), which
+  **inverts the `5c34991b` station convention** already in the corpus, where
+  `station_spatial_layout` numbers `DECK 0` lower and `DECK 1` upper. Those
+  fixtures are out of scope and keep their convention, so the corpus will carry
+  both. Each fact states its own convention, so this is survivable — but the
+  synthesis prompt now states the top-down rule explicitly, because otherwise
+  generation coin-flips it per adventure.
+- **`station_spatial_layout` is the model, not an invention.** It is
+  synthesis-generated, already deck-indexed with adjacency chains and an explicit
+  distance fact, and produced by the same prompt that produced the Halbrecht
+  paragraph. The variance is in generation, not in the instruction's ceiling —
+  which is why the prompt's worked example is being tightened rather than its
+  instruction rewritten.
+- **No within-deck adjacency is added.** The station fact chains rooms with `→`
+  because its source prose establishes a corridor order; nothing in the Halbrecht
+  prose does, so arrows here would invent canon the fixture never had. That would
+  be a change to the seeded facts, not to their form, and the whole claim of this
+  intervention is that it is form-only.
+- **No Warden prompt clause rides along.** The Warden prompt contains no
+  occurrence of `worldFacts`, `layout`, `spatial` or `deck`, so the restructure
+  improves the form of data the Warden is never instructed to consult. Adding
+  that instruction would move `promptHash` and make run B attribute two changes
+  at once. If the restructure underperforms, the clause is the obvious second
+  arm.
+- **`gm_context.narrative.location` is not renamed here.** `ADR-0101`'s addendum
+  calls the rename "secondary and unblocked", but there is an
+  `assembly-golden/gm-context.txt`, so it moves `assemblyHash` and is a second
+  Warden-visible change. Worth doing, not on this run.

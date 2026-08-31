@@ -1314,6 +1314,61 @@ it is test-side only, and `rubricHash` `c97c75ba` is unmoved.
 
 ---
 
+## Bump note — 2026-08-31, `SEEDED-CANON-CONTRADICTION` widened from three fixtures to five
+
+Corpus `6bc7eee3970f` → **`301302000143`**, a **set-membership** bump. Two
+fixtures added, none removed, no surviving fixture's `seededState`,
+`playerInput`, `applicability` or `assertion` touched. **`promptHash`
+`e83e8aaa` and `assemblyHash` `ada7fb8a` are unmoved** — nothing Warden-visible
+is in this change. Pre-registration: `docs/eval-findings.md § S42`.
+
+| Fixture | Source | Direction | Contradicted referent |
+|---|---|---|---|
+| `2c0ba938-turn18-seeded-canon-contradiction` | 2026-08-24 playtest, seq 53 | fail | `ship_layout` |
+| `2c0ba938-turn24-seeded-canon-contradiction` | 2026-08-24 playtest, seq 73 | fail | `crew_roster` |
+
+**Both were verified gradeable against `game_event` before capture, not after.**
+`turn24`'s contradicted value — `crew_roster`, placing Petrov in the engine room
+he is narrated as being *two decks from* — is written at **seq 72, during turn
+23**, so it is resident in a fixture seeding from seq 73. Had it been written by
+turn 24 itself there would have been nothing to contradict and every rep would
+have returned `not_applicable`: `turn02` (`ADR-0115`) arriving in a new place.
+The sequence numbers of the adjacent fixtures narrowed it to turn 23 or turn 24
+and could not settle which; the event rows settled it.
+
+**These two exist so the tag can measure the `ship_layout` restructure at all.**
+The standing point reads 0.87 (26/30) with **four failures, three of them on
+`turn14`** — `turn08` 9/10, `turn14` 7/10, `turn29` 10/10 — against judged
+run-to-run variance `§ S39` measured at 2/10 on a byte-identical prompt. The
+argument, the two scoped runs, and the per-fixture decision rule are in `§ S42`.
+
+**`turn24` is a control, not a second treatment case**, and the distinction is
+the point of capturing it: its referent is `crew_roster`, which the restructure
+does not touch, so a lift there as large as `turn14`'s means the effect is not
+deck-lookup-specific.
+
+**Neither fixture has executed, so no rescore can reach them** — the same
+position `§ S41`'s four are in. Their first numbers cost a Warden run, which is
+`§ S42`'s run A.
+
+**Both tag-independent checks gain rows.** `selectChecksForFixture` selects on
+an applicability block being present rather than on `applies` being true, so
+each capture adds a row per rep to `system-rolled-player-action` and
+`out-of-order-resolution`. All four blocks are `applies: false`, answered from
+the scenario rather than deleted, so they are exclusion rows by construction and
+surface in the report's `fixture-gated-never-applies` finding. Neither rate
+moves; both applicabilities do.
+
+**One thing worth recording about `turn18`'s `applies: false`.** Unlike the
+usual case, that turn *does* carry a `dice_roll` (seq 54) — Mara's Instinct
+check, `actingEntityId: mara_odinsen`, `system_generated`, no `requestId`. The
+reason is stated in the fixture so the entry is not misread as "no rolls this
+turn": there is no *player* action here for the system to have rolled. This
+adventure emits no `dice_request` events at any sequence, which is why
+`out-of-order-resolution` is `applies: false` on both.
+
+---
+
 ## A model swap audits the harness as much as the model
 
 The first full-corpus run against a new model is two experiments wearing one coat. It
