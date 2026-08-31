@@ -197,3 +197,42 @@ wrongly **six** times rather than five, and the opening paragraph now enumerates
 alongside the other five. `SEEDED-CANON-CONTRADICTION` stands at five instances across three
 subtypes; the six counts all spatial errors including the two that belong to the deferred
 tag.
+
+**Addendum, 2026-08-31 — the measurement hazard is discharged, the ordering
+advice was followed, and the tag's first number turned out not to be the problem.**
+
+The **measurement hazard** paragraph above required that the `ship_layout`
+restructure not land in the same batch as the fixtures, so the tag's first number
+would be a pre-intervention baseline rather than a post-intervention figure with
+nothing to compare against. **That was honoured.** `SEEDED-CANON-CONTRADICTION`
+was registered and captured 2026-08-28 and read 0.87 (26/30) at full
+applicability under the prose layout (`eval-findings.md § S39`); the restructure
+landed three days later (`ADR-0117`). The order this entry asked for is the order
+that happened, and the §6.3 prediction was written before either run (`§ S42`).
+
+**The hazard it did not anticipate is that the baseline would be too small to
+compare against.** 0.87 is four failures across three fixtures, one of which sits
+at the ceiling by design and one of which had largely stopped failing. Two more
+fixtures were captured to give it headroom — **turns 18 and 24, both named in this
+entry's body as further fail-direction candidates** — and `turn18` duly failed
+13 of 20. Even so, `§ S44` could not distinguish any movement from noise. Getting
+the ordering right bought a baseline that was still not a measurement.
+
+**Both further candidates this entry named are now fixtures**, and the
+gradeability of one was checked against `game_event` before capture rather than
+assumed. `turn24`'s contradicted value is `crew_roster`, written at seq 72 during
+turn 23, so it is resident in a fixture seeding from seq 73. Had it been written
+by turn 24 itself the fixture would have graded nothing — `turn02` (`ADR-0115`)
+in a new place. **The turn-18-not-19 correction in the addendum above also holds
+against the database**: seq 55 carries *"You head back down to the lower deck …
+Mara's hatch"*, and seq 58 carries no deck claim.
+
+**One thing this entry's subtype analysis earned.** Because `turn24` contradicts
+`crew_roster` rather than `ship_layout`, it served as the control in `§ S42`'s
+design — a fixture the restructure should *not* move. The control held. That the
+tag was "deliberately scoped wider than the spatial cases" is what made a control
+available from inside the same tag, which was not the reason given for the wider
+scope but is a benefit of it.
+
+**`SPATIAL-RELATION-ERROR` remains deferred and unregistered.** Nothing in this
+work bears on that half.

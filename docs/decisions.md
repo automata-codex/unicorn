@@ -2184,6 +2184,147 @@ needed re-capture all stand. The two-mechanism model stands. What moves is the c
 the structural half is presently vacuous: it is vacuous for the grid, and it was never
 vacuous for the vertical topology Phase 1 has been narrating since M1.
 
+**Addendum, 2026-08-31 — the restructure this entry recommended has landed, and it
+is unmeasured. Do not read the recommendation as validated.**
+
+The 2026-08-25 addendum above argued that `ship_layout`'s prose form is why the
+deck lookups fail — *"answering how many decks from the mess to the cryo bay means
+re-parsing that paragraph on every turn"* — and put the restructure first in the
+fix ordering. It shipped on 2026-08-31 across twenty fixtures and the synthesis
+prompt (`ADR-0117`), after the measurement `ADR-0104` required.
+
+**The measurement could not detect an effect either way.** `eval-findings.md
+§ S44`: no per-fixture movement was distinguishable from sampling noise, every
+Fisher *p* ≥ 0.31, against a pre-registration that named a direction and a
+magnitude but no test. Settling it needs roughly 74 reps per arm; 20 were bought.
+The restructure is kept on the argument in `ADR-0117`, which is a cost argument
+rather than a result.
+
+**So the causal claim in the addendum above is still an argument.** It is a good
+one — the errors cluster on the mid deck, which is the middle clause of the
+sentence — but nothing in this project has yet shown that prose form causes the
+lookup failures, and the entry should not be cited as though it had. The one
+thing the run did settle is negative and worth keeping: no tripwire failure
+implicates the restructure, so the change is at least harmless.
+
+**The second and third items in that fix ordering are untouched.**
+`current_location` was never added, and the rename of `gm_context.narrative.location`
+— which the addendum calls "nearly free" — is **not** nearly free: the field is
+rendered at `session.prompt.ts:41`, frozen in `assembly-golden/gm-context.txt`,
+declared at `synthesis.schema.ts:82`, and present in `gmContextBlob.narrative` on
+all 33 fixtures. The full rename is an input-affecting corpus bump plus an
+`assemblyHash` move. Relabelling only what the Warden reads is the cheap version
+and gets most of the benefit; which of the two is meant is an open decision.
+
+### [ADR-0117](decisions/0117-the-ship-layout-restructure-ships-unmeasured-and-decks-are-n.md) — The `ship_layout` restructure ships unmeasured, and decks are numbered top-down
+
+## What was decided
+
+**The restructure landed on twenty fixtures and the synthesis prompt**, in the
+form `ADR-0101`'s addendum described: a line naming the overall shape and the
+numbering convention, one line per deck, and the connections between decks on
+their own line. Corpus `301302000143` → `d651cec51ad7`, input-affecting.
+
+**Four decisions rode with it**, recorded here because
+`docs/eval-findings.md § S42`–`§ S45` are measurements and this file is where
+decisions live.
+
+## Decks are numbered from the top down, and this is a standing convention
+
+`DECK 1` is topmost. The familiar name stays alongside the number — `DECK 2
+(mid)` — because the fiction uses both and the judge needs to map narration onto
+the layout.
+
+**This inverts the only worked example already in the corpus.**
+`5c34991b`'s `station_spatial_layout` — synthesis-generated, and the thing that
+demonstrated the target shape was reachable by the existing prompt — numbers
+`DECK 0` lower and `DECK 1` upper. Those fixtures are out of scope here and keep
+their convention, so **the corpus now carries both**. That is survivable because
+each layout states its own convention in its first line, and it is the reason
+the synthesis prompt now states the rule explicitly: without it, generation
+coin-flips the direction per adventure and the inconsistency spreads.
+
+Top-down was chosen because it is what the maintainer reads naturally and
+because "two decks up" from `DECK 3` resolving to `DECK 1` is arithmetic either
+way. The in-corpus precedent was the stronger argument for bottom-up and it lost
+to that.
+
+## No within-deck adjacency was added
+
+The station example chains rooms with `→` because its source prose establishes a
+corridor order. Neither ship's prose does. Adding arrows would have invented
+canon the fixtures never had, which is a change to the seeded *facts* rather than
+to their *form* — and form-only is the whole claim the measurement rested on.
+Verified by content-word comparison across both values: nothing lost, nothing
+added but the numbering convention.
+
+## No Warden prompt clause rode along
+
+The Warden prompt contains no occurrence of `worldFacts`, `layout`, `spatial` or
+`deck`. So this improves the form of data the Warden is never instructed to
+consult, which is a real gap — and adding the instruction would have moved
+`promptHash` and made the run attribute two changes at once. Kept single-variable
+deliberately. **If the restructure is ever shown not to help, the clause is the
+next arm, not evidence that layout form does not matter.**
+
+## The station fixtures are out of scope
+
+The thirteen `turn*` fixtures carry `station_spatial_layout` and
+`station_layout_overview` — a hub-and-spoke topology on two levels, not a deck
+stack. Restructuring them is a different change against a different shape and
+belongs to its own item. Their artifacts stayed valid through this bump, which
+is the practical benefit of having scoped them out.
+
+## The restructure is kept although the measurement failed to detect anything
+
+`§ S42` pre-registered the comparison, `§ S43` captured two fixtures to give it
+headroom, and `§ S44` scored it: **not one per-fixture movement was
+distinguishable from sampling noise**, every Fisher *p* ≥ 0.31. The intervention
+is unmeasured — not confirmed, not refuted.
+
+**Kept anyway, on three grounds.** It is form-only, so keeping it costs nothing
+and reverting costs another input-affecting bump. The control held and no
+tripwire failure implicates it, so the side-effect question — the one thing the
+run *did* settle — came back clean. And the failure rationales show the Warden
+reasoning in the new vocabulary, citing deck numbers, which is at least evidence
+the shape is legible to it.
+
+**What would reverse this.** A run with enough power to show the restructure
+made things worse, or a diagnosis that the multi-line value is implicated in
+something — the tool-syntax leak rate was the obvious candidate and `§ S45`
+excluded it. Absent either, this stays.
+
+**What must not be inferred.** `ADR-0101`'s addendum recommended this change on
+reasoning, and that reasoning is not validated by anything here. Anyone citing
+the restructure as a demonstration that prose layouts cause deck-lookup errors
+is citing an argument, not a result.
+
+## Considered and rejected
+
+- **Several `worldFacts` keys rather than one multi-line value** —
+  `ship_layout_upper_deck` and siblings. `renderWorldFacts` sorts keys
+  alphabetically, so a three-deck stack would render `lower`, `mid`, `upper`:
+  a vertical topology emitted in an order that is not the topology, which is
+  worse than the paragraph for exactly the lookup that fails. One key also keeps
+  the `judgeContext` renderer and its golden untouched.
+- **Deferring until after the next playtest.** The measurement was the reason to
+  act early — `ADR-0104` names the hazard of landing it in the same batch as the
+  fixtures — and the pre-existing corpus would only have grown more entangled.
+- **Buying a properly powered run first.** `§ S44` puts that at roughly 74 reps
+  per arm. The restructure is free to keep and free to revert; spending that
+  before shipping a form-only change inverts the cost of being wrong.
+
+## Cost
+
+Twenty fixtures across two adventures, one line each. An **input-affecting**
+corpus bump, so every frozen artifact for those twenty is void as evidence and
+no rescore substitutes — the bump note is in
+`docs/eval-methodology.md § Bump note — 2026-08-31, ship_layout restructured`.
+`promptHash` and `assemblyHash` are unmoved. The synthesis prompt's change is
+invisible to the harness, since the corpus replays turns and no eval command
+exercises synthesis; it changes what the next adventure generates, and its
+golden was regenerated.
+
 ---
 
 ## API & Data Model
@@ -3217,6 +3358,45 @@ wrongly **six** times rather than five, and the opening paragraph now enumerates
 alongside the other five. `SEEDED-CANON-CONTRADICTION` stands at five instances across three
 subtypes; the six counts all spatial errors including the two that belong to the deferred
 tag.
+
+**Addendum, 2026-08-31 — the measurement hazard is discharged, the ordering
+advice was followed, and the tag's first number turned out not to be the problem.**
+
+The **measurement hazard** paragraph above required that the `ship_layout`
+restructure not land in the same batch as the fixtures, so the tag's first number
+would be a pre-intervention baseline rather than a post-intervention figure with
+nothing to compare against. **That was honoured.** `SEEDED-CANON-CONTRADICTION`
+was registered and captured 2026-08-28 and read 0.87 (26/30) at full
+applicability under the prose layout (`eval-findings.md § S39`); the restructure
+landed three days later (`ADR-0117`). The order this entry asked for is the order
+that happened, and the §6.3 prediction was written before either run (`§ S42`).
+
+**The hazard it did not anticipate is that the baseline would be too small to
+compare against.** 0.87 is four failures across three fixtures, one of which sits
+at the ceiling by design and one of which had largely stopped failing. Two more
+fixtures were captured to give it headroom — **turns 18 and 24, both named in this
+entry's body as further fail-direction candidates** — and `turn18` duly failed
+13 of 20. Even so, `§ S44` could not distinguish any movement from noise. Getting
+the ordering right bought a baseline that was still not a measurement.
+
+**Both further candidates this entry named are now fixtures**, and the
+gradeability of one was checked against `game_event` before capture rather than
+assumed. `turn24`'s contradicted value is `crew_roster`, written at seq 72 during
+turn 23, so it is resident in a fixture seeding from seq 73. Had it been written
+by turn 24 itself the fixture would have graded nothing — `turn02` (`ADR-0115`)
+in a new place. **The turn-18-not-19 correction in the addendum above also holds
+against the database**: seq 55 carries *"You head back down to the lower deck …
+Mara's hatch"*, and seq 58 carries no deck claim.
+
+**One thing this entry's subtype analysis earned.** Because `turn24` contradicts
+`crew_roster` rather than `ship_layout`, it served as the control in `§ S42`'s
+design — a fixture the restructure should *not* move. The control held. That the
+tag was "deliberately scoped wider than the spatial cases" is what made a control
+available from inside the same tag, which was not the reason given for the wider
+scope but is a benefit of it.
+
+**`SPATIAL-RELATION-ERROR` remains deferred and unregistered.** Nothing in this
+work bears on that half.
 
 ### [ADR-0105](decisions/0105-judgecontext-golden-not-hash.md) — `judgeContext` output is covered by a golden, not a hash
 
