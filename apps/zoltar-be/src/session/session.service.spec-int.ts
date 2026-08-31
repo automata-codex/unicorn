@@ -19,6 +19,7 @@ import { CampaignRepository } from '../campaign/campaign.repository';
 import { CanonRepository } from '../canon/canon.repository';
 import * as schema from '../db/schema';
 
+import { GM_CONTEXT_SCHEMA_VERSION } from './gm-context.migration';
 import { SessionRepository } from './session.repository';
 import { SessionCorrectionError, SessionService } from './session.service';
 
@@ -221,6 +222,10 @@ async function seedReadyAdventure(): Promise<{
     .returning();
   await db.insert(schema.gmContexts).values({
     adventureId: adventure.id,
+    // Declared, not defaulted: this blob is in the current shape, and a row
+    // that claims v1 while holding v2 content is exactly what
+    // `migrateGmContextBlob`'s tripwire exists to catch.
+    schemaVersion: GM_CONTEXT_SCHEMA_VERSION,
     blob: {
       narrative: {
         scenarioPremise: 'Derelict freighter',
