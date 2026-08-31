@@ -654,6 +654,59 @@ it is the axis every prediction above is read through.
 mean buying a full-corpus run before the restructure, which is the spend `§ S42`
 exists to avoid. Recorded here so the choice is visible as a choice.
 
+#### Second addendum, 2026-08-31 — a second Warden-visible change now lands before this is scored, and the run that scores it is named
+
+The addendum above held this pre-registration valid across one change to its
+fixtures' seeded state. **Two more are now scheduled ahead of the run**, both in
+M7.7 before the next playtest, and the held-valid argument does not extend to
+both on the same terms.
+
+- **Synthesis schema field descriptions, and `narrative.location` renamed.**
+  Invisible to this entry either way: no eval command exercises synthesis, and if
+  the rename is taken as a full field rename it moves `gmContextBlob.narrative`
+  on every fixture without touching a roll, a `purpose` string, or anything
+  `isSpontaneousGmRoll` reads. **Held valid**, on the same reasoning as the
+  restructure.
+- **`current_location` written by the Warden through `stateChanges`.** **Not held
+  valid on the same terms, and this is the one to watch.** It is a tool-schema
+  change, so it moves `promptHash`/`assemblyHash`, and unlike a layout label it
+  adds a field the Warden writes *during the turn*. Every prediction here is
+  about whether the Warden takes a spontaneous roll and whether its `purpose`
+  states the mapping before the die fires — both properties of what the Warden
+  does mid-turn, which is exactly the surface a new `stateChanges` field touches.
+  A plausible mechanism exists in both directions: another required write could
+  crowd out roll narration, or the extra structure could sharpen it.
+
+**The run that scores this entry is therefore named in advance**: the
+**re-baseline that `current_location` owes before the playtest capture**, which
+M7.7's own sequencing rule requires — a Warden-visible change ahead of a capture
+gets a re-baseline first, settled 2026-08-23 for plan 021 and the same shape
+here. Folding the two saves a run, exactly as `§ S38`'s re-baseline covered plan
+021 and the 2026-08-23 bump together.
+
+**What that costs this entry, stated rather than discovered.** Its four fixtures
+will run for the first time under a prompt and tool schema that have both moved
+since the prediction was written, so **a miss is not attributable to the Warden
+behaviour the prediction is about**. The falsifier survives — a fixture returning
+`not_applicable` on most reps is still a corpus defect rather than a result,
+because applicability gates on whether a roll happened at all — but the
+*direction* predictions (turn 25 likeliest to be excluded, turn 51 likeliest to
+grade two rolls) become weak claims about a Warden that has changed underneath
+them.
+
+**Two ways out, and the choice is open.** Score this entry on a run taken
+*before* `current_location` lands — an extra full-corpus pass, which is the spend
+the first addendum declined — or accept the confound and say so in the write-up.
+**Recommended: accept it**, on the grounds that these predictions were always
+about applicability rather than rate, applicability is the axis least likely to
+move for a schema addition, and `§ S44` has just demonstrated what buying an
+underpowered run to attribute a modest change actually returns.
+
+**What is not open** is discovering this while scoring. `§ S44` records a
+pre-registration that named a direction and no test and could not return an
+answer; this is the same failure one stage earlier — a prediction whose subject
+moved between writing and scoring, unnoted. It is noted.
+
 ---
 
 ### S42 — 2026-08-31 · Pre-registration: `worldFacts.ship_layout` restructured from prose into a deck-indexed list
