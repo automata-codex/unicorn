@@ -1403,6 +1403,75 @@ adventure emits no `dice_request` events at any sequence, which is why
 
 ---
 
+## Bump note — 2026-08-31, `ship_layout` restructured from prose into a deck-indexed list
+
+Corpus `301302000143` → **`d651cec51ad7`**, an **input-affecting** bump — the
+first in this log since M7.6's re-keying. **Every frozen `warden-output.json`
+for the 20 affected fixtures was produced under different conditions and is no
+longer evidence about the current corpus. No rescore substitutes; only a fresh
+run does.** Pre-registration `docs/eval-findings.md § S42`, run A `§ S43`.
+
+**`promptHash e83e8aaa` and `assemblyHash ada7fb8a` are unmoved.** The Warden
+prompt is untouched — deliberately, per `§ S42`, so run B attributes one change
+rather than two — and the synthesis prompt falls under neither hash.
+
+**Twenty fixtures, two ships, one prose form.** Twelve `2c0ba938-*` carry the
+*Halbrecht* and eight `5c34991b-*` carry the *Halberd's Grief*: different
+vessels, both three decks on a central ladder shaft, both written as a single
+~750–850 character paragraph. Each adventure has exactly one distinct
+`ship_layout` value across all its fixtures, so the edit is two values applied
+twenty times rather than twenty separate rewrites.
+
+**The 13 station `turn*` fixtures are untouched** and their artifacts stay
+exactly as valid as they were. They carry `station_spatial_layout` and
+`station_layout_overview`, a module-and-spoke topology rather than a deck stack,
+and restructuring them is a different change against a different shape — noted
+in `§ S42` as out of scope rather than overlooked.
+
+**Form-only, and checked rather than asserted.** The diff is exactly one line
+per file, 20 insertions and 20 deletions, every changed line a `ship_layout`
+value. A content-word comparison across both old and new values loses nothing:
+the *Halbrecht* adds only the numbering convention, and the *Halberd's Grief*
+restates "the only route between upper and lower decks" as "between DECK 1 and
+DECK 3", which is the same fact in the new vocabulary. No spatial fact was
+added, removed, or invented — in particular no within-deck adjacency, which the
+source prose does not establish and which `§ S42` rules out for that reason.
+
+**Multi-line values inside a single string, checked against the renderer.**
+`renderWorldFacts` emits `${key}: ${value}` per key, sorted, joined by newlines,
+so a value's continuation lines sit unprefixed under its key. Verified against
+the worst case — `2c0ba938-turn29`, where `teo_awareness_status` sorts *after*
+`ship_layout` — and the block stays legible: continuation lines open with
+`DECK n` or `Between decks`, and the next key line carries the `snake_case:`
+form that separates it.
+
+**The synthesis prompt changed with it, and that half is invisible to the
+harness.** `synthesis.prompts.ts`'s `Spatial layout (required)` block now states
+the form rule — indexed list, one line per level, connections on their own line,
+decks numbered from the top down — and both worked examples were rewritten into
+that shape, since the old `ship_layout:` example *was* the prose form being
+removed. **No eval measurement moves for this**: the corpus replays turns and no
+eval command exercises synthesis, which is the same fact `§ S41`'s synthesis
+provenance reasoning turns on. It changes what the next adventure generates.
+`synthesis-golden/synthesis-prompt.txt` caught the edit and was regenerated —
+the golden doing its job, not a failure.
+
+**Run A's artifacts remain the "before" for `turn18` and `turn24`** even though
+their bytes have now moved, because run A executed against their pre-restructure
+content. `§ S43` records those rates; run B is read against them per-fixture, and
+against the 2026-08-28 standing point for turns 08, 14 and 29.
+
+**One cosmetic inconsistency found while doing this, recorded rather than
+fixed.** Six of 33 fixture files encode non-ASCII literally where the other 27
+use `\uXXXX` escapes: the four `UNAUDITABLE-MAPPING` captures of 2026-08-29 and
+the two of 2026-08-31. Hand-editing wrote them that way. JSON parses both
+identically and nothing reads the bytes except `corpusVersion`, so normalising
+them would move the hash for no gain. Left alone deliberately; the restructure
+was applied by targeted string replacement in each file's own encoding, which is
+why the diff is one line per file rather than a reformat.
+
+---
+
 ## A model swap audits the harness as much as the model
 
 The first full-corpus run against a new model is two experiments wearing one coat. It

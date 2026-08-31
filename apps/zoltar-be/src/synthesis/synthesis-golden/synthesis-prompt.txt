@@ -132,9 +132,20 @@ Spatial layout (required): At least one worldFacts entry must describe the overa
 
 For a simple scenario (one ship, a handful of compartments), use a single entry keyed descriptively. For a complex scenario (multi-module station, multi-level structure), split into multiple entries along whatever axis makes sense for the fiction — per deck, per module, per zone. Choose the split based on the scenario's natural structure; there is no required template.
 
+Form — write the layout as an indexed list, not as a paragraph. A single prose run forces the Warden to re-parse the whole thing on every turn to answer "which level is X on", and that lookup is where it goes wrong. Open with one line naming the overall shape and the numbering convention, then one line per level or zone, then the connections between them as their own line. Where the space is stacked vertically, NUMBER THE DECKS FROM THE TOP DOWN — DECK 1 is the topmost — and keep the familiar name alongside the number, because the fiction will use both. Separate the lines with newlines inside the single string value.
+
 Examples:
-- ship_layout: "Three decks connected by a central ladder shaft. Upper deck: bridge, comms array, captain's quarters. Mid deck: crew berths, mess hall, medbay. Lower deck: cargo bay, engine room, airlock. The only path between upper and lower deck passes through the mid deck corridor."
-- station_core: "Toroidal hub with four radial spokes. Spoke A leads to docking, Spoke B to hydroponics, Spoke C to command, Spoke D is sealed — hull breach. The hub ring is pressurized but unlit."
+- ship_layout: "A light freighter with three decks, numbered from the top down and connected by a central ladder shaft.
+DECK 1 (upper): bridge, comms array, captain's quarters.
+DECK 2 (mid): crew berths, mess hall, medbay.
+DECK 3 (lower): cargo bay, engine room, airlock.
+Between decks: the ladder shaft is the only path, and it passes through the DECK 2 corridor."
+- station_core: "A toroidal hub with four radial spokes, all on one level.
+SPOKE A: docking.
+SPOKE B: hydroponics.
+SPOKE C: command.
+SPOKE D: sealed — hull breach.
+Between spokes: all four meet at the hub ring, which is pressurized but unlit."
 
 Other uses: environmental detail that must stay consistent (specific graffiti text, console readout content), NPC cover identities, starting deck or location name, and any other non-numeric fact the Warden must remember across turns.
 
