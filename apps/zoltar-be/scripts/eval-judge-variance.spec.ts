@@ -223,7 +223,7 @@ describe('runJudgeVariance', () => {
     expect(summary.headlines[0]).toMatch(/flipped on 1 of 1 frozen inputs/);
   });
 
-  it('persists each trial\'s rationale and the contract it was graded under', async () => {
+  it("persists each trial's rationale and the contract it was graded under", async () => {
     // The flip rate answers "does the grader agree with itself". It cannot
     // answer "does the grader agree with its own reasoning" — a different
     // defect, and the one this corpus actually has: six verdicts in 1,341

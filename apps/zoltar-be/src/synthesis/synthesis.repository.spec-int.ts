@@ -113,7 +113,7 @@ describe('SynthesisRepository (integration)', () => {
       };
       const gmContextBlob = {
         openingNarration: 'Amber lights pulse.',
-        narrative: { location: 'loc' },
+        narrative: { scenarioPremise: 'loc' },
         entities: [{ id: 'dr_chen' }],
       };
 

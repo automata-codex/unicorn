@@ -130,7 +130,7 @@ async function seedFixture(): Promise<{
     blob: {
       openingNarration: 'x',
       narrative: {
-        location: 'loc',
+        scenarioPremise: 'loc',
         atmosphere: 'atmo',
         npcAgendas: {},
         hiddenTruth: 'h',

@@ -38,7 +38,7 @@ const VALID_EXPORT: SynthesisExport = {
     blob: {
       openingNarration: 'The airlock cycles.',
       narrative: {
-        location: 'Persephone',
+        scenarioPremise: 'Persephone',
         atmosphere: 'stale',
         npcAgendas: { engineer_kowalski: 'reach engine room' },
         hiddenTruth: 'the manifest is forged',
@@ -118,7 +118,7 @@ async function seedAdventureWithSnapshot(overrides?: {
     gmContextSchemaVersion: 1,
     gmContextBlob: {
       openingNarration: 'Snapshot narration.',
-      narrative: { location: 'loc' },
+      narrative: { scenarioPremise: 'loc' },
     },
     campaignStateSchemaVersion: 1,
     campaignStateData: {
@@ -190,7 +190,7 @@ describe('loadSynthesisSnapshot', () => {
     expect(exportPayload.gmContext.schemaVersion).toBe(1);
     expect(exportPayload.gmContext.blob).toEqual({
       openingNarration: 'Snapshot narration.',
-      narrative: { location: 'loc' },
+      narrative: { scenarioPremise: 'loc' },
     });
     expect(exportPayload.campaignState.schemaVersion).toBe(1);
   });
@@ -280,7 +280,7 @@ describe('load-synthesis round trip (capture -> load)', () => {
 
     const sourceGmContextBlob = {
       openingNarration: 'The reactor hums.',
-      narrative: { location: 'Engine bay' },
+      narrative: { scenarioPremise: 'Engine bay' },
     };
     const sourceCampaignStateData = {
       schemaVersion: 1,

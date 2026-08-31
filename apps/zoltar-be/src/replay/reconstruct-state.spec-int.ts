@@ -200,7 +200,7 @@ describe('reconstructStateAsOfTurn (integration)', () => {
     const turn0GmContextBlob = {
       openingNarration: 'The airlock cycles.',
       narrative: {
-        location: 'Corridor 7',
+        scenarioPremise: 'Corridor 7',
         atmosphere: 'stale',
         npcAgendas: { corporate_spy_1: 'Watch the player' },
         hiddenTruth: 'The manifest is forged',

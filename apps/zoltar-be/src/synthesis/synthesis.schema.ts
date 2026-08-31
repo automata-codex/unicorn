@@ -171,7 +171,7 @@ export const submitGmContextSchema = z.object({
    */
   narrative: z
     .object({
-      location: z
+      scenarioPremise: z
         .string()
         .describe(
           'What this adventure is about: the situation the crew is in and ' +

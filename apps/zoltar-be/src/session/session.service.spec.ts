@@ -44,7 +44,7 @@ function textOnlyMessage(text: string): Anthropic.Message {
 
 const baseBlob = {
   narrative: {
-    location: 'loc',
+    scenarioPremise: 'loc',
     atmosphere: 'atmo',
     npcAgendas: {},
     hiddenTruth: 'truth',

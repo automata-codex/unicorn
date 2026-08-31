@@ -223,7 +223,7 @@ async function seedReadyAdventure(): Promise<{
     adventureId: adventure.id,
     blob: {
       narrative: {
-        location: 'Derelict freighter',
+        scenarioPremise: 'Derelict freighter',
         atmosphere: 'dim',
         npcAgendas: { corporate_spy_1: 'Watch the player' },
         hiddenTruth: 'truth',
@@ -336,7 +336,7 @@ describe('SessionService (integration) — happy path', () => {
       .where(eq(schema.gmContexts.adventureId, adventureId));
     const blob = ctxRow.blob as {
       narrative: {
-        location: string;
+        scenarioPremise: string;
         hiddenTruth: string;
         npcAgendas: Record<string, string>;
       };
@@ -346,7 +346,7 @@ describe('SessionService (integration) — happy path', () => {
       'Now following the player',
     );
     // Untouched narrative fields pass through the merge unchanged.
-    expect(blob.narrative.location).toBe('Derelict freighter');
+    expect(blob.narrative.scenarioPremise).toBe('Derelict freighter');
     expect(blob.narrative.hiddenTruth).toBe('truth');
     // `playerEntityIds` is a per-request prompt-building addition
     // (session.snapshot.ts) spliced onto the blob in memory for Claude's

@@ -5,13 +5,13 @@ import { selectChecksForFixture } from '../eval/checks/registry';
 import { runCheck } from '../eval/checks/run-check';
 import { computeCorpusVersion } from '../eval/corpus-version';
 import { loadFixtures } from '../eval/fixture-loader';
+import { assertJudgeContractGoldenCurrent } from '../eval/preflight';
 import {
   readTurnResultArtifact,
   relativeArtifactPath,
   writeJudgeArtifactAt,
 } from '../eval/runs/artifacts';
 import { envOnlyConfigService } from '../eval/runs/env-config-service';
-import { assertJudgeContractGoldenCurrent } from '../eval/preflight';
 import { readManifest } from '../eval/runs/manifest';
 import {
   listRepDirsOnDisk,

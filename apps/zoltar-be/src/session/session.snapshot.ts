@@ -29,7 +29,7 @@ import type {
 export interface GmContextBlob {
   openingNarration?: string | null;
   narrative?: {
-    location: string;
+    scenarioPremise: string;
     atmosphere: string;
     npcAgendas: Record<string, string>;
     hiddenTruth: string;

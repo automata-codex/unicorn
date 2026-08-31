@@ -12,7 +12,7 @@
         "narrative": {
           "type": "object",
           "properties": {
-            "location": {
+            "scenarioPremise": {
               "type": "string",
               "description": "What this adventure is about: the situation the crew is in and why it matters, in two or three sentences. Scenario-level and fixed for the whole adventure — \"The colony transport ESV Halbrecht, three weeks out from the nearest relay beacon, running silent since the last watch failed to report.\" It is NOT where anyone currently is: nothing here tracks the crew as they move, and the layout of the space belongs in `worldFacts`. Write the premise, not a position."
             },
@@ -37,7 +37,7 @@
             }
           },
           "required": [
-            "location",
+            "scenarioPremise",
             "atmosphere",
             "npcAgendas",
             "hiddenTruth",

@@ -12,7 +12,7 @@ const WARDEN_PROMPT_FIXTURE = 'You are the Warden.\n\nFixture prompt.';
 const baseBlob: GmContextBlob = {
   openingNarration: 'Amber lights pulse — the ship drifts.',
   narrative: {
-    location: 'Derelict freighter Persephone.',
+    scenarioPremise: 'Derelict freighter Persephone.',
     atmosphere: 'Dim corridors, the hum of failing life support.',
     npcAgendas: {
       corporate_liaison: 'Keep the manifest hidden at any cost.',
@@ -65,7 +65,7 @@ describe('formatGmContextBlob', () => {
     const text = formatGmContextBlob(baseBlob);
     expect(text).toMatch(/^<gm_context>/);
     expect(text).toMatch(/<\/gm_context>$/);
-    expect(text).toContain('location: Derelict freighter Persephone.');
+    expect(text).toContain('scenario_premise: Derelict freighter Persephone.');
     expect(text).toContain('engineer_kowalski');
     expect(text).toContain('shadow_threat');
     expect(text).toContain('adventure_complete');
