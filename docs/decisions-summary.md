@@ -19,7 +19,7 @@ Each entry records what was decided, what the alternatives were, and why.
   `task docs:decisions:check` fails if either is stale.
 -->
 
-**This is the summary log.** 82 of 117 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
+**This is the summary log.** 83 of 118 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
 
 ---
 
@@ -242,6 +242,10 @@ Introduces Instinct for `npc` entities and a `crewRole` → skill-chain layer ov
 ### [ADR-0103](decisions/0103-entity-merge-preserves-schema-fields.md) — Entity merge preserves all schema fields rather than a hand-enumerated set
 
 The hand-enumerated entity merge that silently destroyed authored fields — `crewRole`, `instinctRoll` — the playtest evidence for it, and the parse-through-`EntitySchema` fix, which has not yet landed. Carries five open items, two of them since resolved: the 2c0ba938 captures are confirmed fix-invariant below seq 99, and there is still no way to remove a field from an entity record.
+
+### [ADR-0118](decisions/0118-the-schema-is-the-home-for-per-field-synthesis-guidance.md) — The schema is the home for per-field synthesis guidance, and `narrative.location` becomes `scenarioPremise`
+
+Per-field guidance for synthesis moves onto the field as a Zod `.describe`, and the prompt keeps only rules Zod cannot express — closing a gap where three fields the Warden reads every turn were described in neither place. `narrative.location` is renamed `scenarioPremise` and relabelled `scenario_premise:`, discharging part three of `ADR-0101`'s fix ordering. `gm_context.schema_version` goes to 2 with a read migration that, unlike `ADR-0101`'s, also covers the eval corpus — so no corpus bump and no backfill migration are owed. Ships on reasoning: nothing measures synthesis.
 
 ---
 

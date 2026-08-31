@@ -1,6 +1,11 @@
 # 024 — Describe the synthesis schema, and rename `location` to `scenarioPremise`
 
-**Status: open.** Drafted 2026-08-31. Parts two and three of `ADR-0101`'s fix
+**Status: shipped 2026-08-31.** Drafted 2026-08-31, landed the same day. The
+decisions and their reasoning are in `ADR-0118`; the corrections this plan
+needed on contact with the code are in **What changed on contact**, at the
+bottom. Read that before citing anything above it.
+
+Drafted 2026-08-31. Parts two and three of `ADR-0101`'s fix
 ordering, minus `current_location` — which stays its own item and is blocked on
 this one. Part one shipped the same day as `ADR-0117`.
 
@@ -316,3 +321,42 @@ the full field rename was chosen and what made it affordable: the eval corpus
 reaches `gmContextBlob` through the database, so the read-migration covers the
 fixtures and no corpus bump is owed. That is the fact that changed the cost
 calculus, and it is not in the ADR today.
+
+
+## What changed on contact
+
+Four things in the plan above were wrong or incomplete. Each is corrected in
+place in `ADR-0118`; they are collected here because a frozen plan is a dated
+account and the diffs are the useful record.
+
+**1. `gm_context.schema_version` was never written by application code.** The
+plan named `synthesis.write.ts:242`, `synthesis.repository.ts:63` and
+`session.assembly.ts:124` as its write sites. All three are
+`campaign_state.schema_version`; `gm_context`'s took the column default of 1 and
+nothing set it. It is now written explicitly on all three `gm_context` write
+paths, the per-turn `update` included, so an old adventure's row is relabelled
+by its first turn after this landed.
+
+**2. The migration keys on the shape, not the version.** The plan assumed a
+version-gated read migration. `getGmContextBlob` selects `blob` alone, so gating
+on a column the projection does not fetch would silently no-op and hand the
+prompt builder a v1 blob. Shape-keying is total; the version stays as the
+declaration of what new writes produce.
+
+**3. Two read sites, not three.** `adventure.repository.ts` reads only
+`openingNarration` off the blob and never touches `narrative`, so it needs
+nothing. The sites are `session.repository.ts` and `replay/reconstruct-state.ts`.
+
+**4. Net bytes are not flat — they rise ~5.3 KB.** Corrected in place above.
+
+**And one field was left undescribed against the policy.** `startingPosition`'s
+`x`/`y`/`z` have no documented axis convention anywhere — `grid_cell` carries
+both a `z` and an `elevation` with nothing distinguishing them — so a
+description would have been an invented convention arriving as documentation.
+The gap is recorded in a comment at the field instead.
+
+**The section-coverage tests were reformulated rather than moved.** They now
+assert against the prompt and the tool schema concatenated: the guarantee was
+always *the model is told this*, and asserting on the prompt alone was measuring
+the home rather than the guarantee. A new test asserts the moved headings have
+not crept back into the prompt, so the policy fails loudly instead of eroding.
