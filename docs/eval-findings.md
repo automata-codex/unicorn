@@ -925,7 +925,7 @@ rationales again on run B.
 #### Tool-syntax emission is elevated on a small sample, and both leaks are on one fixture
 
 Counted per `§ S38`'s convention — abandoned turns ÷ (fixtures × reps) — this run
-reads **2/40 = 5.0%** against the standing ~1.36% per turn. Both abandoned turns
+reads **2/40 = 5.0%** against the standing ~1.36% per turn. **Corrected in `§ S45`: that comparison is all-errors against a leak-only comparator. Leak-only this run is also 2/40 = 5.00%, and the elevation is a corpus-composition artefact rather than a rate change.** Both abandoned turns
 are `turn24` reps (012 and 014), none on `turn18`.
 
 **These are not the unexplained turn-level errors `§ S39` recorded** on the two
@@ -1051,7 +1051,7 @@ and this corpus has now made that claim three times.
 #### The error rate is the only significant number, and the restructure did not cause it
 
 **10 of 160 fixture-reps errored — 6.25%** against the standing ~1.36%
-(*p* = 0.00008). Eight are tool-syntax leaks abandoning the turn, one is
+(*p* = 0.00008). **Superseded by `§ S45`, which corrects both the unit and the attribution: the comparator counts leaks only, the like-for-like figure is 8/160 = 5.00% (*p* = 0.0017), and the elevation is one adventure's fixtures rather than drift.** Eight are tool-syntax leaks abandoning the turn, one is
 `Inner tool loop did not terminate within 20 iterations`, one a rejected
 correction round.
 
@@ -1079,3 +1079,126 @@ Not a baseline candidate; standing point remains
 its rationales show the Warden reasoning in the new vocabulary, and no tripwire
 implicates it. But **it is not evidence-backed either**, and `ADR-0101`'s
 addendum should not be read as validated by this run.
+
+---
+
+### S45 — 2026-08-31 · The error rate diagnosed: no drift, no restructure effect, one adventure leaking five times more than the rest
+
+`§ S44` called the error rate "the only significant number in either run" and left
+it attributed to "the adventure, unexplained." Three free stages against archived
+artifacts settle it, and correct a unit error in `§ S43` and `§ S44` on the way.
+
+#### The comparator counts leaks only, and both prior entries compared all errors against it
+
+**`§ S43` and `§ S44` are wrong on this and are corrected here.** The standing
+~1.36% comes from `docs/eval-methodology.md`'s emission table —
+`fa4e6e2f__2026-08-20` and `__2026-08-21`, 3/220 each — and it counts **turns
+abandoned to a tool-syntax leak**, not every errored fixture-rep. Both prior
+entries divided *all* errors by fixture-reps and compared the result to it. Leaks
+are ~80% of errors, so the mismatch inflated every figure quoted.
+
+Recomputed leak-only, which reproduces the methodology's 1.36% exactly on both
+source runs and so is confirmed like-for-like:
+
+| Run | Leak rate |
+|---|---|
+| `fa4e6e2f__2026-08-20` | 3/220 — 1.36% |
+| `fa4e6e2f__2026-08-21` | 3/220 — 1.36% |
+| `e83e8aaa__2026-08-24` | 1/210 — 0.48% |
+| `e83e8aaa__2026-08-28` | 8/252 — 3.17% |
+| `e83e8aaa__2026-08-31` run A | 2/40 — 5.00% |
+| `e83e8aaa__2026-08-31` run B | 8/160 — 5.00% |
+
+**The finding survives the correction; the numbers do not.** Run B is 5.00% not
+6.25% (*p* = 0.0017 against 1.36%), and A+B pooled is 10/200 = 5.00% not 6.0%
+(*p* = 0.0005, not 0.00002). Every quoted figure in `§ S43` and `§ S44` on this
+subject should be read as the leak-only row above.
+
+#### There is no drift. The entire rise is one adventure joining the corpus
+
+The apparent trend — 1.36% in August, 3.17% by 08-28, 5.00% by 08-31 — is a
+composition artefact, and splitting the 08-28 full-corpus run says so outright:
+
+| 08-28, split | Leak rate |
+|---|---|
+| `2c0ba938` fixtures | 5/70 — **7.14%** |
+| the rest of the corpus | 3/182 — **1.65%** |
+
+**The rest of the corpus is exactly where it always was** — 1.65% against the
+1.36% baseline, *p* = 0.73. Nothing drifted. `§ S44`'s reading of a rising series
+was reading the corpus changing under a stable rate, and `e83e8aaa__2026-08-24`
+at 0.48% is the tell: that run predates the `2c0ba938` captures entirely.
+
+Pooled across the two most recent runs, `2c0ba938` errors at 7.4% against
+`5c34991b`'s 0.9% (*p* = 0.012). Runs A and B were **75–100% `2c0ba938`
+fixtures** by construction, which is the whole of their "elevated" rate: at
+7.14% and 1.65% respectively, run B's expected leak count is 9.2 against 8
+observed.
+
+**So `§ S44`'s "best-supported open defect in the harness" is narrower than it
+was written.** It is not a harness-wide regression. It is one adventure's
+fixtures leaking about five times more often than everything else, stably, since
+they were captured.
+
+#### What the leak is, and three explanations that do not survive
+
+One failure mode, 18 distinct leaked turns across three runs, identical shape:
+the model closes `playerText` — `</playerText>` or `</parameter>` — and then
+serialises the remaining tool parameters as **text inside `playerText`**, so
+`gmUpdates` and `stateChanges` would be silently discarded. The guard catches it
+before persistence and abandons the turn.
+
+**Rejected — a `playerText` length threshold.** Every leak offset falls in
+1238–2056, which looks like a ceiling until the successful turns are measured:
+their `playerText` runs median 1602, p25 1326, p75 1876, and **65.8% of
+successful turns fall inside the same band**. The offset is simply where
+`playerText` ends. This is a *parameter-boundary* failure — the model finishing
+the narration and failing to re-enter structured-parameter mode — and it happens
+at whatever offset the boundary falls.
+
+**Rejected — prompt size.** Median `warden-request.json`: station 225 KB,
+`2c0ba938` 201 KB, `5c34991b` 159 KB. The station fixtures carry the *largest*
+prompts and leak less than `2c0ba938`.
+
+**Rejected — more structured output to emit.** All three groups emit 1
+`gm_response` and 1 `state_update` per turn. `5c34991b`, the *lowest*-leaking
+group, rolls the most: 0.83 `dice_roll` per turn against `2c0ba938`'s 0.60.
+
+**What distinguishes `2c0ba938` is therefore still open**, and the three cheapest
+hypotheses are now closed rather than untested. Within it the concentration is
+uneven — `turn21` ×2 at 3/10 and 2/10, `turn29` 4/30, `turn24` 2/20, while
+`turn15` is 0/30 and `turn18` 0/20 — which is the same unevenness `§ S39` logged
+on the `turn21` pair as "unexplained" and is now the sharpest remaining lead.
+
+#### The retry budget is 1, and that is a decision rather than an oversight
+
+`TOOL_SYNTAX_RETRY_BUDGET = 1` (`session.service.ts:213`): one hand-back, then
+the turn is abandoned. The constant's own comment records the reasoning — *"per
+the same reasoning `ADR-0041` applies to the correction loop: more retries hide
+the failure rather than fixing it"* — and notes that `ADR-0097` originally let it
+ride the shared `INNER_TOOL_LOOP_CAP` of 20 on the assumption Claude would
+recover as it does from a malformed payload.
+
+So **raising it is a decision already taken and argued against**, and the error
+rate is in part a deliberate policy artefact: the harness converts a recoverable
+leak into a lost denominator on purpose. That trade was made when leaks ran at
+1.36% corpus-wide. At 7.14% on one adventure it costs that adventure's fixtures
+about one rep in fourteen, every run, and `TOOL-SYNTAX-LEAK` reads 1.00
+throughout because an abandoned turn produces no `gm_response` (`ADR-0097`
+addendum 3) — so the check cannot see what it is named for. Revisiting the budget
+is now a question with a number attached, which it did not have before.
+
+#### What this changes
+
+- **`§ S44`'s error-rate section is superseded**, not just corrected: right
+  conclusion that the restructure did not cause it, wrong unit, and an
+  attribution ("drift", "harness-wide") that the split refutes.
+- **No action is owed against the model or the prompt.** Corpus-wide leak
+  behaviour is unchanged since 2026-08-20.
+- **Runs scoped mostly to `2c0ba938` will keep losing ~7% of their denominators**,
+  which is a planning input for any future scoped run — including a re-run of the
+  `ship_layout` question, whose treatment fixtures are all `2c0ba938`.
+- **The open lead is per-fixture, not per-adventure.** `2c0ba938-turn21`'s two
+  fixtures lead the table across every run they appear in; whatever they share
+  with `turn29` and `turn24` and not with `turn15` or `turn18` is the next thing
+  to look at, and it is free to look at.

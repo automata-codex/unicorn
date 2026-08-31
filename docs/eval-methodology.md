@@ -157,7 +157,10 @@ rather than a bare mention, until M7.8's `baseline-check` item closes.
   side-effect question negatively. The one significant number in either run is an
   error rate of 6.0% pooled against a standing ~1.36% — **not caused by the
   restructure**, since run A ran the pre-restructure corpus at a statistically
-  identical rate. **Not a standing point.**
+  identical rate. **`§ S45` corrects that figure to 5.00% leak-only and
+  attributes it to corpus composition rather than drift: `2c0ba938` fixtures
+  leak at 7.14%, the rest of the corpus at 1.65%, and these runs are 75–100%
+  `2c0ba938`.** **Not a standing point.**
 
 **Named in full deliberately.** `task docs:baseline-check` matches run
 directories against this file by full run id, so a prompt hash or a truncated
