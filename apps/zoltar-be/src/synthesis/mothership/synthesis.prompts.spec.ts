@@ -110,22 +110,26 @@ describe('buildMothershipSynthesisPrompt', () => {
     expect(prompt).toContain('Secret:');
     expect(prompt).toContain('Vessel Type:');
     expect(prompt).toContain('Tone:');
-    expect(prompt).toContain('FLAGS:');
-    expect(prompt).toContain('REQUIRED FLAG — adventure_complete');
-    expect(prompt).toContain('COUNTDOWN TIMERS:');
     expect(prompt).toContain('PLAYER CHARACTER:');
-    expect(prompt).toContain('OPENING NARRATION:');
+    // The three rules Zod cannot express, which is the whole test for what
+    // stays in this prompt (`ADR-0118`). Per-field guidance lives on the field;
+    // `synthesis.goldens.spec.ts` asserts it has not crept back.
+    expect(prompt).toContain('REQUIRED FLAG — adventure_complete');
+    expect(prompt).toContain('NEVER INVENT AN NPC TO FILL A ROLE');
+    expect(prompt).toContain('REQUIRED WORLD FACT — spatial layout');
   });
 
   it('names the canonical entity id and forbids re-deriving one from the display name', () => {
     // The synthesis-side half of the duplicate-pool defect: the model was shown
-    // only `name`, so it invented a prefix to build player pools out of.
+    // only `name`, so it invented a prefix to build player pools out of. The
+    // "do not re-create the player's pools" half of this rule is per-field and
+    // moved onto `initialState`'s description; the id rule spans the prompt's
+    // own rendered CHARACTER block, which no field description can reach.
     const prompt = buildMothershipSynthesisPrompt(vasquezSheet, baseSelections);
     expect(prompt).toContain(`Entity ID: ${vasquezSheet.entityId}`);
     expect(prompt).toContain(
       'Do not derive an identifier from the display name',
     );
-    expect(prompt).toContain('Do not include them in initialState');
   });
 
   it('omits the addendum section when not provided', () => {

@@ -108,6 +108,33 @@ function formatAllMothershipOracleEntries(
   ].join('\n\n');
 }
 
+/**
+ * The synthesis user prompt.
+ *
+ * **Per-field guidance does not live here. It lives on the field, as a
+ * `.describe` in `synthesis.schema.ts`** (`ADR-0118`). This prompt keeps four
+ * kinds of thing and nothing else: rendered input (the character, the oracle
+ * entries), instructions about the synthesis task rather than about a value,
+ * the caller's addendum, and the rules Zod cannot express.
+ *
+ * Three of those last are here on that test, and each is here for a reason a
+ * `.describe` could not serve:
+ *
+ * - **`adventure_complete`** is a required *key* inside a `z.record`. Saying so
+ *   in Zod means changing the type; the service enforces it at
+ *   `synthesis.service.ts` instead.
+ * - **NEVER INVENT AN NPC TO FILL A ROLE** constrains the entity *list*, not
+ *   the `crewRole` field. A description on the field is read while writing one
+ *   entity, which is exactly the wrong moment to be told not to add another.
+ * - **A spatial-layout entry is required** is a constraint on `worldFacts` as a
+ *   whole, and no per-key description can state it. Its *form* — the indexed
+ *   list, the top-down deck numbering, the worked examples (`ADR-0117`) — is
+ *   per-field and did move onto `worldFacts`.
+ *
+ * Adding a section that explains one field is the drift this structure exists
+ * to prevent: two homes for one kind of thing is how `npcAgendas`,
+ * `hiddenTruth` and `oracleConnections` went undescribed in both.
+ */
 export function buildMothershipSynthesisPrompt(
   characterSheet: MothershipCharacterSheet,
   selections: MothershipOracleSelections,
@@ -119,14 +146,10 @@ export function buildMothershipSynthesisPrompt(
     `CHARACTER:\n${formatMothershipCharacterProse(characterSheet, playerPools)}`,
     `ORACLE RESULTS:\n${formatAllMothershipOracleEntries(selections)}`,
     `Each oracle entry includes an id, claude_text (the narrative seed), interfaces (hints for how entries connect across categories), and tags. Use the id values as the basis for entity IDs and flag keys in the structured output. Use the interfaces array to wire entries together coherently — condition values indicate which other entries this one connects to. Synthesize a coherent GM context from these elements and call submit_gm_context when complete.`,
-    `PLAYER CHARACTER:\nThe player character's canonical entity id is the "Entity ID" value given under CHARACTER above. Use that exact string wherever you refer to the player character — entity ids, resource pool owners, flag keys. Do not derive an identifier from the display name; the name is for narration only.\n\nThe player's HP and stress pools already exist as {entity_id}.hp and {entity_id}.stress, written at character creation. Do not include them in initialState — they are already in state and re-creating them under a different spelling produces two competing pools for one character. Any additional player-character pool you do initialize must use the same {entity_id} owner.`,
-    `FLAGS:\nEach flag in the structured output must include both a value (boolean) and a trigger (the specific in-fiction action or event that flips it). Example: { "distress_beacon_active": { "value": false, "trigger": "Flip to true when the player or an NPC activates the beacon at the bridge console. Approaching the console is not sufficient." } }`,
+    `PLAYER CHARACTER:\nThe player character's canonical entity id is the "Entity ID" value given under CHARACTER above. Use that exact string wherever you refer to the player character — entity ids, resource pool owners, flag keys. Do not derive an identifier from the display name; the name is for narration only.`,
     `REQUIRED FLAG — adventure_complete:\nEvery scenario must include adventure_complete: { value: false, trigger: "..." } where the trigger names the specific end condition for this adventure.`,
-    `CREW ROLES:\nAn NPC who is crew gets a crewRole, and most NPCs are crew. The role is drawn from a fixed list: captain, executive_officer, pilot, navigator, chief_engineer, engineer, machinist_mechanic, life_support_tech, doctor, medic, scientist, geologist, miner, xenobiologist, comms_officer, corporate_liaison, counselor, security_chief, security_officer, cargo_handler.\n\nThe optionality runs one way only. NEVER INVENT AN NPC TO FILL A ROLE — the twenty are a vocabulary, not a checklist, and a given ship uses a handful of them while the rest simply do not appear. An NPC exists for narrative reasons first and takes whichever role fits. Leave crewRole unset for an NPC who is not crew at all: a passenger, a corporate observer, a stranger.\n\nOnly type "npc" takes a role. Threats and features do not.\n\nDo not supply Instinct or any other stat. The backend rolls Instinct for every NPC and will discard anything you send.`,
-    `RESOURCE POOL ADDRESSES:\nEvery key in initialState is a two-part address, "{owner}.{pool_name}" — the owning entity id, a dot, then the bare pool name. e.g. "crewman_wick.hp": { current: 12, max: 12 }. The owner must be an entity id you declared in structured.entities, or the player character's entity id. Do not use a composite single-part key like "crewman_wick_hp"; it will be discarded.\n\nPools that belong to no entity — station subsystems, environmental readings, adventure-wide countdowns — take the reserved owner "_scenario": "_scenario.reactor_pressure": { current: 8, max: 8 }. "_scenario" is the only owner that may begin with an underscore; entity ids never do.`,
-    `COUNTDOWN TIMERS:\nAny mechanic that involves a number counting down over the course of the adventure must be initialized as a named resource pool in initialState. Name the pool "timer" under the entity it belongs to — e.g. "crewman_wick.timer": { current: 4, max: 4 } — or under "_scenario" when the countdown belongs to the adventure rather than to any one entity. Do not track countdowns as freeform state or narrative-only values.`,
-    `WORLD FACTS:\nUse structured.worldFacts for any non-numeric initial state the Warden needs to remember across turns. Keys should be descriptive snake_case. Values are plain strings. Do not put numeric state here — use initialState for resource pools and countdown timers.\n\nSpatial layout (required): At least one worldFacts entry must describe the overall spatial layout of the adventure location — the connective tissue the Warden needs to avoid contradicting itself about where things are relative to each other. The entry or entries should capture: the overall shape of the space (a single ship, a station with multiple modules, a planet-side installation), named areas or rooms that matter to the scenario and how they connect, and notable spatial features like chokepoints, hazards, landmarks, or barriers. This is not a room-by-room prose description, not an inventory of items, and not entity placements (those live in structured.entities). It is the Warden's mental map of the location.\n\nFor a simple scenario (one ship, a handful of compartments), use a single entry keyed descriptively. For a complex scenario (multi-module station, multi-level structure), split into multiple entries along whatever axis makes sense for the fiction — per deck, per module, per zone. Choose the split based on the scenario's natural structure; there is no required template.\n\nForm — write the layout as an indexed list, not as a paragraph. A single prose run forces the Warden to re-parse the whole thing on every turn to answer "which level is X on", and that lookup is where it goes wrong. Open with one line naming the overall shape and the numbering convention, then one line per level or zone, then the connections between them as their own line. Where the space is stacked vertically, NUMBER THE DECKS FROM THE TOP DOWN — DECK 1 is the topmost — and keep the familiar name alongside the number, because the fiction will use both. Separate the lines with newlines inside the single string value.\n\nExamples:\n- ship_layout: "A light freighter with three decks, numbered from the top down and connected by a central ladder shaft.\nDECK 1 (upper): bridge, comms array, captain's quarters.\nDECK 2 (mid): crew berths, mess hall, medbay.\nDECK 3 (lower): cargo bay, engine room, airlock.\nBetween decks: the ladder shaft is the only path, and it passes through the DECK 2 corridor."\n- station_core: "A toroidal hub with four radial spokes, all on one level.\nSPOKE A: docking.\nSPOKE B: hydroponics.\nSPOKE C: command.\nSPOKE D: sealed — hull breach.\nBetween spokes: all four meet at the hub ring, which is pressurized but unlit."\n\nOther uses: environmental detail that must stay consistent (specific graffiti text, console readout content), NPC cover identities, starting deck or location name, and any other non-numeric fact the Warden must remember across turns.`,
-    `OPENING NARRATION:\nWrite an openingNarration — the ambient scene at the moment the player character enters the adventure, before any player agency. Establish the immediate physical situation, convey the atmosphere, and include one concrete detail the player did not put there — something that signals the world has already been in motion without them.`,
+    `CREW ROLES:\nNEVER INVENT AN NPC TO FILL A ROLE — the twenty roles are a vocabulary, not a checklist, and a given ship uses a handful of them while the rest simply do not appear. An NPC exists for narrative reasons first and takes whichever role fits.`,
+    `REQUIRED WORLD FACT — spatial layout:\nAt least one structured.worldFacts entry must describe the overall spatial layout of the adventure location — the connective tissue that keeps the Warden from contradicting itself about where things are relative to each other. The worldFacts field description gives the form; this is the requirement that one exists.`,
   ];
 
   if (addendum?.trim()) {

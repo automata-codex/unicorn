@@ -100,43 +100,66 @@ describe('findSynthesisGoldenMismatches', () => {
 });
 
 /**
- * The four sections `synthesis.prompts.spec.ts`'s "includes every required
- * section" misses. The goldens would catch a deletion as a diff, but a diff
- * says "this text changed" and not "the section the wounds chain depends on
- * is gone" — these name them, so a deletion fails with the reason attached.
+ * Guidance the synthesis call cannot lose, asserted against **everything the
+ * model receives** rather than against the prompt alone.
  *
- * Three of the four are load-bearing for the second M7.7 playtest:
- * `CREW ROLES:` for the Contractor-with-a-role capture target,
- * `RESOURCE POOL ADDRESSES:` for the wounds chain, and `WORLD FACTS:` for
- * `MISSING-CANON-CAPTURE`.
+ * These began as the four sections `synthesis.prompts.spec.ts`'s "includes
+ * every required section" misses. `ADR-0118` moved most of that text out of
+ * the prompt and onto the fields themselves, and asserting on the prompt would
+ * now fail for text that still reaches the model perfectly well — the tests
+ * would be measuring the home rather than the guarantee.
+ *
+ * So they read the concatenation. The guarantee was always *the model is told
+ * this*, and it holds whichever surface carries it; a later move back the other
+ * way is equally fine and equally covered. The goldens catch a deletion as a
+ * diff, but a diff says "this text changed" and not "the rule the wounds chain
+ * depends on is gone" — these name them, so a deletion fails with the reason
+ * attached.
  */
-describe('sections the required-section test does not assert', () => {
-  const prompt = surfaces.synthesisPrompt;
+describe('guidance the model must receive, on whichever surface', () => {
+  const received = `${surfaces.synthesisPrompt}\n${surfaces.synthesisTools}`;
 
-  it('renders CREW ROLES:, which ADR-0100 and the Contractor capture depend on', () => {
-    expect(prompt).toContain('CREW ROLES:');
-    expect(prompt).toContain('NEVER INVENT AN NPC TO FILL A ROLE');
+  it('carries the crew-role rules that ADR-0100 and the Contractor capture depend on', () => {
+    expect(received).toContain('NEVER INVENT AN NPC TO FILL A ROLE');
     // The backend rolls Instinct at synthesis-write time and `SYNTHESIS_TOOLS`
     // has no `roll_dice`, so a model-supplied value is a fabrication.
-    expect(prompt).toContain('Do not supply Instinct');
+    expect(received).toContain('do not supply Instinct');
   });
 
-  it('renders RESOURCE POOL ADDRESSES:, which spec 018 and the wounds chain depend on', () => {
-    expect(prompt).toContain('RESOURCE POOL ADDRESSES:');
-    expect(prompt).toContain('"{owner}.{pool_name}"');
+  it('carries the pool addressing that spec 018 and the wounds chain depend on', () => {
+    expect(received).toContain('{owner}.{pool_name}');
     // The composite-key prohibition is the synthesis-side half of the
     // duplicate-pool defect that gave the corpus `alvarez_*`/`lt_alvarez_*`.
-    expect(prompt).toContain('composite single-part key');
-    expect(prompt).toContain('_scenario');
+    expect(received).toContain('composite single-part key');
+    expect(received).toContain('_scenario');
   });
 
-  it('renders WORLD FACTS:, which MISSING-CANON-CAPTURE depends on', () => {
-    expect(prompt).toContain('WORLD FACTS:');
-    expect(prompt).toContain('Spatial layout (required)');
+  it('carries the world-facts rules that MISSING-CANON-CAPTURE depends on', () => {
+    expect(received).toContain('spatial layout');
+    // `ADR-0117`'s restructure. Unmeasured (`eval-findings.md § S44`) and kept
+    // on a cost argument, so it must not evaporate in a refactor unnoticed.
+    expect(received).toContain('NUMBER THE DECKS FROM THE TOP DOWN');
   });
 
-  it('renders the oracle-wiring paragraph', () => {
-    expect(prompt).toContain('interfaces array');
-    expect(prompt).toContain('submit_gm_context');
+  it('carries the oracle-wiring paragraph', () => {
+    expect(received).toContain('interfaces array');
+    expect(received).toContain('submit_gm_context');
+  });
+
+  /**
+   * `ADR-0118`'s policy, asserted rather than merely written down: per-field
+   * guidance belongs on the field. A section heading returning to the prompt is
+   * the drift the entry names, and it is invisible without this.
+   */
+  it('keeps per-field guidance out of the prompt', () => {
+    for (const heading of [
+      'FLAGS:',
+      'RESOURCE POOL ADDRESSES:',
+      'COUNTDOWN TIMERS:',
+      'WORLD FACTS:',
+      'OPENING NARRATION:',
+    ]) {
+      expect(surfaces.synthesisPrompt).not.toContain(heading);
+    }
   });
 });

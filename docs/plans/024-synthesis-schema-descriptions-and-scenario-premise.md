@@ -97,11 +97,18 @@ cost argument; re-wording it here would quietly re-open a question this change
 is not equipped to settle.
 
 **Cost, stated plainly: this shrinks the synthesis prompt and grows the tool
-schema.** Net bytes to the model are roughly flat, but they move from a
-position the model reads as instruction to one it reads as parameter
-documentation. That is the intended effect and it is not free — if anything
-regresses at the next playtest, this is the first thing to suspect, and the
-ADR should say so.
+schema.** Guidance moves from a position the model reads as instruction to one
+it reads as parameter documentation. That is the intended effect and it is not
+free — if anything regresses at the next playtest, this is the first thing to
+suspect, and the ADR should say so.
+
+**Measured after the fact, correcting this plan's first estimate.** The
+drafted claim was that net bytes would be "roughly flat." They are not: the
+prompt falls 8508 → 3129 bytes and the tool schema rises 5690 → 16353, a net
+**+5.3 KB** to the model. Most of that is not moved text but new text — the
+fields that had guidance nowhere, which is the gap the item exists to close.
+It buys no per-turn cost: synthesis is one call per adventure, and none of this
+is in the Warden's per-turn cached block.
 
 ## Fields to describe
 
