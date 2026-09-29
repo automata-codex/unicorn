@@ -60,6 +60,8 @@ Packages are internal workspace packages — they are not published to npm.
 
 **Open core, self-hosted first.** SaaS infrastructure is intentionally deferred until the 2D renderer ships. The self-hosted version is the primary development target.
 
+**Repository layer for DB access.** Services never call Drizzle directly. Each module that touches the database has a `*.repository.ts` that owns every query; the service owns business logic and exception handling. Changing the ORM then touches only repositories, and service tests mock domain-meaningful repository methods instead of Drizzle's query builder.
+
 ## Naming Conventions
 
 - Generic abstractions over system-specific names: `resource_pool` not `spell_slots`, `condition` not `poisoned`
@@ -110,6 +112,22 @@ Anything that churns is a Workflowy item.
 accounts of what was true when written. Never rewrite a reference inside them to
 cite an identifier that did not exist at the time. This is enforced by
 `docs/tooling/references.core.ts`.
+
+## Working With Claude
+
+The maintainer must be able to explain every part of this system. The eval harness grew one reasonable-looking step at a time into something they couldn't explain, and it is being rebuilt because of that. These rules keep that from happening again.
+
+- **Don't build faster than the maintainer can follow.** Nothing merges that the maintainer couldn't explain in a paragraph. If they couldn't, stop and explain before adding more. Before proposing new rigor, tooling, or abstractions, ask whether they are proportionate for a solo project.
+- **Most review happens at the spec and plan**, where the decisions are made. Raise questions of scope and proportion there, not in the diff.
+- **Every PR description must:**
+  - say in plain language what changed and why
+  - point to the 2–3 places where a real decision was made, so the maintainer knows where to read closely
+  - name its review tier:
+    - *detailed*: turn path, state application, hidden information, tool loop, migrations/schema
+    - *cost and guardrails*: anything that spends money
+    - *is this needed?*: new concepts, abstractions, or tooling
+    - *skim*: tests, docs, refactors that don't change behavior, UI polish
+- **If you can't write that description clearly, say so.** That is a warning sign, not a formatting problem. When asked, argue against your own PR: what's overbuilt, and what could be cut.
 
 ## Testing Standards
 
