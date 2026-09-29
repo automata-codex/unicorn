@@ -9,7 +9,7 @@ Unicorn is a monorepo housing two Automata Codex tabletop RPG products:
 - **Zoltar** — an AI-powered GM-in-a-box for solo and small-group TTRPG play
 - **Unicorn VTT** — a traditional virtual tabletop (planned, not yet scaffolded)
 
-Both products share workspace packages for auth interfaces, rules engine, and (eventually) a 2D renderer.
+Both products share workspace packages for service interfaces, game-system schemas and data, rules engine, and (eventually) a 2D renderer.
 
 The full design document is at `docs/zoltar-design-doc.md`.
 
@@ -20,9 +20,13 @@ unicorn/
   apps/
     zoltar-fe/        # Svelte SPA — Zoltar frontend
     zoltar-be/        # NestJS API — Zoltar backend
+    zoltar-playtest/  # Milestone 1.0 frontend-only prototype (historical)
   packages/
-    auth-core/        # @uv/auth-core — AuthService interface definitions
-    rules-engine/     # @uv/rules-engine — dice, constraint evaluator (planned)
+    auth-core/          # @uv/auth-core — AuthService interface definitions
+    service-interfaces/ # @uv/service-interfaces — the other SaaS/self-hosted service interfaces (email, metering, realtime, …)
+    game-systems/       # @uv/game-systems — per-system Zod schemas and data (Mothership character sheet, campaign state, oracle tables)
+    rules-engine/       # @uv/rules-engine — dice, constraint evaluator (planned)
+  ingestion/          # Python rules-ingestion pipeline (PDF → vector index)
   infra/              # Docker Compose, deployment config
   docs/               # Design docs, ADRs
 ```
@@ -33,11 +37,11 @@ Packages are internal workspace packages — they are not published to npm.
 
 | Layer              | Technology                               |
 |--------------------|------------------------------------------|
-| Frontend           | Svelte 5 / SvelteKit                     |
+| Frontend           | Svelte 5 SPA (not SvelteKit, ADR-0010)   |
 | Backend            | NestJS 11                                |
 | Database           | PostgreSQL                               |
 | AI                 | Anthropic Claude API (claude-sonnet-5)   |
-| Auth (self-hosted) | Auth.js                                  |
+| Auth (self-hosted) | Backend-owned magic link (ADR-0009)      |
 | Auth (SaaS)        | Clerk                                    |
 | Real-time (SaaS)   | Ably                                     |
 | Language           | TypeScript throughout                    |
