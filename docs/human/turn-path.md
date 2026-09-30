@@ -23,15 +23,42 @@ sequenceDiagram
 
     SeshSvc->>SeshRepo:Get pending dice requests
     SeshRepo-->>SeshSvc:Pending dice requests
+    opt Any still pending
+        SeshSvc-->>SeshCon:409 dice_pending
+        SeshCon-->>Browser:Error
+    end
 
-    SeshSvc->>CamRepo:Get state
-    CamRepo-->>SeshSvc:Campaign state
+    Note over SeshSvc: Missing GM context or campaign state →<br/>SessionPreconditionError, before any Claude call
+
+    par Preconditions
+        SeshSvc->>SeshRepo:Get GM context
+        SeshRepo-->>SeshSvc:GM context
+    and
+        SeshSvc->>CamRepo:Get state
+        CamRepo-->>SeshSvc:Campaign state
+    and
+        SeshSvc->>SeshRepo:Get player entity IDs
+        SeshRepo-->>SeshSvc:Player entity IDs
+    and
+        SeshSvc->>SeshRepo:Get message history
+        SeshRepo-->>SeshSvc:Message history
+    and
+        SeshSvc->>SeshRepo:Get player dice rolls since last GM response
+        SeshRepo-->>SeshSvc:Player dice rolls since last GM response
+    end
 
     Note over SeshSvc,SeshRepo: Written OUTSIDE the turn transaction —<br/>a failed turn leaves the action<br/>retryable without re-typing
     SeshSvc->>SeshRepo:Save player message
     SeshRepo-->>SeshSvc:Success
-    SeshSvc->>CamRepo:Get rules system ID
-    CamRepo-->>SeshSvc:System ID & slug
+    
+    par Resolve the active system
+        SeshSvc->>CamRepo:Get rules system ID
+        CamRepo-->>SeshSvc:Rules system ID
+    and
+        SeshSvc->>CamRepo:Get rules system slug
+        CamRepo-->>SeshSvc:Rules system slug
+    end
+
     SeshSvc->>Wardens:Retrieve warden prompt
     Wardens-->>SeshSvc:Warden prompt
 
@@ -60,7 +87,7 @@ sequenceDiagram
 
     alt Validation successful
         SeshSvc->>SeshSvc:Apply validated turn
-        SeshSvc->>SeshSvc:Build state snapshot
+        SeshSvc->>SeshSvc:Re-render pre-turn snapshot for telemetry
         SeshSvc->>SeshRepo:Apply turn atomic
         SeshRepo-->>SeshSvc:Turn result
 
