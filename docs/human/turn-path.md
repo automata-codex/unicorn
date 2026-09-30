@@ -143,17 +143,6 @@ sequenceDiagram
   on dice requests, and the canon turn stamp, so a wrong value there corrupts four tables
   consistently enough to be hard to notice.
 
-- Two locks serialize concurrent turns, and only one of them is deliberate. Row 1's `UPDATE`
-  takes an exclusive row lock on `campaign_state` (keyed by *campaign*); row 2's
-  `SELECT … FOR UPDATE` takes one on `adventure` (keyed by *adventure*). Because row 1 runs
-  first, sibling adventures in the same campaign serialize against each other even though they
-  never contend on the adventure row — the coarser, incidental lock decides. Both are held to
-  commit. Nothing enforces the ordering, so a future writer touching `campaign_state` after
-  sequence allocation would introduce a deadlock; treat campaign_state-before-adventure as a
-  convention. Whether the coarse lock is load-bearing depends on whether `campaign_state.data`
-  is genuinely campaign-scoped — unresolved, see the M8 prerequisite.
-
-## To Do
-
-- The read side — precondition fetches and what `buildStateSnapshot` pulls
-- Questions about transaction locks — see prerequisite for Milestone M8
+- The turn's reads happen outside any transaction; all of its writes happen in the one
+  `applyTurnAtomic` transaction. How two concurrent turns on the same campaign interact is an
+  open question, a prerequisite for M8 — see [ADR-0119](../decisions/0119-open-concurrent-turns-on-one-campaign-can-lose-updates.md).
