@@ -1,6 +1,6 @@
 # Milestones
 
-A suggested structure for each section:
+Milestones are presented in the order they were completed, which is not necessarily numerical or alphabetical order. A suggested structure for each section:
 
 1. **Purpose:** why this milestone existed, in one sentence.
 2. **Result:** what the system could do at the end that it couldn't at the start.
@@ -38,7 +38,7 @@ The goal for this milestone was to create the beginning of an adventure from ora
 
 ## Milestone M5 -- Claude API Client & Prompt Assembly
 
-The goal for this milestone was to assemble the prompt and send it to Claude via Anthropic's TypeScript SDK. The prompt consists of the GM context (which is cached in the Claude API), a state snapshot, and a rolling window of recent messages. The state snapshot is visibility-filtered, meaning it didn't include entites that were marked as hidden. The front-end was migrated to `svelte-spa-router`. In addition to assembling the prompt and sending it to Claude, this milestone adds a `submit_gm_response` tool to the back-end. Claude calls the tool to submit its response for a turn. The data sent from the AI is received but not applied to the game state. 
+The goal for this milestone was to assemble the prompt and send it to Claude via Anthropic's TypeScript SDK. The prompt consists of the GM context (which is cached in the Claude API), a state snapshot, and a rolling window of recent messages. The state snapshot is visibility-filtered, meaning it didn't include entities that were marked as hidden. The front-end was migrated to `svelte-spa-router`. In addition to assembling the prompt and sending it to Claude, this milestone adds a `submit_gm_response` tool to the back-end. Claude calls the tool to submit its response for a turn. The data sent from the AI is received but not applied to the game state. 
 
 ## Milestone M6 -- State Management
 
@@ -47,3 +47,15 @@ This milestone's goal was to apply Claude's responses to game state and close th
 ## Milestone M7 -- AI Tools
 
 The purpose of this milestone was to add additional tools for the AI to use when adjudicating results in the game. The inner tool loop was added, which allows Claude to make several tool calls before ending the turn. Claude always ends the turn with a response, which can include a request for the player to roll dice. One of the tools added in this milestone allows the AI to roll dice using the standard "1d20+2" notation. There is also a rules-lookup tool that operates a vector search over embeddings from the rules text. Since Mothership TTRPG rules are well represented in Claude's training data, the index was left empty to see what rules questions Claude would ask.
+
+## Milestone M7.1 -- Playtest review tooling
+
+The goal for this milestone was to enable turn-by-turn readback of game events and adventure telemetry for playtest analysis. It moved the prompt text out of code and into a standalone plain text file. Every telemetry row now records which prompt file was used, along with a hash of its text. We expected to change the prompt between turns during a playtest, so the review needed to show which prompt produced which turn. This is where `promptHash` was first introduced. This milestone also added SQL views that combined game events and adventure telemetry. A CLI review script uses these views to produce a markdown summary of an adventure for review by a human. Functionality was also added to export and import adventure synthesis data, allowing the exact scenario to be played repeatedly.
+
+## Milestone M7.3 -- Turn-state replay
+
+This milestone's goal was to rebuild the game state as it existed at any turn of a playtest adventure, so the adventure can be replayed. This replaces the `save-synthesis` script of M7.1, which only captured adventures with zero turns played. Only the starting state (turn 0) is saved, automatically, when the adventure is synthesized. To get the state at turn N, reconstructStateAsOfTurn starts from turn 0 and replays the game-events log forward. Saving a snapshot at every turn was considered and rejected, because it would mean more storage and more to keep in sync. This milestone consolidated the state-update functions, so that both play and replay use the same functions. Starting-state snapshots are now automatically stored in the database, and the `load-synthesis` script works with the database to duplicate an existing adventure synthesis for replaying. 
+
+## Milestone M7.4 -- Eval harness
+
+Creating a running eval harness was the goal for this milestone. It includes a `capture-fixture` CLI tool for constructing fixtures from game state saved in the database. A fixture is one moment from a real playtest -- the state at turn N -- the player's input, and a failure-mode tag naming the mistake the Warden made there. The harness replays that turn through the real turn code and checks whether the mistake happens again. The goal is to test a prompt change against mistakes you've already seen. The harness includes checks for both structural and judge checks. A structural check is code inspecting the output, with no LLM involved. A judged check is a second Claude call that grades the output against a written rubric. Several checks of both types were implemented as a part of this milestone. This milestone remains open, and the harness has been expanded by later developments; see [Eval Harness](./eval-harness.md) for the current state.
