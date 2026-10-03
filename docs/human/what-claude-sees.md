@@ -1,6 +1,6 @@
 # What Claude Sees
 
-The data that is sent to Claude varies between the initial request and what Claude receives in response to calling tools (covered in the forthcoming tool loop article). 
+The data that is sent to Claude varies between the initial request and what Claude receives in response to calling tools (covered in the "[Tool Loop and Corrections](./tool-loop-and-corrections.md)" article). 
 
 ## Initial Request
 
@@ -78,7 +78,7 @@ In the request, tool choice is set to `{ type: 'any' }`, which means that Claude
 The following tools are available to Claude:
 
 - **`submit_gm_response`:** This tool ends Claude's turn. It is used to submit narration, requests for the player to roll dice, changes to the game state, and so on.
-- **`roll_dice`:** This tool allows Claude to roll dice. The full flow will be detailed in the forthcoming "Tool Loop" article.
-- **`rules_lookup`:** This tool is used to look up rules text via RAG. The full flow will be detailed in the forthcoming "Rules Lookup" article.
+- **`roll_dice`:** This tool allows Claude to roll dice. The full flow is detailed in the "[Tool Loop and Corrections](./tool-loop-and-corrections.md)" article.
+- **`rules_lookup`:** This tool is used to look up rules text via RAG. The full flow is detailed in the "[Rules Lookup](./rules-lookup.md)" article.
 
 Each tool is submitted with a JSON schema generated from a corresponding Zod schema. The Zod schemas include descriptions for many of their fields, and these descriptions are provided to Claude so it knows how to use each individual field. Thus, editing a description may change the Warden's behavior even though it looks like an ordinary code change.

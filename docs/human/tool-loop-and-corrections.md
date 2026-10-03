@@ -40,7 +40,7 @@ Claude makes tool calls with structured XML markup, which is then parsed by the 
 
 ## Submit GM Response
 
-This is the tool that ends Claude's turn. If Claude calls multiple tools and `submit_gm_response` is one of them (and it passes validation), the other tool calls are ignored, the back-end processes the `submit_gm_response` call, and the turn advances to the human. The tool schema is defined in `apps/zoltar-be/src/session/session.schema.ts:234`, and I'll direct you to review the code rather than repeating it here. The schema includes fields for the text that is shown to the player, changes for the world state, notes on the Warden's reasoning, and requests for the player to roll dice. There is a field for changes to NPCs' agendas, and changes here cause the GM context block to change and need to be recached (see "What Claude Sees").
+This is the tool that ends Claude's turn. If Claude calls multiple tools and `submit_gm_response` is one of them (and it passes validation), the other tool calls are ignored, the back-end processes the `submit_gm_response` call, and the turn advances to the human. The tool schema is defined in `apps/zoltar-be/src/session/session.schema.ts:234`, and I'll direct you to review the code rather than repeating it here. The schema includes fields for the text that is shown to the player, changes for the world state, notes on the Warden's reasoning, and requests for the player to roll dice. There is a field for changes to NPCs' agendas, and changes here cause the GM context block to change and need to be recached (see "[What Claude Sees](./what-claude-sees.md)").
 
 ### Correction Loop
 
