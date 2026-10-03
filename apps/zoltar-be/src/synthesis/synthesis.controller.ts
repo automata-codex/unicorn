@@ -192,6 +192,17 @@ export class SynthesisController {
     }
   }
 
+  /**
+   * The background half of synthesis: call Claude, then save the result.
+   * Fire-and-forget — the 202 has already gone out, so nothing awaits this and
+   * the adventure's status is the only way a failure reaches the player.
+   *
+   * Both steps must therefore leave the adventure `failed` when they throw.
+   * `commitGmContext` does that itself. `runSynthesis` cannot — it is not told
+   * which adventure it is working for — so its failure is marked here. Without
+   * that the adventure stays `synthesizing` forever and the browser polls a
+   * status that never changes.
+   */
   private runSynthesisAsync(
     adventureId: string,
     campaignId: string,
@@ -199,28 +210,41 @@ export class SynthesisController {
     selections: MothershipOracleSelections,
     addendum?: string,
   ): void {
-    this.synthesisService
-      .runSynthesis({
-        characterSheet: characterSheet as Parameters<
-          typeof this.synthesisService.runSynthesis
-        >[0]['characterSheet'],
-        selections,
-        addendum,
-        campaignId,
-      })
-      .then((gmContext) =>
-        this.synthesisService.commitGmContext({
-          adventureId,
+    const run = async (): Promise<void> => {
+      let gmContext: Awaited<
+        ReturnType<typeof this.synthesisService.runSynthesis>
+      >;
+      try {
+        gmContext = await this.synthesisService.runSynthesis({
+          characterSheet: characterSheet as Parameters<
+            typeof this.synthesisService.runSynthesis
+          >[0]['characterSheet'],
+          selections,
+          addendum,
           campaignId,
-          input: gmContext,
-          playerEntityId: (characterSheet as { entityId: string }).entityId,
-        }),
-      )
-      .catch((err) => {
-        this.logger.error(
-          `Async synthesis failed for adventure=${adventureId}`,
-          err instanceof Error ? err.stack : String(err),
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        await this.synthesisService.markAdventureFailed(
+          adventureId,
+          `synthesis call failed: ${message}`,
         );
+        throw err;
+      }
+
+      await this.synthesisService.commitGmContext({
+        adventureId,
+        campaignId,
+        input: gmContext,
+        playerEntityId: (characterSheet as { entityId: string }).entityId,
       });
+    };
+
+    run().catch((err) => {
+      this.logger.error(
+        `Async synthesis failed for adventure=${adventureId}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+    });
   }
 }

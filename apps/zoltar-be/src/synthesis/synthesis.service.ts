@@ -268,15 +268,27 @@ export class SynthesisService {
       this.logger.warn(
         `commitGmContext failed for adventure=${args.adventureId}: ${detail}`,
       );
-      try {
-        await this.repo.setAdventureFailed(args.adventureId, detail);
-      } catch (markErr) {
-        this.logger.error(
-          `Failed to mark adventure ${args.adventureId} as failed`,
-          markErr instanceof Error ? markErr.stack : String(markErr),
-        );
-      }
+      await this.markAdventureFailed(args.adventureId, detail);
       throw err;
+    }
+  }
+
+  /**
+   * Flips `adventure.status` to `failed` and records why. Never throws: this
+   * runs on a failure path, where a second error would only hide the first, so
+   * a failed write here is logged and swallowed.
+   */
+  async markAdventureFailed(
+    adventureId: string,
+    detail: string,
+  ): Promise<void> {
+    try {
+      await this.repo.setAdventureFailed(adventureId, detail);
+    } catch (markErr) {
+      this.logger.error(
+        `Failed to mark adventure ${adventureId} as failed`,
+        markErr instanceof Error ? markErr.stack : String(markErr),
+      );
     }
   }
 
