@@ -1,5 +1,9 @@
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 
+import { ZodValidationPipe } from '../common/zod-validation.pipe';
+
+import { SynthesizeRequestSchema } from './dto/synthesize.dto';
 import { SynthesisController } from './synthesis.controller';
 import { makeOracleEntry, vasquezSheet } from './synthesis.fixtures';
 import { SynthesisService } from './synthesis.service';
@@ -11,8 +15,11 @@ import type { CampaignRepository } from '../campaign/campaign.repository';
 import type { SynthesisRepository } from './synthesis.repository';
 
 /**
- * Synthesis failure handling. Found by reading the code while writing
- * `docs/human/adventure-synthesis.md`.
+ * Synthesis failure handling. Both blocks came out of reading the code while
+ * writing `docs/human/adventure-synthesis.md`.
+ *
+ * The first is a regression test for a bug that is fixed. The second pins the
+ * decision that a failed adventure is not retried — see the note on that block.
  */
 
 const fakeUser = { id: 'u1', email: 'a@x.test', name: 'Alice' };
@@ -149,5 +156,39 @@ describe('a failed synthesis call marks the adventure failed', () => {
       },
       { timeout: 1000 },
     );
+  });
+});
+
+describe('a failed adventure is not synthesized again', () => {
+  /**
+   * There is no retry of a failed adventure. The synthesis screen used to show
+   * a RETRY button that posted `{ oracleSelections: {} }` here, which could
+   * never succeed: the body is invalid, and the endpoint only accepts an
+   * adventure that is `synthesizing`. Nothing saves the original oracle draw,
+   * so there is nothing to retry with.
+   *
+   * The button now sends the player back to the oracle screen, which creates a
+   * new adventure from a new draw. These two tests pin the back-end half of
+   * that decision, so a future retry feature has to change them on purpose.
+   */
+  it('rejects a request with no activeEntryIds', () => {
+    const pipe = new ZodValidationPipe(SynthesizeRequestSchema);
+
+    expect(() => pipe.transform({ oracleSelections: {} })).toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('rejects a failed adventure, even with a valid body', async () => {
+    const callMessages = vi.fn();
+    const { controller } = makeController({
+      callMessages,
+      adventureStatus: 'failed',
+    });
+
+    await expect(
+      controller.synthesize('c1', 'a1', validDto, fakeUser, mockReply() as any),
+    ).rejects.toThrow(ConflictException);
+    expect(callMessages).not.toHaveBeenCalled();
   });
 });

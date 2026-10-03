@@ -80,25 +80,6 @@
 
     return () => stopPolling();
   });
-
-  async function handleRetry() {
-    error = '';
-    loading = true;
-
-    const synthRes = await api(
-      `/api/v1/campaigns/${campaignId}/adventures/${adventureId}/synthesize`,
-      { method: 'POST', body: JSON.stringify({ oracleSelections: {} }) },
-    );
-
-    if (synthRes.status === 202) {
-      adventure = { ...adventure!, status: 'synthesizing' };
-      loading = false;
-      startPolling();
-    } else {
-      error = 'Retry failed. Please go back and try again.';
-      loading = false;
-    }
-  }
 </script>
 
 <PageLayout>
@@ -132,11 +113,10 @@
     <div class="status-screen">
       <h1 class="type-screen-label">SYNTHESIS FAILED</h1>
       <p class="type-meta error-detail">
-        Something went wrong during synthesis. You can retry or go back and start over.
+        Something went wrong during synthesis. Start again to draw a new adventure.
       </p>
       <div class="action-row">
-        <Button onclick={handleRetry}>RETRY</Button>
-        <Button variant="ghost" onclick={() => push(`/campaigns/${campaignId}/oracle`)}>NEW SELECTIONS</Button>
+        <Button onclick={() => push(`/campaigns/${campaignId}/oracle`)}>START AGAIN</Button>
       </div>
     </div>
   {:else if adventure?.status === 'ready'}
