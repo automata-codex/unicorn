@@ -36,6 +36,13 @@ sequenceDiagram
     SynCon->>SynSvc:Run synthesis
     SynSvc->>Claude:Synthesis request
     Claude-->>SynSvc:submit_gm_context
+
+    break Claude doesn't call submit_gm_context, or its output fails the schema
+        SynSvc-->>SynCon:Error
+        SynCon->>SynSvc:Mark adventure failed
+        SynSvc->>SynRepo:Set status "failed"
+    end
+
     SynSvc-->>SynCon:GM context (schema-checked, not yet saved)
     SynCon->>SynSvc:Save GM context
     SynSvc->>SynSvc:Validate, build campaign state,<br/>GM context and grid entities
@@ -47,7 +54,11 @@ sequenceDiagram
         Browser->>AdvCon:GET adventure
         AdvCon-->>Browser:Adventure (status, opening narration)
     end
-    Browser-->>User:Opening narration, "Begin adventure"
+    alt Status is "ready"
+        Browser-->>User:Opening narration, "Begin adventure"
+    else Status is "failed"
+        Browser-->>User:"Synthesis failed", "Start again"<br/>(back to the oracle screen, for a new adventure)
+    end
 ```
 
 Creating a new adventure can only start once a campaign and a character exist. With those two pieces in place, the player can initiate a new adventure. On the oracle screen, the player can disable any options they don't want to make available to Claude in composing the adventure. Each oracle option includes a descriptive text that the player sees and a more detailed instruction for Claude.
@@ -62,6 +73,8 @@ There is an initial coherence check that runs, just to make sure all of the sele
 
 Once the coherence check passes, Claude synthesizes the adventure. Synthesis runs in the background. The endpoint returns 202 as soon as the coherence check passes, and the browser polls the adventure's status every two seconds. 
 
-The synthesis call uses its own prompt (different from the Warden prompt used during play) and tool `submit_gm_context`. Claude's output is saved in one transaction as the adventure's GM context, the starting campaign state, the grid entities, and the turn-0 snapshot, and the adventure's status becomes `ready`. If the write fails, the status becomes `failed`.
+The synthesis call uses its own prompt (different from the Warden prompt used during play) and tool `submit_gm_context`. Claude's output is saved in one transaction as the adventure's GM context, the starting campaign state, the grid entities, and the turn-0 snapshot, and the adventure's status becomes `ready`. 
+
+If either background step fails, the adventure's status becomes `failed`. That covers Claude not calling the tool, its output failing the schema, and the write failing. The player then sees a "synthesis failed" screen with one action, "Start again," which goes back to the oracle screen and creates a new adventure from a new draw. A failed adventure is never retried: nothing saves the original draw, so there is nothing to retry with.
 
 The GM context from the synthesis output feeds directly into the GM context for the adventure and includes locations, threats, NPC agendas, flags, and so on. It also includes the opening narration, which is presented to the player before they take their first turn. It gives the player something to respond to for their first turn rather than just dumping them into the adventure without any kind of introduction.  
