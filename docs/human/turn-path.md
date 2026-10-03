@@ -23,15 +23,42 @@ sequenceDiagram
 
     SeshSvc->>SeshRepo:Get pending dice requests
     SeshRepo-->>SeshSvc:Pending dice requests
+    opt Any still pending
+        SeshSvc-->>SeshCon:409 dice_pending
+        SeshCon-->>Browser:Error
+    end
 
-    SeshSvc->>CamRepo:Get state
-    CamRepo-->>SeshSvc:Campaign state
+    Note over SeshSvc: Missing GM context or campaign state →<br/>SessionPreconditionError, before any Claude call
+
+    par Preconditions
+        SeshSvc->>SeshRepo:Get GM context
+        SeshRepo-->>SeshSvc:GM context
+    and
+        SeshSvc->>CamRepo:Get state
+        CamRepo-->>SeshSvc:Campaign state
+    and
+        SeshSvc->>SeshRepo:Get player entity IDs
+        SeshRepo-->>SeshSvc:Player entity IDs
+    and
+        SeshSvc->>SeshRepo:Get message history
+        SeshRepo-->>SeshSvc:Message history
+    and
+        SeshSvc->>SeshRepo:Get player dice rolls since last GM response
+        SeshRepo-->>SeshSvc:Player dice rolls since last GM response
+    end
 
     Note over SeshSvc,SeshRepo: Written OUTSIDE the turn transaction —<br/>a failed turn leaves the action<br/>retryable without re-typing
     SeshSvc->>SeshRepo:Save player message
     SeshRepo-->>SeshSvc:Success
-    SeshSvc->>CamRepo:Get rules system ID
-    CamRepo-->>SeshSvc:System ID & slug
+    
+    par Resolve the active system
+        SeshSvc->>CamRepo:Get rules system ID
+        CamRepo-->>SeshSvc:Rules system ID
+    and
+        SeshSvc->>CamRepo:Get rules system slug
+        CamRepo-->>SeshSvc:Rules system slug
+    end
+
     SeshSvc->>Wardens:Retrieve warden prompt
     Wardens-->>SeshSvc:Warden prompt
 
@@ -41,9 +68,12 @@ sequenceDiagram
     loop Until submit_gm_response, max 20
         SeshSvc->>Claude:Send request
         Claude-->>SeshSvc:Tool use
-        alt roll_dice / rules_lookup
-            SeshSvc->>Tools:Execute roll / lookup
-            Tools-->>SeshSvc:Roll result / chunks
+        alt roll_dice
+            SeshSvc->>Tools:Execute roll
+            Tools-->>SeshSvc:Roll result
+        else rules_lookup
+            SeshSvc->>Tools:Execute lookup
+            Tools-->>SeshSvc:Search results
         else submit_gm_response
             SeshSvc->>SeshSvc:Validate GM response<br/>(parse failure or leaked<br/>tool-call syntax re-enters loop)
         end
@@ -60,7 +90,7 @@ sequenceDiagram
 
     alt Validation successful
         SeshSvc->>SeshSvc:Apply validated turn
-        SeshSvc->>SeshSvc:Build state snapshot
+        SeshSvc->>SeshSvc:Re-render pre-turn snapshot for telemetry
         SeshSvc->>SeshRepo:Apply turn atomic
         SeshRepo-->>SeshSvc:Turn result
 
@@ -116,17 +146,6 @@ sequenceDiagram
   on dice requests, and the canon turn stamp, so a wrong value there corrupts four tables
   consistently enough to be hard to notice.
 
-- Two locks serialize concurrent turns, and only one of them is deliberate. Row 1's `UPDATE`
-  takes an exclusive row lock on `campaign_state` (keyed by *campaign*); row 2's
-  `SELECT … FOR UPDATE` takes one on `adventure` (keyed by *adventure*). Because row 1 runs
-  first, sibling adventures in the same campaign serialize against each other even though they
-  never contend on the adventure row — the coarser, incidental lock decides. Both are held to
-  commit. Nothing enforces the ordering, so a future writer touching `campaign_state` after
-  sequence allocation would introduce a deadlock; treat campaign_state-before-adventure as a
-  convention. Whether the coarse lock is load-bearing depends on whether `campaign_state.data`
-  is genuinely campaign-scoped — unresolved, see the M8 prerequisite.
-
-## To Do
-
-- The read side — precondition fetches and what `buildStateSnapshot` pulls
-- Questions about transaction locks — see prerequisite for Milestone M8
+- The turn's reads happen outside any transaction; all of its writes happen in the one
+  `applyTurnAtomic` transaction. How two concurrent turns on the same campaign interact is an
+  open question, a prerequisite for M8 — see [ADR-0119](../decisions/0119-open-concurrent-turns-on-one-campaign-can-lose-updates.md).

@@ -9,7 +9,7 @@ Unicorn is a monorepo housing two Automata Codex tabletop RPG products:
 - **Zoltar** — an AI-powered GM-in-a-box for solo and small-group TTRPG play
 - **Unicorn VTT** — a traditional virtual tabletop (planned, not yet scaffolded)
 
-Both products share workspace packages for auth interfaces, rules engine, and (eventually) a 2D renderer.
+Both products share workspace packages for service interfaces, game-system schemas and data, rules engine, and (eventually) a 2D renderer.
 
 The full design document is at `docs/zoltar-design-doc.md`.
 
@@ -20,9 +20,13 @@ unicorn/
   apps/
     zoltar-fe/        # Svelte SPA — Zoltar frontend
     zoltar-be/        # NestJS API — Zoltar backend
+    zoltar-playtest/  # Milestone 1.0 frontend-only prototype (historical)
   packages/
-    auth-core/        # @uv/auth-core — AuthService interface definitions
-    rules-engine/     # @uv/rules-engine — dice, constraint evaluator (planned)
+    auth-core/          # @uv/auth-core — AuthService interface definitions
+    service-interfaces/ # @uv/service-interfaces — the other SaaS/self-hosted service interfaces (email, metering, realtime, …)
+    game-systems/       # @uv/game-systems — per-system Zod schemas and data (Mothership character sheet, campaign state, oracle tables)
+    rules-engine/       # @uv/rules-engine — dice, constraint evaluator (planned)
+  ingestion/          # Python rules-ingestion pipeline (PDF → vector index)
   infra/              # Docker Compose, deployment config
   docs/               # Design docs, ADRs
 ```
@@ -33,11 +37,11 @@ Packages are internal workspace packages — they are not published to npm.
 
 | Layer              | Technology                               |
 |--------------------|------------------------------------------|
-| Frontend           | Svelte 5 / SvelteKit                     |
+| Frontend           | Svelte 5 SPA (not SvelteKit, ADR-0010)   |
 | Backend            | NestJS 11                                |
 | Database           | PostgreSQL                               |
 | AI                 | Anthropic Claude API (claude-sonnet-5)   |
-| Auth (self-hosted) | Auth.js                                  |
+| Auth (self-hosted) | Backend-owned magic link (ADR-0009)      |
 | Auth (SaaS)        | Clerk                                    |
 | Real-time (SaaS)   | Ably                                     |
 | Language           | TypeScript throughout                    |
@@ -55,6 +59,8 @@ Packages are internal workspace packages — they are not published to npm.
 **Service interface abstraction.** Every SaaS/self-hosted divergence point is a NestJS provider interface. Self-hosted defaults ship in this repo. SaaS implementations live in a separate closed-source package. Deployment mode is selected via environment config, not code changes.
 
 **Open core, self-hosted first.** SaaS infrastructure is intentionally deferred until the 2D renderer ships. The self-hosted version is the primary development target.
+
+**Repository layer for DB access.** Services never call Drizzle directly. Each module that touches the database has a `*.repository.ts` that owns every query; the service owns business logic and exception handling. Changing the ORM then touches only repositories, and service tests mock domain-meaningful repository methods instead of Drizzle's query builder.
 
 ## Naming Conventions
 
@@ -106,6 +112,22 @@ Anything that churns is a Workflowy item.
 accounts of what was true when written. Never rewrite a reference inside them to
 cite an identifier that did not exist at the time. This is enforced by
 `docs/tooling/references.core.ts`.
+
+## Working With Claude
+
+The maintainer must be able to explain every part of this system. The eval harness grew one reasonable-looking step at a time into something they couldn't explain, and it is being rebuilt because of that. These rules keep that from happening again.
+
+- **Don't build faster than the maintainer can follow.** Nothing merges that the maintainer couldn't explain in a paragraph. If they couldn't, stop and explain before adding more. Before proposing new rigor, tooling, or abstractions, ask whether they are proportionate for a solo project.
+- **Most review happens at the spec and plan**, where the decisions are made. Raise questions of scope and proportion there, not in the diff.
+- **Every PR description must:**
+  - say in plain language what changed and why
+  - point to the 2–3 places where a real decision was made, so the maintainer knows where to read closely
+  - name its review tier:
+    - *detailed*: turn path, state application, hidden information, tool loop, migrations/schema
+    - *cost and guardrails*: anything that spends money
+    - *is this needed?*: new concepts, abstractions, or tooling
+    - *skim*: tests, docs, refactors that don't change behavior, UI polish
+- **If you can't write that description clearly, say so.** That is a warning sign, not a formatting problem. When asked, argue against your own PR: what's overbuilt, and what could be cut.
 
 ## Testing Standards
 

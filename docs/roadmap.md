@@ -489,7 +489,7 @@ Caller model and initiative mode.
 - Frontend: caller indicator and transfer UI, initiative order display, active player highlighting
 - Multi-PC / caller model dedicated playtest, then fixtures for the caller and initiative failure modes it surfaces
 
-Decisions: ADR-0053, ADR-0054
+Decisions: ADR-0053, ADR-0054, ADR-0119
 
 #### M8.1 — Warden Prompt Iteration
 

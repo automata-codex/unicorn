@@ -19,7 +19,7 @@ Each entry records what was decided, what the alternatives were, and why.
   `task docs:decisions:check` fails if either is stale.
 -->
 
-**This is the summary log.** 83 of 118 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
+**This is the summary log.** 84 of 119 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
 
 ---
 
@@ -28,6 +28,7 @@ Each entry records what was decided, what the alternatives were, and why.
 *No decision yet. Nothing here is safe to rely on.*
 
 - [ADR-0080](decisions/0080-open-the-undecided-discipline-has-never-been-extended-to-jud.md) — OPEN — the undecided discipline has never been extended to judged checks, and `turn24-over-resolution` is the case that shows it should be
+- [ADR-0119](decisions/0119-open-concurrent-turns-on-one-campaign-can-lose-updates.md) — OPEN — concurrent turns on one campaign can lose updates, and the turn path's locking is incidental rather than designed
 
 ---
 
@@ -88,6 +89,10 @@ The `voyage-3-lite` default never matched the `vector(1024)` column, and an empt
 ### [ADR-0110](decisions/0110-dice-are-stored-as-rolled-and-offset-at-lookup.md) — Dice are stored as they fell; the 0-indexed table offset is applied at lookup
 
 Dice are stored as they fell and the 0-indexed table offset is applied at lookup, in one place, so a recorded roll still means what the player saw on the table. `trinket` and `patch` have carried the same 1-based roll since M7.6: a convention to establish going forward rather than a bug to repair, since nothing reads those tables.
+
+### [ADR-0119](decisions/0119-open-concurrent-turns-on-one-campaign-can-lose-updates.md) — OPEN — concurrent turns on one campaign can lose updates, and the turn path's locking is incidental rather than designed
+
+OPEN. A turn reads its state outside the transaction, then writes back whole `campaign_state.data` and `gm_context.blob` values computed from that read. So two concurrent turns on one campaign wait on a row lock, commit one after the other, and the second silently overwrites the first. The locks that exist were never designed to serialize turns. It is harmless with one player per adventure; the M8 turn-path lock audit has to settle it.
 
 ---
 
