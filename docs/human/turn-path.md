@@ -68,9 +68,12 @@ sequenceDiagram
     loop Until submit_gm_response, max 20
         SeshSvc->>Claude:Send request
         Claude-->>SeshSvc:Tool use
-        alt roll_dice / rules_lookup
-            SeshSvc->>Tools:Execute roll / lookup
-            Tools-->>SeshSvc:Roll result / chunks
+        alt roll_dice
+            SeshSvc->>Tools:Execute roll
+            Tools-->>SeshSvc:Roll result
+        else rules_lookup
+            SeshSvc->>Tools:Execute lookup
+            Tools-->>SeshSvc:Search results
         else submit_gm_response
             SeshSvc->>SeshSvc:Validate GM response<br/>(parse failure or leaked<br/>tool-call syntax re-enters loop)
         end
