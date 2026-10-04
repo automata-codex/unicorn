@@ -97,8 +97,10 @@ what is current.
 that is the disposition, not an omission.** `ADR-0118` renamed
 `gm_context.narrative.location` to `scenarioPremise` and its rendered label to
 `scenario_premise:`, which is one line of the `<narrative>` block and therefore
-Warden-visible. Per `ADR-0094` it does not buy its own run; the natural
-batch-mate is `current_location`, a tool-schema change that owes one outright.
+Warden-visible. Per `ADR-0094` it does not buy its own run. The batch-mate it
+was waiting for was `current_location`, a tool-schema change that would have
+owed one outright; that run is no longer planned — see **No further full-corpus
+run is planned** below.
 
 - **Corpus is unchanged at `d651cec51ad7`.** The rename touched no fixture byte:
   the corpus reaches `gmContextBlob` through the database, so `ADR-0118`'s
@@ -107,10 +109,10 @@ batch-mate is `current_location`, a tool-schema change that owes one outright.
 - **Everything else in `ADR-0118` is invisible to both hashes.** The synthesis
   schema descriptions and the prompt-to-schema migration reach only the
   synthesis model, and no eval command exercises synthesis.
-- **What the next run owes:** it pairs against `e83e8aaa__2026-08-28` across an
-  `assemblyHash` boundary. `eval:compare` will warn, correctly. The label is the
-  only Warden-visible change in the batch so far, so the delta is interpretable
-  — but say so in the write-up rather than suppressing the warning.
+- **Never measured.** No run was made across this `assemblyHash` boundary, so
+  the standing point above is on `ada7fb8a` and the code is on `94bc6c74`. A
+  full-corpus run made later would pair against `e83e8aaa__2026-08-28` across
+  that boundary, and `eval:compare` would warn, correctly.
 
 **Superseded `claude-sonnet-5__fa4e6e2f__2026-08-21T11-05-26Z` (prompt
 `fa4e6e2f`, corpus `abbce198026c`) on 2026-08-28.** That run stays the correct
@@ -137,12 +139,20 @@ like-for-like comparison point for `§ S39`. Compare against its `rescore/` rows
 rather than its `reps/` rows wherever `SCENE-JUMP` is involved — the two disagree
 by half a point under different rubrics.
 
-**What the next full-corpus run owes.** A standing list, emptied as each item
-is scored. It is the manual stand-in for a check that does not exist — see
-**What `baseline-check` does not check** below for why, and for the two shapes
-that keep falling through.
+**No further full-corpus run is planned — recorded 2026-10-04.** The M7.7
+triage closed M7.4 and M7.7 and moved the eval work to the rebuilt harness
+(`docs/roadmap.md` M7.9, `apps/zoltar-be/eval-v2/`). Its runs go to
+`$ZOLTAR_EVAL_ROOT/eval-v2-runs/`, which `baseline-check` does not read, and
+they are not baselines in this section's sense. `e83e8aaa__2026-08-28` is
+therefore the last standing point this harness records, unless that decision is
+reversed.
 
-- **`docs/eval-findings.md § S41`**, outstanding since 2026-08-29. The four
+**What a full-corpus run would still owe.** Kept so that a reversal starts from
+the list rather than from memory. Nothing on it has been scored. See **What
+`baseline-check` does not check** below for why the list is kept by hand.
+
+- **`docs/eval-findings.md § S41`**, outstanding since 2026-08-29 and closed
+  unscored on 2026-10-04 (its third addendum). The four
   fixtures the `UNAUDITABLE-MAPPING` widening added (corpus `c077bc456af7` →
   `6bc7eee3970f`) have never executed, and no rescore can reach them. Score it
   in the run's own write-up. **Its falsifier is per-fixture applicability, not
@@ -154,7 +164,9 @@ that keep falling through.
 and while `baseline-check` does enumerate them, all it asks is that the run id
 appear somewhere in this file — see the correction under **What `baseline-check`
 does not check**. Each is recorded here on landing, with a real disposition
-rather than a bare mention, until M7.8's `baseline-check` item closes.
+rather than a bare mention. M7.8's `baseline-check` item was to replace this;
+M7.8 was superseded by M7.9 on 2026-10-04 without being built, so the hand
+disposition stands for as long as this harness is run.
 
 - **`claude-sonnet-5__e83e8aaa__2026-08-31T13-18-04Z`** — run A of the
   `ship_layout` restructure experiment, pre-registered in

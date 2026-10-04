@@ -707,6 +707,27 @@ pre-registration that named a direction and no test and could not return an
 answer; this is the same failure one stage earlier — a prediction whose subject
 moved between writing and scoring, unnoted. It is noted.
 
+#### Third addendum, 2026-10-04 — closed unscored: the run that would have scored this is no longer planned
+
+**None of the five predictions was tested.** The four added fixtures —
+`2c0ba938-turn25/45/51-unauditable-mapping` and
+`5c34991b-turn44-unauditable-mapping` — appear in no run under
+`$ZOLTAR_EVAL_ROOT/eval-runs`, checked 2026-10-04 by searching every run's score
+rows and directory names. Both later runs were scoped to other fixtures (`§ S43`,
+`§ S44`).
+
+**Why no run will score it.** Scoring needs a full-corpus `eval:run`, and the
+M7.7 triage of 2026-10-04 dropped it: M7.4 is closed and the eval work moved to
+the rebuilt harness (`docs/roadmap.md` M7.9). The second addendum's open choice
+is moot for the same reason — `current_location` is no longer scheduled on this
+harness.
+
+**What this leaves standing.** The fixtures stay in the corpus, never executed.
+`UNAUDITABLE-MAPPING`'s last measured figure is still the one this entry opened
+with, 1.00 (10/10) at applicability 10/50 from a single fixture, and the reason
+this entry gave for distrusting that number has not been answered. This is a
+pre-registration with no result, not one that was confirmed or falsified.
+
 ---
 
 ### S42 — 2026-08-31 · Pre-registration: `worldFacts.ship_layout` restructured from prose into a deck-indexed list
