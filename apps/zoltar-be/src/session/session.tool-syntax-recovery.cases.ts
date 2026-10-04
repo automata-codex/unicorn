@@ -695,8 +695,11 @@ export const RECOVERY_CASES: RecoveryCase[] = [
   // -------------------------------------------------------------------------
   {
     // The real leak the case above was cut down from. `resourcePools` is a
-    // map keyed by pool name, which the schema rejects wherever it arrives.
-    name: 'REFUSED: resourcePools written as a map, in a parameter tag',
+    // map keyed by pool name. That was the schema until 2026-08-15, when it
+    // became an array of `{ owner, pool, delta, reason }`; this leak is from
+    // 2026-08-09. The model was right at the time. No leak recorded since
+    // the change uses the map.
+    name: 'REFUSED: resourcePools in the pre-2026-08-15 map shape, in a parameter tag',
     source:
       'eval-runs/claude-sonnet-5__0bdd1306__2026-08-09T21-23-39Z/reps/004/turn24-hidden-info-leak/warden-request.json',
     input: {
@@ -712,7 +715,8 @@ export const RECOVERY_CASES: RecoveryCase[] = [
     expected: { ok: false, reason: 'schema_invalid' },
   },
   {
-    name: 'REFUSED: resourcePools written as a map, in JSON inside a stateChanges tag',
+    // The same old shape, from 2026-08-10.
+    name: 'REFUSED: resourcePools in the pre-2026-08-15 map shape, in JSON inside a stateChanges tag',
     source:
       'eval-runs/claude-sonnet-5__c45a142a__2026-08-10T12-18-32Z/reps/008/turn19-out-of-order-resolution/warden-output.json',
     input: {
@@ -725,8 +729,9 @@ export const RECOVERY_CASES: RecoveryCase[] = [
     expected: { ok: false, reason: 'schema_invalid' },
   },
   {
-    // `resourcePools` is an array, and an array written as tags has no
-    // single reading.
+    // The old map shape again (2026-08-09), this time as tags. Under today's
+    // schema `resourcePools` is an array, and an array written as tags has
+    // no single reading.
     name: 'REFUSED: resourcePools written as nested tags',
     source:
       'eval-runs/claude-sonnet-5__0bdd1306__2026-08-09T14-37-36Z/reps/002/turn24-scene-jump/warden-output.json',
