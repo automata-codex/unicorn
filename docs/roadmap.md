@@ -481,7 +481,7 @@ A rebuild of the Warden eval harness, started from the smallest version that ans
 - Cases drawn from it for the questions it raises, a wounds chain among them
 - Lint and format coverage for `scripts/`, `docs/tooling/` and `eval-v2/`
 
-Spec: [025](specs/zoltar/025-eval-v2-smallest-harness.md) · Plan: [025](plans/025-eval-v2-smallest-harness-implementation-plan.md) · Human doc: `human/smallest-eval-harness.md`
+Spec: [025](specs/zoltar/025-eval-v2-smallest-harness.md) · Plan: [025](plans/025-eval-v2-smallest-harness-implementation-plan.md) · Decisions: ADR-0120 · Human doc: `human/smallest-eval-harness.md`
 
 #### M8 — Multiplayer Foundation
 

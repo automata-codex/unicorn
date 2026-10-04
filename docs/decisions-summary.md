@@ -19,7 +19,7 @@ Each entry records what was decided, what the alternatives were, and why.
   `task docs:decisions:check` fails if either is stale.
 -->
 
-**This is the summary log.** 84 of 119 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
+**This is the summary log.** 85 of 120 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
 
 ---
 
@@ -519,6 +519,10 @@ The fixture reported `not_applicable` on 157 reps across 16 runs. The marker phr
 ### [ADR-0116](decisions/0116-warden-eval-findings-get-their-own-log-and-the-s-numbering-s.md) — Warden eval findings get their own log, and the `S` numbering spans both files
 
 `rules-extraction-findings.md § S30`–`§ S36` are Warden eval findings in a file about chunking PDFs. `docs/eval-findings.md` takes the subject from `§ S37` on, continuing the same numbering — the break is forward-only because frozen plans cite the older sections by file and number.
+
+### [ADR-0120](decisions/0120-the-warden-eval-harness-is-rebuilt-from-the-smallest-version.md) — The Warden eval harness is rebuilt from the smallest version, because the maintainer could not explain the first one
+
+Raised 2026-09-28, decided 2026-09-29 after a night's sleep. The M7.4 harness grew one reasonable step at a time into something its maintainer could not explain, so it is replaced rather than walked through and trimmed. The replacement (`apps/zoltar-be/eval-v2/`, `task ev2:*`) starts as the smallest harness that answers one question — a pass rate over labeled cases, marked by hand — and grows only when a real problem calls for it. The old harness stays runnable as the answer key, but no further full-corpus run is planned on it; M7.4 and M7.7 close unfinished and M7.8 is not built.
 
 ---
 
