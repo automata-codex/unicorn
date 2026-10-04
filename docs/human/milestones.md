@@ -58,7 +58,7 @@ This milestone's goal was to rebuild the game state as it existed at any turn of
 
 ## Milestone M7.4 -- Eval harness
 
-Creating a running eval harness was the goal for this milestone. It includes a `capture-fixture` CLI tool for constructing fixtures from game state saved in the database. A fixture is one moment from a real playtest -- the state at turn N -- the player's input, and a failure-mode tag naming the mistake the Warden made there. The harness replays that turn through the real turn code and checks whether the mistake happens again. The goal is to test a prompt change against mistakes you've already seen. The harness includes checks for both structural and judge checks. A structural check is code inspecting the output, with no LLM involved. A judged check is a second Claude call that grades the output against a written rubric. Several checks of both types were implemented as a part of this milestone. This milestone remains open, and the harness has been expanded by later developments; see [Eval Harness](eval-harness-v1.md) for the current state.
+Creating a running eval harness was the goal for this milestone. It includes a `capture-fixture` CLI tool for constructing fixtures from game state saved in the database. A fixture is one moment from a real playtest -- the state at turn N -- the player's input, and a failure-mode tag naming the mistake the Warden made there. The harness replays that turn through the real turn code and checks whether the mistake happens again. The goal is to test a prompt change against mistakes you've already seen. The harness includes checks for both structural and judge checks. A structural check is code inspecting the output, with no LLM involved. A judged check is a second Claude call that grades the output against a written rubric. Several checks of both types were implemented as a part of this milestone. The first version of the eval harness is detailed in [Eval Harness V1](eval-harness-v1.md). This milestone was closed without being fully completed when the first version of the harness was superseded by `eval-v2` in M7.9.
 
 ## Milestone M7.2 -- Rules Ingestion Pipeline
 
@@ -74,4 +74,12 @@ The goal for this milestone was to get the character creation process and charac
 
 ## Milestone M7.7 -- Playtest and Fixture Capture
 
-This milestone is open with work paused on 2026-09-28. Its goal is to run a second, longer playtest; turn it into new fixtures; and fix the defects surfaced by the playtest. This milestone reversed the decision in M5, so the Warden now receives data for all entities, not just the ones marked as visible to the player character. This milestone includes several new fixtures captured from the second playtest, including fixes to character creation and mechanics that were surfaced by the playtest. It added skills for contractor NPCs (a departure from the published Mothership rules to enhance the playability of a solo session) and structured data for the layout of the ship or station. This milestone is paused while we rebuild the eval harness. Once that is complete, the remaining items will be sorted against the rebuild. 
+This milestone's goal was to run a second, longer playtest; turn it into new fixtures; and fix the defects surfaced by the playtest. This milestone reversed the decision in M5, so the Warden now receives data for all entities, not just the ones marked as visible to the player character. Two playtests were run and captured; the planned steered playtest moved to M7.9. This milestone includes several new fixtures captured from them, plus fixes to character creation and mechanics that were surfaced by the playtests. It added skills for contractor NPCs (a departure from the published Mothership rules to enhance the playability of a solo session) and structured data for the layout of the ship or station. This milestone was never fully completed. Several of its todo items were triaged and moved into M7.9 when the first version of the harness was superseded by `eval-v2`. 
+
+## Milestone M7.8 -- Harness Meta-Eval
+
+The goal for this milestone was to test the first eval harness using known-answer cases that check whether its checkers give the right verdict. It was never started and superseded by M7.9 and the advent of the `eval-v2` harness.
+
+## Milestone M7.9 -- Warden Eval Harness v2
+
+The goal for this milestone is to develop a new eval harness that is well-documented and understood by the human operator. `eval-v2` is described in [Smallest Eval Harness](./smallest-eval-harness.md). It is currently in progress. 

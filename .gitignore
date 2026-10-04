@@ -129,3 +129,4 @@ ingestion/*/templates/*
 docs/mental-health-toolkit.md
 /.claude/worktrees/
 /docs/eval-tags.md
+*.tmp.md
