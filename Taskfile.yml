@@ -86,6 +86,20 @@ tasks:
     cmds:
       - npx tsx --env-file=.env scripts/load-synthesis.ts {{.CLI_ARGS}}
 
+  ev2:run:
+    desc: 'Eval v2 — replay each labeled case of a question N times through the real turn code and write the narrations for hand marking (spec 025). Writes scratch campaigns to the dev database and deletes them. Makes real, token-costing Anthropic calls — cases × reps Warden turns, each of which may be several API calls. Run by the maintainer, by hand. Requires ZOLTAR_EVAL_ROOT; writes to $ZOLTAR_EVAL_ROOT/eval-v2-runs. Usage — task ev2:run -- --question <id> --reps <n> [--fixtures <id,id>]'
+    dir: apps/zoltar-be
+    cmds:
+      # Not tsx — this boots a real NestJS DI container, and tsx (esbuild)
+      # doesn't emit the decorator metadata that requires. Same as eval:run.
+      - node -r @swc-node/register -r reflect-metadata --env-file=.env eval-v2/run.ts {{.CLI_ARGS}}
+
+  ev2:report:
+    desc: 'Eval v2 — tally a run''s hand-marked marks.csv and print each case''s pass rate against the 0.90 bar (spec 025). Reads files only — no database, no Anthropic, no cost. Usage — task ev2:report -- <run-dir | run-id>'
+    dir: apps/zoltar-be
+    cmds:
+      - npx tsx --env-file=.env eval-v2/report.ts {{.CLI_ARGS}}
+
   eval:capture-fixture:
     desc: Capture a turn's seeded state into an EvalFixture JSON file (M7.4). Usage — task eval:capture-fixture -- <adventure-id> <target-sequence-number> --tag <tag> --id <fixture-id> --output <path> [--force]
     dir: apps/zoltar-be
