@@ -7,6 +7,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import type { CallSessionParams } from '../anthropic/anthropic.service';
 import type { DbOrTx } from '../db/db.provider';
 import type { SubmitGmResponse } from './session.schema';
+import type { ToolSyntaxLeakRecord } from './session.tool-syntax';
 import type {
   ThresholdCrossing,
   ValidationRejection,
@@ -226,6 +227,13 @@ export interface AdventureTelemetryPayload {
   diceRolls: ExecutedRollRecord[];
   rulesLookups: RulesLookupRecord[];
   toolLoopIterations: number;
+  /**
+   * Every `submit_gm_response` this turn that arrived with tool-call markup
+   * in `playerText`, whole (`ADR-0097` Addendum 4). Present only on a turn
+   * that had at least one, so its absence means "none" on a new row and
+   * "not recorded" on a row older than the field.
+   */
+  toolSyntaxLeaks?: ToolSyntaxLeakRecord[];
   wardenPrompt: WardenPromptRef;
 }
 
@@ -251,6 +259,8 @@ export function buildAdventureTelemetryPayload(input: {
    * tool calls — submit_gm_response on the first request).
    */
   toolLoopIterations?: number;
+  /** Leaked payloads seen this turn. Written only when there is at least one. */
+  toolSyntaxLeaks?: ToolSyntaxLeakRecord[];
   /**
    * Identifies the Warden prompt file + hash in effect this turn. Required —
    * the review CLI needs this to embed the prompt text and a missing field
@@ -315,6 +325,10 @@ export function buildAdventureTelemetryPayload(input: {
     toolLoopIterations: input.toolLoopIterations ?? 1,
     wardenPrompt: input.wardenPrompt,
   };
+
+  if (input.toolSyntaxLeaks && input.toolSyntaxLeaks.length > 0) {
+    payload.toolSyntaxLeaks = input.toolSyntaxLeaks;
+  }
 
   if (input.correction) {
     const correctionUsage = input.correction.response.usage;

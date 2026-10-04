@@ -40,6 +40,7 @@ import type { DiceRequestInput, DiceRequestRow } from './session.repository';
 import type { DiceResultAction, SubmitGmResponse } from './session.schema';
 import type { CampaignStateData, GmContextBlob } from './session.snapshot';
 import type { RulesLookupRecord } from './session.telemetry';
+import type { ToolSyntaxLeakRecord } from './session.tool-syntax';
 import type {
   ThresholdCrossing,
   ValidationRejection,
@@ -90,9 +91,14 @@ export class SessionCorrectionError extends Error {
 }
 
 /**
- * Thrown when Claude re-emits a payload carrying leaked tool-call syntax
- * after being told once not to (`session.tool-syntax.ts`). Translated to 502
- * with body error code `gm_tool_syntax_unrecoverable`.
+ * Thrown when a leaked `submit_gm_response` ends the turn: Claude re-emitted
+ * leaked tool-call syntax after being told once not to, or leaked on the
+ * single-shot correction pass, where there is no retry
+ * (`session.tool-syntax.ts`). Translated to 502 with body error code
+ * `gm_tool_syntax_unrecoverable`.
+ *
+ * `leaks` holds every leaked payload the turn saw. An abandoned turn writes
+ * no telemetry row, so this is the only place they survive.
  *
  * Distinct from `SessionToolLoopError` on purpose. Both end the turn at 502,
  * but they mean opposite things: the loop error means Claude was working and
@@ -102,7 +108,10 @@ export class SessionCorrectionError extends Error {
  * code, and the operator response to each is different.
  */
 export class SessionToolSyntaxError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly leaks: ToolSyntaxLeakRecord[] = [],
+  ) {
     super(message);
     this.name = 'SessionToolSyntaxError';
   }
@@ -219,6 +228,8 @@ interface InnerToolLoopResult {
   executedRolls: PendingSystemRoll[];
   rulesLookups: RulesLookupRecord[];
   iterations: number;
+  /** Every leaked `submit_gm_response` seen on the way, in order. */
+  toolSyntaxLeaks: ToolSyntaxLeakRecord[];
 }
 
 @Injectable()
@@ -354,6 +365,8 @@ export class SessionService {
     });
     const originalResponse = innerLoop.finalResponse;
     const originalParsed = innerLoop.finalParsed;
+    // The correction pass adds to this list if it leaks too.
+    const toolSyntaxLeaks = [...innerLoop.toolSyntaxLeaks];
 
     // 5. Validate first-round state changes.
     // Prior agendas, for the "does this key name anything" check. Read from
@@ -394,6 +407,7 @@ export class SessionService {
       const { response, parsed } = await this.callClaudeOnce(
         correctionRequest,
         args.adventureId,
+        toolSyntaxLeaks,
       );
       correctionResponse = response;
       correctionParsed = parsed;
@@ -508,6 +522,7 @@ export class SessionService {
         preTurnPlayerRolls,
         rulesLookups: innerLoop.rulesLookups,
         toolLoopIterations: innerLoop.iterations,
+        toolSyntaxLeaks,
         wardenPrompt: {
           filename: wardenPrompt.filename,
           hash: wardenPrompt.hash,
@@ -746,6 +761,8 @@ export class SessionService {
   private async callClaudeOnce(
     request: CallSessionParams,
     adventureId: string,
+    /** The turn's leak records so far. A leak here is appended before throwing. */
+    toolSyntaxLeaks: ToolSyntaxLeakRecord[],
   ): Promise<{ response: Anthropic.Message; parsed: SubmitGmResponse }> {
     const response = await this.anthropic.callSession(request);
     const toolUse = response.content.find(
@@ -769,8 +786,14 @@ export class SessionService {
     // than apply a response whose state changes were serialized into prose.
     const leaked = detectToolCallSyntax(parsed.data);
     if (leaked) {
-      throw new SessionOutputError(
-        `submit_gm_response leaked tool-call syntax for adventure=${adventureId}: ${describeToolCallSyntax(leaked)}`,
+      toolSyntaxLeaks.push({
+        pass: 'correction',
+        rawInput: toolUse.input,
+        outcome: 'rejected',
+      });
+      throw new SessionToolSyntaxError(
+        `submit_gm_response leaked tool-call syntax on the correction pass for adventure=${adventureId}: ${describeToolCallSyntax(leaked)}`,
+        toolSyntaxLeaks,
       );
     }
     return { response, parsed: parsed.data };
@@ -826,6 +849,7 @@ export class SessionService {
     // fresh budget for each mode. Only back-to-back leaks — the shape the
     // 2026-08-18 run produced ten of — burn it.
     let consecutiveToolSyntaxRejections = 0;
+    const toolSyntaxLeaks: ToolSyntaxLeakRecord[] = [];
 
     while (iteration < INNER_TOOL_LOOP_CAP) {
       const response = await this.anthropic.callSession(request);
@@ -862,8 +886,14 @@ export class SessionService {
               executedRolls,
               rulesLookups,
               iterations: iteration + 1,
+              toolSyntaxLeaks,
             };
           }
+          toolSyntaxLeaks.push({
+            pass: 'tool_loop',
+            rawInput: submitGmCall.input,
+            outcome: 'rejected',
+          });
           consecutiveToolSyntaxRejections += 1;
           submitGmError = describeToolCallSyntax(leaked);
           submitGmErrorPaths = `${leaked.field}:tool-syntax`;
@@ -875,6 +905,7 @@ export class SessionService {
                 `${consecutiveToolSyntaxRejections} times in a row for ` +
                 `adventure=${args.adventureId}; abandoning the turn rather ` +
                 `than spending the rest of the loop on it. ${submitGmError}`,
+              toolSyntaxLeaks,
             );
           }
 

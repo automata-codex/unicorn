@@ -7,6 +7,7 @@ import {
   SessionPreconditionError,
   SessionService,
   SessionToolLoopError,
+  SessionToolSyntaxError,
 } from './session.service';
 
 import type Anthropic from '@anthropic-ai/sdk';
@@ -384,5 +385,62 @@ describe('SessionService.sendMessage', () => {
     );
     expect(callSession).toHaveBeenCalledTimes(2);
     expect(applyTurnAtomic).not.toHaveBeenCalled();
+  });
+
+  // A `submit_gm_response` whose other parameters were written into
+  // `playerText` as text. Schema-valid, since `playerText` is the only
+  // required field.
+  const LEAKED_INPUT = {
+    playerText:
+      'The lever refuses to move.</playerText>\n' +
+      '<parameter name="gmUpdates">{"notes":"stuck"}</parameter>',
+  };
+
+  it('throws SessionToolSyntaxError, carrying the payload, when the correction pass leaks', async () => {
+    // First response is rejected by the validator, which triggers the
+    // single-shot correction pass. The correction leaks, and there is no
+    // retry to hand it to.
+    callSession
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_response', {
+          playerText: 'Damage applied.',
+          stateChanges: {
+            resourcePools: [
+              { owner: 'xenomorph', pool: 'hp', delta: -3, reason: 'clawed' },
+            ],
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_response', LEAKED_INPUT),
+      );
+
+    const applyTurnAtomic = makeApplyTurnAtomic();
+    const service = makeService(callSession, makeRepo({ applyTurnAtomic }));
+
+    const err = await service.sendMessage(args).catch((e) => e);
+
+    expect(err).toBeInstanceOf(SessionToolSyntaxError);
+    expect((err as SessionToolSyntaxError).leaks).toEqual([
+      { pass: 'correction', rawInput: LEAKED_INPUT, outcome: 'rejected' },
+    ]);
+    expect(applyTurnAtomic).not.toHaveBeenCalled();
+  });
+
+  it('passes a leak the retry recovered from through to telemetry', async () => {
+    callSession
+      .mockResolvedValueOnce(toolUseMessage('submit_gm_response', LEAKED_INPUT))
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_response', { playerText: 'ok' }),
+      );
+    const applyTurnAtomic = makeApplyTurnAtomic();
+    const service = makeService(callSession, makeRepo({ applyTurnAtomic }));
+
+    await service.sendMessage(args);
+
+    const atomicArgs = applyTurnAtomic.mock.calls[0][0];
+    expect(atomicArgs.telemetry.toolSyntaxLeaks).toEqual([
+      { pass: 'tool_loop', rawInput: LEAKED_INPUT, outcome: 'rejected' },
+    ]);
   });
 });

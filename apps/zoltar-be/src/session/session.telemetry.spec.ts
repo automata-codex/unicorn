@@ -347,6 +347,45 @@ describe('buildAdventureTelemetryPayload', () => {
     expect(payload.toolLoopIterations).toBe(4);
   });
 
+  it('writes toolSyntaxLeaks when the turn had any', () => {
+    const leaks = [
+      {
+        pass: 'tool_loop' as const,
+        rawInput: { playerText: 'x</playerText>' },
+        outcome: 'rejected' as const,
+      },
+    ];
+    const payload = buildAdventureTelemetryPayload({
+      playerMessage: 'x',
+      snapshotSent: 'x',
+      originalRequest: stubRequest(),
+      originalResponse: stubResponse(),
+      originalParsed: stubParsed(),
+      applied: emptyApplied,
+      thresholds: [],
+      toolSyntaxLeaks: leaks,
+      wardenPrompt: stubWardenPrompt,
+    });
+    expect(payload.toolSyntaxLeaks).toEqual(leaks);
+  });
+
+  it('leaves toolSyntaxLeaks off the payload when the turn had none', () => {
+    for (const toolSyntaxLeaks of [undefined, []]) {
+      const payload = buildAdventureTelemetryPayload({
+        playerMessage: 'x',
+        snapshotSent: 'x',
+        originalRequest: stubRequest(),
+        originalResponse: stubResponse(),
+        originalParsed: stubParsed(),
+        applied: emptyApplied,
+        thresholds: [],
+        toolSyntaxLeaks,
+        wardenPrompt: stubWardenPrompt,
+      });
+      expect('toolSyntaxLeaks' in payload).toBe(false);
+    }
+  });
+
   it('defaults toolLoopIterations to 1 when omitted (M6 no-tools case)', () => {
     const payload = buildAdventureTelemetryPayload({
       playerMessage: 'x',

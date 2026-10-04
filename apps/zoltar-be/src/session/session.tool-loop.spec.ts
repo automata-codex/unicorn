@@ -832,6 +832,47 @@ describe('SessionService.runInnerToolLoop', () => {
     expect(result.finalParsed.playerText).toBe('The lever refuses to move.');
   });
 
+  it('keeps the leaked payload on the result when the retry comes back clean', async () => {
+    callSession
+      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(
+        message([submitGmBlock({ playerText: 'The lever refuses to move.' })]),
+      );
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(result.toolSyntaxLeaks).toEqual([
+      { pass: 'tool_loop', rawInput: LEAKED_PAYLOAD, outcome: 'rejected' },
+    ]);
+  });
+
+  it('reports no leaks on a clean turn', async () => {
+    callSession.mockResolvedValueOnce(
+      message([submitGmBlock({ playerText: 'The lever holds.' })]),
+    );
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(result.toolSyntaxLeaks).toEqual([]);
+  });
+
+  it('carries every leaked payload on the error when the turn is abandoned', async () => {
+    // An abandoned turn writes no telemetry row, so the error is the only
+    // place the payloads survive.
+    callSession.mockResolvedValue(message([submitGmBlock(LEAKED_PAYLOAD)]));
+    const { service } = makeService(callSession);
+
+    const err = await service.runInnerToolLoop(loopArgs).catch((e) => e);
+
+    expect(err).toBeInstanceOf(SessionToolSyntaxError);
+    expect((err as SessionToolSyntaxError).leaks).toEqual([
+      { pass: 'tool_loop', rawInput: LEAKED_PAYLOAD, outcome: 'rejected' },
+      { pass: 'tool_loop', rawInput: LEAKED_PAYLOAD, outcome: 'rejected' },
+    ]);
+  });
+
   it('tells Claude to resend the parameters as parameters', async () => {
     callSession
       .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))

@@ -108,6 +108,20 @@ export interface ToolCallSyntaxFinding {
 const MAX_REPORTED_TOKENS = 6;
 
 /**
+ * One leaked `submit_gm_response` the turn path saw, kept whole so the shape
+ * can be studied later (`ADR-0097` Addendum 4). Written to the turn's
+ * telemetry row when the turn commits and carried on `SessionToolSyntaxError`
+ * when it does not.
+ */
+export interface ToolSyntaxLeakRecord {
+  /** Where in the turn it arrived. */
+  pass: 'tool_loop' | 'correction';
+  /** The `tool_use` block's input, exactly as the API returned it. */
+  rawInput: unknown;
+  outcome: 'rejected';
+}
+
+/**
  * Scans one string for leaked tool-call markup. Exported separately so the
  * eval harness can run the identical detector over a recorded `playerText`
  * without booting the session service (see ADR-0096's `tagIndependent`
