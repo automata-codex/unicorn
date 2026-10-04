@@ -823,4 +823,37 @@ export const RECOVERY_CASES: RecoveryCase[] = [
     },
     expected: { ok: false, reason: 'unknown_field' },
   },
+  // Found by the first `task leaks:corpus` run, 2026-10-04.
+  {
+    // The model's own JSON has one closing brace too many, so the value ends
+    // early and the rest is text that belongs to no field.
+    name: 'REFUSED: JSON with a stray closing brace, leaving text after the value',
+    source:
+      'eval-runs/claude-sonnet-5__c45a142a__2026-08-10T19-45-15Z/reps/006/turn24-over-resolution/warden-output.json',
+    input: {
+      playerText:
+        'What do you do?</playerText>\n' +
+        '<parameter name="stateChanges">{"flags":{"cargo_hold_quarantine_active":{"value":true}}},"resourcePools":{"veridian_contractor_alpha_hp":{"delta":0}}',
+      gmUpdates: {
+        notes: 'Ruled without rulebook support: suppressive fire.',
+      },
+    },
+    expected: { ok: false, reason: 'leftover_text' },
+  },
+  {
+    // Two things are wrong and neither is the leak in `playerText`: the real
+    // `gmUpdates` parameter arrived as a string holding markup, and the
+    // armor entry has `destroyed: false`. Recovery does not repair either.
+    name: 'REFUSED: the leak parses, but a real parameter and a recovered value are both invalid',
+    source:
+      'eval-runs/claude-sonnet-5__6717347d__2026-08-21T21-14-59Z/reps/007/turn24-scene-jump/warden-request.json',
+    input: {
+      playerText:
+        'You have maybe two seconds before someone shoots at you again.</playerText>\n' +
+        '<parameter name="stateChanges">{"flags":{"cargo_hold_quarantine_active":{"value":true}},"characterState":[{"op":"armor_damage","entityId":"alvarez","apDelta":0,"destroyed":false}]}',
+      gmUpdates:
+        '\n<parameter name="notes">Ruled without rulebook support: suppressive fire has no mechanical bonus in Mothership.',
+    },
+    expected: { ok: false, reason: 'schema_invalid' },
+  },
 ];
