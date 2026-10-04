@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseMarks, renderReport, tally } from './report';
-import { renderMarksCsv } from './run';
+import { renderMarksCsv } from './run.core';
 
 function csv(...rows: string[]): string {
   return ['fixture,rep,mark,note', ...rows, ''].join('\n');

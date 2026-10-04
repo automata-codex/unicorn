@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { CASES } from './cases';
 import { parseFixture } from './fixture';
-import { parseArgs, renderCaseMd, renderMarksCsv } from './run';
+import { parseArgs, renderCaseMd, renderMarksCsv } from './run.core';
 
 describe('parseArgs', () => {
   it('defaults to every case of the question', () => {
