@@ -1,6 +1,7 @@
 import { submitGmResponseSchema } from './session.schema';
 
 import type { SubmitGmResponse } from './session.schema';
+import type { RefusalReason } from './session.tool-syntax-recovery';
 
 /**
  * Detects raw tool-call markup that has leaked into a `submit_gm_response`
@@ -35,6 +36,15 @@ import type { SubmitGmResponse } from './session.schema';
  * `submitGmResponseSchema`. There is no "looks like internals" heuristic —
  * the same input always yields the same verdict, and the property-name half
  * is derived from the schema so the two cannot drift when a field is added.
+ *
+ * ## What happens to a leaked payload
+ *
+ * Detection is this file. The first response to a detection is
+ * `recoverLeakedPayload` (`session.tool-syntax-recovery.ts`), which reads the
+ * swallowed parameters back out of the text; the turn then carries on as if
+ * the call had arrived clean (`ADR-0097` Addendum 4). Only a payload that
+ * cannot be recovered is handed back to the model with
+ * `toolCallSyntaxRetryInstruction`.
  *
  * Only `playerText` is scanned. It is the field the player sees and the one
  * the defect carries in. `gmUpdates.notes` is Warden-private reasoning where
@@ -118,7 +128,14 @@ export interface ToolSyntaxLeakRecord {
   pass: 'tool_loop' | 'correction';
   /** The `tool_use` block's input, exactly as the API returned it. */
   rawInput: unknown;
-  outcome: 'rejected';
+  /**
+   * `recovered`: the payload was read back out of the text and the turn went
+   * on with it. `rejected`: it could not be, and the turn path fell back to
+   * asking again.
+   */
+  outcome: 'recovered' | 'rejected';
+  /** Why recovery refused. Present on a `rejected` record. */
+  refusal?: RefusalReason;
 }
 
 /**
@@ -192,8 +209,8 @@ export function describeToolCallSyntax(finding: ToolCallSyntaxFinding): string {
 }
 
 /**
- * The instruction handed back to Claude as an error `tool_result` when the
- * turn path rejects a leaked payload. Deliberately names the failure and the
+ * The instruction handed back to Claude as an error `tool_result` when a
+ * leaked payload could not be recovered and the turn path rejects it. Deliberately names the failure and the
  * corrective action rather than just saying "invalid" — a bare rejection
  * tends to produce the same malformed shape again.
  */

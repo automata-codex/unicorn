@@ -29,6 +29,7 @@ import {
   detectToolCallSyntax,
   toolCallSyntaxRetryInstruction,
 } from './session.tool-syntax';
+import { recoverLeakedPayload } from './session.tool-syntax-recovery';
 import { SESSION_TOOLS } from './session.tools';
 import { validateStateChanges } from './session.validator';
 import { buildMessageWindow } from './session.window';
@@ -91,9 +92,9 @@ export class SessionCorrectionError extends Error {
 }
 
 /**
- * Thrown when a leaked `submit_gm_response` ends the turn: Claude re-emitted
- * leaked tool-call syntax after being told once not to, or leaked on the
- * single-shot correction pass, where there is no retry
+ * Thrown when a leaked `submit_gm_response` that could not be recovered ends
+ * the turn: Claude sent one again after being told once not to, or sent one
+ * on the single-shot correction pass, where there is no retry
  * (`session.tool-syntax.ts`). Translated to 502 with body error code
  * `gm_tool_syntax_unrecoverable`.
  *
@@ -202,7 +203,8 @@ export interface SendMessageResult {
 export const INNER_TOOL_LOOP_CAP = 20;
 
 /**
- * How many times a `submit_gm_response` carrying leaked tool-call syntax is
+ * How many times a `submit_gm_response` carrying leaked tool-call syntax
+ * that could not be recovered (`ADR-0097` Addendum 4) is
  * handed back before the turn is abandoned. One, per the same reasoning
  * `ADR-0041` applies to the correction loop: more retries hide the failure
  * rather than fixing it.
@@ -220,6 +222,28 @@ export const INNER_TOOL_LOOP_CAP = 20;
  * otherwise get fewer retries than a quiet one, which is backwards.
  */
 export const TOOL_SYNTAX_RETRY_BUDGET = 1;
+
+/**
+ * A copy of `response` whose `submit_gm_response` block carries `payload` as
+ * its input. Used after a leak is recovered: this response is replayed to
+ * Claude as its own assistant turn if a correction is needed, and showing it
+ * the leaked input there would invite it to leak again. The raw input is
+ * kept on the turn's `ToolSyntaxLeakRecord`.
+ */
+function withSubmitInput(
+  response: Anthropic.Message,
+  toolUseId: string,
+  payload: SubmitGmResponse,
+): Anthropic.Message {
+  return {
+    ...response,
+    content: response.content.map((block) =>
+      block.type === 'tool_use' && block.id === toolUseId
+        ? { ...block, input: payload }
+        : block,
+    ),
+  };
+}
 
 interface InnerToolLoopResult {
   finalRequest: CallSessionParams;
@@ -781,15 +805,30 @@ export class SessionService {
       );
     }
     // Schema-valid is not the same as well-formed — see the leak check in
-    // `runInnerToolLoop`. The correction pass is single-shot by design
-    // (docs/turn-path.md), so there is nowhere to retry to: fail loud rather
-    // than apply a response whose state changes were serialized into prose.
+    // `runInnerToolLoop`. As there, the leaked payload is read back out of
+    // the text first. The correction pass is single-shot by design
+    // (docs/turn-path.md), so when that fails there is nowhere to retry to:
+    // fail loud rather than apply a response whose state changes were
+    // serialized into prose.
     const leaked = detectToolCallSyntax(parsed.data);
     if (leaked) {
+      const recovery = recoverLeakedPayload(toolUse.input);
+      if (recovery.ok) {
+        toolSyntaxLeaks.push({
+          pass: 'correction',
+          rawInput: toolUse.input,
+          outcome: 'recovered',
+        });
+        this.logger.warn(
+          `submit_gm_response leaked tool-call syntax on the correction pass for adventure=${adventureId}; recovered the payload from the text. ${describeToolCallSyntax(leaked)}`,
+        );
+        return { response, parsed: recovery.payload };
+      }
       toolSyntaxLeaks.push({
         pass: 'correction',
         rawInput: toolUse.input,
         outcome: 'rejected',
+        refusal: recovery.reason,
       });
       throw new SessionToolSyntaxError(
         `submit_gm_response leaked tool-call syntax on the correction pass for adventure=${adventureId}: ${describeToolCallSyntax(leaked)}`,
@@ -874,9 +913,14 @@ export class SessionService {
           // only required field, so a response that serialized its remaining
           // parameters into the narration validates perfectly and then loses
           // every state change it computed — silently, which is how the
-          // 2026-08-16 playtest lost 39 of 58 turns. Reject it before the
-          // markup reaches the player, and retry through the same machinery
-          // a malformed payload already uses.
+          // 2026-08-16 playtest lost 39 of 58 turns.
+          //
+          // The payload in the text is usually correct, so read it back out
+          // first (`ADR-0097` Addendum 4). If that works the turn carries on
+          // as if the call had arrived clean, with no further model call.
+          // If it does not, reject the payload before the markup reaches
+          // the player, and retry through the same machinery a malformed
+          // payload already uses.
           const leaked = detectToolCallSyntax(parsed.data);
           if (!leaked) {
             return {
@@ -889,10 +933,35 @@ export class SessionService {
               toolSyntaxLeaks,
             };
           }
+          const recovery = recoverLeakedPayload(submitGmCall.input);
+          if (recovery.ok) {
+            toolSyntaxLeaks.push({
+              pass: 'tool_loop',
+              rawInput: submitGmCall.input,
+              outcome: 'recovered',
+            });
+            this.logger.warn(
+              `submit_gm_response leaked tool-call syntax for adventure=${args.adventureId}; recovered the payload from the text. ${describeToolCallSyntax(leaked)}`,
+            );
+            return {
+              finalRequest: request,
+              finalResponse: withSubmitInput(
+                response,
+                submitGmCall.id,
+                recovery.payload,
+              ),
+              finalParsed: recovery.payload,
+              executedRolls,
+              rulesLookups,
+              iterations: iteration + 1,
+              toolSyntaxLeaks,
+            };
+          }
           toolSyntaxLeaks.push({
             pass: 'tool_loop',
             rawInput: submitGmCall.input,
             outcome: 'rejected',
+            refusal: recovery.reason,
           });
           consecutiveToolSyntaxRejections += 1;
           submitGmError = describeToolCallSyntax(leaked);
@@ -911,7 +980,7 @@ export class SessionService {
 
           // error, not warn: this is data loss that used to be invisible.
           this.logger.error(
-            `submit_gm_response leaked tool-call syntax for adventure=${args.adventureId}, retrying: ${submitGmError}`,
+            `submit_gm_response leaked tool-call syntax for adventure=${args.adventureId} and could not be recovered (${recovery.reason}), retrying: ${submitGmError}`,
           );
         } else {
           consecutiveToolSyntaxRejections = 0;

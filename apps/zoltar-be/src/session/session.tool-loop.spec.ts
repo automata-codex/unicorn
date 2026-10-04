@@ -809,18 +809,93 @@ describe('SessionService.runInnerToolLoop', () => {
   });
 
   // A payload that serialized its own parameters into `playerText` is
-  // schema-valid — `playerText` is the only required field — so before this
+  // schema-valid — `playerText` is the only required field — so before the
   // guard it terminated the loop, shipped the markup to the player, and
   // dropped every state change without a log line.
-  const LEAKED_PAYLOAD = {
+  //
+  // The loop first tries to read the payload back out of the text
+  // (`ADR-0097` Addendum 4). This one cannot be: it calls another tool from
+  // inside the narration. It exercises the fallback — reject, retry once,
+  // abandon.
+  const UNRECOVERABLE_LEAK = {
     playerText:
       'The lever refuses to move.</playerText>\n' +
-      '<parameter name="stateChanges">{"resourcePools":[{"owner":"dr_kennedy","pool":"hp","delta":-12}]}</parameter>',
+      '<invoke name="rules_lookup">\n<parameter name="query">levers',
+  };
+  const REJECTED_RECORD = {
+    pass: 'tool_loop',
+    rawInput: UNRECOVERABLE_LEAK,
+    outcome: 'rejected',
+    refusal: 'other_tool_call',
   };
 
-  it('rejects a leaked payload and recovers on the retry', async () => {
+  // The common leak: `stateChanges` written into the text, whole and
+  // correct.
+  const RECOVERABLE_LEAK = {
+    playerText:
+      'The lever refuses to move.</playerText>\n' +
+      '<parameter name="stateChanges">{"flags":{"lever_jammed":{"value":true}}}',
+    gmUpdates: { notes: 'Jammed.' },
+  };
+
+  it('recovers a leaked payload without asking again', async () => {
+    callSession.mockResolvedValueOnce(
+      message([submitGmBlock(RECOVERABLE_LEAK)]),
+    );
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(callSession).toHaveBeenCalledTimes(1);
+    expect(result.iterations).toBe(1);
+    expect(result.finalParsed).toEqual({
+      playerText: 'The lever refuses to move.',
+      stateChanges: { flags: { lever_jammed: { value: true } } },
+      gmUpdates: { notes: 'Jammed.' },
+    });
+    expect(result.toolSyntaxLeaks).toEqual([
+      { pass: 'tool_loop', rawInput: RECOVERABLE_LEAK, outcome: 'recovered' },
+    ]);
+  });
+
+  it('hands on a response that carries the recovered input, not the leak', async () => {
+    // `finalResponse` is replayed to Claude as its own assistant turn when a
+    // correction is needed. It must not be shown its own leak there.
+    callSession.mockResolvedValueOnce(
+      message([submitGmBlock(RECOVERABLE_LEAK)]),
+    );
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    const block = result.finalResponse.content.find(
+      (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
+    );
+    expect(block?.input).toEqual(result.finalParsed);
+    expect(JSON.stringify(result.finalResponse)).not.toContain('</playerText>');
+  });
+
+  it('recovers on the retry when the first leak could not be recovered', async () => {
     callSession
-      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(message([submitGmBlock(UNRECOVERABLE_LEAK)]))
+      .mockResolvedValueOnce(message([submitGmBlock(RECOVERABLE_LEAK)]));
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop(loopArgs);
+
+    expect(result.iterations).toBe(2);
+    expect(result.finalParsed.stateChanges).toEqual({
+      flags: { lever_jammed: { value: true } },
+    });
+    expect(result.toolSyntaxLeaks.map((l) => l.outcome)).toEqual([
+      'rejected',
+      'recovered',
+    ]);
+  });
+
+  it('rejects a leak it cannot recover and accepts a clean retry', async () => {
+    callSession
+      .mockResolvedValueOnce(message([submitGmBlock(UNRECOVERABLE_LEAK)]))
       .mockResolvedValueOnce(
         message([submitGmBlock({ playerText: 'The lever refuses to move.' })]),
       );
@@ -834,7 +909,7 @@ describe('SessionService.runInnerToolLoop', () => {
 
   it('keeps the leaked payload on the result when the retry comes back clean', async () => {
     callSession
-      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(message([submitGmBlock(UNRECOVERABLE_LEAK)]))
       .mockResolvedValueOnce(
         message([submitGmBlock({ playerText: 'The lever refuses to move.' })]),
       );
@@ -842,9 +917,7 @@ describe('SessionService.runInnerToolLoop', () => {
 
     const result = await service.runInnerToolLoop(loopArgs);
 
-    expect(result.toolSyntaxLeaks).toEqual([
-      { pass: 'tool_loop', rawInput: LEAKED_PAYLOAD, outcome: 'rejected' },
-    ]);
+    expect(result.toolSyntaxLeaks).toEqual([REJECTED_RECORD]);
   });
 
   it('reports no leaks on a clean turn', async () => {
@@ -861,21 +934,21 @@ describe('SessionService.runInnerToolLoop', () => {
   it('carries every leaked payload on the error when the turn is abandoned', async () => {
     // An abandoned turn writes no telemetry row, so the error is the only
     // place the payloads survive.
-    callSession.mockResolvedValue(message([submitGmBlock(LEAKED_PAYLOAD)]));
+    callSession.mockResolvedValue(message([submitGmBlock(UNRECOVERABLE_LEAK)]));
     const { service } = makeService(callSession);
 
     const err = await service.runInnerToolLoop(loopArgs).catch((e) => e);
 
     expect(err).toBeInstanceOf(SessionToolSyntaxError);
     expect((err as SessionToolSyntaxError).leaks).toEqual([
-      { pass: 'tool_loop', rawInput: LEAKED_PAYLOAD, outcome: 'rejected' },
-      { pass: 'tool_loop', rawInput: LEAKED_PAYLOAD, outcome: 'rejected' },
+      REJECTED_RECORD,
+      REJECTED_RECORD,
     ]);
   });
 
   it('tells Claude to resend the parameters as parameters', async () => {
     callSession
-      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(message([submitGmBlock(UNRECOVERABLE_LEAK)]))
       .mockResolvedValueOnce(
         message([submitGmBlock({ playerText: 'The lever holds.' })]),
       );
@@ -898,7 +971,7 @@ describe('SessionService.runInnerToolLoop', () => {
     // The 2026-08-18 re-baseline produced ten consecutive leaked payloads on
     // one turn and no recovery, so the retry budget is one — the number
     // `ADR-0041` argues for everywhere else in the turn path.
-    callSession.mockResolvedValue(message([submitGmBlock(LEAKED_PAYLOAD)]));
+    callSession.mockResolvedValue(message([submitGmBlock(UNRECOVERABLE_LEAK)]));
     const { service } = makeService(callSession);
 
     await expect(service.runInnerToolLoop(loopArgs)).rejects.toBeInstanceOf(
@@ -910,7 +983,7 @@ describe('SessionService.runInnerToolLoop', () => {
   it('names the leak in the error rather than reporting cap exhaustion', async () => {
     // The two 502s mean opposite things: one is "still working", this one is
     // "finished the same wrong way twice".
-    callSession.mockResolvedValue(message([submitGmBlock(LEAKED_PAYLOAD)]));
+    callSession.mockResolvedValue(message([submitGmBlock(UNRECOVERABLE_LEAK)]));
     const { service } = makeService(callSession);
 
     await expect(service.runInnerToolLoop(loopArgs)).rejects.toThrow(
@@ -932,7 +1005,7 @@ describe('SessionService.runInnerToolLoop', () => {
           }),
         ]),
       )
-      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(message([submitGmBlock(UNRECOVERABLE_LEAK)]))
       .mockResolvedValueOnce(
         message([submitGmBlock({ playerText: 'The lever holds.' })]),
       );
@@ -948,11 +1021,11 @@ describe('SessionService.runInnerToolLoop', () => {
     // leak → schema-invalid → leak is not the stuck shape, so the counter
     // resets and the turn still gets its retry.
     callSession
-      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(message([submitGmBlock(UNRECOVERABLE_LEAK)]))
       .mockResolvedValueOnce(
         message([submitGmBlock({ playerText: 1 as unknown as string })]),
       )
-      .mockResolvedValueOnce(message([submitGmBlock(LEAKED_PAYLOAD)]))
+      .mockResolvedValueOnce(message([submitGmBlock(UNRECOVERABLE_LEAK)]))
       .mockResolvedValueOnce(
         message([submitGmBlock({ playerText: 'Recovered.' })]),
       );
