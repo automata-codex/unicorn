@@ -9,6 +9,7 @@ export default defineConfig({
       'src/**/*.spec-int.ts',
       'scripts/**/*.spec-int.ts',
       'eval/**/*.spec-int.ts',
+      'eval-v2/**/*.spec-int.ts',
     ],
     environment: 'node',
     testTimeout: 30_000,
