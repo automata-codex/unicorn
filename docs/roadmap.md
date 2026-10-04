@@ -185,11 +185,15 @@ Scope that exists to support building the product rather than to ship with it. I
 - `eval:judge-variance` for characterizing judge behavior statistically
 - Failure-mode tag catalog generated from the check registry
 
-#### Harness Meta-Eval
+#### Warden Eval Harness v2
 
-- Known-answer fixtures that grade the harness rather than the Warden
-- Coverage of the applicability gate as its own axis
-- A regression case per known harness defect
+- One question at a time, stated as a pass rate over labeled cases
+- Replay of each case through the real turn code, N reps, against a scratch adventure
+- Hand marks — `pass`, `fail`, `na` — with thrown turns recorded as `error` by the harness itself
+- Report of per-case counts and rates against the question's bar
+- Run comparison — two runs of one question side by side
+- Dice-result replay path
+- Judge for prose questions, checked per question against blind hand marks
 
 #### Documentation Tooling
 
@@ -377,7 +381,7 @@ Spec: [009](specs/zoltar/009-m7.3-turn-state-replay-spec.md) · Plan: [009](plan
 
 #### M7.4 — Warden Eval Harness
 
-**Status:** In progress — fixture-count bar open, blocked on playtest evidence
+**Status:** Closed — fixture-count bar never met; the harness is superseded by M7.9
 
 Regression suite for Warden prompt candidates against known failure modes surfaced by real playtests. Drives the real turn pipeline in-process rather than reimplementing it; seeds each fixture's starting state via M7.3's `reconstructStateAsOfTurn`. Extended after shipping by multi-run infrastructure.
 
@@ -429,9 +433,9 @@ Spec: [016](specs/zoltar/016-m7.6-character-sheet-fidelity.md) · Plan: [016](pl
 
 #### M7.7 — Playtest and Fixture Capture
 
-**Status:** In progress
+**Status:** Closed — the steered playtest and the work depending on it moved to M7.9
 
-The dedicated playtest, promoted out of M7.5 into its own milestone: evidence-gathering with a corpus deliverable rather than a quality bar on retrieval, and what it produces closes an item in a different milestone (M7.4's fixture-count bar). The milestone has absorbed the defects the playtests surfaced, which is what a capture milestone is for.
+The dedicated playtest, promoted out of M7.5 into its own milestone: evidence-gathering with a corpus deliverable rather than a quality bar on retrieval. The milestone has absorbed the defects the playtests surfaced, which is what a capture milestone is for. The second, steered playtest it planned moved to M7.9 with the harness rebuild.
 
 - `system-rolled-player-action` attached to the `turn24-*` fixtures as a tag-independent check
 - Tool-syntax leak guard inside the turn loop, ahead of persistence, with schema descriptions as emission mitigation
@@ -446,35 +450,38 @@ The dedicated playtest, promoted out of M7.5 into its own milestone: evidence-ga
 - `turn16-narrating-past-a-block` retired
 - `roll_dice.purpose` required to state the outcome mapping before the roll fires
 - `UNAUDITABLE-MAPPING` corpus widened past its single fixture
-- Second playtest — steered rather than natural, captured across its whole length, run against the final index
-- Fixtures authored from it, closing M7.4's fixture-count bar
 - `SEEDED-CANON-CONTRADICTION` registered and captured
 - `UNREVERSED-RETCON` registered and captured
 - `worldFacts.ship_layout` restructured from prose into a deck-indexed list
 - Synthesis schema field descriptions, and `narrative.location` renamed for what it holds
-- `current_location` written by the Warden through `stateChanges`
-- Synthesis provenance — its own spec, sequenced after the playtest
 
 Spec: [018](specs/zoltar/018-post-playtest-character-creation-and-mechanics.md), [019](specs/zoltar/019-entity-visibility-and-entity-write-path.md), [020](specs/zoltar/020-judge-contract-identity-and-the-field-order-swap.md) · Plan: [019](plans/019-entity-visibility-and-entity-write-path-implementation-plan.md), [020](plans/020-judge-contract-identity-and-the-field-order-swap-implementation-plan.md), [021](plans/021-unauditable-mapping-roll-purpose.md), [022](plans/022-roll-ownership-panic-checks-and-acting-entity.md), [023](plans/023-widen-unauditable-mapping-coverage.md) · Decisions: ADR-0094, ADR-0096 through ADR-0105, ADR-0108, ADR-0109, ADR-0110, ADR-0112 through ADR-0117 · Findings: `hidden-information-findings.md`, `eval-methodology.md`, `rules-extraction-findings.md § S35–S36`, `eval-findings.md § S37–S45` · Capture targets: `playtest-scenarios.md`
 
 #### M7.8 — Harness Meta-Eval
 
-**Status:** Not started
+**Status:** Superseded by M7.9 — not built
 
-Known-answer fixtures that grade the harness rather than the Warden: tiny hand-authored artifacts engineered to pass or fail one specific check, with the assertion being that the harness says so.
-
-**The judge is out of scope for known-answer testing.** Prose classification is probabilistic by construction and gets characterized statistically via `eval:judge-variance`, not asserted against known answers. That exclusion is narrower than it first appeared — rationale-versus-verdict disagreement is checkable without a known answer, by reading one artifact against itself, and belongs inside this milestone's remit. Re-examine the exclusion's stated reason before planning against it.
-
-- Known-answer fixture pairs for each structural checker — one engineered to pass, one to fail
-- Coverage of the applicability gate as its own axis, one fixture per `fixture` / `artifact` / `ungated` path
-- Regression case per known M7.4/M7.5 harness defect
-- Wounds Table known-answer fixture — deterministic table, unambiguous correct row, both inputs in event structure
-- `judgeContext` renderer covered by a committed golden
-- Judge field-order study widened to the remaining six judged checks
-- The "pinned at 1.00 is a harness suspect" reframe recorded as a decision
-- `baseline-check` extended to the two shapes it cannot currently see — scoped rider runs, and pre-registrations awaiting a run
+Known-answer fixtures that grade the M7.4 harness rather than the Warden. Planned against the M7.4 harness's checkers, applicability gate and judge, and not built because that harness is being replaced. What survives is the judge check in M7.9.
 
 Decisions: ADR-0074, ADR-0076, ADR-0080, ADR-0082, ADR-0105, ADR-0108 · Source material: `milestones/m7.7-turns-50-52-transcript.md`
+
+#### M7.9 — Warden Eval Harness v2
+
+**Status:** In progress
+
+A rebuild of the Warden eval harness, started from the smallest version that answers one question and grown only when a real problem calls for it. Each question is a pass rate over labeled cases; the questions and their results are recorded in `$ZOLTAR_EVAL_ROOT/eval-v2-runs/README.md`. The M7.4 harness stays working alongside it.
+
+- Smallest harness — `ev2:run` replays labeled cases through the real turn code, `ev2:report` rates the hand marks
+- Question 1 — seeded-canon accuracy on labeled cases, a timeline case among them
+- Run comparison — two runs of one question side by side
+- Dice-result replay path
+- Judge for prose questions, checked per question against blind hand marks
+- Oracle selections recorded at synthesis
+- Second playtest — steered rather than natural, captured across its whole length, run against the final index
+- Cases drawn from it for the questions it raises, a wounds chain among them
+- Lint and format coverage for `scripts/`, `docs/tooling/` and `eval-v2/`
+
+Spec: [025](specs/zoltar/025-eval-v2-smallest-harness.md) · Plan: [025](plans/025-eval-v2-smallest-harness-implementation-plan.md) · Human doc: `human/smallest-eval-harness.md`
 
 #### M8 — Multiplayer Foundation
 
