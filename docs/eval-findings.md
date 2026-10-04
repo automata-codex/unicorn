@@ -1318,23 +1318,23 @@ overall figure and the current-schema figure clear it.
 | `unexpected_attribute` | 1 | 0 | `<entity id="…">` |
 | `leftover_text` | 1 | 0 | the model's own JSON had a stray closing brace |
 
-I read every refusal. None is a case where the function failed to parse a
+Every refusal was checked, the `schema_invalid` ones by the schema path that
+failed. None is a case where the function failed to parse a
 payload that was sound. Each is a payload the turn path could not have applied
 as written.
 
 The 18 `schema_invalid` break down as:
 
-- **10 before 08-15:** `resourcePools` as a map, and one `entities[id].status`
-  holding free text.
+- **10 before 08-15:** `resourcePools` as a map (6), `entities[id].status`
+  holding free text (3), or both (1).
 - **5 since, all from one turn** (`ccac7d1c__2026-08-18`, `turn24-scene-jump`
   rep 9, the turn `ADR-0097` Addendum 3 records leaking ten times in a row):
   `entities[id].status` holding free text such as "down, wounded, 8HP". `status`
   became an enum at the tool boundary on 2026-08-21 (`702762c`), so these too
   were acceptable when written.
-- **2 since:** an `armor_damage` entry with `destroyed: false`, which the schema
-  has required to be `true` since 08-15. A real model error.
-- **1 since:** the same `armor_damage` error, and the real `gmUpdates` parameter
-  arrived as a string of markup. Two defects in one call.
+- **3 since, model errors:** one `armor_damage` entry with `destroyed: false`,
+  which the schema has required to be `true` since 08-15; one where the real
+  `gmUpdates` parameter arrived as a string of markup; and one with both.
 
 So of the 12 refusals since the schema change, 5 are schema drift, 3 are the
 model sending a value the schema rejects, and 4 are shapes the function
