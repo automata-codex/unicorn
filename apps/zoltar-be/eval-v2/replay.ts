@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { asc, eq } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 
 import { AppModule } from '../src/app.module';
 import { DB_TOKEN } from '../src/db/db.provider';
@@ -9,6 +9,8 @@ import { WardenPromptsService } from '../src/wardens/warden-prompts.service';
 
 import type { Db } from '../src/db/db.provider';
 import type { SendMessageResult } from '../src/session/session.service';
+import type { AdventureTelemetryPayload } from '../src/session/session.telemetry';
+import type { ToolSyntaxLeakRecord } from '../src/session/session.tool-syntax';
 import type { Fixture } from './fixture';
 
 export interface App {
@@ -173,6 +175,25 @@ export async function seedScratch(
       userId: prereqs.userId,
     };
   });
+}
+
+/**
+ * The leaked `submit_gm_response` payloads the turn just played recorded on
+ * its telemetry row. Read before teardown, because the row goes with the
+ * scratch campaign and the rep's JSON is the only copy that outlives it.
+ */
+export async function readToolSyntaxLeaks(
+  db: Db,
+  adventureId: string,
+): Promise<ToolSyntaxLeakRecord[]> {
+  const [row] = await db
+    .select({ payload: schema.adventureTelemetry.payload })
+    .from(schema.adventureTelemetry)
+    .where(eq(schema.adventureTelemetry.adventureId, adventureId))
+    .orderBy(desc(schema.adventureTelemetry.sequenceNumber))
+    .limit(1);
+  const payload = row?.payload as AdventureTelemetryPayload | undefined;
+  return payload?.toolSyntaxLeaks ?? [];
 }
 
 /** Deletes the scratch campaign; cascades remove everything under it. */

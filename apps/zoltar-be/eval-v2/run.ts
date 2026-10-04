@@ -10,10 +10,13 @@ import { execSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { SessionToolSyntaxError } from '../src/session/session.service';
+
 import { loadFixture } from './fixture';
 import {
   bootApp,
   findPrereqs,
+  readToolSyntaxLeaks,
   runTurn,
   seedScratch,
   teardownScratch,
@@ -96,7 +99,13 @@ async function main(): Promise<void> {
         );
         try {
           const result = await runTurn(app.sessionService, fixture, scratch);
-          writeJson(`${base}.json`, { ok: true, result });
+          // Leaked payloads are saved with the rep either way, so every run
+          // adds to the corpus `task leaks:corpus` reads.
+          const toolSyntaxLeaks = await readToolSyntaxLeaks(
+            app.db,
+            scratch.adventureId,
+          );
+          writeJson(`${base}.json`, { ok: true, result, toolSyntaxLeaks });
           writeFileSync(
             `${base}.md`,
             renderRepMd(fixture.id, rep, result.message.content),
@@ -109,7 +118,9 @@ async function main(): Promise<void> {
             err instanceof Error
               ? { name: err.name, message: err.message, stack: err.stack }
               : { message: String(err) };
-          writeJson(`${base}.json`, { ok: false, error });
+          const toolSyntaxLeaks =
+            err instanceof SessionToolSyntaxError ? err.leaks : [];
+          writeJson(`${base}.json`, { ok: false, error, toolSyntaxLeaks });
           writeFileSync(
             `${base}.md`,
             renderRepMd(fixture.id, rep, `**Turn threw:** ${error.message}`),
