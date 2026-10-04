@@ -476,9 +476,10 @@ A rebuild of the Warden eval harness, started from the smallest version that ans
 - Run comparison — two runs of one question side by side
 - Dice-result replay path
 - Judge for prose questions, checked per question against blind hand marks
+- Constructed cases — a captured case copied and edited by hand, labeled as such — a wounds chain among them
 - Oracle selections recorded at synthesis
 - Second playtest — steered rather than natural, captured across its whole length, run against the final index
-- Cases drawn from it for the questions it raises, a wounds chain among them
+- Cases drawn from it for the questions it raises
 - Lint and format coverage for `scripts/`, `docs/tooling/` and `eval-v2/`
 
 Spec: [025](specs/zoltar/025-eval-v2-smallest-harness.md) · Plan: [025](plans/025-eval-v2-smallest-harness-implementation-plan.md) · Decisions: ADR-0120 · Human doc: `human/smallest-eval-harness.md`
