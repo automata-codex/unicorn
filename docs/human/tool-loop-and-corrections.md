@@ -36,7 +36,7 @@ When the session service sends its request to Claude, the request includes a lis
 
 ## Response Format
 
-Claude makes tool calls with structured XML markup, which is then parsed by the Anthropic API into JSON data. Our API receives the JSON data and validates with Zod. If Claude makes mistakes with the closing XML tags (which it's been observed to do about 5% of the time), later fields can leak into earlier fields. Later parameters get written inside earlier parameters as plain text, so they never arrive as real fields and their state changes are lost. The schema guides Claude but doesn't constrain it today, and a strict mode exists that would constrain the structure but not what's inside the strings. See ADR-0097 for full details of our experience with this. 
+Claude makes tool calls with structured XML markup, which is then parsed by the Anthropic API into JSON data. Our API receives the JSON data and validates with Zod. If Claude makes mistakes with the closing XML tags (which it's been observed to do about 5% of the time), later fields can leak into earlier fields. Later parameters get written inside earlier parameters as plain text, so they never arrive as real fields and their state changes would be lost. We make a best-effort attempt to read the leaked parameters out of the text and carry on as if the call had arrived clean. If we can't, the call is rejected and Claude gets one retry inside the tool loop; a second unrecoverable leak aborts the turn (see "Loop Failures"). The schema guides Claude but doesn't constrain it today, and a strict mode exists that would constrain the structure but not what's inside the strings. See ADR-0097 for full details of our experience with this. 
 
 ## Submit GM Response
 
@@ -56,4 +56,4 @@ Claude can call the `rules_lookup` tool to search the rules corpus when it is un
 
 ## Loop Failures
 
-An invalid call to `roll_dice` or `rules_lookup` gets an error `tool_result` and the loop continues. A response with no tool call at all throws a `SessionOutputError`. The tool call loop is limited to 20 iterations. Any iteration in excess of that throws a `SessionToolLoopError`. Both errors become HTTP errors sent to the front-end. The user's message is saved, so they can retry without retyping.
+An invalid call to `roll_dice` or `rules_lookup` gets an error `tool_result` and the loop continues. A response with no tool call at all throws a `SessionOutputError`. The tool call loop is limited to 20 iterations. Any iteration in excess of that throws a `SessionToolLoopError`. The exception is for `submit_gm_response` leaks that can't be recovered get only one retry before throwing `SessionToolSyntaxError`. All errors become HTTP errors sent to the front-end. The user's message is saved, so they can retry without retyping.

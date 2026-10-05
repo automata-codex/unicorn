@@ -29,6 +29,9 @@ import {
 } from './playtest-review.queries';
 import { renderReport } from './playtest-review.render';
 
+import type { ToolSyntaxLeakRecord } from '../src/session/session.tool-syntax';
+import type { TurnRow } from './playtest-review.render';
+
 interface CliArgs {
   adventureId: string;
   stdout: boolean;
@@ -87,6 +90,27 @@ export function defaultOutputPath(adventureId: string): string {
   return resolve(reportsDir, `${adventureId}-${stamp}.md`);
 }
 
+/**
+ * Every leaked `submit_gm_response` the adventure's turns recorded, tagged
+ * with the turn it came from. Written beside the report so the payloads
+ * outlive the dev database (`ADR-0097` Addendum 4).
+ */
+export function collectToolSyntaxLeaks(
+  turns: TurnRow[],
+): Array<ToolSyntaxLeakRecord & { gmResponseSeq: number }> {
+  return turns.flatMap((turn) =>
+    (turn.telemetryPayload.toolSyntaxLeaks ?? []).map((leak) => ({
+      gmResponseSeq: turn.gmResponseSeq,
+      ...leak,
+    })),
+  );
+}
+
+/** `<report>.md` → `<report>-tool-leaks.json`, in the same directory. */
+export function toolLeaksPath(reportPath: string): string {
+  return `${reportPath.replace(/\.md$/, '')}-tool-leaks.json`;
+}
+
 async function main(): Promise<number> {
   let cli: CliArgs;
   try {
@@ -135,6 +159,13 @@ async function main(): Promise<number> {
     mkdirSync(dirname(outPath), { recursive: true });
     writeFileSync(outPath, markdown, 'utf8');
     process.stdout.write(`wrote ${outPath}\n`);
+
+    const leaks = collectToolSyntaxLeaks(turns);
+    if (leaks.length > 0) {
+      const leaksPath = toolLeaksPath(outPath);
+      writeFileSync(leaksPath, `${JSON.stringify(leaks, null, 2)}\n`, 'utf8');
+      process.stdout.write(`wrote ${leaksPath}\n`);
+    }
     return 0;
   } finally {
     await pool.end();

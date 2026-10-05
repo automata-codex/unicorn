@@ -9,8 +9,9 @@ summary: >-
   The tool-syntax leak — schema-valid responses whose payload was serialized into
   `playerText` — its measurement, and the deterministic guard that catches it. Read
   the addenda before citing the body: they supersede the retry reasoning (the budget
-  is 1, not the loop cap) and replace the prompt-block mitigation with tool-schema
-  descriptions.
+  is 1, not the loop cap), replace the prompt-block mitigation with tool-schema
+  descriptions, and (Addendum 4) put recovery of the leaked payload ahead of the
+  retry and correct the body's reading of the parameter boundary.
 ---
 
 `playerText` is the only required field on `submitGmResponseSchema`. A response carrying nothing else validates cleanly, so a payload whose remaining parameters were serialized as *text inside the narration* is indistinguishable, to every consumer downstream of the Zod parse, from a turn that genuinely had no state changes. The turn commits, the markup reaches the player, and `stateChanges` / `gmUpdates` / `diceRequests` are discarded — with no rejection, no correction event, and no log line. There was no discard point to instrument: nothing in the code believed anything had gone wrong.
@@ -98,3 +99,23 @@ The counter is consecutive rather than cumulative, resetting on a submit that fa
 **What the run says about the emission itself, stated carefully.** `TOOL-SYNTAX-LEAK` read 1.00 across 149 graded turns, and an independent scan of every `warden-output.json` with the original oracle regex found zero markup in 149 outputs — the guard did its job completely, and nothing reached a player or committed silently. But the check reads 1.00 partly *because* the one occurrence became an `error` row: a turn that never produces a `gm_response` leaves the denominator, so the rate is computed over the turns that survived the behaviour being measured. The honest figure is **emission 4/150 → 1/150**, suggestive at p≈0.09 rather than the clean sweep that would have settled it. The property descriptions look like a real improvement; they are not shown to have eliminated the emission, and this tag now belongs on `ADR-0082`'s list of rates to distrust at 1.00 for a reason of its own.
 
 This fix changes recovery, not what the Warden reads: `promptHash` stays `ccac7d1c` and `assemblyHash` stays `0bb41002`, so the run's numbers remain valid and the next run is comparable to it.
+
+**Addendum 4 — the leaked payload is recovered before anything is rejected, and the boundary reading in the body is corrected.** Recorded 2026-10-04, as a decision; spec `026-tool-leak-recovery` builds it and nothing is built yet. Supersedes "Reject and retry, rather than fail the turn" as the first response to a leak. The detector, the retry budget of 1 and `SessionToolSyntaxError` all stay, as the path for a leak that cannot be recovered.
+
+**What changed the decision.** Addendum 3 established that the retry does not work, which left a leak costing the whole turn. On the first eval-v2 run (`2026-10-04T03-14-41Z`) that was 4 of 50 turns. The body already said the discarded payloads "were not junk" — turn 52's was mechanically correct — and the maintainer's observation is that a correct payload in the wrong place can be moved rather than asked for again.
+
+**The body's boundary reading was wrong, and the evidence it cited is the evidence against it.** The body took a response carrying markup in `playerText` *and* a correctly structured `gmUpdates` parameter as ruling out a parameter-boundary failure. It is the boundary failure. Across 133 distinct leaked `playerText` values on disk, 126 begin with `</playerText>` — the model closes the parameter with the property name rather than `</parameter>`. The string therefore runs on to the next genuine `</parameter>`, swallowing exactly the one parameter in between, and everything after it parses normally. In 52 of the 133, `stateChanges` is the swallowed parameter and `gmUpdates` arrived intact. "The defect is model-side" stands; "the model wrote the tag as content" does not describe what happened.
+
+Those counts are from a throwaway scan on 2026-10-04 and are weighted toward a few fixtures with contaminated history. The corpus script the spec builds replaces them, and its first result goes in `docs/eval-findings.md`.
+
+**Why this is not the "flag and pass through" the body rejected.** That alternative kept the data loss and annotated it. Recovery removes the loss: the swallowed parameters are parsed back out, merged with the ones that arrived, and the result goes through `submitGmResponseSchema`, the validator and the correction pass like any other response. The narration is cut at the first leaked tag, so no markup reaches the player or the message history, and the contamination loop the body describes is not fed.
+
+**Why it does not offend `ADR-0041`.** That entry caps re-prompts because a second attempt negotiates for a different answer. Recovery makes no model call and asks for nothing. It reads the answer already given.
+
+**All or nothing, and the reason is hidden information.** Recovery either returns a whole payload or refuses and leaves today's behaviour in place. It refuses whenever any text after the cut is left unparsed, because `gmUpdates.notes` is Warden-private and a partial parse could leave part of it in the narration. It also refuses when a recovered field collides with one that arrived as a real parameter (0 of 133), and when the merged payload fails the schema — it relocates values and does not repair them.
+
+**Nested markup is in scope, by the maintainer's decision.** About a third of leaks write the swallowed parameter as nested tags, JSON inside tags, or a mix, rather than `<parameter name="…">` with a JSON value. Recovering only the simple shape reaches roughly 56% of leaks. The stated target is at least 80% of leaks recovered and at least 99% of turns usable, which the simple shape cannot meet. The cost is a schema-guided parser on the turn path, which is the part of this to read closely.
+
+**What would reverse it.** A recovered payload that applies wrong state. The failure being replaced is a loud 502; a wrong recovery would be silent, which is the property this entry exists to remove. One such case found while writing the test cases' expected results, or in play, puts recovery back behind the retry until the rule that allowed it is fixed.
+
+**The structural matcher still cannot see unknown markup**, and now neither can recovery. To keep that surface visible, every leaked raw input is recorded — on the telemetry row for a turn that commits, on the error for one that does not — so new shapes arrive as refusals in a corpus report rather than as silence.

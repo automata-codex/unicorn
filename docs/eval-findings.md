@@ -1276,3 +1276,83 @@ is now a question with a number attached, which it did not have before.
   fixtures lead the table across every run they appear in; whatever they share
   with `turn29` and `turn24` and not with `turn15` or `turn18` is the next thing
   to look at, and it is free to look at.
+
+### S46 — 2026-10-04 · Tool-leak recovery against the archive: 130 of 158 leaks recovered, and most refusals are payloads the schema would reject anyway
+
+The first `task leaks:corpus` run (spec `026-tool-leak-recovery`, `ADR-0097`
+Addendum 4). It runs `recoverLeakedPayload` over every distinct leaked
+`submit_gm_response` under `$ZOLTAR_EVAL_ROOT`. Free: files only. At this point
+the function is not called from the turn path.
+
+**This supersedes the counts in spec 026 and `ADR-0097` Addendum 4**, which came
+from a throwaway scan that matched only `</playerText>` and found 133. The
+script uses the turn path's own detector and finds 158. All 158 are in
+`eval-runs/`; nothing has been captured from eval-v2 or a playtest yet.
+
+#### The result
+
+| | Leaks | Recovered | |
+|---|---|---|---|
+| All | 158 | 130 | 82.3% |
+| Found in runs before 2026-08-15 | 44 | 28 | 63.6% |
+| Found in runs since 2026-08-15 | 114 | 102 | 89.5% |
+
+The split is at the M7.6 tool-schema change (`db56d61`), which turned
+`resourcePools` from a map into an array. A leak from before it carries the
+shape that was correct then and is rejected now. The second row is the one that
+describes the Warden as it runs today. A leak is dated by the run its first copy
+was found in; a later fixture can replay an earlier leak as history, so the
+split is approximate.
+
+The spec's gate for wiring the function into the turn path is 80%. Both the
+overall figure and the current-schema figure clear it.
+
+#### The 28 refusals
+
+| Reason | Before 08-15 | Since | What they are |
+|---|---|---|---|
+| `schema_invalid` | 10 | 8 | see below |
+| `array_as_tags` | 2 | 1 | `resourcePools` (old map shape) and `diceRequests` written as tags |
+| `other_tool_call` | 0 | 2 | `<invoke name="rules_lookup">` inside the narration |
+| `unknown_field` | 2 | 1 | `<npcStates>` (since renamed), a `<json>` wrapper, `flags` as a top-level parameter |
+| `unexpected_attribute` | 1 | 0 | `<entity id="…">` |
+| `leftover_text` | 1 | 0 | the model's own JSON had a stray closing brace |
+
+Every refusal was checked, the `schema_invalid` ones by the schema path that
+failed. None is a case where the function failed to parse a
+payload that was sound. Each is a payload the turn path could not have applied
+as written.
+
+The 18 `schema_invalid` break down as:
+
+- **10 before 08-15:** `resourcePools` as a map (6), `entities[id].status`
+  holding free text (3), or both (1).
+- **5 since, all from one turn** (`ccac7d1c__2026-08-18`, `turn24-scene-jump`
+  rep 9, the turn `ADR-0097` Addendum 3 records leaking ten times in a row):
+  `entities[id].status` holding free text such as "down, wounded, 8HP". `status`
+  became an enum at the tool boundary on 2026-08-21 (`702762c`), so these too
+  were acceptable when written.
+- **3 since, model errors:** one `armor_damage` entry with `destroyed: false`,
+  which the schema has required to be `true` since 08-15; one where the real
+  `gmUpdates` parameter arrived as a string of markup; and one with both.
+
+So of the 12 refusals since the schema change, 5 are schema drift, 3 are the
+model sending a value the schema rejects, and 4 are shapes the function
+declines by design.
+
+#### What this does and does not show
+
+- **Shape, not correctness.** A recovery here means the result passed
+  `submitGmResponseSchema`. That the right value went to the right field is
+  shown by the 35 hand-written cases in
+  `session.tool-syntax-recovery.cases.ts`, not by this count.
+- **The corpus is weighted.** A handful of fixtures (`turn24-*`,
+  `2c0ba938-*`) supply most of the leaks. 89.5% is a rate over archived leaks,
+  not a promise about play. The number that matters is turns abandoned on the
+  next eval-v2 run, against 4 of 50 on `2026-10-04T03-14-41Z`.
+- **The schema-invalid refusals are the next thing to consider.** A payload
+  that leaks and is also schema-invalid is refused, and falls to the leak retry,
+  which rarely works. The same payload arriving clean would get the
+  malformed-payload retry with the schema error, which does work. Spec 026
+  lists handing the schema error back in this case as not built. 3 of 114
+  current-schema leaks would have used it.

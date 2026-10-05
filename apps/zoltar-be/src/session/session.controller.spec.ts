@@ -13,6 +13,7 @@ import {
   SessionCorrectionError,
   SessionOutputError,
   SessionPreconditionError,
+  SessionToolSyntaxError,
 } from './session.service';
 
 const fakeUser = { id: 'u1', email: 'a@x.test', name: 'Alice' };
@@ -142,6 +143,23 @@ describe('SessionController', () => {
       await expect(
         controller.sendMessage('c1', 'a1', dto, fakeUser),
       ).rejects.toBeInstanceOf(BadGatewayException);
+    });
+
+    it('returns 502 with gm_tool_syntax_unrecoverable code when SessionToolSyntaxError fires', async () => {
+      sessionService.sendMessage.mockRejectedValue(
+        new SessionToolSyntaxError('leaked twice', [
+          {
+            pass: 'tool_loop',
+            rawInput: { playerText: 'x</playerText>' },
+            outcome: 'rejected',
+          },
+        ]),
+      );
+      await expect(
+        controller.sendMessage('c1', 'a1', dto, fakeUser),
+      ).rejects.toMatchObject({
+        response: { error: 'gm_tool_syntax_unrecoverable' },
+      });
     });
 
     it('returns 502 with gm_correction_failed code when SessionCorrectionError fires', async () => {

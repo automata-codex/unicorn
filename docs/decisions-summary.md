@@ -282,7 +282,7 @@ The `actingEntityId` namespace mismatch that inverted `system-rolled-player-acti
 
 ### [ADR-0097](decisions/0097-a-schema-valid-submit-gm-response-is-not-necessarily-well-fo.md) — A schema-valid `submit_gm_response` is not necessarily well-formed
 
-The tool-syntax leak — schema-valid responses whose payload was serialized into `playerText` — its measurement, and the deterministic guard that catches it. Read the addenda before citing the body: they supersede the retry reasoning (the budget is 1, not the loop cap) and replace the prompt-block mitigation with tool-schema descriptions.
+The tool-syntax leak — schema-valid responses whose payload was serialized into `playerText` — its measurement, and the deterministic guard that catches it. Read the addenda before citing the body: they supersede the retry reasoning (the budget is 1, not the loop cap), replace the prompt-block mitigation with tool-schema descriptions, and (Addendum 4) put recovery of the leaked payload ahead of the retry and correct the body's reading of the parameter boundary.
 
 ---
 

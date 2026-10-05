@@ -7,6 +7,7 @@ import {
   SessionPreconditionError,
   SessionService,
   SessionToolLoopError,
+  SessionToolSyntaxError,
 } from './session.service';
 
 import type Anthropic from '@anthropic-ai/sdk';
@@ -384,5 +385,142 @@ describe('SessionService.sendMessage', () => {
     );
     expect(callSession).toHaveBeenCalledTimes(2);
     expect(applyTurnAtomic).not.toHaveBeenCalled();
+  });
+
+  // A `submit_gm_response` whose `gmUpdates` was written into `playerText`
+  // as text. Schema-valid, since `playerText` is the only required field,
+  // and recoverable.
+  const RECOVERABLE_LEAK = {
+    playerText:
+      'The lever refuses to move.</playerText>\n' +
+      '<parameter name="gmUpdates">{"notes":"stuck"}</parameter>',
+  };
+  // A leak recovery refuses: it calls another tool from inside the text.
+  const UNRECOVERABLE_LEAK = {
+    playerText:
+      'The lever refuses to move.</playerText>\n' +
+      '<invoke name="rules_lookup">\n<parameter name="query">levers',
+  };
+  // Rejected by the validator (unknown pool owner), which triggers the
+  // single-shot correction pass.
+  const REJECTED_STATE_CHANGES = {
+    resourcePools: [
+      { owner: 'xenomorph', pool: 'hp', delta: -3, reason: 'clawed' },
+    ],
+  };
+
+  it('applies a recovered leak after one model call, and records it', async () => {
+    callSession.mockResolvedValueOnce(
+      toolUseMessage('submit_gm_response', RECOVERABLE_LEAK),
+    );
+    const applyTurnAtomic = makeApplyTurnAtomic();
+    const service = makeService(callSession, makeRepo({ applyTurnAtomic }));
+
+    await service.sendMessage(args);
+
+    expect(callSession).toHaveBeenCalledTimes(1);
+    const atomicArgs = applyTurnAtomic.mock.calls[0][0];
+    expect(atomicArgs.gmText).toBe('The lever refuses to move.');
+    expect(atomicArgs.gmResponse.gmUpdates).toEqual({ notes: 'stuck' });
+    expect(atomicArgs.telemetry.toolSyntaxLeaks).toEqual([
+      { pass: 'tool_loop', rawInput: RECOVERABLE_LEAK, outcome: 'recovered' },
+    ]);
+  });
+
+  it('does not show Claude its own leak when a recovered turn needs correcting', async () => {
+    callSession
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_response', {
+          ...RECOVERABLE_LEAK,
+          stateChanges: REJECTED_STATE_CHANGES,
+        }),
+      )
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_response', { playerText: 'Corrected.' }),
+      );
+    const service = makeService(callSession, makeRepo());
+
+    await service.sendMessage(args);
+
+    const correctionRequest = callSession.mock.calls[1][0];
+    expect(JSON.stringify(correctionRequest.messages)).not.toContain(
+      '</playerText>',
+    );
+  });
+
+  it('applies a leak recovered on the correction pass', async () => {
+    callSession
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_response', {
+          playerText: 'Damage applied.',
+          stateChanges: REJECTED_STATE_CHANGES,
+        }),
+      )
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_response', RECOVERABLE_LEAK),
+      );
+    const applyTurnAtomic = makeApplyTurnAtomic();
+    const service = makeService(callSession, makeRepo({ applyTurnAtomic }));
+
+    await service.sendMessage(args);
+
+    const atomicArgs = applyTurnAtomic.mock.calls[0][0];
+    expect(atomicArgs.gmText).toBe('The lever refuses to move.');
+    expect(atomicArgs.telemetry.toolSyntaxLeaks).toEqual([
+      { pass: 'correction', rawInput: RECOVERABLE_LEAK, outcome: 'recovered' },
+    ]);
+  });
+
+  it('throws SessionToolSyntaxError, carrying the payload, when the correction pass leaks beyond recovery', async () => {
+    // There is no retry to hand a correction-pass leak to.
+    callSession
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_response', {
+          playerText: 'Damage applied.',
+          stateChanges: REJECTED_STATE_CHANGES,
+        }),
+      )
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_response', UNRECOVERABLE_LEAK),
+      );
+    const applyTurnAtomic = makeApplyTurnAtomic();
+    const service = makeService(callSession, makeRepo({ applyTurnAtomic }));
+
+    const err = await service.sendMessage(args).catch((e) => e);
+
+    expect(err).toBeInstanceOf(SessionToolSyntaxError);
+    expect((err as SessionToolSyntaxError).leaks).toEqual([
+      {
+        pass: 'correction',
+        rawInput: UNRECOVERABLE_LEAK,
+        outcome: 'rejected',
+        refusal: 'other_tool_call',
+      },
+    ]);
+    expect(applyTurnAtomic).not.toHaveBeenCalled();
+  });
+
+  it('passes a rejected leak through to telemetry when the retry comes back clean', async () => {
+    callSession
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_response', UNRECOVERABLE_LEAK),
+      )
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_response', { playerText: 'ok' }),
+      );
+    const applyTurnAtomic = makeApplyTurnAtomic();
+    const service = makeService(callSession, makeRepo({ applyTurnAtomic }));
+
+    await service.sendMessage(args);
+
+    const atomicArgs = applyTurnAtomic.mock.calls[0][0];
+    expect(atomicArgs.telemetry.toolSyntaxLeaks).toEqual([
+      {
+        pass: 'tool_loop',
+        rawInput: UNRECOVERABLE_LEAK,
+        outcome: 'rejected',
+        refusal: 'other_tool_call',
+      },
+    ]);
   });
 });

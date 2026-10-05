@@ -10,7 +10,12 @@ import {
 } from '../test/db-test-helper';
 
 import { parseFixture } from './fixture';
-import { findPrereqs, seedScratch, teardownScratch } from './replay';
+import {
+  findPrereqs,
+  readToolSyntaxLeaks,
+  seedScratch,
+  teardownScratch,
+} from './replay';
 
 // Seeding and teardown only. The turn itself makes a real Anthropic call and
 // is exercised by a one-rep `task ev2:run`, never from here.
@@ -149,5 +154,32 @@ describe('seedScratch and teardownScratch', () => {
     }
     expect(await db.select().from(schema.users)).toHaveLength(1);
     expect(await db.select().from(schema.gameSystems)).toHaveLength(1);
+  });
+});
+
+describe('readToolSyntaxLeaks', () => {
+  it("returns the latest telemetry row's leaks, and none when there is no row", async () => {
+    const db = getTestDb();
+    await seedPrereqRows();
+    const prereqs = await findPrereqs(db);
+    const scratch = await seedScratch(db, fixture, prereqs, '__ev2__test');
+
+    expect(await readToolSyntaxLeaks(db, scratch.adventureId)).toEqual([]);
+
+    const leak = {
+      pass: 'tool_loop',
+      rawInput: { playerText: 'x</playerText>' },
+      outcome: 'rejected',
+    };
+    await db.insert(schema.adventureTelemetry).values([
+      { adventureId: scratch.adventureId, sequenceNumber: 1, payload: {} },
+      {
+        adventureId: scratch.adventureId,
+        sequenceNumber: 2,
+        payload: { toolSyntaxLeaks: [leak] },
+      },
+    ]);
+
+    expect(await readToolSyntaxLeaks(db, scratch.adventureId)).toEqual([leak]);
   });
 });

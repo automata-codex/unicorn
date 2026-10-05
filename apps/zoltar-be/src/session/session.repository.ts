@@ -32,6 +32,7 @@ import type {
   RulesLookupRecord,
   WardenPromptRef,
 } from './session.telemetry';
+import type { ToolSyntaxLeakRecord } from './session.tool-syntax';
 import type {
   ThresholdCrossing,
   ValidationRejection,
@@ -81,6 +82,8 @@ export interface TelemetryInputs {
   rulesLookups: RulesLookupRecord[];
   /** Inner tool-loop iteration count. */
   toolLoopIterations: number;
+  /** Leaked `submit_gm_response` payloads seen this turn; omitted means none. */
+  toolSyntaxLeaks?: ToolSyntaxLeakRecord[];
   /** Warden prompt in effect this turn — filename + 8-char hash prefix. */
   wardenPrompt: WardenPromptRef;
 }
@@ -709,6 +712,7 @@ export class SessionRepository {
         diceRolls: [...args.telemetry.preTurnPlayerRolls, ...systemRollRecords],
         rulesLookups: args.telemetry.rulesLookups,
         toolLoopIterations: args.telemetry.toolLoopIterations,
+        toolSyntaxLeaks: args.telemetry.toolSyntaxLeaks,
         wardenPrompt: args.telemetry.wardenPrompt,
         previousGmContextHash,
       });

@@ -186,6 +186,11 @@ export class SessionController {
       this.logger.error(
         `GM leaked tool-call syntax unrecoverably for adventure=${adventureId}: ${err.message}`,
       );
+      // An abandoned turn writes no telemetry row, so this log line is the
+      // only record of what the leaked payloads looked like.
+      this.logger.error(
+        `Leaked payloads for adventure=${adventureId}: ${JSON.stringify(err.leaks)}`,
+      );
       throw new BadGatewayException({
         error: 'gm_tool_syntax_unrecoverable',
         message:
