@@ -65,6 +65,19 @@ export function parseFixture(raw: unknown, label: string): Fixture {
       .join('; ');
     throw new Error(`fixture "${label}" is not replayable: ${issues}`);
   }
+
+  // Capture folds the player message that triggers the turn into the seeded
+  // history (`src/replay/reconstruct-state.ts` step 5), and the replay sends
+  // `playerInput.content` as that turn's input. `seedScratch` drops the
+  // seeded copy so the Warden sees the message once; a fixture that does not
+  // end this way has nothing safe to drop, so it is refused here.
+  const { playerInput, seededState } = result.data;
+  const last = seededState.messages.at(-1);
+  if (last?.role !== 'player' || last.content !== playerInput.content) {
+    throw new Error(
+      `fixture "${label}" is not replayable: the last seeded message must be the player message in playerInput.content`,
+    );
+  }
   return result.data;
 }
 

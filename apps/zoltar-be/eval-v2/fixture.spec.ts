@@ -13,6 +13,11 @@ function valid() {
       gmContextBlob: { playerEntityIds: ['danny'], openingNarration: 'Dark.' },
       messages: [
         { role: 'gm', content: 'Dark.', createdAt: '2026-08-24T21:11:05.056Z' },
+        {
+          role: 'player',
+          content: 'I look around.',
+          createdAt: '2026-08-24T21:11:40.000Z',
+        },
       ],
       pendingCanon: [],
       pendingDiceRequests: [] as unknown[],
@@ -65,6 +70,28 @@ describe('parseFixture', () => {
     const raw = valid();
     raw.seededState.messages[0].role = 'narrator';
     expect(() => parseFixture(raw, 'a-fixture')).toThrow(/messages\.0\.role/);
+  });
+});
+
+describe('the triggering player message', () => {
+  const error = /last seeded message must be the player message/;
+
+  it('rejects a history that ends on a different player message', () => {
+    const raw = valid();
+    raw.seededState.messages[1].content = 'Hello?';
+    expect(() => parseFixture(raw, 'a-fixture')).toThrow(error);
+  });
+
+  it('rejects a history that ends on a GM message', () => {
+    const raw = valid();
+    raw.seededState.messages.pop();
+    expect(() => parseFixture(raw, 'a-fixture')).toThrow(error);
+  });
+
+  it('rejects an empty history', () => {
+    const raw = valid();
+    raw.seededState.messages = [];
+    expect(() => parseFixture(raw, 'a-fixture')).toThrow(error);
   });
 });
 

@@ -89,6 +89,11 @@ export interface Scratch {
  * Writes a fixture's saved state into a new campaign and adventure, ready
  * for one turn. `name` becomes the campaign name, so leftovers from a
  * crashed run can be found by hand.
+ *
+ * The last seeded message is left out. It is the player message that
+ * triggers the turn (`parseFixture` checks this), and `sendMessage` inserts
+ * it again from `playerInput.content`; seeding it too would show the Warden
+ * that message one more time than production did.
  */
 export async function seedScratch(
   db: Db,
@@ -96,8 +101,8 @@ export async function seedScratch(
   prereqs: ReplayPrereqs,
   name: string,
 ): Promise<Scratch> {
-  const { campaignState, gmContextBlob, messages, pendingCanon } =
-    fixture.seededState;
+  const { campaignState, gmContextBlob, pendingCanon } = fixture.seededState;
+  const messages = fixture.seededState.messages.slice(0, -1);
 
   return db.transaction(async (tx) => {
     const [campaign] = await tx

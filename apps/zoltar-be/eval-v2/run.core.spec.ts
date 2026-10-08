@@ -62,7 +62,13 @@ describe('renderCaseMd', () => {
           playerEntityIds: ['danny'],
           openingNarration: 'Dark.',
         },
-        messages: [],
+        messages: [
+          {
+            role: 'player',
+            content: 'line one\nline two',
+            createdAt: '2026-08-24T21:11:40.000Z',
+          },
+        ],
         pendingCanon: [],
         pendingDiceRequests: [],
       },

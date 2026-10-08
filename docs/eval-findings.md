@@ -1530,3 +1530,69 @@ The candidate already on the board is a position field the Warden writes
 - **These cases cannot measure it as captured.** Each case replays one turn. A
   field the Warden writes on that turn is first read on the next one, so the
   fixtures would need a value seeded by hand.
+
+### S48 — 2026-10-08 · Every replay before today sent the triggering player message twice, so no earlier run is a before-number
+
+A defect in how both harnesses feed a captured turn, found by reading the
+fixtures and the turn code. Free: no run was made.
+
+#### What happened
+
+- Capture folds "messages up through and including the player message that
+  triggers turn N" into `seededState.messages`
+  (`apps/zoltar-be/src/replay/reconstruct-state.ts` step 5). That is by design.
+- Both harnesses seeded that list unchanged and then sent
+  `playerInput.content` as the turn's input. `SessionService.sendMessage`
+  inserts the incoming message again, and `buildSessionRequest` appends it
+  after the message window, which does not dedupe.
+- So the Warden's request ended with the same player message twice in a row.
+  Production saw it once.
+
+All 34 fixtures in `eval/fixtures/` end on a player message identical to
+`playerInput.content`, so every replayed turn carried the duplicate: every
+old-harness run, and both eval-v2 runs (`2026-10-04T03-05-01Z` and
+`2026-10-04T03-14-41Z`).
+
+`2c0ba938-turn01-seeded-canon-contradiction` was the worst case. Its source
+adventure already holds the OOC question twice (21:11:05 and 21:11:40 on
+2026-08-24, apparently a failed attempt and its retry), so a replay showed it
+three times with no GM reply between. Production saw it twice.
+
+#### The fix
+
+eval-v2 now leaves the last seeded message out when it seeds a scratch
+adventure (`seedScratch` in `apps/zoltar-be/eval-v2/replay.ts`), and
+`parseFixture` refuses a fixture whose last seeded message is not the player
+message in `playerInput.content`. The fixtures are unchanged, and so is what
+capture means. A constructed case has to end on its triggering message like a
+captured one.
+
+The old harness (`apps/zoltar-be/eval/harness-runner.ts`) is not fixed. No
+further run of it is planned (`docs/eval-methodology.md § Current baseline N`),
+and a run of it after this date would still carry the duplicate.
+
+#### What this does to earlier results
+
+- **Runs before the fix are not comparable with runs after it.** The change
+  alters what reaches the Warden on every case, which is the same test
+  `docs/eval-methodology.md § Two kinds of corpus bump` applies to an
+  input-affecting corpus edit, though no fixture and no corpus version moved.
+- **`§ S47` stands as a description of run `2026-10-04T03-14-41Z`.** Its
+  groups come from reading the narrations against the seeded history, and that
+  reading does not depend on the duplicate.
+- **`§ S47`'s counts are not a before-number.** Its prediction table compares
+  a future run against that run's fails per case. A drop on the next run
+  could be the movement rule or the missing duplicate, and one run cannot say
+  which.
+- **A reference run is owed only if the fails drop.** If the movement-rule
+  run shows no drop, the rule did not work and the confound does not matter.
+  If it does, the drop cannot be credited to the rule without a run on the
+  fixed harness with the prompt unchanged. Turns 14 and 18 are enough, since
+  the prediction rests on those two: 20 narrations to mark, not 60. That run
+  can follow the rule's run, at the cost of marking it with the rule's result
+  already known.
+- **Whether the duplicate caused any of the 20 fails is unknown.** Nothing in
+  the archive can show it. A reference run is what would.
+- **Old-harness results compare with each other as before.** Every one of
+  them carried the duplicate, so it is a constant across them. What they
+  measured is a Warden that was told each thing twice.
