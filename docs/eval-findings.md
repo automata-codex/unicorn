@@ -1356,3 +1356,177 @@ declines by design.
   malformed-payload retry with the schema error, which does work. Spec 026
   lists handing the schema error back in this case as not built. 3 of 114
   current-schema leaks would have used it.
+
+### S47 — 2026-10-08 · Question 1's 20 failing narrations: half are a ladder trip that should not be there, six repeat the session's own earlier error, and none misreads `ship_layout`
+
+A reading of eval-v2 run `2026-10-04T03-14-41Z` (question 1, 5 cases × 10 reps,
+prompt `mothership-m7.txt` `e83e8aaa`), marked under Rubric v1 as it stood after
+the 2026-10-07 re-marks: 21 pass, 20 fail, 2 na, 7 error, all five cases below
+the 0.90 bar. Free: it reads the narrations, `marks.csv` and the fixtures'
+seeded messages. No run was made.
+
+The question to settle first was whether a failing narration misreads the world
+facts or agrees with something the Warden said earlier in the seeded session.
+The answer is neither for most of them.
+
+#### The three groups
+
+| Group | Fails | Cases | In the seeded history? |
+|---|---|---|---|
+| A. A ladder trip that should not be there | 10 | turn 08 (3), turn 14 (5), turn 29 (2) | no |
+| B. Repeats the session's earlier error | 6 | turn 18 (6) | yes |
+| C. No stable position | 4 | turn 24 (4) | the history contradicts itself |
+
+**Group A: the destination's deck is right and the route is wrong.** The
+narration puts a deck change between two places on one deck, or one deck change
+too many.
+
+- Turn 08 rep 03: Danny leaves the bridge "back down the ladder shaft toward the
+  bridge access corridor", which is on the deck he is leaving.
+- Turn 08 rep 07: he goes down the ladder shaft and finds Mara at the records
+  terminal "behind the bridge". Both are on the upper deck.
+- Turn 08 rep 09: he takes the rungs and "surfaces onto the upper deck proper"
+  to reach the terminal "aft of the bridge". He was already on the upper deck.
+- Turn 14 reps 01, 02, 04, 08, 09: all go down "past mid-deck" to the cargo bay
+  from the mid-deck corridor outside the cryo bay.
+- Turn 29 rep 03: down "past mid-deck" to the engine room from the mess hall,
+  which is on mid-deck.
+- Turn 29 rep 06: "down through mid-deck, down again", from the same start.
+
+None of these is inherited. Turn 08's 16 seeded messages contain no layout
+error, and message 2 recites all three decks correctly. Turn 14's 28 messages
+put Danny on mid-deck twice in the eight before the turn and never say "past
+mid-deck". None misreads `ship_layout` either: where one of the ten names a
+place's deck it names the right one, and turn 08 reps 07 and 09 say "behind
+the bridge" and "aft of the bridge" in the same sentence as the ladder.
+
+What is wrong is where Danny is standing when the movement starts. Two of the
+turn 14 fails (reps 04 and 08) have the cryo bay "fading behind you" in the
+sentence that says "past mid-deck", so in those two the Warden has the start
+right and the phrase wrong. For the other eight the archive cannot tell a lost
+position from a stock phrase.
+
+**Group B: turn 18 repeats what the session already said.** The seeded history
+for turn 18 holds the session's real turn 14 narration (message 28, counting
+from 0 in the fixture's `seededState.messages`): "you climb
+down together, past mid-deck and on toward the lower deck", then "Her berth is
+a cramped closet of a room". `ship_layout` puts crew berths on mid-deck.
+
+- Reps 01, 02, 03, 05: "You head back down to the lower deck" to reach the
+  berth.
+- Reps 06, 09: "You head back down to Mara's berth."
+
+All six agree with message 28 and contradict `ship_layout`. This is the group
+the `marks.csv` note on rep 01 describes.
+
+The two passes do not show the Warden getting it right. Reps 07 and 10 say "the
+walk back to Mara's berth" and name no deck, and the two na reps name none
+either. No rep of the eight marked puts the berth on mid-deck. The case's 2 of
+8 measures how often the narration leaves the deck out, and the rate at which
+the Warden follows message 28 over `ship_layout` may be nearer 8 of 8.
+
+**Group C: turn 24 has four different wrong answers.** The start is Mara's
+berth, which the history puts on the lower deck.
+
+- Rep 06: Teo's bunk near the mess is "two decks down". Nothing is two decks
+  below the lower deck, and the same narration has the engine "somewhere
+  below".
+- Rep 07: the mess hall is "two decks up", which is the upper deck.
+- Rep 08: Danny heads "down toward the lower deck and the crew berths".
+- Rep 09: the ladder shaft takes him "back down toward the mess hall".
+
+No two agree. None follows the history's start, from which the mess is one deck
+up (reps 02 and 03 say so and pass), and none follows the seeded layout, on
+which the bunk is along the same deck. Rep 08 alone carries part of group B's
+error, berths on the lower deck.
+
+The history gives the Warden nothing stable to follow by this turn. Messages 28
+and 38 put the berth on the lower deck. Message 45, spoken in the berth, has
+the colonists "asleep two decks from here" and the bridge "two decks up": the
+cryo bay is one deck from the lower deck and none from mid-deck. "Two decks"
+is the phrase reps 06 and 07 reuse.
+
+#### The thrown turns, kept apart
+
+Seven reps threw and have no narration. They are in none of the groups.
+
+| Error | Reps |
+|---|---|
+| `SessionCorrectionError` | turn 08 reps 02, 05, 08 |
+| `SessionToolSyntaxError` | turn 14 rep 05; turn 24 reps 01, 04, 10 |
+
+The four tool-leak throws are what spec `026-tool-leak-recovery` was built for,
+and its live check is owed on the next run (`§ S46`). The three correction
+throws are all on turn 08 and nowhere else in 50 turns. The rep files record
+the error name and a stack trace, not what the correction round rejected, so
+the archive cannot say why.
+
+#### What this does and does not show
+
+- **No failure is a misreading of the seeded facts.** Wherever a narration
+  names a deck for a place the history has not already misplaced, it names the
+  right one. Restating `ship_layout` more clearly is not a fix for any of the
+  20. `§ S44` could not detect an effect from restructuring it.
+- **Inherited error is one case, not the pattern.** It accounts for 6 of 20,
+  all on turn 18, plus part of one turn 24 rep.
+- **The archive cannot separate the causes cleanly.** That takes a run of turn
+  18 with message 28 corrected, and of turn 14 with Danny's deck stated. Both
+  are hand-edited cases, which eval-v2 has no home for yet.
+- **Ten reps per case is thin.** Turn 29's 2 of 10 and turn 08's 3 of 7 would
+  not be surprising from one underlying rate.
+- **Rubric v1 marks layout only**, so nothing here covers characters, counts or
+  timelines.
+
+#### Candidate fix: a movement rule in the Warden prompt
+
+`mothership-m7.txt` says nothing about where a character is, about counting
+decks, or about what to do when earlier narration and a world fact disagree.
+The candidate is one short rule covering all three:
+
+- Before narrating movement, take the character's current place from the most
+  recent narration and the destination's deck from the world facts.
+- Narrate a deck change only when the two decks differ, and name each deck
+  crossed once.
+- Where earlier narration and a world fact disagree about where a place is,
+  the world fact stands, and the narration names the deck so the correction
+  is on the page.
+
+It needs no schema change, and it can be tested on the five captured cases as
+they are.
+
+**Prediction**, written before the rule is drafted, for one run of question 1
+at 10 reps per case, marked under Rubric v1:
+
+| Case | 2026-10-04 fails | Predicted fails | |
+|---|---|---|---|
+| turn 08 | 3 of 7 | at most 1 | |
+| turn 14 | 5 of 9 | at most 1 | the clearest test of the first two lines |
+| turn 18 | 6 of 8 | at most 2, with at least one rep naming mid-deck for the berth | the only test of the third line |
+| turn 29 | 2 of 10 | 0 or 1 | too few to count as a test |
+| turn 24 | 4 of 7 | no prediction | see below |
+
+- **If turn 14 falls and turn 18 does not**, a prompt rule does not outweigh
+  the session's own narration, and group B needs the record corrected, not
+  another instruction.
+- **Turn 24 is why the third line asks for the deck by name.** A Warden that
+  puts the world fact first believes Danny is on mid-deck and could write
+  "Teo's bunk is along this deck". On the page, after a history that put the
+  berth on the lower deck, that sentence puts Teo's bunk there too, and
+  Rubric v1 marks it a fail. Naming mid-deck passes, whether the narration
+  says nothing of the earlier error (as rep 02 did) or says it had the berths
+  wrong. There is no number for this case because its four fails share no
+  single cause for the rule to remove.
+
+#### What this says about `current_location`
+
+The candidate already on the board is a position field the Warden writes
+(`ADR-0101`). This reading leaves it standing but behind the prompt rule:
+
+- **It aims at groups A and C only.** Group B is an error about where a place
+  is, not where Danny is.
+- **Group B is `ADR-0101`'s warning observed.** The Warden said "lower deck"
+  once at turn 14 and followed it in at least 6 of 8 reps at turn 18. A field
+  it writes itself would carry the same value with more authority.
+- **These cases cannot measure it as captured.** Each case replays one turn. A
+  field the Warden writes on that turn is first read on the next one, so the
+  fixtures would need a value seeded by hand.
