@@ -51,6 +51,12 @@ const fixture = parseFixture(
           content: 'Hello?',
           createdAt: '2026-08-24T21:01:00.000Z',
         },
+        // The message that triggers the turn, as capture leaves it.
+        {
+          role: 'player',
+          content: 'I look around.',
+          createdAt: '2026-08-24T21:02:00.000Z',
+        },
       ],
       pendingCanon: [
         {
@@ -120,6 +126,8 @@ describe('seedScratch and teardownScratch', () => {
       .from(schema.messages)
       .where(eq(schema.messages.adventureId, scratch.adventureId))
       .orderBy(schema.messages.createdAt);
+    // Not 'I look around.': `sendMessage` inserts the triggering message
+    // itself, so seeding it would send it to the Warden twice.
     expect(messages.map((m) => m.content)).toEqual(['Dark.', 'Hello?']);
     expect(messages[0].createdAt.toISOString()).toBe(
       '2026-08-24T21:00:00.000Z',
