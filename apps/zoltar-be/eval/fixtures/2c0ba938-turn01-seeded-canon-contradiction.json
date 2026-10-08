@@ -1,0 +1,320 @@
+{
+  "id": "2c0ba938-turn01-seeded-canon-contradiction",
+  "tag": "SEEDED-CANON-CONTRADICTION",
+  "sourceAdventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+  "sourceSequenceNumber": 1,
+  "fixtureSchemaVersion": 3,
+  "seededState": {
+    "campaignState": {
+      "flags": {
+        "cryo_bay_breached": {
+          "value": false,
+          "trigger": "Flip to true when a cryo pod is physically opened or damaged, exposing a colonist host to the outbreak or the parasite to the ship at large."
+        },
+        "adventure_complete": {
+          "value": false,
+          "trigger": "Flip to true when the player either seals the parasite outbreak and stabilizes the hull long enough to reach the relay beacon, OR the ship is lost/abandoned (escape pods launched or player character dies), resolving the central survival arc."
+        },
+        "mara_found_the_logs": {
+          "value": false,
+          "trigger": "Flip to true when the player or Mara physically accesses the falsified maintenance logs in the engineering records terminal."
+        },
+        "hull_cascade_triggered": {
+          "value": false,
+          "trigger": "Flip to true when a structural stress event (explosion, collision, or deliberate sabotage) initiates the first breach in the cascade sequence."
+        },
+        "insurance_scam_exposed": {
+          "value": false,
+          "trigger": "Flip to true when Mara (or the player) connects the falsified logs to the insurance payout structure and confronts the captain or transmits the evidence off-ship."
+        },
+        "parasite_outbreak_known": {
+          "value": false,
+          "trigger": "Flip to true when a crew member or the player directly witnesses a host exhibiting motor-control loss and identifies it as infection rather than illness or injury."
+        },
+        "mara_becomes_threat_to_captain": {
+          "value": false,
+          "trigger": "Flip to true when insurance_scam_exposed is true and Mara moves to act on the evidence — confronting, sabotaging, or transmitting."
+        }
+      },
+      "entities": {
+        "mara_odinsen": {
+          "status": "unknown",
+          "visible": true,
+          "crewRole": "cargo_handler",
+          "revealed": true,
+          "instinctRoll": [
+            5,
+            5
+          ]
+        },
+        "cryo_bay_feature": {
+          "status": "unknown",
+          "visible": false,
+          "revealed": true
+        },
+        "parasitic_organism": {
+          "status": "unknown",
+          "visible": false,
+          "revealed": false
+        },
+        "hull_breach_cascade": {
+          "status": "unknown",
+          "visible": false,
+          "revealed": true
+        },
+        "falsified_maintenance_logs": {
+          "status": "unknown",
+          "visible": false,
+          "revealed": false
+        }
+      },
+      "worldFacts": {
+        "ship_layout": "The Halbrecht is a long colony transport with three decks linked by a single central ladder shaft. Upper deck: bridge, comms array, captain's quarters, engineering records terminal (aft of bridge). Mid deck: crew berths, mess hall, medbay, and the cryo bay (a vast, cold chamber holding hundreds of pods, accessible only from mid-deck via a heavy blast door). Lower deck: cargo bay, engine room, life support processing, and the aft airlock. The ladder shaft is the only fast route between decks; it is narrow, poorly lit, and prone to sudden pressure differentials during hull stress events. The engine room and life support processing sit adjacent to a section of hull already showing stress fractures — the likely origin point of any breach cascade.",
+        "colonist_count": "412 colonists in cryo suspension across the mid-deck cryo bay, tended automatically; active crew numbers six including Danny and Mara.",
+        "danny_relationship": "Danny and Mara shipped together before; he half-trusts her paranoia about corporate malfeasance but has no direct stake in her crusade — yet.",
+        "communications_status": "Long-range comms are down for repairs the captain claims were 'scheduled'; the nearest relay beacon is three weeks out at current burn."
+      },
+      "resourcePools": {
+        "danny": {
+          "hp": {
+            "max": 13,
+            "current": 13
+          },
+          "body": {
+            "max": 26,
+            "current": 26
+          },
+          "fear": {
+            "max": 40,
+            "current": 40
+          },
+          "speed": {
+            "max": 37,
+            "current": 37
+          },
+          "combat": {
+            "max": 48,
+            "current": 48
+          },
+          "sanity": {
+            "max": 35,
+            "current": 35
+          },
+          "stress": {
+            "max": null,
+            "current": 2
+          },
+          "wounds": {
+            "max": 2,
+            "current": 0
+          },
+          "credits": {
+            "max": null,
+            "current": 60
+          },
+          "strength": {
+            "max": 44,
+            "current": 44
+          },
+          "intellect": {
+            "max": 40,
+            "current": 40
+          }
+        },
+        "_scenario": {
+          "timer": {
+            "max": 6,
+            "current": 6
+          },
+          "hull_integrity": {
+            "max": 8,
+            "current": 8
+          }
+        }
+      },
+      "scenarioState": {},
+      "schemaVersion": 1
+    },
+    "gmContextBlob": {
+      "entities": [
+        {
+          "id": "mara_odinsen",
+          "tags": [
+            "union_enforcer",
+            "political",
+            "confrontational",
+            "authority_challenge"
+          ],
+          "type": "npc",
+          "visible": true,
+          "crewRole": "cargo_handler",
+          "revealed": true,
+          "startingPosition": {
+            "x": 2,
+            "y": 1,
+            "z": 0
+          }
+        },
+        {
+          "id": "parasitic_organism",
+          "tags": [
+            "biological",
+            "body_horror",
+            "transmission",
+            "slow_onset"
+          ],
+          "type": "threat",
+          "visible": false,
+          "revealed": false,
+          "startingPosition": {
+            "x": 8,
+            "y": 4,
+            "z": 0
+          }
+        },
+        {
+          "id": "cryo_bay_feature",
+          "tags": [
+            "cryo",
+            "vulnerable_cargo",
+            "moral_weight",
+            "high_population"
+          ],
+          "type": "feature",
+          "visible": false,
+          "revealed": true,
+          "startingPosition": {
+            "x": 8,
+            "y": 3,
+            "z": 0
+          }
+        },
+        {
+          "id": "falsified_maintenance_logs",
+          "tags": [
+            "corporate",
+            "sabotage",
+            "conspiracy",
+            "evidence"
+          ],
+          "type": "feature",
+          "visible": false,
+          "revealed": false,
+          "startingPosition": {
+            "x": 1,
+            "y": 2,
+            "z": 0
+          }
+        },
+        {
+          "id": "hull_breach_cascade",
+          "tags": [
+            "structural",
+            "isolation",
+            "no_rescue",
+            "environmental_hazard"
+          ],
+          "type": "threat",
+          "visible": false,
+          "revealed": true,
+          "startingPosition": {
+            "x": 5,
+            "y": 6,
+            "z": 0
+          }
+        }
+      ],
+      "narrative": {
+        "atmosphere": "Cold, dim, and too quiet. Emergency lighting has replaced half the fixtures because the main grid keeps browning out. The recycled air tastes metallic. Every groan of the hull sounds like it could be the last one. There is no one to call for help and everyone aboard knows it.",
+        "npcAgendas": {
+          "danny": "Teamster hauling freight and half-listening to Mara's paranoia until the ship starts proving her right.",
+          "mara_odinsen": "Union enforcer traveling under a cargo-handler contract. She is auditing hazard-pay clauses and evacuation protocols because something about this run smelled wrong before they even broke orbit. She trusts no officer and is quietly building a case file. If she learns the mission was designed to fail, she will try to force an emergency return or go public with what she finds, regardless of the cost to the company."
+        },
+        "hiddenTruth": "The Halbrecht is insured for far more than it's worth operational, and the company quietly greenlit this run knowing the hull would likely fail catastrophically before reaching the colony site — a designed loss, with hazard-multiplier payouts for crew and colonist casualties baked into the actuarial math. The parasitic organism loose in the cryo bay was a known risk the company chose not to disclose, because losing colonists to infection only sweetens the claim.",
+        "oracleConnections": "The union enforcer Mara is the one person aboard positioned to notice the mission itself violates labor law and hazard-clause obligations — if she connects the falsified maintenance logs to the insurance payout structure, she becomes a direct political threat to whoever aboard is complicit in the scam. The parasitic organism, discovered among the cryo pods, represents the company's foreknowledge made flesh: hundreds of immobile colonists are both a horror and a possible containment strategy. The isolation of deep transit means the hull's structural failures and the parasite's slow spread both have to be handled with no outside help — every choice is final.",
+        "scenarioPremise": "The colony transport ESV Halbrecht, three weeks out from the nearest relay beacon, running on a skeleton crew of six while four hundred and twelve colonists sleep in cryo. The ship is old, its maintenance logs falsified, and its bones are tired."
+      },
+      "structured": {
+        "flags": {
+          "cryo_bay_breached": {
+            "value": false,
+            "trigger": "Flip to true when a cryo pod is physically opened or damaged, exposing a colonist host to the outbreak or the parasite to the ship at large."
+          },
+          "adventure_complete": {
+            "value": false,
+            "trigger": "Flip to true when the player either seals the parasite outbreak and stabilizes the hull long enough to reach the relay beacon, OR the ship is lost/abandoned (escape pods launched or player character dies), resolving the central survival arc."
+          },
+          "mara_found_the_logs": {
+            "value": false,
+            "trigger": "Flip to true when the player or Mara physically accesses the falsified maintenance logs in the engineering records terminal."
+          },
+          "hull_cascade_triggered": {
+            "value": false,
+            "trigger": "Flip to true when a structural stress event (explosion, collision, or deliberate sabotage) initiates the first breach in the cascade sequence."
+          },
+          "insurance_scam_exposed": {
+            "value": false,
+            "trigger": "Flip to true when Mara (or the player) connects the falsified logs to the insurance payout structure and confronts the captain or transmits the evidence off-ship."
+          },
+          "parasite_outbreak_known": {
+            "value": false,
+            "trigger": "Flip to true when a crew member or the player directly witnesses a host exhibiting motor-control loss and identifies it as infection rather than illness or injury."
+          },
+          "mara_becomes_threat_to_captain": {
+            "value": false,
+            "trigger": "Flip to true when insurance_scam_exposed is true and Mara moves to act on the evidence — confronting, sabotaging, or transmitting."
+          }
+        }
+      },
+      "openingNarration": "The ladder shaft groans as you climb down to mid-deck, a long metallic sigh that seems to come from somewhere deeper than the hull plating should allow. The emergency lights out here run amber instead of white — half the fixtures on this level went dark two nights ago and nobody's fixed them yet. Your breath fogs faintly; environmental's been struggling to keep pace with the cryo bay's draw.\n\nMara Odinsen is waiting at the bottom of the ladder, arms crossed, a data slate tucked under one elbow like she's been standing there a while. \"You seeing this?\" she says, not quite a greeting, and taps the bulkhead beside her. A hairline crack runs along the seam, dusted with a faint rime of frost that shouldn't be there — condensation freezing in a gap that shouldn't exist on a ship this age, this maintained. Except it isn't maintained, not really, and you both know the captain's logs say otherwise.\n\nSomewhere above you, the ship groans again, and four hundred and twelve people sleep on, unaware that the sound might be the last warning anyone gets.",
+      "playerEntityIds": [
+        "danny"
+      ]
+    },
+    "pendingCanon": [],
+    "messages": [
+      {
+        "id": "2d4e4765-0a1f-4250-84e3-263cf035a1de",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "OOC: What do I know about this ship? About Mara?",
+        "createdAt": "2026-08-24T21:11:05.056Z"
+      },
+      {
+        "id": "e44234df-2b0e-4561-a945-fb3039b20b57",
+        "adventureId": "2c0ba938-ea80-4138-a95a-dc13e417bf2b",
+        "role": "player",
+        "content": "OOC: What do I know about this ship? About Mara?",
+        "createdAt": "2026-08-24T21:11:40.808Z"
+      }
+    ],
+    "pendingDiceRequests": [],
+    "precedingCommittedTurn": null,
+    "capturedAt": "2026-10-08T11:58:37.423Z"
+  },
+  "playerInput": {
+    "type": "message",
+    "content": "OOC: What do I know about this ship? About Mara?"
+  },
+  "applicability": {
+    "seeded-canon-contradiction": {
+      "applies": false,
+      "situation": "TODO: does this fixture's scenario call for the \"SEEDED-CANON-CONTRADICTION\" check? State why or why not — see the doc comment on applicabilitySchema in eval/fixture.schema.ts."
+    },
+    "out-of-order-resolution": {
+      "applies": false,
+      "situation": "TODO: does this fixture's scenario call for the \"out-of-order-resolution\" check? It attaches by applicability rather than by tag, so every capture is asked regardless of its own tag. If it does, set applies: true and name the playerEntity; if not, replace this with the reason the scenario does not call for it."
+    },
+    "system-rolled-player-action": {
+      "applies": false,
+      "situation": "TODO: does this fixture's scenario call for the \"system-rolled-player-action\" check? It attaches by applicability rather than by tag, so every capture is asked regardless of its own tag. If it does, set applies: true and name the playerEntity; if not, replace this with the reason the scenario does not call for it."
+    }
+  },
+  "assertion": {
+    "mode": "judged",
+    "rubric": "SEEDED-CANON-CONTRADICTION",
+    "facts": {
+      "TODO-fact-name": "TODO: fill in the fact this rubric asks for"
+    }
+  }
+}

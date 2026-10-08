@@ -8,6 +8,9 @@ export const CASES = {
   // correct against the seeded world facts and opening narration for labeled
   // cases on at least 90% of reps per case?
   q1: [
+    // Known failure: mid-deck lighting out "since day four", against the
+    // opening narration's "two nights ago".
+    '2c0ba938-turn01-seeded-canon-contradiction',
     // Known failures: wrong deck for the records terminal and the crew berths.
     '2c0ba938-turn08-seeded-canon-contradiction',
     '2c0ba938-turn14-seeded-canon-contradiction',
