@@ -108,6 +108,11 @@ not narrate how the work went. The test for whether a line belongs there: **a
 roadmap deliverable is a stable noun, and does not change as the work progresses.**
 Anything that churns is a Workflowy item.
 
+**To read the Workflowy board, use the `workflowy-tasks` skill** — it answers
+"what's current" and "what's next". The board id is in `.workflowy.json`; the
+skill is read-only, so changes to the board still go to the maintainer in the
+`docs/workflowy-template.md` format.
+
 **`docs/specs/`, `docs/plans/` and `docs/milestones/` are frozen** — they are dated
 accounts of what was true when written. Never rewrite a reference inside them to
 cite an identifier that did not exist at the time. This is enforced by
