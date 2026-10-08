@@ -1583,10 +1583,16 @@ and a run of it after this date would still carry the duplicate.
 - **`§ S47`'s counts are not a before-number.** Its prediction table compares
   a future run against that run's fails per case. A drop on the next run
   could be the movement rule or the missing duplicate, and one run cannot say
-  which. The movement-rule test needs its own reference run on the fixed
-  harness, with the prompt unchanged, before the rule is tried.
+  which.
+- **A reference run is owed only if the fails drop.** If the movement-rule
+  run shows no drop, the rule did not work and the confound does not matter.
+  If it does, the drop cannot be credited to the rule without a run on the
+  fixed harness with the prompt unchanged. Turns 14 and 18 are enough, since
+  the prediction rests on those two: 20 narrations to mark, not 60. That run
+  can follow the rule's run, at the cost of marking it with the rule's result
+  already known.
 - **Whether the duplicate caused any of the 20 fails is unknown.** Nothing in
-  the archive can show it. The reference run is what would.
+  the archive can show it. A reference run is what would.
 - **Old-harness results compare with each other as before.** Every one of
   them carried the duplicate, so it is a constant across them. What they
   measured is a Warden that was told each thing twice.
