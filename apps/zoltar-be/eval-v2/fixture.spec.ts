@@ -105,3 +105,31 @@ describe('CASES', () => {
     }
   }
 });
+
+describe('2c0ba938-turn18-berth-corrected', () => {
+  // The case is only a test of the two edits if nothing else moved.
+  it('differs from the captured turn 18 in messages 26 and 28 only', () => {
+    const captured = loadFixture('2c0ba938-turn18-seeded-canon-contradiction');
+    const corrected = loadFixture('2c0ba938-turn18-berth-corrected');
+
+    const changed = corrected.seededState.messages.flatMap((message, i) =>
+      message.content === captured.seededState.messages[i]?.content ? [] : [i],
+    );
+    expect(changed).toEqual([26, 28]);
+    expect(corrected.seededState.messages[28].content).toContain(
+      'along the mid-deck corridor',
+    );
+    expect(corrected.seededState.messages[28].content).not.toContain(
+      'lower deck',
+    );
+
+    expect({
+      ...corrected,
+      id: captured.id,
+      seededState: {
+        ...corrected.seededState,
+        messages: captured.seededState.messages,
+      },
+    }).toEqual(captured);
+  });
+});

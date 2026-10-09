@@ -15,6 +15,12 @@ export const CASES = {
     '2c0ba938-turn08-seeded-canon-contradiction',
     '2c0ba938-turn14-seeded-canon-contradiction',
     '2c0ba938-turn18-seeded-canon-contradiction',
+    // Constructed from turn 18, to ask whether its failure is inherited from
+    // the session's own narration. Two sentences of the seeded history are
+    // changed and nothing else: message 28 walks to Mara's berth along
+    // mid-deck where the session climbed down to the lower deck, and message
+    // 26 has her start toward the crew berths, not the ladder shaft.
+    '2c0ba938-turn18-berth-corrected',
     // Known failure: where Petrov is, against the crew roster.
     '2c0ba938-turn24-seeded-canon-contradiction',
     // Known good: Mara's "two decks from me" was correct.
