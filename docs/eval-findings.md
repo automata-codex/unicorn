@@ -2178,3 +2178,283 @@ is weaker than 8 of 9 suggests.
   `§ S53`'s and has more behind it.
 - **A pass that names no deck is weak evidence.** Any reading of a question 1
   rate should say how many of its passes are silent.
+
+### S56 — 2026-10-09 · Pre-registration: the tidy retracted turn 18 with Danny's position seeded as a world fact
+
+`§ S55` left turn 18 failing 10 of 10 because the Warden starts Danny below
+mid-deck, reading his position off message 36. This is the first run today
+that tests something that could be built: a recorded position, which is what
+the `current_location` candidate proposes (`ADR-0101`). Written before the run
+is made.
+
+#### The case
+
+`2c0ba938-turn18-position-seeded` is the tidy retracted case with one world
+fact added and nothing else changed, which `eval-v2/fixture.spec.ts` checks:
+
+```
+danny_location: At the cryo bay bulkhead, on mid-deck.
+```
+
+It is rendered with the other world facts in the snapshot's `<world_facts>`
+block. The prompt is unchanged, and says nothing about a location fact or
+about preferring one to the narration.
+
+The value is what a field written on the turn of message 36 would hold. It
+does not say Danny came back from the stores, or that he is not on the lower
+deck.
+
+One world fact already places him by implication. `cryo_bay_bulkhead_patch`,
+which the Warden wrote, opens "Danny has sealant-taped the visible stress
+fractures along the cryo bay bulkhead weld seam". The retracted cases failed
+with it in the snapshot.
+
+#### The run and what it is read against
+
+One run of this case alone, 10 reps, prompt `e83e8aaa`, marked under Rubric v1
+as `§ S53` and `§ S55` were. The before-number is the tidy retracted case, 0 of
+10 (`2026-10-09T18-19-03Z`). Against 0 of 10, 5 of 10 or more is a shown
+difference (`§ S54`).
+
+Following `§ S55`, the write-up will count the passes that name no deck and
+narrate no route apart from those that place Danny or the berth.
+
+#### Prediction
+
+**At least 5 of 10 pass.** Not held firmly. For it: the fact agrees with what
+message 36 says when read to the end, so it settles an ambiguity and does not
+have to overrule a statement. Against it: `ship_layout` is a world fact too,
+and lost to the session's narration in every run until the narration was
+changed.
+
+- **5 or more:** a recorded position is followed, at least where the history
+  does not flatly contradict it. The `current_location` candidate is worth
+  designing, with `worldFacts` a workable home for it.
+- **1 or fewer:** a position held as a world fact does not outweigh the
+  Warden's reading of its own narration. The candidate needs a different home
+  or a different form before it is built: its own block in the snapshot, a
+  line in the prompt that names it, or both.
+- **2 to 4:** it helps and is not enough as it stands.
+
+#### What this cannot show
+
+- **Whether the Warden would write the value correctly.** It is seeded by
+  hand. `ADR-0101`'s warning is that nothing validates a field the Warden
+  authors, and a wrong value is then read back as settled on every later turn.
+  `§ S51` is that warning observed for narration.
+- **Whether it holds against a history that contradicts it outright**, as
+  message 28 contradicted `ship_layout`.
+- **Any other turn.** Turns 14 and 29 are not in this run.
+- **The marking is not blind**, as before.
+
+### S57 — 2026-10-09 · A position seeded as a world fact is mostly not followed: 2 of 10, one of them silent
+
+Run `2026-10-09T18-39-07Z`, made and hand-marked by the maintainer under Rubric
+v1: the constructed case `2c0ba938-turn18-position-seeded` alone, 10 reps,
+prompt `e83e8aaa`, unicorn `728385e`. The prediction is `§ S56`.
+
+#### The result
+
+| Case | Run | pass | fail |
+|---|---|---|---|
+| turn 18, tidy retracted | `2026-10-09T18-19-03Z` | 0 | 10 |
+| the same, with `danny_location` seeded | `2026-10-09T18-39-07Z` | 2 | 8 |
+
+`§ S56` predicted at least 5 of 10 passing. Two did, which against 0 of 10 is
+not a shown difference. No turn threw. One tool leak was recorded and
+recovered (rep 07).
+
+#### What the narrations say
+
+| Danny goes… | Reps |
+|---|---|
+| "back up", from the lower deck stores or the ladder shaft | 03, 04, 05, 06, 07, 09 |
+| "back to mid-deck", no direction | 01, 02 |
+| "back along the mid-deck corridor" | 08 |
+| "back to Mara's berth", no deck and no route | 10 |
+
+Rep 08 is the one narration that has Danny where the fact says he is. Rep 10
+passes by naming nothing (`§ S55`). Counted as `§ S56` said they would be,
+that is one pass that places him and one silent.
+
+Rep 03 again names the stores as where he is coming from: "You head back up
+through the lower deck stores".
+
+#### Reading it
+
+`§ S56` gave 2 to 4 as "it helps and is not enough as it stands" and 1 or
+fewer as "does not outweigh the Warden's reading of its own narration". With
+one of the two passes silent, the second reading is the nearer one. Six of ten
+narrations still start Danny on the lower deck with a world fact in the
+snapshot saying he is on mid-deck.
+
+That makes three things in the snapshot the Warden has not followed over its
+narration: `ship_layout` against message 28, `cryo_bay_bulkhead_patch` in the
+retracted cases, and now `danny_location`. The only things that have changed
+what it narrates are changes to the narration: message 28 corrected
+(`§ S51`), and a correction added to the history (`§ S53`).
+
+#### What follows
+
+- **`worldFacts` alone is not a workable home for a position.** The
+  `current_location` candidate, as a world fact with no change to the prompt,
+  would not have fixed this turn.
+- **Untested: the same fact with the prompt naming it.** `§ S49`'s movement
+  rule is not that test. Its first line told the Warden to take the position
+  from the most recent narration, which is the behavior failing here.
+- **Untested: the position stated plainly in the narration**, which is
+  `§ S58`.
+
+### S58 — 2026-10-09 · Pre-registration: the tidy retracted turn 18 with the return to mid-deck stated in the narration
+
+`§ S55` recorded the maintainer's reading that the Warden follows message 36's
+trip down to the stores and misses its two-word return. `§ S57` showed a world
+fact does not repair that. This run tests the reading directly, and with it
+whether position can be carried by what the Warden narrates. Written before
+the run is made.
+
+#### The case
+
+`2c0ba938-turn18-return-stated` is the tidy retracted case with one sentence
+of the Warden message before the turn changed and nothing else, which
+`eval-v2/fixture.spec.ts` checks. It has no `danny_location` fact.
+
+| | |
+|---|---|
+| Captured | "Back up at the cryo bay bulkhead, the cracks look worse up close than they did from a glance:" |
+| Changed | "You climb back up the ladder shaft to mid-deck — Deck 2 — and walk round to the cryo bay bulkhead. Up close, the cracks look worse than they did from a glance:" |
+
+The return now has what the trip down has: a verb, a route and a named deck.
+The base is the tidy case and not the seeded one, so that a pass is the
+narration's doing alone.
+
+#### The run and what it is read against
+
+One run of this case alone, 10 reps, prompt `e83e8aaa`, marked under Rubric v1
+as the last three runs were. The before-number is the tidy retracted case, 0
+of 10 (`2026-10-09T18-19-03Z`); 5 of 10 or more is a shown difference. Silent
+passes are counted apart.
+
+#### Prediction
+
+**At least 7 of 10 pass, at least 5 of them placing Danny or his route on
+mid-deck.** Every change to the narration today has changed what the Warden
+narrates next, and this one states the thing it has been getting wrong.
+
+- **7 or more:** the Warden reads the character's position off explicit
+  statements of movement in its own narration, and loses it when a move is
+  only implied. Position can be carried by narration, and the lever is how
+  the Warden writes a move, not where the position is stored.
+- **3 or fewer:** the reading in `§ S55` is wrong. The lost position has
+  another cause, and neither the narration nor a world fact reaches it.
+- **4 to 6:** it is part of it.
+
+#### What this cannot show
+
+- **Whether a prompt instruction would get the Warden to write moves this
+  way.** The sentence is changed by hand.
+- **Whether a stated position lasts** beyond the next turn.
+- **Whether the fact and the narration together do better than either.**
+- **The marking is not blind**, as before.
+
+### S59 — 2026-10-09 · Stating the return changes nothing either, and the four retraction runs share a cause none of them tested
+
+Run `2026-10-09T18-49-52Z`, made and hand-marked by the maintainer under Rubric
+v1: the constructed case `2c0ba938-turn18-return-stated` alone, 10 reps, prompt
+`e83e8aaa`, unicorn `b84a791`. The prediction is `§ S58`.
+
+#### The result
+
+| Case | Run | pass | fail | na |
+|---|---|---|---|---|
+| turn 18, tidy retracted | `2026-10-09T18-19-03Z` | 0 | 10 | 0 |
+| the same, with the return stated in the narration | `2026-10-09T18-49-52Z` | 1 | 8 | 1 |
+
+`§ S58` predicted at least 7 of 10 passing, at least 5 of them placing Danny on
+mid-deck. One passed, and it is silent (rep 03, "You head back to Mara's
+berth"). No narration places Danny on mid-deck before he moves. No turn threw
+and no tool leak was recorded.
+
+Six narrations say "You head back up to mid-deck" (reps 01, 02, 05, 06, 07,
+08) and two "You head back to mid-deck" (09, 10). The sentence before the
+turn now reads "You climb back up the ladder shaft to mid-deck — Deck 2 — and
+walk round to the cryo bay bulkhead", and the narrations are the same as
+without it.
+
+By `§ S58`'s rule this is "3 or fewer: the reading in `§ S55` is wrong", and
+it is. The Warden is not missing the return. It was told of it in a full
+sentence and wrote "back up to mid-deck" anyway.
+
+#### The same sentence in four runs
+
+| Case | "back up", "back down" or "back to" mid-deck | of |
+|---|---|---|
+| retracted (`§ S53`) | 10 | 10 |
+| tidy retracted (`§ S55`) | 10 | 10 |
+| position seeded (`§ S57`) | 8 | 10 |
+| return stated | 8 | 10 |
+
+Thirty-six of forty narrations open with a return to mid-deck. Removing the
+repeats, seeding a position and restating the move each left it there.
+
+The corrected case (`§ S51`) does not have it. There, six of nine open "You
+head back to Mara's berth" or "to the crew berths", and one says "back to
+mid-deck".
+
+What the four cases share, and the corrected case lacks, is the hand-written
+correction from `§ S52`. Its Warden message ends:
+
+> So: you're both on mid-deck, in Mara's berth, with the lower deck and the
+> engine room one level below you.
+
+`§ S53` named this as a possible cause and it was not tested. Three more runs
+were built on the same correction instead. On the evidence now, it is the
+leading explanation: the correction makes "mid-deck" the name for where the
+berth is and puts the lower deck "below", message 36 sends Danny down to the
+stores, and "You head back up to mid-deck" is the Warden returning him to the
+berth by that name. On that reading the phrase says little about where the
+Warden has Danny standing.
+
+That is still a reading and not a result. The test is a retracted case whose
+correction does not tie mid-deck to the berth in those words.
+
+It does not cover everything. Two narrations do start Danny at the stores:
+rep 03 of the tidy run and rep 03 of the seeded run both have him "head back
+up through the lower deck stores". In those two the position is lost whatever
+the phrase means elsewhere.
+
+#### What stands and what does not
+
+**Stands:**
+
+- Turn 18 as captured fails because of message 28 (`§ S51`): with the error
+  removed, no narration sends Danny to the lower deck.
+- The movement rule did nothing (`§ S49`).
+- A correction in the history moves the berth off the lower deck: none of the
+  40 narrations in the four retraction runs puts it there.
+- The repeats in the history do not explain any of this (`§ S55`).
+
+**Withdrawn, as not shown:**
+
+- `§ S53`: "The Warden does not hold the character's position", and that the
+  retraction "lost" it.
+- `§ S55`: that the Warden follows message 36's first move and misses its
+  second.
+- `§ S57`: that a position held as a world fact is not followed. If the
+  failing phrase is the correction's doing, a location fact was never in a
+  position to change it, and the run does not test the idea.
+
+These three rest on a failure that one hand-written message may have made.
+What they said about the `current_location` candidate should not be relied
+on, for or against.
+
+#### How this happened
+
+Each of the four cases was built from the one before, and each changed one
+thing. None went back to check the thing they all inherited. Forty narrations
+were marked chasing an effect whose first explanation was written down in
+`§ S53` and set aside.
+
+A constructed case is only as good as the text written into it. Past one edit
+away from a captured session, a result is as likely to be about the edit as
+about the Warden.

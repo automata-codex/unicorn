@@ -33,6 +33,16 @@ export const CASES = {
     // the patch-kit message four times with two Warden replies to it. One
     // copy of each player message is kept, and the later Warden reply.
     '2c0ba938-turn18-berth-retracted-tidy',
+    // The tidy retracted case with one world fact added and nothing else
+    // changed: `danny_location`, "At the cryo bay bulkhead, on mid-deck."
+    // It stands in for a recorded position (`ADR-0101`), seeded by hand, to
+    // ask whether the Warden follows one before any way to write it is built.
+    '2c0ba938-turn18-position-seeded',
+    // The tidy retracted case with one sentence changed and nothing else, and
+    // no location fact. The Warden message before the turn brought Danny back
+    // from the stores in two words ("Back up at the cryo bay bulkhead"); here
+    // it says he climbs back up the ladder shaft to mid-deck, Deck 2.
+    '2c0ba938-turn18-return-stated',
     // Known failure: where Petrov is, against the crew roster.
     '2c0ba938-turn24-seeded-canon-contradiction',
     // Known good: Mara's "two decks from me" was correct.

@@ -177,3 +177,50 @@ describe('2c0ba938-turn18-berth-retracted-tidy', () => {
     expect(new Set(contents).size).toBe(contents.length);
   });
 });
+
+describe('2c0ba938-turn18-position-seeded', () => {
+  it('is the tidy retracted case with one world fact added', () => {
+    const tidy = loadFixture('2c0ba938-turn18-berth-retracted-tidy');
+    const seeded = loadFixture('2c0ba938-turn18-position-seeded');
+
+    const { danny_location: location, ...otherFacts } = seeded.seededState
+      .campaignState.worldFacts as Record<string, string>;
+    expect(location).toBe('At the cryo bay bulkhead, on mid-deck.');
+
+    expect({
+      ...seeded,
+      id: tidy.id,
+      seededState: {
+        ...seeded.seededState,
+        campaignState: {
+          ...seeded.seededState.campaignState,
+          worldFacts: otherFacts,
+        },
+      },
+    }).toEqual(tidy);
+  });
+});
+
+describe('2c0ba938-turn18-return-stated', () => {
+  it('differs from the tidy retracted case in message 33 only', () => {
+    const tidy = loadFixture('2c0ba938-turn18-berth-retracted-tidy');
+    const stated = loadFixture('2c0ba938-turn18-return-stated');
+
+    const changed = stated.seededState.messages.flatMap((message, i) =>
+      message.content === tidy.seededState.messages[i].content ? [] : [i],
+    );
+    expect(changed).toEqual([33]);
+    expect(stated.seededState.messages[33].content).toContain(
+      'You climb back up the ladder shaft to mid-deck — Deck 2',
+    );
+
+    expect({
+      ...stated,
+      id: tidy.id,
+      seededState: {
+        ...stated.seededState,
+        messages: tidy.seededState.messages,
+      },
+    }).toEqual(tidy);
+  });
+});
