@@ -1596,3 +1596,114 @@ and a run of it after this date would still carry the duplicate.
 - **Old-harness results compare with each other as before.** Every one of
   them carried the duplicate, so it is a constant across them. What they
   measured is a Warden that was told each thing twice.
+
+### S49 — 2026-10-09 · The movement rule did not work, and the reference run shows turn 14's ladder trips mostly went with the duplicate message
+
+Two eval-v2 runs of question 1, both made and hand-marked by the maintainer on
+2026-10-09 under Rubric v1, the reference run marked before the rule's run was
+made:
+
+| | Run | Commit | Prompt | Cases |
+|---|---|---|---|---|
+| Reference | `2026-10-09T10-38-58Z` | `8473bac` | `e83e8aaa` | turns 14 and 18, 10 reps each |
+| Rule | `2026-10-09T11-03-37Z` | `0c088ac` | `5edf9418` | all six, 10 reps each |
+
+The one file changed between the two commits is `mothership-m7.txt`. `0c088ac`
+adds `§ S47`'s candidate rule as a section, "WHERE A CHARACTER IS, AND WHICH
+DECK A PLACE IS ON". `064995b` reverts it, so the rule is in history and not
+in the prompt.
+
+#### The comparison
+
+`task ev2:compare`, on the two cases both runs hold:
+
+| Case | Reference | Rule | Label |
+|---|---|---|---|
+| turn 14 | 8 of 10 | 6 of 10 | not shown (0.31) |
+| turn 18 | 1 of 10 | 1 of 10 | not shown |
+
+Neither case moved toward the bar, and turn 14 moved away from it.
+
+#### Against `§ S47`'s prediction
+
+| Case | Predicted fails | Fails | |
+|---|---|---|---|
+| turn 08 | at most 1 | 5 of 8 | 2 reps threw |
+| turn 14 | at most 1 | 4 of 10 | |
+| turn 18 | at most 2, with at least one rep naming mid-deck for the berth | 9 of 10, none naming mid-deck | |
+| turn 29 | 0 or 1 | 4 of 10 | |
+| turn 24 | no prediction | 6 of 8 | 2 na |
+| turn 01 | not in the prediction | none | 10 na |
+
+Every predicted case missed. Turns 08, 24 and 29 have no reference run, so
+their counts stand against the prediction only and say nothing about whether
+the rule changed them.
+
+#### Turn 14: the reference run is the finding
+
+On the harness as it was before `§ S48`'s fix, turn 14 failed 5 of 9, all five
+by going "past mid-deck" from mid-deck. On the fixed harness with the prompt
+unchanged it failed 2 of 10, reps 08 and 09, both by the same phrase. The two
+runs are not comparable (`§ S48`), and 4 of 9 against 8 of 10 would not earn a
+label if they were. What the reference run does show is that the failure the
+rule's first two lines were written for was mostly absent before the rule was
+added. There was little for it to remove.
+
+With the rule, "past mid-deck" is back in three reps (01, 02, 10), and a fourth
+(06) puts Mara's berth off the cargo bay corridor. Rep 02 names the right deck
+for the berth and still goes "past mid-deck" to leave it:
+
+> Her berth is tucked near the crew quarters on mid-deck, but she bypasses it
+
+One reference mark was changed after the rule's run had been marked. Rep 08 has
+Danny go "down past mid-deck toward the lower levels" and was first marked
+pass, where rep 09 and the three rule-run reps were marked fail for the same
+phrase. The maintainer re-marked it fail on 2026-10-09. Before the re-mark the
+reference was 9 of 10 and the label `not shown (0.15)`.
+
+#### Turn 18: the third line changed nothing that can be seen
+
+Nine of ten fail in both runs. In the rule's run eight of the ten name the
+lower deck on the way to Mara's berth, and no rep in either run puts the berth
+on mid-deck. The one pass in each run names no deck for it.
+
+`§ S47` said that if turn 14 fell and turn 18 did not, group B needs the
+session record corrected and not another instruction. Turn 14 did not fall, so
+that test was not met as written. Turn 18's half of it came out as plainly as
+ten reps allow: an instruction to prefer the world fact did not outweigh
+message 28. A run of turn 18 with message 28 corrected is still the way to
+separate the causes, and it still needs a home for hand-edited cases.
+
+#### No top-up
+
+Both cases were named for a top-up before marking, should they come back `not
+shown` (`docs/eval-methodology.md § Eval v2`). None was run. The top-up exists
+to find a modest gain that 10 reps would miss. Turn 18 is 1 of 10 on both
+sides, and turn 14's difference is in the wrong direction, so there is no gain
+for 80 more narrations to find. Whether the rule made turn 14 worse is left
+open at 0.31, and does not need settling for a rule that is not being kept.
+
+#### Thrown turns and the tool-leak live check
+
+This is the live check `§ S46` owed.
+
+- **Tool leaks: 3 in 80 turns, all recovered.** Reference turn 14 rep 04, and
+  the rule run's turn 14 rep 04 and turn 24 rep 05. Each rep file records
+  `outcome: recovered` and the turn went on to a narration. No turn threw
+  `SessionToolSyntaxError`; the 2026-10-04 run threw four in 50.
+- **`SessionCorrectionError`: 2 in 80, both on turn 08** (reps 02 and 10).
+  With the three in `§ S47` that is five of five on turn 08 and none anywhere
+  else. The rep files still record only the error and a stack trace.
+
+#### What this leaves
+
+- **The rule is not kept.** It is reverted, and the prompt stays at `e83e8aaa`.
+- **Turn 14 on the fixed harness is 8 of 10**, under the bar but within what
+  ten reps of a passing case would give. It is no longer a clear failing case
+  to aim a fix at.
+- **Turn 18 is the standing failure**, 1 of 10 twice, and it is an inherited
+  error about where a place is.
+- **Turns 08, 24 and 29 have no clean number without the rule.** Their only
+  run on the fixed harness is the rule's.
+- **Turn 01 cannot be marked as captured.** All ten reps are `na`: nothing in
+  the narration touches the timeline either way.
