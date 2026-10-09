@@ -126,6 +126,7 @@ The maintainer must be able to explain every part of this system. The eval harne
 - **Most review happens at the spec and plan**, where the decisions are made. Raise questions of scope and proportion there, not in the diff.
 - **Every PR description must:**
   - say in plain language what changed and why
+  - link the Workflowy card the work came from, as `https://workflowy.com/#/<short id>` (the 12-character id the `workflowy-tasks` skill prints); say so when there is no card
   - point to the 2–3 places where a real decision was made, so the maintainer knows where to read closely
   - name its review tier:
     - *detailed*: turn path, state application, hidden information, tool loop, migrations/schema
