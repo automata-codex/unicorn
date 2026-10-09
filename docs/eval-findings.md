@@ -1855,3 +1855,326 @@ live session has today removes one: the history cannot be edited, and a prompt
 rule did not outweigh it. The candidates are to stop the first mistake, or to
 give a session a way to retract one that later turns read as settled. Neither
 is designed, and neither is in this entry.
+
+### S52 — 2026-10-09 · Pre-registration: turn 18 with the berth's error left in and a correction after it
+
+`§ S51` showed that removing message 28's error from the history fixes turn 18.
+A live session cannot remove anything. This run asks the next question: does a
+correction that comes later in the history outweigh the error it corrects?
+Written before the run is made.
+
+#### The case
+
+`2c0ba938-turn18-berth-retracted` is the captured turn 18 with message 28 left
+as the session wrote it, and two messages added after message 30, which
+`eval-v2/fixture.spec.ts` checks:
+
+> **Player:** Wait, is Mara's berth on the lower deck? I thought the crew
+> berths were on mid-deck.
+>
+> **Warden:** You're right, and I had that wrong. The crew berths are on
+> mid-deck, Mara's included — same deck as the mess, the medbay and the cryo
+> bay. You never took the ladder shaft to get here; it was a short walk along
+> the mid-deck corridor from the cryo bay's blast door.
+>
+> So: you're both on mid-deck, in Mara's berth, with the lower deck and the
+> engine room one level below you.
+
+Both are written by hand. They follow the session's own messages 17 and 18,
+where the player asked which deck he was on and the Warden corrected itself
+out of character. That is a kind of correction a session can already produce
+today, with nothing built.
+
+The correction sits two messages after the error and seven before the turn.
+Messages 33 and 36 follow it unchanged, and both agree with it.
+
+#### The run and what it is read against
+
+One run of this case alone, 10 reps, prompt `e83e8aaa`, marked under Rubric v1.
+
+| Case | Run | Result |
+|---|---|---|
+| turn 18 as captured | `2026-10-09T10-38-58Z` | 1 of 10 |
+| turn 18, berth corrected | `2026-10-09T13-09-50Z` | 8 of 9 |
+
+By Fisher's exact test, two-sided, against 1 of 10: 7 of 10 or more is a shown
+difference, and 6 of 10 is not (`§ S50`).
+
+**"Head back down" with no deck named is a fail in this run.** `§ S51` found
+the phrase marked both ways. Here the history holds the error and the
+correction together, so the reading is fixed before the marking: from the cryo
+bay bulkhead to a mid-deck berth there is no down, and a narration that says
+so has followed message 28.
+
+#### Prediction
+
+**At least 7 of 10 pass.** This is held less firmly than `§ S50`'s. Messages 33
+and 36 show that a later implication does not outweigh message 28, and this
+case tests a later statement that names the error as one. Nothing measured so
+far says which way that goes.
+
+- **7 or more:** an explicit correction in the history is enough. A session
+  can recover from a wrong placement by saying so, and the design question
+  becomes how a correction comes to be made and how it stays in view.
+- **3 or fewer:** the first statement wins even against its own retraction.
+  Recovery in the history is not available, and what remains is preventing
+  the error or keeping it out of what the Warden is sent.
+- **4 to 6:** a correction helps and is not reliable. Ten reps will not say
+  more.
+
+#### What this cannot show
+
+- **How long a correction lasts.** It is seven messages old at this turn.
+- **Whether the Warden would make the correction unprompted.** The player's
+  question is written in.
+- **Anything about a correction held outside the history**, in a world fact or
+  a field of its own.
+- **The marking is not blind**, as in `§ S50`.
+
+### S53 — 2026-10-09 · The retraction fixed where the berth is and lost where Danny is: 0 of 10, with the berth on mid-deck in all ten
+
+Run `2026-10-09T17-42-03Z`, made and hand-marked by the maintainer under Rubric
+v1: the constructed case `2c0ba938-turn18-berth-retracted` alone, 10 reps,
+prompt `e83e8aaa`, unicorn `53c2736`. The prediction is `§ S52`.
+
+#### The result
+
+| Case | Run | pass | fail | na |
+|---|---|---|---|---|
+| turn 18 as captured | `2026-10-09T10-38-58Z` | 1 | 9 | 0 |
+| turn 18, berth corrected | `2026-10-09T13-09-50Z` | 8 | 1 | 1 |
+| turn 18, berth retracted | `2026-10-09T17-42-03Z` | 0 | 10 | 0 |
+
+`§ S52` predicted at least 7 of 10 passing. None did. By its own reading rule
+that is "3 or fewer: the first statement wins even against its own
+retraction", and that reading is wrong. The narrations show something the
+prediction did not allow for.
+
+No turn threw and no tool leak was recorded.
+
+#### What the narrations say
+
+Two counts. The first is read from the narrations, the second is the fail
+marks:
+
+| | As captured (20 reps, `§ S49`) | Retracted (10 reps) |
+|---|---|---|
+| Puts Mara's berth on mid-deck | 0 | 10 |
+| Failed for the route to it | 18 | 10 |
+
+**The correction took.** Every narration names mid-deck for the berth. As
+captured, none of twenty did, and eight of the rule run's ten named the lower
+deck.
+
+**Danny's position did not survive it.** He is at the cryo bay bulkhead on
+mid-deck (message 36: "Back up at the cryo bay bulkhead"). Every narration has
+him arrive at mid-deck from somewhere else:
+
+| Phrase | Reps |
+|---|---|
+| "back up to mid-deck" | 03, 04, 07, 09, 10 |
+| "back down to mid-deck" | 01, 02 |
+| "the walk back to mid-deck" | 05, 08 |
+| "back toward mid-deck" | 06 |
+
+All ten are fails under Rubric v1, which asks that the route match the layout
+from the history's start. The three with no direction are the same call as
+the corrected case's rep 10 (`§ S51`), "You head back to mid-deck", which was
+failed for returning Danny to a deck he had not left.
+
+"Back up" agrees with Danny still being at the lower deck stores, where
+message 36 sends him before bringing him back. "Back down" agrees with nothing
+in the history.
+
+#### Reading it
+
+- **A stated correction outweighs the earlier error about a place.** This is
+  the question `§ S52` set out to ask, and the answer is yes, 10 of 10. It is
+  the first thing short of removing message 28 that has moved the berth:
+  `ship_layout` did not, the movement rule did not (`§ S49`), and the later
+  implications in messages 33 and 36 did not.
+- **The Warden does not hold the character's position.** This is `§ S47`'s
+  group A, and here it is ten of ten on a turn where the corrected case had
+  one. With the berth's deck no longer wrong, where Danny starts is the whole
+  failure.
+- **The two are separate.** The corrected case removed the error and kept
+  Danny's position. The retracted case fixed the place and lost it. Getting a
+  place right and knowing where a character stands are different things for
+  the Warden, and a fix for one is not a fix for the other.
+
+#### What may be the case's own doing
+
+The added Warden message was written by hand, and it ends "you're both on
+mid-deck, in Mara's berth". That sentence ties "mid-deck" to the berth. The
+narrations may be using "mid-deck" as the name of where the berth is, which
+would make "back to mid-deck" mean "back to the berth". The run cannot tell
+that from a lost position, and a correction worded without that sentence was
+not tried. The seven reps that say "up" or "down" narrate a deck change either
+way.
+
+#### What it does not settle
+
+- **Whether the wording of the correction caused the lost position**, above.
+- **How long a correction lasts**, and whether the Warden would make one
+  unprompted (`§ S52`).
+- **Whether a recorded position would have held.** Nothing in the snapshot
+  says where Danny is. This is the question the `current_location` candidate
+  asks (`ADR-0101`).
+
+#### Four runs, one picture
+
+| Tried | On turn 18 |
+|---|---|
+| An instruction to prefer the world fact (`§ S49`) | no change |
+| The error removed from the history (`§ S51`) | fixed |
+| The error left in and corrected later (this entry) | place fixed, position lost |
+
+A wrong statement about a place can be undone by a later statement, and cannot
+be undone by an instruction. Where the character is standing has no statement
+to be undone by, because it is recorded nowhere.
+
+### S54 — 2026-10-09 · Pre-registration: the retracted turn 18 with the history's repeated messages removed
+
+`§ S53` had every narration lose Danny's position. The maintainer, reading the
+constructed fixture, noticed that the history it shares with the captured turn
+18 repeats itself, and `§ S48` is a case of a repeated message changing what
+the Warden does. This run asks whether the repeats are why the position was
+lost. Written before the run is made.
+
+#### The repeats
+
+They are the session's own, and are in the captured fixture too:
+
+| Messages (captured numbering) | What |
+|---|---|
+| 0, 1 | The opening OOC question, twice, with no reply between |
+| 31, 32, 34, 35 | "I'm going to get some patch kits from the ship's stores…", four times |
+| 33, 36 | Two Warden replies to it, each sending Danny down to the lower deck stores and back up to the cryo bay bulkhead |
+
+So the Warden reads Danny making the same trip down and up twice, immediately
+before the turn.
+
+The repeated player messages have a known source. `SessionService` saves the
+player's message before the turn's transaction and outside it, so that a retry
+after a failure does not need retyping
+(`apps/zoltar-be/src/session/session.service.ts`, step 2). A turn that throws
+leaves its message in the history, and the retry adds another. Why the
+patch-kit message was sent again after message 33 had answered it is not
+recorded.
+
+#### The case
+
+`2c0ba938-turn18-berth-retracted-tidy` is the retracted case with five
+messages removed and nothing else changed, which `eval-v2/fixture.spec.ts`
+checks: one copy of the OOC question, three copies of the patch-kit message,
+and the first of the two Warden replies (message 33). The later reply is kept
+because it is the one the turn follows from. No message content is repeated in
+what remains. The hand-written correction is as it was in `§ S52`.
+
+#### The run and what it is read against
+
+One run of this case alone, 10 reps, prompt `e83e8aaa`, marked under Rubric v1
+as `§ S53` was: a narration that has Danny go up, down or back to mid-deck to
+reach the berth is a fail.
+
+The before-number is the retracted case, 0 of 10 (`2026-10-09T17-42-03Z`). By
+Fisher's exact test, two-sided, against 0 of 10: 5 of 10 or more is a shown
+difference (0.03), and 4 of 10 is not (0.09).
+
+#### Prediction
+
+**At most 3 of 10 pass.** The corrected case (`§ S51`) has the same repeats
+and kept Danny's position in 8 of 9, so the repeats alone do not lose it. This
+is not held firmly: the corrected case had no correction in it, and the two
+could act together.
+
+- **5 or more:** the repeats are at least part of why the position was lost.
+  That makes the messages a failed turn leaves behind a defect worth fixing in
+  the turn path, and `§ S53`'s "the Warden does not hold the character's
+  position" is too strong as written.
+- **3 or fewer:** the repeats are not the cause. `§ S53` stands, with the
+  wording of the correction still the one untested explanation.
+- **4:** not shown either way.
+
+#### What this cannot show
+
+- **Which repeat matters**, if they do. All five are removed together.
+- **Whether the correction's wording caused the lost position** (`§ S53`). It
+  is unchanged here.
+- **The marking is not blind**, as before.
+
+### S55 — 2026-10-09 · Removing the repeats changes nothing: 0 of 10 again, and nine of ten now say "back up"
+
+Run `2026-10-09T18-19-03Z`, made and hand-marked by the maintainer under Rubric
+v1: the constructed case `2c0ba938-turn18-berth-retracted-tidy` alone, 10 reps,
+prompt `e83e8aaa`, unicorn `156339d`. The prediction is `§ S54`.
+
+#### The result
+
+| Case | Run | pass | fail |
+|---|---|---|---|
+| turn 18, berth retracted | `2026-10-09T17-42-03Z` | 0 | 10 |
+| turn 18, berth retracted, repeats removed | `2026-10-09T18-19-03Z` | 0 | 10 |
+
+`§ S54` predicted at most 3 of 10 passing, and none did. The repeats are not
+why the position is lost. No turn threw and no tool leak was recorded.
+
+#### What the narrations say
+
+| Danny goes… | Retracted | Repeats removed |
+|---|---|---|
+| "back up", or "up to mid-deck" | 5 | 9 |
+| "back down to mid-deck" | 2 | 0 |
+| "back to" or "toward" mid-deck, no direction | 3 | 1 |
+
+Nine of the ten name mid-deck for the berth, and rep 01 names no deck.
+
+With the repeats gone the direction is nearly uniform. Nine narrations bring
+Danny up, and rep 03 says where from: "You head back up through the lower-deck
+stores to drop off the extra sealant, then back along mid-deck to Mara's
+berth."
+
+#### The maintainer's reading: the Warden counts the first move and not the second
+
+Message 36, the one Warden message between the correction and the turn, moves
+Danny twice:
+
+> You head down to lower deck stores and haul out what you need — sealant foam
+> canisters, rolls of structural tape rated for micro-fractures, a hand-crank
+> injector for the tight spots. Back up at the cryo bay bulkhead, the cracks
+> look worse up close than they did from a glance
+
+The trip down is a sentence with a verb and a named deck. The return is two
+words at the head of the next sentence, and names no deck. Nine narrations
+that start Danny below mid-deck are what following the first and missing the
+second would produce.
+
+This is a reading of the narrations and has not been tested. The test is the
+same case with the return stated as plainly as the trip down.
+
+#### What this does to `§ S51`
+
+The corrected case has message 36 too, and passed 8 of 9. Six of those passes
+name no deck and narrate no route ("You head back to Mara's berth"). They pass
+because Rubric v1 finds nothing wrong on the page, which is not the same as
+the Warden having Danny on mid-deck. `§ S47` said the same of turn 18's two
+passes on 2026-10-04.
+
+The retracted cases differ in that the narration names the berth's deck, and
+having named it the Warden narrates a route to it. The lost position may have
+been there in the corrected case and gone unsaid. Nothing run so far can tell.
+
+`§ S51`'s conclusion about the berth stands: with message 28 corrected, no
+narration sends Danny to the lower deck. What it shows about Danny's position
+is weaker than 8 of 9 suggests.
+
+#### What follows
+
+- **The repeats are cleared of this failure.** The messages a failed turn
+  leaves behind may still matter elsewhere (`§ S48`); they do not explain turn
+  18.
+- **The character's position is read off the Warden's own phrasing**, and a
+  terse return is enough to lose it. That is a narrower statement than
+  `§ S53`'s and has more behind it.
+- **A pass that names no deck is weak evidence.** Any reading of a question 1
+  rate should say how many of its passes are silent.
