@@ -109,6 +109,6 @@ describe('renderMarksCsv', () => {
         { fixtureId: 'a', rep: 1, mark: '' },
         { fixtureId: 'a', rep: 2, mark: 'error' },
       ]),
-    ).toBe('fixture,rep,mark,note\na,01,,\na,02,error,\n');
+    ).toBe('# rubric:\nfixture,rep,mark,note\na,01,,\na,02,error,\n');
   });
 });

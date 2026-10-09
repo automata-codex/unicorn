@@ -102,9 +102,13 @@ export interface MarkRow {
   mark: '' | 'error';
 }
 
+/**
+ * The rubric line is written blank: the version is known when the marking is
+ * done, not when the run is (spec 027).
+ */
 export function renderMarksCsv(rows: MarkRow[]): string {
   const lines = rows.map((r) => `${r.fixtureId},${pad(r.rep)},${r.mark},`);
-  return ['fixture,rep,mark,note', ...lines, ''].join('\n');
+  return ['# rubric:', 'fixture,rep,mark,note', ...lines, ''].join('\n');
 }
 
 function quote(text: string): string {
