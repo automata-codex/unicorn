@@ -2876,3 +2876,105 @@ route is then wrong in the way `§ S61` found.
   whenever the narration is newer than the state and something happened that
   no field recorded. It would need settling before a merge.
 - **One case, one session.**
+
+### S65 — 2026-10-09 · The three changes together put the berth on mid-deck in 5 of 10, and all five bring Danny up to it
+
+Run `2026-10-09T20-04-08Z`, made by the maintainer: turn 18 as captured, 10
+reps, unicorn `94c9c99`, prompt `3e56fd6b`. That is the snapshot after the
+history, the header on it, and the prompt section (`§ S64`). Not hand-marked.
+
+#### The result
+
+| Count | Snapshot first | Snapshot after (`§ S63`) | All three |
+|---|---|---|---|
+| Down: "down" or "lower deck" in the first sentence | 9 of 10 | 6 of 10 | 5 of 10 |
+| To mid-deck (`§ S60`'s rule) | 0 of 10 | 0 of 10 | 5 of 10 |
+| Narrations that put Mara's berth on mid-deck | 0 of 10 | 0 of 10 | 5 of 10 |
+
+`§ S64` predicted a down count of 4 or more, which held, and at most 3
+narrations putting the berth on mid-deck, which did not. No turn threw and no
+tool leak was recorded.
+
+| Opening | Reps | Berth |
+|---|---|---|
+| "You head back up to mid-deck" | 02, 06, 10 | mid-deck |
+| "You take the ladder shaft back up to mid-deck" | 07 | mid-deck |
+| "You head back up through the lower deck and climb to mid-deck" | 03 | mid-deck |
+| "head back down" to the berth | 05, 08, 09 | below |
+| "You head back up to the lower deck" | 01 | lower deck |
+| At the hatch | 04 | not said |
+
+Rep 03 is in both the down count and the mid-deck count: the rule matches its
+"lower deck", and it puts the berth on mid-deck.
+
+#### Reading it
+
+`§ S64`'s table has no row for this. A down count of 4 or more was to mean the
+state does not hold. But five narrations follow `ship_layout` over message 28,
+and that had not happened once in thirty narrations of this case before. By
+Fisher's exact test, 5 of 10 against 0 of 10 is 0.03, and against the 0 of 20
+of both earlier runs it is less.
+
+So, in two parts:
+
+- **The state can be made to count, and half the time is what it gets.** With
+  the snapshot after the history, a header saying it overrides the narration,
+  and a prompt section saying the same, five narrations put the berth where
+  the world facts put it. Four still follow message 28. That is the first
+  thing other than changing the history that has moved the berth at all.
+- **Every narration that gets the place right gets the route wrong.** All five
+  bring Danny up to mid-deck, and he is on mid-deck. Reps 03 and 07 say how:
+  through the lower deck, by the ladder shaft.
+
+None of the ten would pass Rubric v1. Five put the berth on the wrong deck or
+below Danny, five have him climb to a deck he is on, and one says nothing.
+
+#### What this does to `§ S61`
+
+`§ S61` could not say whether "back up to mid-deck" is a lost position or a
+turn of phrase, and `§ S59` suspected the hand-written correction of producing
+it. Here there is no hand-written text in the history. It is the session as
+captured, and the phrase appears in five of five narrations that name the
+berth's deck.
+
+That settles the part `§ S59` raised: the phrase is not the constructed
+correction's doing. It appears whenever the Warden names mid-deck for the
+berth, by whatever means it was brought to. And reps 03 and 07 narrate a climb
+from below, which is a route and not a figure of speech.
+
+`§ S53`'s reading is restored, more narrowly than it was written: **on this
+turn the Warden has Danny below mid-deck, and it shows whenever the narration
+names where he is going.** Message 36 sends him down to the stores and brings
+him back in two words. `§ S59` showed that stating the return in full does not
+change it, so the cause is still not known.
+
+The prompt section tells the Warden to name the deck, so it is part of why the
+route is on the page. It is not why the route starts below.
+
+#### What stands after today
+
+| | |
+|---|---|
+| A wrong statement about a place is repeated | `§ S51`: 9 of 10 as captured, none once message 28 is corrected |
+| A correction in the conversation fixes the place | `§ S53`, `§ S61`: none of 40 puts the berth on the lower deck |
+| An instruction alone does nothing | `§ S49` |
+| The state, pushed three ways at once, fixes the place half the time | this entry: 5 of 10 against 0 of 20 |
+| The Warden has Danny on the wrong deck at this turn | this entry, with `§ S53`, `§ S55`, `§ S57`, `§ S61` |
+| Why it has him there | not known |
+| Which of the three changes does the work | not known |
+| Whether a recorded position would be followed | not tested cleanly (`§ S57`, `§ S59`) |
+
+There are two failures on this turn and they need different fixes. One is
+about where a place is, and both the conversation and, partly, the state can
+correct it. The other is about where a character is, and nothing tried today
+has touched it.
+
+#### The branch
+
+Not merged. Half is not a fix, the header overclaims (`§ S64`), the first
+message's role is unsettled (`§ S62`), and the route error would fail every
+narration the change improves. The source changes are taken back off the
+branch so that these entries can merge; `71027c4` and `94c9c99` stay in
+history because runs were made from them.
+
+As `§ S64` said, this is the last variant of turn 18 run today.
