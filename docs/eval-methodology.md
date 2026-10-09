@@ -1722,3 +1722,61 @@ property `turn02`'s `RESTRICTED — VERIDIAN INTERNAL` lacked.
 **Still unexercised: the `pending_canon` branch.** `2c0ba938` proposes canon on no turn at all,
 and the only rows in any source adventure are `5c34991b` seq 14 and seq 34. A fixture for that
 branch has to come from there.
+
+---
+
+## Eval v2: reps, comparing two runs, and the top-up (2026-10-09)
+
+Everything above this section is about the old harness. This is the rule for a
+run of the rebuilt one (`apps/zoltar-be/eval-v2/`, `task ev2:*`). The reasoning
+and the arithmetic are in `docs/specs/zoltar/027-ev2-run-comparison.md`.
+
+**Ten reps per case.** Hand marking is the limit: a six-case run is 60
+narrations. Ten reps finds a large change in a case's pass rate most of the time
+(0.30 → 0.90 about four times in five) and a modest one rarely (0.57 → 0.80
+about one time in six). No rep count that can be marked by hand finds the modest
+one reliably, so the count stays and the limit goes into how a result is read.
+Reopen it when a judge replaces hand marks.
+
+**Fill in the rubric line before reporting.** `ev2:run` writes `# rubric:` as
+the first line of `marks.csv`, blank. Put the version the marks were made under
+after it (`# rubric: v1`). `ev2:compare` refuses a run without one.
+
+**Make the before-run and the after-run from adjacent commits, close together
+in time.** `task ev2:compare -- <before> <after>` refuses runs of different
+questions or rubric versions. Everything else that differs it only shows: the
+prompt hash, a dirty tree, and every non-test file changed between the two
+commits under `apps/zoltar-be/` and `packages/`. Each file on that list that is
+not the change under test is a possible second cause, and it is the reader who
+has to rule it out. `docs/eval-findings.md § S48` is what an unread list costs.
+Nothing shows a model that changed behind its id, a changed rules corpus in the
+dev database, or marking that drifted between two sittings, which is why the
+two runs should be close in time.
+
+**Read each case's label, not its two rates.** `ev2:compare` labels a case
+`improved` or `worse` only when two runs with one underlying pass rate would
+split their passes that unevenly 5% of the time or less (Fisher's exact test).
+Otherwise it says `not shown`, which means the reps could not tell, not that
+nothing changed. At 10 judged reps a side that takes a gain of about five
+passes. `na` and `error` reps shrink the denominators and make it harder: 4 of
+7 → 9 of 10 meets the bar and is still `not shown`.
+
+**The 0.90 bar and the label answer different questions.** The bar says whether
+a case is good enough. The label says whether the change did anything. A case
+can meet the bar without the change being shown to have caused it.
+
+**One top-up per case, decided before marking.** When a case the fix was aimed
+at comes back `not shown`, run 20 more reps of that case alone on each side
+(`--fixtures`), from the same commit and prompt as the run being topped up, and
+compare the pooled 30:
+
+```
+task ev2:compare -- <before>,<before-top-up> <after>,<after-top-up>
+```
+
+No second top-up. Adding reps until a label appears will eventually produce one
+from noise.
+
+**A label on a case the fix was not aimed at is probably noise.** Every case
+gets its own test, so across six cases a stray `improved` or `worse` is more
+likely than 5%.
