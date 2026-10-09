@@ -43,6 +43,14 @@ export const CASES = {
     // from the stores in two words ("Back up at the cryo bay bulkhead"); here
     // it says he climbs back up the ladder shaft to mid-deck, Deck 2.
     '2c0ba938-turn18-return-stated',
+    // Two arms that ask whether one hand-written sentence is why the
+    // retraction cases open "You head back up to mid-deck" (eval-findings
+    // S59, S60). The sentence is "So: you're both on mid-deck, in Mara's
+    // berth, with the lower deck and the engine room one level below you."
+    // Removed: the tidy retracted case without it. Added: the corrected case
+    // with it appended to message 28, where Danny arrives at the berth.
+    '2c0ba938-turn18-retracted-sentence-removed',
+    '2c0ba938-turn18-corrected-sentence-added',
     // Known failure: where Petrov is, against the crew roster.
     '2c0ba938-turn24-seeded-canon-contradiction',
     // Known good: Mara's "two decks from me" was correct.

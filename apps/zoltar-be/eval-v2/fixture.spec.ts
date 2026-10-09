@@ -224,3 +224,43 @@ describe('2c0ba938-turn18-return-stated', () => {
     }).toEqual(tidy);
   });
 });
+
+describe('the sentence-attribution arms', () => {
+  const sentence =
+    "So: you're both on mid-deck, in Mara's berth, with the lower deck and the engine room one level below you.";
+
+  function withMessage(
+    fixture: ReturnType<typeof loadFixture>,
+    index: number,
+    content: string,
+  ) {
+    const messages = fixture.seededState.messages.map((message, i) =>
+      i === index ? { ...message, content } : message,
+    );
+    return { ...fixture, seededState: { ...fixture.seededState, messages } };
+  }
+
+  it('removed: the tidy retracted case without the sentence', () => {
+    const tidy = loadFixture('2c0ba938-turn18-berth-retracted-tidy');
+    const removed = loadFixture('2c0ba938-turn18-retracted-sentence-removed');
+
+    const correction = removed.seededState.messages[31].content;
+    expect(correction).not.toContain(sentence);
+    expect({ ...removed, id: tidy.id }).toEqual(
+      withMessage(tidy, 31, correction),
+    );
+    expect(tidy.seededState.messages[31].content).toBe(
+      `${correction}\n\n${sentence}`,
+    );
+  });
+
+  it('added: the corrected case with the sentence on message 28', () => {
+    const corrected = loadFixture('2c0ba938-turn18-berth-corrected');
+    const added = loadFixture('2c0ba938-turn18-corrected-sentence-added');
+
+    const arrival = corrected.seededState.messages[28].content;
+    expect({ ...added, id: corrected.id }).toEqual(
+      withMessage(corrected, 28, `${arrival}\n\n${sentence}`),
+    );
+  });
+});

@@ -2458,3 +2458,95 @@ were marked chasing an effect whose first explanation was written down in
 A constructed case is only as good as the text written into it. Past one edit
 away from a captured session, a result is as likely to be about the edit as
 about the Warden.
+
+### S60 — 2026-10-09 · Pre-registration: is one hand-written sentence why the retraction cases open "back up to mid-deck"?
+
+`§ S59` withdrew three readings on the strength of an explanation it had not
+tested: that the last sentence of the hand-written correction produces the
+phrase the four retraction runs share. This run tests it in both directions.
+Written before the run is made.
+
+The sentence:
+
+> So: you're both on mid-deck, in Mara's berth, with the lower deck and the
+> engine room one level below you.
+
+#### The two cases
+
+Each differs from an existing case by that sentence and nothing else, which
+`eval-v2/fixture.spec.ts` checks.
+
+| Arm | Case | Made from | Change |
+|---|---|---|---|
+| Removed | `2c0ba938-turn18-retracted-sentence-removed` | the tidy retracted case | the sentence deleted from the correction; the rest of the correction stays |
+| Added | `2c0ba938-turn18-corrected-sentence-added` | the corrected case (`§ S50`) | the sentence appended to message 28, where Danny and Mara arrive at the berth |
+
+The added arm has no retraction in it at all. Message 28 is already correct
+there, and nothing says the Warden had anything wrong.
+
+#### What is counted
+
+Not Rubric v1 marks. The count is the phrase, by a rule a script can apply:
+
+> The narration's first sentence contains "to mid-deck", "toward mid-deck" or
+> "towards mid-deck" (with or without "the", hyphen or space).
+
+Applied to every turn 18 run made today:
+
+| Case | Run | Phrase |
+|---|---|---|
+| as captured | `2026-10-09T10-38-58Z` | 0 of 10 |
+| as captured, movement rule | `2026-10-09T11-03-37Z` | 0 of 10 |
+| corrected | `2026-10-09T13-09-50Z` | 1 of 10 |
+| retracted | `2026-10-09T17-42-03Z` | 10 of 10 |
+| tidy retracted | `2026-10-09T18-19-03Z` | 8 of 10 |
+| position seeded | `2026-10-09T18-39-07Z` | 6 of 10 |
+| return stated | `2026-10-09T18-49-52Z` | 8 of 10 |
+
+The rule is stricter than the reading behind `§ S59`'s "36 of 40", which
+counted any narrated return. By the rule the four retraction runs are 32 of
+40. Two tidy-run narrations that say "back up" without "to mid-deck" are what
+it leaves out.
+
+The run needs no hand marks. The maintainer may mark it under Rubric v1, and
+the reading below does not depend on it.
+
+#### The run and the lines
+
+One run of both cases, 10 reps each, prompt `e83e8aaa`. By Fisher's exact
+test, two-sided, each arm against the case it was made from:
+
+| Arm | Before | A shown difference |
+|---|---|---|
+| Removed | tidy retracted, 8 of 10 | 2 of 10 or fewer (0.02) |
+| Added | corrected, 1 of 10 | 7 of 10 or more (0.02) |
+
+#### Prediction
+
+**Removed: 4 of 10 or fewer. Added: 5 of 10 or more.** Neither is held
+firmly, and three of today's five predictions have missed. The sentence is the
+only place the history puts the lower deck "below" the berth. But the rest of
+the correction also names mid-deck for the berth, twice, and may be enough
+without it.
+
+- **Both arms cross their lines:** the sentence is needed for the phrase and
+  enough to produce it. `§ S59`'s withdrawals stand. The retraction cases say
+  nothing about whether the Warden holds a character's position, and the
+  `current_location` candidate has no evidence against it from today.
+- **Neither moves:** the sentence is not the cause. `§ S59`'s explanation is
+  wrong, and `§ S53`'s reading, that the retraction costs the Warden Danny's
+  position, is back in play.
+- **Removed moves and added does not:** the sentence matters only alongside a
+  retraction.
+- **Added moves and removed does not:** the sentence can produce the phrase,
+  and so can the rest of the correction. The withdrawals stand, since the
+  phrase is still the constructed text's doing.
+
+Whatever the result, no further case is built on these. `§ S59` is why.
+
+#### What this cannot show
+
+- **Why the sentence has the effect**, if it does.
+- **Anything about pass rates.** A narration can avoid the phrase and still
+  fail Rubric v1, or the reverse.
+- **Anything about a captured session.** Both arms are two edits from one.
