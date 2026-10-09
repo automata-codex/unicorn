@@ -1778,3 +1778,80 @@ nothing left for them to follow.
   is one case in the run.
 - **It says nothing of turn 24**, whose history contradicts itself in three
   places and is not corrected here.
+
+### S51 — 2026-10-09 · Turn 18 with the berth corrected passes 8 of 9: the failure was inherited from the session's own narration
+
+Run `2026-10-09T13-09-50Z`, made and hand-marked by the maintainer under Rubric
+v1: the constructed case `2c0ba938-turn18-berth-corrected` alone, 10 reps,
+prompt `e83e8aaa`, unicorn `58b2acb`. The prediction is `§ S50`.
+
+#### The result
+
+| Case | Run | pass | fail | na | rate |
+|---|---|---|---|---|---|
+| turn 18 as captured | `2026-10-09T10-38-58Z` | 1 | 9 | 0 | 0.10 |
+| turn 18, berth corrected | `2026-10-09T13-09-50Z` | 8 | 1 | 1 | 0.89 |
+
+`§ S50` predicted at least 7 of 10 passing, and 8 did. By the test `§ S50`
+named (Fisher's exact, two-sided), 8 of 9 against 1 of 10 is 0.001. The one
+`na` rep takes the denominator to 9, so the case is at 0.89 and a hair under
+the 0.90 bar.
+
+No turn threw and no tool leak was recorded.
+
+#### What the narrations say
+
+The count that does not depend on a mark is the phrase itself. As captured,
+nine of ten narrations send Danny "back down" or to the lower deck. Corrected,
+one of ten does.
+
+- **Six reps (01 to 06) name no deck.** "You head back to Mara's berth", or
+  "to the crew berths". Marked pass: no deck change is narrated, and from a
+  mid-deck start none is needed.
+- **Rep 07 names it**: "You head back through the mid-deck corridors".
+- **Rep 08 says "You head back down"** and names no deck. Marked pass, with
+  the note that it was taken as a figure of speech.
+- **Rep 09 is `na`**: it opens at the hatch with no movement.
+- **Rep 10 fails**: "You head back to mid-deck" has Danny returning to a deck
+  he had not left.
+
+Rep 08's mark is the one to read twice. In the reference run eight reps were
+failed with the note that "head back down" suggests a change of decks from the
+cryo bay to the berth. The phrase is the same here. What differs is the
+history: as captured the berth had been put a deck below, and corrected it has
+not. Marked as the reference run's reps were, rep 08 is a fail and the case is
+7 of 9, 0.006 against 1 of 10. The conclusion does not turn on it.
+
+#### What this settles
+
+- **`§ S47`'s group B is confirmed.** Turn 18 fails because message 28 put the
+  berth on the lower deck, and the Warden follows what the session said over
+  `ship_layout`. With that one error removed from the history, the same prompt
+  on the same turn stops making it.
+- **`§ S49`'s reading of the movement rule holds.** An instruction to prefer
+  the world fact left turn 18 at 1 of 10. Removing the earlier narration took
+  it to 8 of 9. On this case the session's own words outweigh both the world
+  facts and the instruction.
+- **Messages 33 and 36 were not enough to correct it.** Both already imply a
+  mid-deck berth, and the captured case failed with them in the history. A
+  later implication did not outweigh one earlier statement.
+
+#### What it does not settle
+
+- **Which of the two edits did it.** Messages 26 and 28 were changed together
+  (`§ S50`).
+- **How often the first mistake is made.** This case removes it by hand. Turn
+  14 is where the session made it, and on the fixed harness turn 14 put the
+  berth on the lower deck in one rep of twenty across the two runs in `§ S49`
+  (the rule's run, rep 06), most reps going to the cargo bay instead.
+- **Whether the marks are free of the marker's knowledge.** One case, known to
+  be the corrected one (`§ S50`). Rep 08 is where that shows.
+- **Turn 24.** Its history still contradicts itself in three places.
+
+#### What follows
+
+A wrong statement about where a place is, once narrated, is repeated. Nothing a
+live session has today removes one: the history cannot be edited, and a prompt
+rule did not outweigh it. The candidates are to stop the first mistake, or to
+give a session a way to retract one that later turns read as settled. Neither
+is designed, and neither is in this entry.
