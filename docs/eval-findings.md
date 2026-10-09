@@ -2458,3 +2458,177 @@ were marked chasing an effect whose first explanation was written down in
 A constructed case is only as good as the text written into it. Past one edit
 away from a captured session, a result is as likely to be about the edit as
 about the Warden.
+
+### S60 — 2026-10-09 · Pre-registration: is one hand-written sentence why the retraction cases open "back up to mid-deck"?
+
+`§ S59` withdrew three readings on the strength of an explanation it had not
+tested: that the last sentence of the hand-written correction produces the
+phrase the four retraction runs share. This run tests it in both directions.
+Written before the run is made.
+
+The sentence:
+
+> So: you're both on mid-deck, in Mara's berth, with the lower deck and the
+> engine room one level below you.
+
+#### The two cases
+
+Each differs from an existing case by that sentence and nothing else, which
+`eval-v2/fixture.spec.ts` checks.
+
+| Arm | Case | Made from | Change |
+|---|---|---|---|
+| Removed | `2c0ba938-turn18-retracted-sentence-removed` | the tidy retracted case | the sentence deleted from the correction; the rest of the correction stays |
+| Added | `2c0ba938-turn18-corrected-sentence-added` | the corrected case (`§ S50`) | the sentence appended to message 28, where Danny and Mara arrive at the berth |
+
+The added arm has no retraction in it at all. Message 28 is already correct
+there, and nothing says the Warden had anything wrong.
+
+#### What is counted
+
+Not Rubric v1 marks. The count is the phrase, by a rule a script can apply:
+
+> The narration's first sentence contains "to mid-deck", "toward mid-deck" or
+> "towards mid-deck" (with or without "the", hyphen or space).
+
+Applied to every turn 18 run made today:
+
+| Case | Run | Phrase |
+|---|---|---|
+| as captured | `2026-10-09T10-38-58Z` | 0 of 10 |
+| as captured, movement rule | `2026-10-09T11-03-37Z` | 0 of 10 |
+| corrected | `2026-10-09T13-09-50Z` | 1 of 10 |
+| retracted | `2026-10-09T17-42-03Z` | 10 of 10 |
+| tidy retracted | `2026-10-09T18-19-03Z` | 8 of 10 |
+| position seeded | `2026-10-09T18-39-07Z` | 6 of 10 |
+| return stated | `2026-10-09T18-49-52Z` | 8 of 10 |
+
+The rule is stricter than the reading behind `§ S59`'s "36 of 40", which
+counted any narrated return. By the rule the four retraction runs are 32 of
+40. Two tidy-run narrations that say "back up" without "to mid-deck" are what
+it leaves out.
+
+The run needs no hand marks. The maintainer may mark it under Rubric v1, and
+the reading below does not depend on it.
+
+#### The run and the lines
+
+One run of both cases, 10 reps each, prompt `e83e8aaa`. By Fisher's exact
+test, two-sided, each arm against the case it was made from:
+
+| Arm | Before | A shown difference |
+|---|---|---|
+| Removed | tidy retracted, 8 of 10 | 2 of 10 or fewer (0.02) |
+| Added | corrected, 1 of 10 | 7 of 10 or more (0.02) |
+
+#### Prediction
+
+**Removed: 4 of 10 or fewer. Added: 5 of 10 or more.** Neither is held
+firmly, and three of today's five predictions have missed. The sentence is the
+only place the history puts the lower deck "below" the berth. But the rest of
+the correction also names mid-deck for the berth, twice, and may be enough
+without it.
+
+- **Both arms cross their lines:** the sentence is needed for the phrase and
+  enough to produce it. `§ S59`'s withdrawals stand. The retraction cases say
+  nothing about whether the Warden holds a character's position, and the
+  `current_location` candidate has no evidence against it from today.
+- **Neither moves:** the sentence is not the cause. `§ S59`'s explanation is
+  wrong, and `§ S53`'s reading, that the retraction costs the Warden Danny's
+  position, is back in play.
+- **Removed moves and added does not:** the sentence matters only alongside a
+  retraction.
+- **Added moves and removed does not:** the sentence can produce the phrase,
+  and so can the rest of the correction. The withdrawals stand, since the
+  phrase is still the constructed text's doing.
+
+Whatever the result, no further case is built on these. `§ S59` is why.
+
+#### What this cannot show
+
+- **Why the sentence has the effect**, if it does.
+- **Anything about pass rates.** A narration can avoid the phrase and still
+  fail Rubric v1, or the reverse.
+- **Anything about a captured session.** Both arms are two edits from one.
+
+### S61 — 2026-10-09 · The sentence is enough to produce the phrase and is not needed for it
+
+Run `2026-10-09T19-10-04Z`, made by the maintainer: the two arms of `§ S60`,
+10 reps each, prompt `e83e8aaa`, unicorn `4b11f1b`. Not hand-marked. The count
+is `§ S60`'s rule, applied by script to each narration's first sentence.
+
+#### The result
+
+| Arm | Before | After | Line | |
+|---|---|---|---|---|
+| Added to the corrected case | 1 of 10 | 7 of 10 | 7 or more | crossed (0.02) |
+| Removed from the tidy retracted case | 8 of 10 | 6 of 10 | 2 or fewer | not crossed |
+
+`§ S60` predicted 5 or more for the added arm, which held, and 4 or fewer for
+the removed arm, which did not. No turn threw. Two tool leaks were recorded
+and recovered, one in each arm.
+
+**Added.** Six narrations open "You head back up to mid-deck" (reps 01, 04,
+05, 06, 08, 10) and one "The walk back to mid-deck" (02). The other three say
+"back to Mara's berth" or "toward" it and name no deck. This is a history with
+no retraction and no error about the berth, and one appended sentence.
+
+**Removed.** Three say "back up to mid-deck" (01, 03, 10) and three "back to
+mid-deck" (06, 07, 08). Of the other four, two name the berth and no deck, and
+two open at the hatch.
+
+#### The reading `§ S60` fixed in advance
+
+"Added moves and removed does not: the sentence can produce the phrase, and so
+can the rest of the correction. The withdrawals stand, since the phrase is
+still the constructed text's doing."
+
+The first half is what the run shows. The sentence alone takes the phrase from
+1 of 10 to 7 of 10, and the correction without the sentence still gives 6 of
+10. What the phrase follows is the history saying, in so many words, that the
+berth is on mid-deck.
+
+#### What that reading assumed
+
+"The constructed text's doing" covers two different things, and `§ S59` and
+`§ S60` did not separate them:
+
+- **The text makes the Warden write a route it would not otherwise write,**
+  and the route is a figure of speech for "back to the berth". Then the phrase
+  says nothing of where the Warden has Danny.
+- **The text makes the Warden name the deck, and naming it shows where it has
+  Danny.** With no deck named for the berth, the Warden writes "You head back
+  to Mara's berth" and nothing can be read off it (`§ S55`'s silent pass).
+  With the deck named, it writes a route, and six of ten times the route
+  starts below mid-deck.
+
+The run cannot tell these apart, and neither can any run made today. The
+second is not ruled out by `§ S59`: that run stated Danny's return in a full
+sentence and the narrations did not change, which shows the Warden is not
+using that sentence. It does not show what it is using.
+
+What can be said without choosing: in the added arm every statement in the
+history is true, the layout in the snapshot is right, and seven of ten
+narrations bring Danny to a deck he is already on. Under Rubric v1 those are
+fails whichever reading is right.
+
+#### Where today's turn 18 runs leave things
+
+| | |
+|---|---|
+| Shown | Turn 18 as captured fails because message 28 put the berth on the lower deck (`§ S51`). |
+| Shown | An instruction in the prompt does not change that (`§ S49`). A statement in the history does (`§ S53`, `§ S61`). |
+| Shown | The repeats in the history are not involved (`§ S55`). |
+| Shown | When the history names the berth's deck, most narrations of this turn bring Danny "back up" or "back" to it from the same deck (`§ S60`'s table, this entry). |
+| Not shown | Whether that is a lost position or a turn of phrase. |
+| Not shown | Whether a recorded position would be followed. `§ S57` ran on a case with this phrase in it and cannot say. |
+
+`§ S59`'s withdrawals stand as "not shown". They are not shown to be wrong
+either, and `§ S59` leaned further toward "an artifact" than this run
+supports.
+
+As `§ S60` said, no further case is built on these. What separates the two
+readings is not another edited history. It is a turn from a captured session
+where the Warden names both where a character starts and where he goes, read
+for whether the two agree, and that is a marking question a judge could be
+asked across every case in the archive.
