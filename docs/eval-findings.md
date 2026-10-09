@@ -2418,6 +2418,11 @@ Warden has Danny standing.
 That is still a reading and not a result. The test is a retracted case whose
 correction does not tie mid-deck to the berth in those words.
 
+It does not cover everything. Two narrations do start Danny at the stores:
+rep 03 of the tidy run and rep 03 of the seeded run both have him "head back
+up through the lower deck stores". In those two the position is lost whatever
+the phrase means elsewhere.
+
 #### What stands and what does not
 
 **Stands:**
@@ -2425,9 +2430,8 @@ correction does not tie mid-deck to the berth in those words.
 - Turn 18 as captured fails because of message 28 (`§ S51`): with the error
   removed, no narration sends Danny to the lower deck.
 - The movement rule did nothing (`§ S49`).
-- A correction in the history moves the berth to mid-deck: 39 of the 40
-  narrations in the four retraction runs name it or leave it unnamed, and none
-  puts it on the lower deck.
+- A correction in the history moves the berth off the lower deck: none of the
+  40 narrations in the four retraction runs puts it there.
 - The repeats in the history do not explain any of this (`§ S55`).
 
 **Withdrawn, as not shown:**
