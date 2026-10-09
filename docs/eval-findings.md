@@ -2632,3 +2632,349 @@ readings is not another edited history. It is a turn from a captured session
 where the Warden names both where a character starts and where he goes, read
 for whether the two agree, and that is a marking question a judge could be
 asked across every case in the archive.
+
+### S62 — 2026-10-09 · Pre-registration: the state snapshot moved from before the history to after it
+
+Every turn 18 run today has the Warden following what the conversation said
+over what the snapshot says. `buildSessionRequest` sends the snapshot as the
+first message, ahead of the whole message window, with the player's input
+last. Read in order, that puts the current state where the oldest information
+is. This run moves it and asks whether the Warden then follows it. Written
+before the run is made.
+
+Unlike the constructed cases of `§ S50` to `§ S61`, this changes the product
+and not the history, and it is tested on a turn exactly as captured.
+
+#### The change
+
+One reordering in `apps/zoltar-be/src/session/session.prompt.ts`, on branch
+`snapshot-after-history`:
+
+| | Before | After |
+|---|---|---|
+| 1 | state snapshot | message window, oldest first |
+| 2 | message window, oldest first | state snapshot |
+| 3 | dice results, if any | dice results, if any |
+| 4 | the player's input | the player's input |
+
+Nothing in the snapshot, the system blocks or the Warden prompt changes
+(`e83e8aaa`). The correction round builds on the original request and inherits
+the order.
+
+#### The case and what is counted
+
+`2c0ba938-turn18-seeded-canon-contradiction`, as captured, 10 reps. Message 28
+puts Mara's berth on the lower deck and `ship_layout` puts crew berths on
+mid-deck.
+
+The run needs no hand marks. Two counts, each a rule on the narration's first
+sentence:
+
+| Count | Rule | Captured turn 18 today |
+|---|---|---|
+| Down | contains "down" or "lower deck" | 9 of 10 (`2026-10-09T10-38-58Z`), 9 of 10 (`2026-10-09T11-03-37Z`) |
+| To mid-deck | `§ S60`'s rule | 0 of 10, 0 of 10 |
+
+The down count agrees with the hand marks on both runs: the nine narrations
+it picks out in each are the nine marked fail. On the corrected case it picks
+out one of ten, rep 08, the mark `§ S51` discussed.
+
+The second count is there because moving the snapshot could trade one failure
+for the other: a Warden that now puts the berth on mid-deck may bring Danny
+"back up" to it, as in `§ S61`. The narrations will also be read, and anything
+the two rules miss will be reported.
+
+By Fisher's exact test, two-sided, against the reference run's 9 of 10: a down
+count of 3 of 10 or fewer is a shown difference (0.02), and 4 of 10 is not
+(0.057).
+
+#### Prediction
+
+**A down count of 4 to 6 of 10: a drop that is not shown.** Message 28 is an
+explicit statement nine messages before the turn, and today a statement in the
+history has outweighed everything except another statement in the history.
+Moving the snapshot puts `ship_layout` after it, which should count for
+something, but `ship_layout` is one line among several and names no character.
+
+- **3 or fewer:** where the snapshot sits decides whether the Warden follows
+  it. The reorder is worth an ADR and a merge, and a recorded position
+  (`ADR-0101`) becomes worth designing, since state placed here is read.
+- **7 or more:** placement is not the reason the snapshot loses. State has to
+  reach the Warden some other way, or the history has to stop contradicting
+  it.
+- **4 to 6:** it helps. One top-up of 20 reps a side would be owed before
+  deciding anything (`docs/eval-methodology.md § Eval v2`), and the reference
+  side would need the phrase count applied to its own top-up.
+
+#### Not settled by the change itself
+
+- **The first message's role.** With the snapshot first, a request always
+  opened on a user message. Now it opens on whatever the window starts with,
+  and a window trimmed by size can start on a Warden message. Turn 18's does
+  not. Whether the API accepts a request that opens on an assistant message
+  has to be settled before this could merge.
+- **Prompt caching.** Not measured. The system blocks are the only cached
+  part today, and they are unchanged.
+- **Integration tests.** The unit suite passes (1342). The `spec-int` suites
+  need the test database and were not run.
+
+#### What this cannot show
+
+- **Any other turn or session.** One case.
+- **Whether a pass is silent** (`§ S55`). The counts say what the narration
+  avoids, not that the Warden has it right.
+
+### S63 — 2026-10-09 · Moving the snapshot after the history: the down count falls from 9 to 6, and no narration puts the berth on mid-deck
+
+Run `2026-10-09T19-43-55Z`, made by the maintainer: turn 18 as captured, 10
+reps, prompt `e83e8aaa`, unicorn `71027c4`, which sends the state snapshot
+after the message window. Not hand-marked. The counts are `§ S62`'s rules.
+
+#### The result
+
+| | Snapshot first (`2026-10-09T10-38-58Z`) | Snapshot after the history |
+|---|---|---|
+| Down: "down" or "lower deck" in the first sentence | 9 of 10 | 6 of 10 |
+| To mid-deck | 0 of 10 | 0 of 10 |
+
+`§ S62` predicted a down count of 4 to 6, a drop that is not shown. It is 6,
+and 9 of 10 against 6 of 10 is 0.30. No turn threw and no tool leak was
+recorded.
+
+#### What the narrations say
+
+| Opening | Reps |
+|---|---|
+| "You head back down to the lower deck" | 01, 03, 07 |
+| "You head back up to the lower deck" | 02, 05, 08 |
+| "You head back up through the ladder shaft" | 06 |
+| At the hatch, or "back to Mara's berth", with no deck and no route | 04, 09, 10 |
+
+- **Six put the berth on the lower deck**, as message 28 does.
+- **None puts it on mid-deck**, as `ship_layout` does, in the first sentence
+  or after it.
+- **The three that drop out of the count are silent** (`§ S55`). A fourth,
+  rep 06, has Danny climbing up from the stores, which the rules miss and
+  which is its own error.
+- **"Back up to the lower deck" is new.** The reference run's nine all said
+  "back down". Three narrations now reach the lower deck by going up, and
+  nothing is below it.
+
+#### Reading it
+
+By the count, the reorder helps a little and is not shown to. By the
+narrations, there is no sign the snapshot is being followed: the fall from 9
+to 6 is narrations that say nothing, not narrations that agree with
+`ship_layout`. Ten of ten still either follow message 28 or avoid the
+question.
+
+So where the snapshot sits is not why it loses, at least not on this turn.
+That is `§ S62`'s "7 or more" reading, reached from a count of 6, and it rests
+on reading the narrations and not on the rule. The rule alone says "it helps;
+a top-up is owed".
+
+#### The top-up, set aside
+
+`§ S62` said a count of 4 to 6 would owe one top-up of 20 reps a side before
+deciding anything. It was not run. The maintainer asked a different question
+first: whether the reorder together with other pushes on the state would do
+what none does alone. That run is `§ S64`, and it is made from the reorder, so
+it supersedes a top-up of the reorder by itself.
+
+#### What follows
+
+- **Three ways of putting the layout in front of the Warden have now failed
+  against message 28**: the snapshot where it was, an instruction to prefer
+  it (`§ S49`), and the snapshot after the history. Two changes to the history
+  have worked: removing the error (`§ S51`) and correcting it (`§ S53`).
+- **None of the three was tried with another.** `§ S64` does that.
+- **The open questions from `§ S62` stay open**: the first message's role,
+  and caching.
+
+### S64 — 2026-10-09 · Pre-registration: everything the backend can do to put the state first, at once
+
+`§ S63` moved the snapshot after the history and no narration followed it.
+This run adds two more pushes to that one and asks whether the three together
+are enough. Written before the run is made.
+
+It changes three things at once on purpose. The question is whether the
+state, held outside the history, can be made to hold against a wrong narration
+at all. If it can, pieces can be taken away afterwards to find which matter.
+If it cannot with all three, that is settled in one run.
+
+#### The three changes
+
+All on branch `snapshot-after-history`, on top of `71027c4`.
+
+**1. The snapshot after the history**, as in `§ S62`.
+
+**2. A header on the snapshot message**, written by the backend
+(`STATE_SNAPSHOT_HEADER` in `apps/zoltar-be/src/session/session.prompt.ts`):
+
+> [Current state, as of this turn. Everything above is what has been said so
+> far, and some of it may be wrong. Where earlier narration contradicts the
+> state below, the state is right.]
+
+**3. A section in the Warden prompt** (`mothership-m7.txt`, `e83e8aaa` →
+`3e56fd6b`):
+
+> THE STATE SNAPSHOT IS THE PRESENT
+> The state snapshot arrives after the conversation history, just ahead of the
+> player's input. It is the world as it stands now. The history above it is a
+> record of what has been said, and some of what was said is wrong.
+>
+> - Where earlier narration and the snapshot disagree about where a place is,
+>   the snapshot is right. Do not repeat the earlier narration.
+> - Before you narrate anyone going anywhere, find the place in <world_facts>
+>   and narrate it where <world_facts> puts it. Name the deck, so the page says
+>   where the place is even when an earlier turn put it somewhere else.
+
+This is not `§ S49`'s movement rule again. That rule pointed at `<world_facts>`
+when it sat ahead of the whole history, and its first line told the Warden to
+take a character's position from the most recent narration.
+
+#### The case and what is counted
+
+Turn 18 as captured, 10 reps, not hand-marked, by `§ S62`'s two rules on the
+first sentence, plus one count made by reading:
+
+| Count | Snapshot first | Snapshot after (`§ S63`) |
+|---|---|---|
+| Down | 9 of 10 | 6 of 10 |
+| To mid-deck (`§ S60`'s rule) | 0 of 10 | 0 of 10 |
+| Narrations that put Mara's berth on mid-deck, anywhere | 0 of 10 | 0 of 10 |
+
+The third is the one that says the state was followed. A low down count
+reached by narrations going silent, as in `§ S63`, is not a fix.
+
+Against the reference run's 9 of 10, a down count of 3 of 10 or fewer is a
+shown difference (`§ S62`).
+
+#### Prediction
+
+**A down count of 4 or more of 10, and at most 3 narrations putting the berth
+on mid-deck.** Everything measured today has the Warden following statements
+in the conversation, and none of the three changes is one.
+
+- **Down 3 or fewer, and 5 or more put the berth on mid-deck:** state outside
+  the history can be made to hold. The three changes go forward together to an
+  ADR, and the next runs take them away one at a time.
+- **Down 3 or fewer, by silence:** the combination suppresses the error and
+  does not replace it with the truth. Worth knowing; not a fix.
+- **Down 4 or more:** the state does not hold against a wrong narration, by
+  any means the backend has short of changing the conversation. The fix has
+  to act on the history.
+
+If the berth does land on mid-deck, the to-mid-deck count says whether the
+route is then wrong in the way `§ S61` found.
+
+#### Limits set in advance
+
+- **This is the last variant of turn 18 run today**, whatever it shows.
+- **The header's claim is broader than this turn tests.** It tells the Warden
+  the state is right wherever the narration contradicts it. That is false
+  whenever the narration is newer than the state and something happened that
+  no field recorded. It would need settling before a merge.
+- **One case, one session.**
+
+### S65 — 2026-10-09 · The three changes together put the berth on mid-deck in 5 of 10, and all five bring Danny up to it
+
+Run `2026-10-09T20-04-08Z`, made by the maintainer: turn 18 as captured, 10
+reps, unicorn `94c9c99`, prompt `3e56fd6b`. That is the snapshot after the
+history, the header on it, and the prompt section (`§ S64`). Not hand-marked.
+
+#### The result
+
+| Count | Snapshot first | Snapshot after (`§ S63`) | All three |
+|---|---|---|---|
+| Down: "down" or "lower deck" in the first sentence | 9 of 10 | 6 of 10 | 5 of 10 |
+| To mid-deck (`§ S60`'s rule) | 0 of 10 | 0 of 10 | 5 of 10 |
+| Narrations that put Mara's berth on mid-deck | 0 of 10 | 0 of 10 | 5 of 10 |
+
+`§ S64` predicted a down count of 4 or more, which held, and at most 3
+narrations putting the berth on mid-deck, which did not. No turn threw and no
+tool leak was recorded.
+
+| Opening | Reps | Berth |
+|---|---|---|
+| "You head back up to mid-deck" | 02, 06, 10 | mid-deck |
+| "You take the ladder shaft back up to mid-deck" | 07 | mid-deck |
+| "You head back up through the lower deck and climb to mid-deck" | 03 | mid-deck |
+| "head back down" to the berth | 05, 08, 09 | below |
+| "You head back up to the lower deck" | 01 | lower deck |
+| At the hatch | 04 | not said |
+
+Rep 03 is in both the down count and the mid-deck count: the rule matches its
+"lower deck", and it puts the berth on mid-deck.
+
+#### Reading it
+
+`§ S64`'s table has no row for this. A down count of 4 or more was to mean the
+state does not hold. But five narrations follow `ship_layout` over message 28,
+and that had not happened once in thirty narrations of this case before. By
+Fisher's exact test, 5 of 10 against 0 of 10 is 0.03, and against the 0 of 20
+of both earlier runs it is less.
+
+So, in two parts:
+
+- **The state can be made to count, and half the time is what it gets.** With
+  the snapshot after the history, a header saying it overrides the narration,
+  and a prompt section saying the same, five narrations put the berth where
+  the world facts put it. Four still follow message 28. That is the first
+  thing other than changing the history that has moved the berth at all.
+- **Every narration that gets the place right gets the route wrong.** All five
+  bring Danny up to mid-deck, and he is on mid-deck. Reps 03 and 07 say how:
+  through the lower deck, by the ladder shaft.
+
+None of the ten would pass Rubric v1. Five put the berth on the wrong deck or
+below Danny, five have him climb to a deck he is on, and one says nothing.
+
+#### What this does to `§ S61`
+
+`§ S61` could not say whether "back up to mid-deck" is a lost position or a
+turn of phrase, and `§ S59` suspected the hand-written correction of producing
+it. Here there is no hand-written text in the history. It is the session as
+captured, and the phrase appears in five of five narrations that name the
+berth's deck.
+
+That settles the part `§ S59` raised: the phrase is not the constructed
+correction's doing. It appears whenever the Warden names mid-deck for the
+berth, by whatever means it was brought to. And reps 03 and 07 narrate a climb
+from below, which is a route and not a figure of speech.
+
+`§ S53`'s reading is restored, more narrowly than it was written: **on this
+turn the Warden has Danny below mid-deck, and it shows whenever the narration
+names where he is going.** Message 36 sends him down to the stores and brings
+him back in two words. `§ S59` showed that stating the return in full does not
+change it, so the cause is still not known.
+
+The prompt section tells the Warden to name the deck, so it is part of why the
+route is on the page. It is not why the route starts below.
+
+#### What stands after today
+
+| | |
+|---|---|
+| A wrong statement about a place is repeated | `§ S51`: 9 of 10 as captured, none once message 28 is corrected |
+| A correction in the conversation fixes the place | `§ S53`, `§ S61`: none of 40 puts the berth on the lower deck |
+| An instruction alone does nothing | `§ S49` |
+| The state, pushed three ways at once, fixes the place half the time | this entry: 5 of 10 against 0 of 20 |
+| The Warden has Danny on the wrong deck at this turn | this entry, with `§ S53`, `§ S55`, `§ S57`, `§ S61` |
+| Why it has him there | not known |
+| Which of the three changes does the work | not known |
+| Whether a recorded position would be followed | not tested cleanly (`§ S57`, `§ S59`) |
+
+There are two failures on this turn and they need different fixes. One is
+about where a place is, and both the conversation and, partly, the state can
+correct it. The other is about where a character is, and nothing tried today
+has touched it.
+
+#### The branch
+
+Not merged. Half is not a fix, the header overclaims (`§ S64`), the first
+message's role is unsettled (`§ S62`), and the route error would fail every
+narration the change improves. The source changes are taken back off the
+branch so that these entries can merge; `71027c4` and `94c9c99` stay in
+history because runs were made from them.
+
+As `§ S64` said, this is the last variant of turn 18 run today.
