@@ -177,3 +177,26 @@ describe('2c0ba938-turn18-berth-retracted-tidy', () => {
     expect(new Set(contents).size).toBe(contents.length);
   });
 });
+
+describe('2c0ba938-turn18-position-seeded', () => {
+  it('is the tidy retracted case with one world fact added', () => {
+    const tidy = loadFixture('2c0ba938-turn18-berth-retracted-tidy');
+    const seeded = loadFixture('2c0ba938-turn18-position-seeded');
+
+    const { danny_location: location, ...otherFacts } = seeded.seededState
+      .campaignState.worldFacts as Record<string, string>;
+    expect(location).toBe('At the cryo bay bulkhead, on mid-deck.');
+
+    expect({
+      ...seeded,
+      id: tidy.id,
+      seededState: {
+        ...seeded.seededState,
+        campaignState: {
+          ...seeded.seededState.campaignState,
+          worldFacts: otherFacts,
+        },
+      },
+    }).toEqual(tidy);
+  });
+});

@@ -2178,3 +2178,71 @@ is weaker than 8 of 9 suggests.
   `§ S53`'s and has more behind it.
 - **A pass that names no deck is weak evidence.** Any reading of a question 1
   rate should say how many of its passes are silent.
+
+### S56 — 2026-10-09 · Pre-registration: the tidy retracted turn 18 with Danny's position seeded as a world fact
+
+`§ S55` left turn 18 failing 10 of 10 because the Warden starts Danny below
+mid-deck, reading his position off message 36. This is the first run today
+that tests something that could be built: a recorded position, which is what
+the `current_location` candidate proposes (`ADR-0101`). Written before the run
+is made.
+
+#### The case
+
+`2c0ba938-turn18-position-seeded` is the tidy retracted case with one world
+fact added and nothing else changed, which `eval-v2/fixture.spec.ts` checks:
+
+```
+danny_location: At the cryo bay bulkhead, on mid-deck.
+```
+
+It is rendered with the other world facts in the snapshot's `<world_facts>`
+block. The prompt is unchanged, and says nothing about a location fact or
+about preferring one to the narration.
+
+The value is what a field written on the turn of message 36 would hold. It
+does not say Danny came back from the stores, or that he is not on the lower
+deck.
+
+One world fact already places him by implication. `cryo_bay_bulkhead_patch`,
+which the Warden wrote, opens "Danny has sealant-taped the visible stress
+fractures along the cryo bay bulkhead weld seam". The retracted cases failed
+with it in the snapshot.
+
+#### The run and what it is read against
+
+One run of this case alone, 10 reps, prompt `e83e8aaa`, marked under Rubric v1
+as `§ S53` and `§ S55` were. The before-number is the tidy retracted case, 0 of
+10 (`2026-10-09T18-19-03Z`). Against 0 of 10, 5 of 10 or more is a shown
+difference (`§ S54`).
+
+Following `§ S55`, the write-up will count the passes that name no deck and
+narrate no route apart from those that place Danny or the berth.
+
+#### Prediction
+
+**At least 5 of 10 pass.** Not held firmly. For it: the fact agrees with what
+message 36 says when read to the end, so it settles an ambiguity and does not
+have to overrule a statement. Against it: `ship_layout` is a world fact too,
+and lost to the session's narration in every run until the narration was
+changed.
+
+- **5 or more:** a recorded position is followed, at least where the history
+  does not flatly contradict it. The `current_location` candidate is worth
+  designing, with `worldFacts` a workable home for it.
+- **1 or fewer:** a position held as a world fact does not outweigh the
+  Warden's reading of its own narration. The candidate needs a different home
+  or a different form before it is built: its own block in the snapshot, a
+  line in the prompt that names it, or both.
+- **2 to 4:** it helps and is not enough as it stands.
+
+#### What this cannot show
+
+- **Whether the Warden would write the value correctly.** It is seeded by
+  hand. `ADR-0101`'s warning is that nothing validates a field the Warden
+  authors, and a wrong value is then read back as settled on every later turn.
+  `§ S51` is that warning observed for narration.
+- **Whether it holds against a history that contradicts it outright**, as
+  message 28 contradicted `ship_layout`.
+- **Any other turn.** Turns 14 and 29 are not in this run.
+- **The marking is not blind**, as before.
