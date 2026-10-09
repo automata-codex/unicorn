@@ -114,7 +114,9 @@ describe('buildSessionRequest', () => {
       tools: SESSION_TOOLS,
     });
     expect(req.messages[0].role).toBe('user');
-    expect(req.messages[0].content).toMatch(/^<state_snapshot>/);
+    expect(req.messages[0].content).toMatch(
+      /^\[Current state, as of this turn\..*\]\n\n<state_snapshot>/s,
+    );
   });
 
   it('puts the snapshot after the window and before the new player message, mapping roles', () => {
@@ -151,7 +153,7 @@ describe('buildSessionRequest', () => {
       content: 'Second turn response.',
     });
     expect(req.messages[4].role).toBe('user');
-    expect(req.messages[4].content).toMatch(/^<state_snapshot>/);
+    expect(req.messages[4].content).toContain('<state_snapshot>');
     expect(req.messages[5]).toEqual({
       role: 'user',
       content: 'Third turn input.',

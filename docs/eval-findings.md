@@ -2723,3 +2723,74 @@ something, but `ship_layout` is one line among several and names no character.
 - **Any other turn or session.** One case.
 - **Whether a pass is silent** (`§ S55`). The counts say what the narration
   avoids, not that the Warden has it right.
+
+### S63 — 2026-10-09 · Moving the snapshot after the history: the down count falls from 9 to 6, and no narration puts the berth on mid-deck
+
+Run `2026-10-09T19-43-55Z`, made by the maintainer: turn 18 as captured, 10
+reps, prompt `e83e8aaa`, unicorn `71027c4`, which sends the state snapshot
+after the message window. Not hand-marked. The counts are `§ S62`'s rules.
+
+#### The result
+
+| | Snapshot first (`2026-10-09T10-38-58Z`) | Snapshot after the history |
+|---|---|---|
+| Down: "down" or "lower deck" in the first sentence | 9 of 10 | 6 of 10 |
+| To mid-deck | 0 of 10 | 0 of 10 |
+
+`§ S62` predicted a down count of 4 to 6, a drop that is not shown. It is 6,
+and 9 of 10 against 6 of 10 is 0.30. No turn threw and no tool leak was
+recorded.
+
+#### What the narrations say
+
+| Opening | Reps |
+|---|---|
+| "You head back down to the lower deck" | 01, 03, 07 |
+| "You head back up to the lower deck" | 02, 05, 08 |
+| "You head back up through the ladder shaft" | 06 |
+| At the hatch, or "back to Mara's berth", with no deck and no route | 04, 09, 10 |
+
+- **Six put the berth on the lower deck**, as message 28 does.
+- **None puts it on mid-deck**, as `ship_layout` does, in the first sentence
+  or after it.
+- **The three that drop out of the count are silent** (`§ S55`). A fourth,
+  rep 06, has Danny climbing up from the stores, which the rules miss and
+  which is its own error.
+- **"Back up to the lower deck" is new.** The reference run's nine all said
+  "back down". Three narrations now reach the lower deck by going up, and
+  nothing is below it.
+
+#### Reading it
+
+By the count, the reorder helps a little and is not shown to. By the
+narrations, there is no sign the snapshot is being followed: the fall from 9
+to 6 is narrations that say nothing, not narrations that agree with
+`ship_layout`. Ten of ten still either follow message 28 or avoid the
+question.
+
+So where the snapshot sits is not why it loses, at least not on this turn.
+That is `§ S62`'s "7 or more" reading, reached from a count of 6, and it rests
+on reading the narrations and not on the rule. The rule alone says "it helps;
+a top-up is owed".
+
+#### No top-up
+
+`§ S62` said a count of 4 to 6 would owe one top-up of 20 reps a side before
+deciding anything. None was run. The best a top-up could show is that a fall
+of this size is real, and a turn that still sends Danny to the lower deck six
+times in ten is not fixed by it. The narrations give no reason to expect
+better.
+
+#### What follows
+
+- **The reorder is not kept.** `71027c4` is reverted. It is in history because
+  the run was made from it.
+- **Three ways of putting the layout in front of the Warden have now failed
+  against message 28**: the snapshot where it was, an instruction to prefer
+  it (`§ S49`), and the snapshot after the history. Two changes to the history
+  have worked: removing the error (`§ S51`) and correcting it (`§ S53`).
+- **The lever is the history.** What a session needs is a way to stop a wrong
+  statement being made, or to get a correction into the conversation after
+  one is.
+- **The open questions from `§ S62` stay open** and no longer need settling:
+  the first message's role, and caching.

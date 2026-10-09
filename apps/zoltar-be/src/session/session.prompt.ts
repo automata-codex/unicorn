@@ -104,6 +104,15 @@ function formatDiceResultLine(roll: ResolvedPlayerRoll): string {
 }
 
 /**
+ * Leads the snapshot message. The snapshot's own text says what the state is;
+ * this says when it is, and what to do when the history disagrees with it.
+ */
+export const STATE_SNAPSHOT_HEADER =
+  '[Current state, as of this turn. Everything above is what has been said ' +
+  'so far, and some of it may be wrong. Where earlier narration contradicts ' +
+  'the state below, the state is right.]';
+
+/**
  * Assembles the full per-turn Claude request. Structure per spec §"Part 4":
  *
  *   system:
@@ -111,7 +120,7 @@ function formatDiceResultLine(roll: ResolvedPlayerRoll): string {
  *     [1] Warden role prompt (no cache marker)
  *   messages:
  *     [0..n-2] prior window messages in chronological order
- *     [n-1] user: <state_snapshot>...</state_snapshot>   (fresh every turn)
+ *     [n-1] user: header + <state_snapshot>...</state_snapshot>   (fresh every turn)
  *     [n] user: the new player input
  *
  * The snapshot comes after the history, not before it. Read top to bottom, a
@@ -173,10 +182,10 @@ export function buildSessionRequest(input: {
   // present and not as the state the history started from.
   messages.push({
     role: 'user',
-    content: buildStateSnapshot({
+    content: `${STATE_SNAPSHOT_HEADER}\n\n${buildStateSnapshot({
       gmContextBlob: input.gmContextBlob,
       campaignStateData: input.campaignStateData,
-    }),
+    })}`,
   });
 
   // Synthetic [Dice results] block — placed as its own user message right
