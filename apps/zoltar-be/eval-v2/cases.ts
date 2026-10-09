@@ -28,6 +28,11 @@ export const CASES = {
     // and that it had it wrong. Both are written by hand, on the pattern of
     // the session's own messages 17 and 18.
     '2c0ba938-turn18-berth-retracted',
+    // The retracted case with the history's repeats taken out and nothing
+    // else changed. The session holds its opening OOC question twice, and
+    // the patch-kit message four times with two Warden replies to it. One
+    // copy of each player message is kept, and the later Warden reply.
+    '2c0ba938-turn18-berth-retracted-tidy',
     // Known failure: where Petrov is, against the crew roster.
     '2c0ba938-turn24-seeded-canon-contradiction',
     // Known good: Mara's "two decks from me" was correct.

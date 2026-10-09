@@ -2032,3 +2032,73 @@ way.
 A wrong statement about a place can be undone by a later statement, and cannot
 be undone by an instruction. Where the character is standing has no statement
 to be undone by, because it is recorded nowhere.
+
+### S54 — 2026-10-09 · Pre-registration: the retracted turn 18 with the history's repeated messages removed
+
+`§ S53` had every narration lose Danny's position. The maintainer, reading the
+constructed fixture, noticed that the history it shares with the captured turn
+18 repeats itself, and `§ S48` is a case of a repeated message changing what
+the Warden does. This run asks whether the repeats are why the position was
+lost. Written before the run is made.
+
+#### The repeats
+
+They are the session's own, and are in the captured fixture too:
+
+| Messages (captured numbering) | What |
+|---|---|
+| 0, 1 | The opening OOC question, twice, with no reply between |
+| 31, 32, 34, 35 | "I'm going to get some patch kits from the ship's stores…", four times |
+| 33, 36 | Two Warden replies to it, each sending Danny down to the lower deck stores and back up to the cryo bay bulkhead |
+
+So the Warden reads Danny making the same trip down and up twice, immediately
+before the turn.
+
+The repeated player messages have a known source. `SessionService` saves the
+player's message before the turn's transaction and outside it, so that a retry
+after a failure does not need retyping
+(`apps/zoltar-be/src/session/session.service.ts`, step 2). A turn that throws
+leaves its message in the history, and the retry adds another. Why the
+patch-kit message was sent again after message 33 had answered it is not
+recorded.
+
+#### The case
+
+`2c0ba938-turn18-berth-retracted-tidy` is the retracted case with five
+messages removed and nothing else changed, which `eval-v2/fixture.spec.ts`
+checks: one copy of the OOC question, three copies of the patch-kit message,
+and the first of the two Warden replies (message 33). The later reply is kept
+because it is the one the turn follows from. No message content is repeated in
+what remains. The hand-written correction is as it was in `§ S52`.
+
+#### The run and what it is read against
+
+One run of this case alone, 10 reps, prompt `e83e8aaa`, marked under Rubric v1
+as `§ S53` was: a narration that has Danny go up, down or back to mid-deck to
+reach the berth is a fail.
+
+The before-number is the retracted case, 0 of 10 (`2026-10-09T17-42-03Z`). By
+Fisher's exact test, two-sided, against 0 of 10: 5 of 10 or more is a shown
+difference (0.03), and 4 of 10 is not (0.09).
+
+#### Prediction
+
+**At most 3 of 10 pass.** The corrected case (`§ S51`) has the same repeats
+and kept Danny's position in 8 of 9, so the repeats alone do not lose it. This
+is not held firmly: the corrected case had no correction in it, and the two
+could act together.
+
+- **5 or more:** the repeats are at least part of why the position was lost.
+  That makes the messages a failed turn leaves behind a defect worth fixing in
+  the turn path, and `§ S53`'s "the Warden does not hold the character's
+  position" is too strong as written.
+- **3 or fewer:** the repeats are not the cause. `§ S53` stands, with the
+  wording of the correction still the one untested explanation.
+- **4:** not shown either way.
+
+#### What this cannot show
+
+- **Which repeat matters**, if they do. All five are removed together.
+- **Whether the correction's wording caused the lost position** (`§ S53`). It
+  is unchanged here.
+- **The marking is not blind**, as before.

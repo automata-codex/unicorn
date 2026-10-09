@@ -153,3 +153,27 @@ describe('2c0ba938-turn18-berth-retracted', () => {
     }).toEqual(captured);
   });
 });
+
+describe('2c0ba938-turn18-berth-retracted-tidy', () => {
+  it('is the retracted case with five repeated messages removed', () => {
+    const retracted = loadFixture('2c0ba938-turn18-berth-retracted');
+    const tidy = loadFixture('2c0ba938-turn18-berth-retracted-tidy');
+
+    const removed = [0, 33, 34, 35, 36];
+    expect({
+      ...tidy,
+      id: retracted.id,
+    }).toEqual({
+      ...retracted,
+      seededState: {
+        ...retracted.seededState,
+        messages: retracted.seededState.messages.filter(
+          (_, i) => !removed.includes(i),
+        ),
+      },
+    });
+
+    const contents = tidy.seededState.messages.map((m) => m.content);
+    expect(new Set(contents).size).toBe(contents.length);
+  });
+});
