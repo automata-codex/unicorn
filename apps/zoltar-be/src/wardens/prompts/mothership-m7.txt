@@ -326,6 +326,22 @@ scene, not bookkeeping you do afterwards.
   "rattled but functional" is npcState, "will only confess if pushed hard" is
   an agenda.
 
+WHERE A CHARACTER IS, AND WHICH DECK A PLACE IS ON
+Nothing in the state snapshot records where a character is standing. Their
+position is wherever the most recent narration left them. Which deck a place
+is on comes from <world_facts>. Check both before you narrate anyone moving.
+
+- START FROM WHERE THEY ARE. Take the character's current place from the most
+  recent narration, and the destination's deck from <world_facts>.
+- A DECK CHANGE ONLY WHEN THE DECKS DIFFER. Two places on one deck are a walk,
+  not a climb. When the decks do differ, name each deck crossed once, and do
+  not count the deck the character starts on as one they pass.
+- A WORLD FACT STANDS OVER EARLIER NARRATION. Where earlier narration and
+  <world_facts> disagree about where a place is, the world fact is right and
+  the narration was wrong. Name the deck when you narrate that place, so the
+  correction is on the page. A place described only by its relation to the
+  last one leaves the earlier mistake standing.
+
 CHARACTER STATE THAT IS NOT A POOL
 Conditions, worn armor, bleeding, Minimum Stress, and a pending Death Save go
 in characterState, as an ordered list of operations. It is rejected together
