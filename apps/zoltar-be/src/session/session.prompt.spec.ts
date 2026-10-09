@@ -104,7 +104,7 @@ describe('buildSessionRequest', () => {
     expect(req.systemBlocks[1].text).toBe(WARDEN_PROMPT_FIXTURE);
   });
 
-  it('starts the message array with the state snapshot as a user message', () => {
+  it('sends the state snapshot as a user message when there is no history', () => {
     const req = buildSessionRequest({
       gmContextBlob: baseBlob,
       campaignStateData,
@@ -117,7 +117,7 @@ describe('buildSessionRequest', () => {
     expect(req.messages[0].content).toMatch(/^<state_snapshot>/);
   });
 
-  it('preserves the window between the snapshot and the new player message, mapping roles', () => {
+  it('puts the snapshot after the window and before the new player message, mapping roles', () => {
     const windowMessages = [
       makeMessage(1, 'player', 'First turn input.'),
       makeMessage(2, 'gm', 'First turn response.'),
@@ -133,23 +133,25 @@ describe('buildSessionRequest', () => {
       tools: SESSION_TOOLS,
     });
     expect(req.messages).toHaveLength(6);
-    // [0] snapshot, [1..4] window, [5] new input
-    expect(req.messages[1]).toEqual({
+    // [0..3] window, [4] snapshot, [5] new input
+    expect(req.messages[0]).toEqual({
       role: 'user',
       content: 'First turn input.',
     });
-    expect(req.messages[2]).toEqual({
+    expect(req.messages[1]).toEqual({
       role: 'assistant',
       content: 'First turn response.',
     });
-    expect(req.messages[3]).toEqual({
+    expect(req.messages[2]).toEqual({
       role: 'user',
       content: 'Second turn input.',
     });
-    expect(req.messages[4]).toEqual({
+    expect(req.messages[3]).toEqual({
       role: 'assistant',
       content: 'Second turn response.',
     });
+    expect(req.messages[4].role).toBe('user');
+    expect(req.messages[4].content).toMatch(/^<state_snapshot>/);
     expect(req.messages[5]).toEqual({
       role: 'user',
       content: 'Third turn input.',

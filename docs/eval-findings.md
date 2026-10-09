@@ -2632,3 +2632,94 @@ readings is not another edited history. It is a turn from a captured session
 where the Warden names both where a character starts and where he goes, read
 for whether the two agree, and that is a marking question a judge could be
 asked across every case in the archive.
+
+### S62 — 2026-10-09 · Pre-registration: the state snapshot moved from before the history to after it
+
+Every turn 18 run today has the Warden following what the conversation said
+over what the snapshot says. `buildSessionRequest` sends the snapshot as the
+first message, ahead of the whole message window, with the player's input
+last. Read in order, that puts the current state where the oldest information
+is. This run moves it and asks whether the Warden then follows it. Written
+before the run is made.
+
+Unlike the constructed cases of `§ S50` to `§ S61`, this changes the product
+and not the history, and it is tested on a turn exactly as captured.
+
+#### The change
+
+One reordering in `apps/zoltar-be/src/session/session.prompt.ts`, on branch
+`snapshot-after-history`:
+
+| | Before | After |
+|---|---|---|
+| 1 | state snapshot | message window, oldest first |
+| 2 | message window, oldest first | state snapshot |
+| 3 | dice results, if any | dice results, if any |
+| 4 | the player's input | the player's input |
+
+Nothing in the snapshot, the system blocks or the Warden prompt changes
+(`e83e8aaa`). The correction round builds on the original request and inherits
+the order.
+
+#### The case and what is counted
+
+`2c0ba938-turn18-seeded-canon-contradiction`, as captured, 10 reps. Message 28
+puts Mara's berth on the lower deck and `ship_layout` puts crew berths on
+mid-deck.
+
+The run needs no hand marks. Two counts, each a rule on the narration's first
+sentence:
+
+| Count | Rule | Captured turn 18 today |
+|---|---|---|
+| Down | contains "down" or "lower deck" | 9 of 10 (`2026-10-09T10-38-58Z`), 9 of 10 (`2026-10-09T11-03-37Z`) |
+| To mid-deck | `§ S60`'s rule | 0 of 10, 0 of 10 |
+
+The down count agrees with the hand marks on both runs: the nine narrations
+it picks out in each are the nine marked fail. On the corrected case it picks
+out one of ten, rep 08, the mark `§ S51` discussed.
+
+The second count is there because moving the snapshot could trade one failure
+for the other: a Warden that now puts the berth on mid-deck may bring Danny
+"back up" to it, as in `§ S61`. The narrations will also be read, and anything
+the two rules miss will be reported.
+
+By Fisher's exact test, two-sided, against the reference run's 9 of 10: a down
+count of 3 of 10 or fewer is a shown difference (0.02), and 4 of 10 is not
+(0.057).
+
+#### Prediction
+
+**A down count of 4 to 6 of 10: a drop that is not shown.** Message 28 is an
+explicit statement nine messages before the turn, and today a statement in the
+history has outweighed everything except another statement in the history.
+Moving the snapshot puts `ship_layout` after it, which should count for
+something, but `ship_layout` is one line among several and names no character.
+
+- **3 or fewer:** where the snapshot sits decides whether the Warden follows
+  it. The reorder is worth an ADR and a merge, and a recorded position
+  (`ADR-0101`) becomes worth designing, since state placed here is read.
+- **7 or more:** placement is not the reason the snapshot loses. State has to
+  reach the Warden some other way, or the history has to stop contradicting
+  it.
+- **4 to 6:** it helps. One top-up of 20 reps a side would be owed before
+  deciding anything (`docs/eval-methodology.md § Eval v2`), and the reference
+  side would need the phrase count applied to its own top-up.
+
+#### Not settled by the change itself
+
+- **The first message's role.** With the snapshot first, a request always
+  opened on a user message. Now it opens on whatever the window starts with,
+  and a window trimmed by size can start on a Warden message. Turn 18's does
+  not. Whether the API accepts a request that opens on an assistant message
+  has to be settled before this could merge.
+- **Prompt caching.** Not measured. The system blocks are the only cached
+  part today, and they are unchanged.
+- **Integration tests.** The unit suite passes (1342). The `spec-int` suites
+  need the test database and were not run.
+
+#### What this cannot show
+
+- **Any other turn or session.** One case.
+- **Whether a pass is silent** (`§ S55`). The counts say what the narration
+  avoids, not that the Warden has it right.
