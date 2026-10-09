@@ -108,6 +108,12 @@ tasks:
     cmds:
       - npx tsx --env-file=.env eval-v2/report.ts {{.CLI_ARGS}}
 
+  ev2:compare:
+    desc: 'Eval v2 — put two marked runs side by side: what differs between them apart from the marks (prompt, dirty tree, files changed between their commits), each shared case''s pass rate in both, and whether the change is larger than the reps can produce by chance (spec 027). Refuses runs of different questions or rubric versions, and a run whose marks.csv has no "# rubric:" line. Reads files and runs git diff only — no database, no Anthropic, no cost, so it needs no approval. Either side may be a comma-separated list of runs to pool a top-up. Usage — task ev2:compare -- <before>[,<run>] <after>[,<run>]'
+    dir: apps/zoltar-be
+    cmds:
+      - npx tsx --env-file=.env eval-v2/compare.ts {{.CLI_ARGS}}
+
   eval:capture-fixture:
     desc: Capture a turn's seeded state into an EvalFixture JSON file (M7.4). Usage — task eval:capture-fixture -- <adventure-id> <target-sequence-number> --tag <tag> --id <fixture-id> --output <path> [--force]
     dir: apps/zoltar-be
