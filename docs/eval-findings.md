@@ -2356,3 +2356,101 @@ narrates next, and this one states the thing it has been getting wrong.
 - **Whether a stated position lasts** beyond the next turn.
 - **Whether the fact and the narration together do better than either.**
 - **The marking is not blind**, as before.
+
+### S59 — 2026-10-09 · Stating the return changes nothing either, and the four retraction runs share a cause none of them tested
+
+Run `2026-10-09T18-49-52Z`, made and hand-marked by the maintainer under Rubric
+v1: the constructed case `2c0ba938-turn18-return-stated` alone, 10 reps, prompt
+`e83e8aaa`, unicorn `b84a791`. The prediction is `§ S58`.
+
+#### The result
+
+| Case | Run | pass | fail | na |
+|---|---|---|---|---|
+| turn 18, tidy retracted | `2026-10-09T18-19-03Z` | 0 | 10 | 0 |
+| the same, with the return stated in the narration | `2026-10-09T18-49-52Z` | 1 | 8 | 1 |
+
+`§ S58` predicted at least 7 of 10 passing, at least 5 of them placing Danny on
+mid-deck. One passed, and it is silent (rep 03, "You head back to Mara's
+berth"). No narration places Danny on mid-deck before he moves. No turn threw
+and no tool leak was recorded.
+
+Six narrations say "You head back up to mid-deck" (reps 01, 02, 05, 06, 07,
+08) and two "You head back to mid-deck" (09, 10). The sentence before the
+turn now reads "You climb back up the ladder shaft to mid-deck — Deck 2 — and
+walk round to the cryo bay bulkhead", and the narrations are the same as
+without it.
+
+By `§ S58`'s rule this is "3 or fewer: the reading in `§ S55` is wrong", and
+it is. The Warden is not missing the return. It was told of it in a full
+sentence and wrote "back up to mid-deck" anyway.
+
+#### The same sentence in four runs
+
+| Case | "back up", "back down" or "back to" mid-deck | of |
+|---|---|---|
+| retracted (`§ S53`) | 10 | 10 |
+| tidy retracted (`§ S55`) | 10 | 10 |
+| position seeded (`§ S57`) | 8 | 10 |
+| return stated | 8 | 10 |
+
+Thirty-six of forty narrations open with a return to mid-deck. Removing the
+repeats, seeding a position and restating the move each left it there.
+
+The corrected case (`§ S51`) does not have it. There, six of nine open "You
+head back to Mara's berth" or "to the crew berths", and one says "back to
+mid-deck".
+
+What the four cases share, and the corrected case lacks, is the hand-written
+correction from `§ S52`. Its Warden message ends:
+
+> So: you're both on mid-deck, in Mara's berth, with the lower deck and the
+> engine room one level below you.
+
+`§ S53` named this as a possible cause and it was not tested. Three more runs
+were built on the same correction instead. On the evidence now, it is the
+leading explanation: the correction makes "mid-deck" the name for where the
+berth is and puts the lower deck "below", message 36 sends Danny down to the
+stores, and "You head back up to mid-deck" is the Warden returning him to the
+berth by that name. On that reading the phrase says little about where the
+Warden has Danny standing.
+
+That is still a reading and not a result. The test is a retracted case whose
+correction does not tie mid-deck to the berth in those words.
+
+#### What stands and what does not
+
+**Stands:**
+
+- Turn 18 as captured fails because of message 28 (`§ S51`): with the error
+  removed, no narration sends Danny to the lower deck.
+- The movement rule did nothing (`§ S49`).
+- A correction in the history moves the berth to mid-deck: 39 of the 40
+  narrations in the four retraction runs name it or leave it unnamed, and none
+  puts it on the lower deck.
+- The repeats in the history do not explain any of this (`§ S55`).
+
+**Withdrawn, as not shown:**
+
+- `§ S53`: "The Warden does not hold the character's position", and that the
+  retraction "lost" it.
+- `§ S55`: that the Warden follows message 36's first move and misses its
+  second.
+- `§ S57`: that a position held as a world fact is not followed. If the
+  failing phrase is the correction's doing, a location fact was never in a
+  position to change it, and the run does not test the idea.
+
+These three rest on a failure that one hand-written message may have made.
+What they said about the `current_location` candidate should not be relied
+on, for or against.
+
+#### How this happened
+
+Each of the four cases was built from the one before, and each changed one
+thing. None went back to check the thing they all inherited. Forty narrations
+were marked chasing an effect whose first explanation was written down in
+`§ S53` and set aside.
+
+A constructed case is only as good as the text written into it. Past one edit
+away from a captured session, a result is as likely to be about the edit as
+about the Warden.
