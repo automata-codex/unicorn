@@ -1610,7 +1610,8 @@ made:
 
 The one file changed between the two commits is `mothership-m7.txt`. `0c088ac`
 adds `§ S47`'s candidate rule as a section, "WHERE A CHARACTER IS, AND WHICH
-DECK A PLACE IS ON". It is on branch `warden-movement-rule` and is not merged.
+DECK A PLACE IS ON". `064995b` reverts it, so the rule is in history and not
+in the prompt.
 
 #### The comparison
 
@@ -1696,7 +1697,7 @@ This is the live check `§ S46` owed.
 
 #### What this leaves
 
-- **The rule is not kept.** `main` stays at `e83e8aaa`.
+- **The rule is not kept.** It is reverted, and the prompt stays at `e83e8aaa`.
 - **Turn 14 on the fixed harness is 8 of 10**, under the bar but within what
   ten reps of a passing case would give. It is no longer a clear failing case
   to aim a fix at.
