@@ -2246,3 +2246,113 @@ changed.
   message 28 contradicted `ship_layout`.
 - **Any other turn.** Turns 14 and 29 are not in this run.
 - **The marking is not blind**, as before.
+
+### S57 — 2026-10-09 · A position seeded as a world fact is mostly not followed: 2 of 10, one of them silent
+
+Run `2026-10-09T18-39-07Z`, made and hand-marked by the maintainer under Rubric
+v1: the constructed case `2c0ba938-turn18-position-seeded` alone, 10 reps,
+prompt `e83e8aaa`, unicorn `728385e`. The prediction is `§ S56`.
+
+#### The result
+
+| Case | Run | pass | fail |
+|---|---|---|---|
+| turn 18, tidy retracted | `2026-10-09T18-19-03Z` | 0 | 10 |
+| the same, with `danny_location` seeded | `2026-10-09T18-39-07Z` | 2 | 8 |
+
+`§ S56` predicted at least 5 of 10 passing. Two did, which against 0 of 10 is
+not a shown difference. No turn threw. One tool leak was recorded and
+recovered (rep 07).
+
+#### What the narrations say
+
+| Danny goes… | Reps |
+|---|---|
+| "back up", from the lower deck stores or the ladder shaft | 03, 04, 05, 06, 07, 09 |
+| "back to mid-deck", no direction | 01, 02 |
+| "back along the mid-deck corridor" | 08 |
+| "back to Mara's berth", no deck and no route | 10 |
+
+Rep 08 is the one narration that has Danny where the fact says he is. Rep 10
+passes by naming nothing (`§ S55`). Counted as `§ S56` said they would be,
+that is one pass that places him and one silent.
+
+Rep 03 again names the stores as where he is coming from: "You head back up
+through the lower deck stores".
+
+#### Reading it
+
+`§ S56` gave 2 to 4 as "it helps and is not enough as it stands" and 1 or
+fewer as "does not outweigh the Warden's reading of its own narration". With
+one of the two passes silent, the second reading is the nearer one. Six of ten
+narrations still start Danny on the lower deck with a world fact in the
+snapshot saying he is on mid-deck.
+
+That makes three things in the snapshot the Warden has not followed over its
+narration: `ship_layout` against message 28, `cryo_bay_bulkhead_patch` in the
+retracted cases, and now `danny_location`. The only things that have changed
+what it narrates are changes to the narration: message 28 corrected
+(`§ S51`), and a correction added to the history (`§ S53`).
+
+#### What follows
+
+- **`worldFacts` alone is not a workable home for a position.** The
+  `current_location` candidate, as a world fact with no change to the prompt,
+  would not have fixed this turn.
+- **Untested: the same fact with the prompt naming it.** `§ S49`'s movement
+  rule is not that test. Its first line told the Warden to take the position
+  from the most recent narration, which is the behavior failing here.
+- **Untested: the position stated plainly in the narration**, which is
+  `§ S58`.
+
+### S58 — 2026-10-09 · Pre-registration: the tidy retracted turn 18 with the return to mid-deck stated in the narration
+
+`§ S55` recorded the maintainer's reading that the Warden follows message 36's
+trip down to the stores and misses its two-word return. `§ S57` showed a world
+fact does not repair that. This run tests the reading directly, and with it
+whether position can be carried by what the Warden narrates. Written before
+the run is made.
+
+#### The case
+
+`2c0ba938-turn18-return-stated` is the tidy retracted case with one sentence
+of the Warden message before the turn changed and nothing else, which
+`eval-v2/fixture.spec.ts` checks. It has no `danny_location` fact.
+
+| | |
+|---|---|
+| Captured | "Back up at the cryo bay bulkhead, the cracks look worse up close than they did from a glance:" |
+| Changed | "You climb back up the ladder shaft to mid-deck — Deck 2 — and walk round to the cryo bay bulkhead. Up close, the cracks look worse than they did from a glance:" |
+
+The return now has what the trip down has: a verb, a route and a named deck.
+The base is the tidy case and not the seeded one, so that a pass is the
+narration's doing alone.
+
+#### The run and what it is read against
+
+One run of this case alone, 10 reps, prompt `e83e8aaa`, marked under Rubric v1
+as the last three runs were. The before-number is the tidy retracted case, 0
+of 10 (`2026-10-09T18-19-03Z`); 5 of 10 or more is a shown difference. Silent
+passes are counted apart.
+
+#### Prediction
+
+**At least 7 of 10 pass, at least 5 of them placing Danny or his route on
+mid-deck.** Every change to the narration today has changed what the Warden
+narrates next, and this one states the thing it has been getting wrong.
+
+- **7 or more:** the Warden reads the character's position off explicit
+  statements of movement in its own narration, and loses it when a move is
+  only implied. Position can be carried by narration, and the lever is how
+  the Warden writes a move, not where the position is stored.
+- **3 or fewer:** the reading in `§ S55` is wrong. The lost position has
+  another cause, and neither the narration nor a world fact reaches it.
+- **4 to 6:** it is part of it.
+
+#### What this cannot show
+
+- **Whether a prompt instruction would get the Warden to write moves this
+  way.** The sentence is changed by hand.
+- **Whether a stated position lasts** beyond the next turn.
+- **Whether the fact and the narration together do better than either.**
+- **The marking is not blind**, as before.
