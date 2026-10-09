@@ -1954,12 +1954,13 @@ No turn threw and no tool leak was recorded.
 
 #### What the narrations say
 
-Two counts, read from the ten narrations and not from the marks:
+Two counts. The first is read from the narrations, the second is the fail
+marks:
 
 | | As captured (20 reps, `§ S49`) | Retracted (10 reps) |
 |---|---|---|
 | Puts Mara's berth on mid-deck | 0 | 10 |
-| Has Danny change decks, or return to mid-deck, to reach it | 18 | 10 |
+| Failed for the route to it | 18 | 10 |
 
 **The correction took.** Every narration names mid-deck for the berth. As
 captured, none of twenty did, and eight of the rule run's ten named the lower
