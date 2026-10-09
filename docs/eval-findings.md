@@ -2773,24 +2773,106 @@ That is `§ S62`'s "7 or more" reading, reached from a count of 6, and it rests
 on reading the narrations and not on the rule. The rule alone says "it helps;
 a top-up is owed".
 
-#### No top-up
+#### The top-up, set aside
 
 `§ S62` said a count of 4 to 6 would owe one top-up of 20 reps a side before
-deciding anything. None was run. The best a top-up could show is that a fall
-of this size is real, and a turn that still sends Danny to the lower deck six
-times in ten is not fixed by it. The narrations give no reason to expect
-better.
+deciding anything. It was not run. The maintainer asked a different question
+first: whether the reorder together with other pushes on the state would do
+what none does alone. That run is `§ S64`, and it is made from the reorder, so
+it supersedes a top-up of the reorder by itself.
 
 #### What follows
 
-- **The reorder is not kept.** `71027c4` is reverted. It is in history because
-  the run was made from it.
 - **Three ways of putting the layout in front of the Warden have now failed
   against message 28**: the snapshot where it was, an instruction to prefer
   it (`§ S49`), and the snapshot after the history. Two changes to the history
   have worked: removing the error (`§ S51`) and correcting it (`§ S53`).
-- **The lever is the history.** What a session needs is a way to stop a wrong
-  statement being made, or to get a correction into the conversation after
-  one is.
-- **The open questions from `§ S62` stay open** and no longer need settling:
-  the first message's role, and caching.
+- **None of the three was tried with another.** `§ S64` does that.
+- **The open questions from `§ S62` stay open**: the first message's role,
+  and caching.
+
+### S64 — 2026-10-09 · Pre-registration: everything the backend can do to put the state first, at once
+
+`§ S63` moved the snapshot after the history and no narration followed it.
+This run adds two more pushes to that one and asks whether the three together
+are enough. Written before the run is made.
+
+It changes three things at once on purpose. The question is whether the
+state, held outside the history, can be made to hold against a wrong narration
+at all. If it can, pieces can be taken away afterwards to find which matter.
+If it cannot with all three, that is settled in one run.
+
+#### The three changes
+
+All on branch `snapshot-after-history`, on top of `71027c4`.
+
+**1. The snapshot after the history**, as in `§ S62`.
+
+**2. A header on the snapshot message**, written by the backend
+(`STATE_SNAPSHOT_HEADER` in `apps/zoltar-be/src/session/session.prompt.ts`):
+
+> [Current state, as of this turn. Everything above is what has been said so
+> far, and some of it may be wrong. Where earlier narration contradicts the
+> state below, the state is right.]
+
+**3. A section in the Warden prompt** (`mothership-m7.txt`, `e83e8aaa` →
+`3e56fd6b`):
+
+> THE STATE SNAPSHOT IS THE PRESENT
+> The state snapshot arrives after the conversation history, just ahead of the
+> player's input. It is the world as it stands now. The history above it is a
+> record of what has been said, and some of what was said is wrong.
+>
+> - Where earlier narration and the snapshot disagree about where a place is,
+>   the snapshot is right. Do not repeat the earlier narration.
+> - Before you narrate anyone going anywhere, find the place in <world_facts>
+>   and narrate it where <world_facts> puts it. Name the deck, so the page says
+>   where the place is even when an earlier turn put it somewhere else.
+
+This is not `§ S49`'s movement rule again. That rule pointed at `<world_facts>`
+when it sat ahead of the whole history, and its first line told the Warden to
+take a character's position from the most recent narration.
+
+#### The case and what is counted
+
+Turn 18 as captured, 10 reps, not hand-marked, by `§ S62`'s two rules on the
+first sentence, plus one count made by reading:
+
+| Count | Snapshot first | Snapshot after (`§ S63`) |
+|---|---|---|
+| Down | 9 of 10 | 6 of 10 |
+| To mid-deck (`§ S60`'s rule) | 0 of 10 | 0 of 10 |
+| Narrations that put Mara's berth on mid-deck, anywhere | 0 of 10 | 0 of 10 |
+
+The third is the one that says the state was followed. A low down count
+reached by narrations going silent, as in `§ S63`, is not a fix.
+
+Against the reference run's 9 of 10, a down count of 3 of 10 or fewer is a
+shown difference (`§ S62`).
+
+#### Prediction
+
+**A down count of 4 or more of 10, and at most 3 narrations putting the berth
+on mid-deck.** Everything measured today has the Warden following statements
+in the conversation, and none of the three changes is one.
+
+- **Down 3 or fewer, and 5 or more put the berth on mid-deck:** state outside
+  the history can be made to hold. The three changes go forward together to an
+  ADR, and the next runs take them away one at a time.
+- **Down 3 or fewer, by silence:** the combination suppresses the error and
+  does not replace it with the truth. Worth knowing; not a fix.
+- **Down 4 or more:** the state does not hold against a wrong narration, by
+  any means the backend has short of changing the conversation. The fix has
+  to act on the history.
+
+If the berth does land on mid-deck, the to-mid-deck count says whether the
+route is then wrong in the way `§ S61` found.
+
+#### Limits set in advance
+
+- **This is the last variant of turn 18 run today**, whatever it shows.
+- **The header's claim is broader than this turn tests.** It tells the Warden
+  the state is right wherever the narration contradicts it. That is false
+  whenever the narration is newer than the state and something happened that
+  no field recorded. It would need settling before a merge.
+- **One case, one session.**
