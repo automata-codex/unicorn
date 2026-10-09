@@ -147,7 +147,9 @@ async function main(): Promise<void> {
     const errors = marks.filter((m) => m.mark === 'error').length;
     console.log(`\nWrote ${runDir}`);
     console.log(`  ${marks.length} rep(s), ${errors} error(s)`);
-    console.log('  Next: fill in marks.csv (pass / fail / na), then');
+    console.log(
+      '  Next: fill in marks.csv (pass / fail / na) and its rubric line, then',
+    );
     console.log(`  task ev2:report -- ${runDir}`);
   } finally {
     await app.close();
