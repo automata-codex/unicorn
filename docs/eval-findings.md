@@ -1707,3 +1707,74 @@ This is the live check `§ S46` owed.
   run on the fixed harness is the rule's.
 - **Turn 01 cannot be marked as captured.** All ten reps are `na`: nothing in
   the narration touches the timeline either way.
+
+### S50 — 2026-10-09 · Pre-registration: turn 18 with the berth's deck corrected in the seeded history
+
+`§ S49` left turn 18 as the standing failure, 1 of 10 with and without the
+movement rule, and could not say whether the Warden is following the session's
+earlier narration or writing "head back down" from habit. This is the run that
+separates them. Written before the run is made.
+
+#### The case
+
+`2c0ba938-turn18-berth-corrected` is the first constructed case. It is the
+captured turn 18 with two sentences of the seeded history changed and nothing
+else, which `eval-v2/fixture.spec.ts` checks:
+
+| Message | Captured | Corrected |
+|---|---|---|
+| 28 | "She leads the way to the ladder shaft, and you climb down together, past mid-deck and on toward the lower deck, the air growing warmer and closer to the engine hum the further down you go." | "She leads the way along the mid-deck corridor, past the mess and on toward the crew berths." |
+| 26 | "toward the ladder shaft that leads down to the lower deck" | "down the corridor toward the crew berths" |
+
+Message 28 is the error. Message 26 is not wrong, since Mara had named the
+cargo bay as well as her berth, but it points at the lower deck, and leaving it
+would be the first thing to suspect if the case still failed. Changing both
+means a pass cannot be put down to message 28 alone.
+
+No other message places the berth. Messages 33 and 36 already have Danny go
+"down to the lower deck stores" from the berth and "back up to mid-deck", which
+agrees with a mid-deck berth. The captured case fails 9 of 10 with those two
+messages in it.
+
+Constructed cases live in `apps/zoltar-be/eval-v2/constructed/`, apart from
+`eval/fixtures/`, whose contents set the old harness's corpus version.
+`eval-v2/cases.ts` says what each was made from.
+
+#### The run and the before-number
+
+One run of the corrected case alone, 10 reps, prompt `e83e8aaa`, marked under
+Rubric v1. The before-number is the captured turn 18 in the reference run
+`2026-10-09T10-38-58Z`: 1 of 10, same prompt, same harness.
+
+`ev2:compare` matches cases by fixture id and will not label this pair, which
+is right: it is two cases on one prompt, not one case on two prompts. The same
+test by hand (Fisher's exact, two-sided, against 1 of 10) gives the line:
+
+| Corrected case passes | |
+|---|---|
+| 7 of 10 or more | a shown difference (0.02 at 7) |
+| 6 of 10 | not shown (0.057) |
+
+`na` and `error` reps shrink the denominator and move the line.
+
+#### Prediction
+
+**At least 7 of 10 pass.** The failing reps in both earlier runs agree with
+message 28 and with nothing else in the history, so with it corrected there is
+nothing left for them to follow.
+
+- **7 or more:** the failure is inherited. Turn 18 is not something a prompt
+  instruction at turn 18 fixes, as `§ S49` already suggested, and the work is
+  the first mistake and how a session recovers from one.
+- **3 or fewer:** the history was not the cause. `§ S47`'s group B is
+  misdiagnosed, and "head back down" needs its own explanation.
+- **4 to 6:** both are in play and ten reps cannot apportion them.
+
+#### What this cannot show
+
+- **It is a diagnosis and not a fix.** A live session's history cannot be
+  corrected by hand.
+- **The marking is not blind.** The marker knows which case this is, and there
+  is one case in the run.
+- **It says nothing of turn 24**, whose history contradicts itself in three
+  places and is not corrected here.

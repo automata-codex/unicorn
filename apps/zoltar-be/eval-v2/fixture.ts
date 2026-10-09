@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 
@@ -9,6 +9,14 @@ import { z } from 'zod';
  * checkers. It deliberately does not import `eval/fixture.schema.ts`.
  */
 const FIXTURES_DIR = join(__dirname, '..', 'eval', 'fixtures');
+
+/**
+ * Constructed cases: a captured fixture edited by hand to ask something the
+ * session never did. They live here and not in `eval/fixtures/` because the
+ * old harness computes its corpus version from that directory. `cases.ts`
+ * says what each one was made from and what was changed.
+ */
+const CONSTRUCTED_DIR = join(__dirname, 'constructed');
 
 const messageRowSchema = z.object({
   role: z.enum(['player', 'gm', 'system']),
@@ -82,7 +90,14 @@ export function parseFixture(raw: unknown, label: string): Fixture {
 }
 
 export function loadFixture(id: string): Fixture {
-  const path = join(FIXTURES_DIR, `${id}.json`);
+  const captured = join(FIXTURES_DIR, `${id}.json`);
+  const constructed = join(CONSTRUCTED_DIR, `${id}.json`);
+  if (existsSync(captured) && existsSync(constructed)) {
+    throw new Error(
+      `fixture "${id}" exists as both a captured and a constructed case; ids must be unique`,
+    );
+  }
+  const path = existsSync(constructed) ? constructed : captured;
   let text: string;
   try {
     text = readFileSync(path, 'utf8');
