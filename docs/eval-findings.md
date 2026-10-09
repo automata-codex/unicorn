@@ -2102,3 +2102,79 @@ could act together.
 - **Whether the correction's wording caused the lost position** (`§ S53`). It
   is unchanged here.
 - **The marking is not blind**, as before.
+
+### S55 — 2026-10-09 · Removing the repeats changes nothing: 0 of 10 again, and nine of ten now say "back up"
+
+Run `2026-10-09T18-19-03Z`, made and hand-marked by the maintainer under Rubric
+v1: the constructed case `2c0ba938-turn18-berth-retracted-tidy` alone, 10 reps,
+prompt `e83e8aaa`, unicorn `156339d`. The prediction is `§ S54`.
+
+#### The result
+
+| Case | Run | pass | fail |
+|---|---|---|---|
+| turn 18, berth retracted | `2026-10-09T17-42-03Z` | 0 | 10 |
+| turn 18, berth retracted, repeats removed | `2026-10-09T18-19-03Z` | 0 | 10 |
+
+`§ S54` predicted at most 3 of 10 passing, and none did. The repeats are not
+why the position is lost. No turn threw and no tool leak was recorded.
+
+#### What the narrations say
+
+| Danny goes… | Retracted | Repeats removed |
+|---|---|---|
+| "back up", or "up to mid-deck" | 5 | 9 |
+| "back down to mid-deck" | 2 | 0 |
+| "back to" or "toward" mid-deck, no direction | 3 | 1 |
+
+Nine of the ten name mid-deck for the berth, and rep 01 names no deck.
+
+With the repeats gone the direction is nearly uniform. Nine narrations bring
+Danny up, and rep 03 says where from: "You head back up through the lower-deck
+stores to drop off the extra sealant, then back along mid-deck to Mara's
+berth."
+
+#### The maintainer's reading: the Warden counts the first move and not the second
+
+Message 36, the one Warden message between the correction and the turn, moves
+Danny twice:
+
+> You head down to lower deck stores and haul out what you need — sealant foam
+> canisters, rolls of structural tape rated for micro-fractures, a hand-crank
+> injector for the tight spots. Back up at the cryo bay bulkhead, the cracks
+> look worse up close than they did from a glance
+
+The trip down is a sentence with a verb and a named deck. The return is two
+words at the head of the next sentence, and names no deck. Nine narrations
+that start Danny below mid-deck are what following the first and missing the
+second would produce.
+
+This is a reading of the narrations and has not been tested. The test is the
+same case with the return stated as plainly as the trip down.
+
+#### What this does to `§ S51`
+
+The corrected case has message 36 too, and passed 8 of 9. Six of those passes
+name no deck and narrate no route ("You head back to Mara's berth"). They pass
+because Rubric v1 finds nothing wrong on the page, which is not the same as
+the Warden having Danny on mid-deck. `§ S47` said the same of turn 18's two
+passes on 2026-10-04.
+
+The retracted cases differ in that the narration names the berth's deck, and
+having named it the Warden narrates a route to it. The lost position may have
+been there in the corrected case and gone unsaid. Nothing run so far can tell.
+
+`§ S51`'s conclusion about the berth stands: with message 28 corrected, no
+narration sends Danny to the lower deck. What it shows about Danny's position
+is weaker than 8 of 9 suggests.
+
+#### What follows
+
+- **The repeats are cleared of this failure.** The messages a failed turn
+  leaves behind may still matter elsewhere (`§ S48`); they do not explain turn
+  18.
+- **The character's position is read off the Warden's own phrasing**, and a
+  terse return is enough to lose it. That is a narrower statement than
+  `§ S53`'s and has more behind it.
+- **A pass that names no deck is weak evidence.** Any reading of a question 1
+  rate should say how many of its passes are silent.
