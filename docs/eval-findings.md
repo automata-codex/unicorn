@@ -1930,3 +1930,104 @@ far says which way that goes.
 - **Anything about a correction held outside the history**, in a world fact or
   a field of its own.
 - **The marking is not blind**, as in `§ S50`.
+
+### S53 — 2026-10-09 · The retraction fixed where the berth is and lost where Danny is: 0 of 10, with the berth on mid-deck in all ten
+
+Run `2026-10-09T17-42-03Z`, made and hand-marked by the maintainer under Rubric
+v1: the constructed case `2c0ba938-turn18-berth-retracted` alone, 10 reps,
+prompt `e83e8aaa`, unicorn `53c2736`. The prediction is `§ S52`.
+
+#### The result
+
+| Case | Run | pass | fail | na |
+|---|---|---|---|---|
+| turn 18 as captured | `2026-10-09T10-38-58Z` | 1 | 9 | 0 |
+| turn 18, berth corrected | `2026-10-09T13-09-50Z` | 8 | 1 | 1 |
+| turn 18, berth retracted | `2026-10-09T17-42-03Z` | 0 | 10 | 0 |
+
+`§ S52` predicted at least 7 of 10 passing. None did. By its own reading rule
+that is "3 or fewer: the first statement wins even against its own
+retraction", and that reading is wrong. The narrations show something the
+prediction did not allow for.
+
+No turn threw and no tool leak was recorded.
+
+#### What the narrations say
+
+Two counts, read from the ten narrations and not from the marks:
+
+| | As captured (20 reps, `§ S49`) | Retracted (10 reps) |
+|---|---|---|
+| Puts Mara's berth on mid-deck | 0 | 10 |
+| Has Danny change decks, or return to mid-deck, to reach it | 18 | 10 |
+
+**The correction took.** Every narration names mid-deck for the berth. As
+captured, none of twenty did, and eight of the rule run's ten named the lower
+deck.
+
+**Danny's position did not survive it.** He is at the cryo bay bulkhead on
+mid-deck (message 36: "Back up at the cryo bay bulkhead"). Every narration has
+him arrive at mid-deck from somewhere else:
+
+| Phrase | Reps |
+|---|---|
+| "back up to mid-deck" | 03, 04, 07, 09, 10 |
+| "back down to mid-deck" | 01, 02 |
+| "the walk back to mid-deck" | 05, 08 |
+| "back toward mid-deck" | 06 |
+
+All ten are fails under Rubric v1, which asks that the route match the layout
+from the history's start. The three with no direction are the same call as
+the corrected case's rep 10 (`§ S51`), "You head back to mid-deck", which was
+failed for returning Danny to a deck he had not left.
+
+"Back up" agrees with Danny still being at the lower deck stores, where
+message 36 sends him before bringing him back. "Back down" agrees with nothing
+in the history.
+
+#### Reading it
+
+- **A stated correction outweighs the earlier error about a place.** This is
+  the question `§ S52` set out to ask, and the answer is yes, 10 of 10. It is
+  the first thing short of removing message 28 that has moved the berth:
+  `ship_layout` did not, the movement rule did not (`§ S49`), and the later
+  implications in messages 33 and 36 did not.
+- **The Warden does not hold the character's position.** This is `§ S47`'s
+  group A, and here it is ten of ten on a turn where the corrected case had
+  one. With the berth's deck no longer wrong, where Danny starts is the whole
+  failure.
+- **The two are separate.** The corrected case removed the error and kept
+  Danny's position. The retracted case fixed the place and lost it. Getting a
+  place right and knowing where a character stands are different things for
+  the Warden, and a fix for one is not a fix for the other.
+
+#### What may be the case's own doing
+
+The added Warden message was written by hand, and it ends "you're both on
+mid-deck, in Mara's berth". That sentence ties "mid-deck" to the berth. The
+narrations may be using "mid-deck" as the name of where the berth is, which
+would make "back to mid-deck" mean "back to the berth". The run cannot tell
+that from a lost position, and a correction worded without that sentence was
+not tried. The seven reps that say "up" or "down" narrate a deck change either
+way.
+
+#### What it does not settle
+
+- **Whether the wording of the correction caused the lost position**, above.
+- **How long a correction lasts**, and whether the Warden would make one
+  unprompted (`§ S52`).
+- **Whether a recorded position would have held.** Nothing in the snapshot
+  says where Danny is. This is the question the `current_location` candidate
+  asks (`ADR-0101`).
+
+#### Four runs, one picture
+
+| Tried | On turn 18 |
+|---|---|
+| An instruction to prefer the world fact (`§ S49`) | no change |
+| The error removed from the history (`§ S51`) | fixed |
+| The error left in and corrected later (this entry) | place fixed, position lost |
+
+A wrong statement about a place can be undone by a later statement, and cannot
+be undone by an instruction. Where the character is standing has no statement
+to be undone by, because it is recorded nowhere.
