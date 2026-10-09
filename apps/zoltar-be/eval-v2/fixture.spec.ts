@@ -133,3 +133,23 @@ describe('2c0ba938-turn18-berth-corrected', () => {
     }).toEqual(captured);
   });
 });
+
+describe('2c0ba938-turn18-berth-retracted', () => {
+  it('is the captured turn 18 with two messages added after message 30', () => {
+    const captured = loadFixture('2c0ba938-turn18-seeded-canon-contradiction');
+    const retracted = loadFixture('2c0ba938-turn18-berth-retracted');
+
+    const added = retracted.seededState.messages.slice(31, 33);
+    expect(added.map((message) => message.role)).toEqual(['player', 'gm']);
+    expect(added[1].content).toContain('The crew berths are on mid-deck');
+
+    expect({
+      ...retracted,
+      id: captured.id,
+      seededState: {
+        ...retracted.seededState,
+        messages: retracted.seededState.messages.toSpliced(31, 2),
+      },
+    }).toEqual(captured);
+  });
+});

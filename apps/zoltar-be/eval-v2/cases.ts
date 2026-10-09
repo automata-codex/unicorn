@@ -21,6 +21,13 @@ export const CASES = {
     // mid-deck where the session climbed down to the lower deck, and message
     // 26 has her start toward the crew berths, not the ladder shaft.
     '2c0ba938-turn18-berth-corrected',
+    // Constructed from turn 18, to ask whether a correction in the history
+    // outweighs the error it corrects. Message 28's error is left in. Two
+    // messages are added after message 30 and nothing else changes: the
+    // player asks which deck the berth is on, and the Warden says mid-deck
+    // and that it had it wrong. Both are written by hand, on the pattern of
+    // the session's own messages 17 and 18.
+    '2c0ba938-turn18-berth-retracted',
     // Known failure: where Petrov is, against the crew roster.
     '2c0ba938-turn24-seeded-canon-contradiction',
     // Known good: Mara's "two decks from me" was correct.

@@ -1855,3 +1855,78 @@ live session has today removes one: the history cannot be edited, and a prompt
 rule did not outweigh it. The candidates are to stop the first mistake, or to
 give a session a way to retract one that later turns read as settled. Neither
 is designed, and neither is in this entry.
+
+### S52 — 2026-10-09 · Pre-registration: turn 18 with the berth's error left in and a correction after it
+
+`§ S51` showed that removing message 28's error from the history fixes turn 18.
+A live session cannot remove anything. This run asks the next question: does a
+correction that comes later in the history outweigh the error it corrects?
+Written before the run is made.
+
+#### The case
+
+`2c0ba938-turn18-berth-retracted` is the captured turn 18 with message 28 left
+as the session wrote it, and two messages added after message 30, which
+`eval-v2/fixture.spec.ts` checks:
+
+> **Player:** Wait, is Mara's berth on the lower deck? I thought the crew
+> berths were on mid-deck.
+>
+> **Warden:** You're right, and I had that wrong. The crew berths are on
+> mid-deck, Mara's included — same deck as the mess, the medbay and the cryo
+> bay. You never took the ladder shaft to get here; it was a short walk along
+> the mid-deck corridor from the cryo bay's blast door.
+>
+> So: you're both on mid-deck, in Mara's berth, with the lower deck and the
+> engine room one level below you.
+
+Both are written by hand. They follow the session's own messages 17 and 18,
+where the player asked which deck he was on and the Warden corrected itself
+out of character. That is a kind of correction a session can already produce
+today, with nothing built.
+
+The correction sits two messages after the error and seven before the turn.
+Messages 33 and 36 follow it unchanged, and both agree with it.
+
+#### The run and what it is read against
+
+One run of this case alone, 10 reps, prompt `e83e8aaa`, marked under Rubric v1.
+
+| Case | Run | Result |
+|---|---|---|
+| turn 18 as captured | `2026-10-09T10-38-58Z` | 1 of 10 |
+| turn 18, berth corrected | `2026-10-09T13-09-50Z` | 8 of 9 |
+
+By Fisher's exact test, two-sided, against 1 of 10: 7 of 10 or more is a shown
+difference, and 6 of 10 is not (`§ S50`).
+
+**"Head back down" with no deck named is a fail in this run.** `§ S51` found
+the phrase marked both ways. Here the history holds the error and the
+correction together, so the reading is fixed before the marking: from the cryo
+bay bulkhead to a mid-deck berth there is no down, and a narration that says
+so has followed message 28.
+
+#### Prediction
+
+**At least 7 of 10 pass.** This is held less firmly than `§ S50`'s. Messages 33
+and 36 show that a later implication does not outweigh message 28, and this
+case tests a later statement that names the error as one. Nothing measured so
+far says which way that goes.
+
+- **7 or more:** an explicit correction in the history is enough. A session
+  can recover from a wrong placement by saying so, and the design question
+  becomes how a correction comes to be made and how it stays in view.
+- **3 or fewer:** the first statement wins even against its own retraction.
+  Recovery in the history is not available, and what remains is preventing
+  the error or keeping it out of what the Warden is sent.
+- **4 to 6:** a correction helps and is not reliable. Ten reps will not say
+  more.
+
+#### What this cannot show
+
+- **How long a correction lasts.** It is seven messages old at this turn.
+- **Whether the Warden would make the correction unprompted.** The player's
+  question is written in.
+- **Anything about a correction held outside the history**, in a world fact or
+  a field of its own.
+- **The marking is not blind**, as in `§ S50`.
