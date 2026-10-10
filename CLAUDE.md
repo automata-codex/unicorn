@@ -85,7 +85,7 @@ Each kind of record has one home. Putting a thing in the wrong one is how
 | A measurement, diagnosis, or defect writeup | the relevant findings doc — see the four below |
 | How a feature is designed and built | `docs/specs/` and `docs/plans/` |
 | Product and tooling scope, and the milestone sequence | `docs/roadmap.md` |
-| Outstanding work at task granularity, and its status | Workflowy — hand it over in the format at `docs/workflowy-template.md` |
+| Outstanding work at task granularity, and its status | Workflowy — cards are shaped as `docs/workflowy-template.md` describes |
 
 **Which findings doc.** All four are empirical records — what was run, what came
 back, what was concluded — and they divide by subject, not by format:
@@ -108,10 +108,12 @@ not narrate how the work went. The test for whether a line belongs there: **a
 roadmap deliverable is a stable noun, and does not change as the work progresses.**
 Anything that churns is a Workflowy item.
 
-**To read the Workflowy board, use the `workflowy-tasks` skill** — it answers
-"what's current" and "what's next". The board id is in `.workflowy.json`; the
-skill is read-only, so changes to the board still go to the maintainer in the
-`docs/workflowy-template.md` format.
+**To read or change the Workflowy board, use the `workflowy-tasks` skill** — it
+answers "what's current" and "what's next", and it adds, edits, moves and
+completes cards. The board id is in `.workflowy.json`. A new card takes the
+shape in `docs/workflowy-template.md`: a Summary, Details, and Blockers when
+there are any. Say what changed, with card names and short ids, and ask before
+every delete.
 
 **`docs/specs/`, `docs/plans/` and `docs/milestones/` are frozen** — they are dated
 accounts of what was true when written. Never rewrite a reference inside them to
