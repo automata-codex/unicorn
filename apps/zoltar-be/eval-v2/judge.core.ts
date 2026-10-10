@@ -69,34 +69,42 @@ const INSTRUCTIONS = [
   'the narration. Mark only the narration. Mark deck position only: where',
   'places and people are, and the routes between them.',
   '',
-  'Answer with the submit_mark tool.',
+  'Answer with the JSON object the response format asks for, and nothing else.',
 ].join('\n');
 
-const SUBMIT_MARK: Anthropic.Tool = {
-  name: 'submit_mark',
-  description: 'Record the mark for this narration.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      indicators: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          'Each phrase in the narration that says where a place or person is, or narrates a change of position. Quote the narration. Empty when there are none.',
-      },
-      reason: {
-        type: 'string',
-        description:
-          'One sentence: what the indicators say, set against the seeded layout and the start.',
-      },
-      mark: {
-        type: 'string',
-        enum: [...JUDGE_MARKS],
-        description: 'pass, fail or na, as the rubric defines them.',
-      },
+/**
+ * How hard the judge thinks. Set and not left to the model's default, which
+ * differs between models, so that it is part of what the prompt hash covers.
+ */
+const EFFORT = 'high';
+
+/**
+ * The shape of the judge's answer, enforced by the API (structured outputs).
+ * `claude-opus-5-5` does not accept a forced tool call, which is the other
+ * way to get one.
+ */
+const ANSWER_SCHEMA = {
+  type: 'object',
+  properties: {
+    indicators: {
+      type: 'array',
+      items: { type: 'string' },
+      description:
+        'Each phrase in the narration that says where a place or person is, or narrates a change of position. Quote the narration. Empty when there are none.',
     },
-    required: ['indicators', 'reason', 'mark'],
+    reason: {
+      type: 'string',
+      description:
+        'One sentence: what the indicators say, set against the seeded layout and the start.',
+    },
+    mark: {
+      type: 'string',
+      enum: [...JUDGE_MARKS],
+      description: 'pass, fail or na, as the rubric defines them.',
+    },
   },
+  required: ['indicators', 'reason', 'mark'],
+  additionalProperties: false,
 };
 
 export interface JudgeArgs {
@@ -175,7 +183,9 @@ export function parseRepMd(text: string): string {
  */
 export function promptHash(rubric: string): string {
   return createHash('sha256')
-    .update(JSON.stringify([INSTRUCTIONS, rubric, STARTS, SUBMIT_MARK]))
+    .update(
+      JSON.stringify([INSTRUCTIONS, rubric, STARTS, ANSWER_SCHEMA, EFFORT]),
+    )
     .digest('hex')
     .slice(0, 8);
 }
@@ -205,10 +215,13 @@ export function buildJudgeRequest(input: {
 
   return {
     model: JUDGE_MODEL,
-    max_tokens: 1024,
+    // Thinking is always on for this model and counts toward the limit.
+    max_tokens: 16000,
     system: `${INSTRUCTIONS}\n\n<rubric>\n${input.rubric.trim()}\n</rubric>`,
-    tools: [SUBMIT_MARK],
-    tool_choice: { type: 'tool', name: SUBMIT_MARK.name },
+    output_config: {
+      effort: EFFORT,
+      format: { type: 'json_schema', schema: ANSWER_SCHEMA },
+    },
     messages: [{ role: 'user', content }],
   };
 }
@@ -220,13 +233,26 @@ export interface JudgeAnswer {
 }
 
 export function parseJudgeAnswer(message: Anthropic.Message): JudgeAnswer {
-  const call = message.content.find(
-    (block): block is Anthropic.ToolUseBlock =>
-      block.type === 'tool_use' && block.name === SUBMIT_MARK.name,
+  // A refusal or a cut-off answer is not a mark.
+  if (message.stop_reason !== 'end_turn') {
+    throw new Error(`the judge stopped early: ${message.stop_reason}`);
+  }
+  const text = message.content.find(
+    (block): block is Anthropic.TextBlock => block.type === 'text',
   );
-  if (!call) throw new Error('the judge did not call submit_mark');
+  if (!text) throw new Error('the judge gave no answer');
 
-  const { mark, reason, indicators } = call.input as Record<string, unknown>;
+  let answer: unknown;
+  try {
+    answer = JSON.parse(text.text);
+  } catch {
+    throw new Error('the judge gave an answer that is not JSON');
+  }
+  if (typeof answer !== 'object' || answer === null) {
+    throw new Error('the judge gave an answer that is not an object');
+  }
+
+  const { mark, reason, indicators } = answer as Record<string, unknown>;
   if (!(JUDGE_MARKS as readonly unknown[]).includes(mark)) {
     throw new Error(`the judge gave an unknown mark: ${JSON.stringify(mark)}`);
   }

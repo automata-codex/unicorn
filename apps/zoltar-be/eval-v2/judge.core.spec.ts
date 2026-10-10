@@ -29,7 +29,11 @@ const turn24 = () => parseCaseMd(renderCaseMd(loadFixture(TURN_24)));
 
 function answer(input: unknown): Anthropic.Message {
   return {
-    content: [{ type: 'tool_use', id: 't', name: 'submit_mark', input }],
+    stop_reason: 'end_turn',
+    content: [
+      { type: 'thinking', thinking: '' },
+      { type: 'text', text: JSON.stringify(input) },
+    ],
   } as unknown as Anthropic.Message;
 }
 
@@ -135,8 +139,16 @@ describe('buildJudgeRequest', () => {
     expect(sent).not.toContain('insurance_file_copies');
   });
 
-  it('forces the one tool', () => {
-    expect(request.tool_choice).toEqual({ type: 'tool', name: 'submit_mark' });
+  it('asks for the answer as JSON in a fixed shape, with no forced tool', () => {
+    expect(request.tool_choice).toBeUndefined();
+    expect(request.tools).toBeUndefined();
+    expect(request.output_config?.format).toMatchObject({
+      type: 'json_schema',
+      schema: {
+        required: ['indicators', 'reason', 'mark'],
+        additionalProperties: false,
+      },
+    });
   });
 
   it('refuses a case with no start', () => {
@@ -190,12 +202,25 @@ describe('parseJudgeAnswer', () => {
     expect(() => parseJudgeAnswer(answer(input))).toThrow(/the judge gave/);
   });
 
-  it('refuses an answer with no tool call', () => {
+  it('refuses an answer that is not JSON', () => {
     expect(() =>
       parseJudgeAnswer({
+        stop_reason: 'end_turn',
         content: [{ type: 'text', text: 'pass' }],
       } as unknown as Anthropic.Message),
-    ).toThrow(/did not call submit_mark/);
+    ).toThrow(/not JSON/);
+  });
+
+  it.each([
+    'refusal',
+    'max_tokens',
+  ])('refuses an answer that stopped on %s', (stop_reason) => {
+    expect(() =>
+      parseJudgeAnswer({
+        ...answer({ indicators: [], reason: 'r', mark: 'pass' }),
+        stop_reason,
+      } as unknown as Anthropic.Message),
+    ).toThrow(/stopped early/);
   });
 });
 

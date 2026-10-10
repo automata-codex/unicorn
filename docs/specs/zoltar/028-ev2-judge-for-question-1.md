@@ -152,6 +152,14 @@ not a model marking its own output. The model id is in the judge file's first
 line, since a judge run on another model is another judge and needs its own
 check.
 
+**The answer's shape is enforced by the API** (structured outputs), and the
+effort is set to `high`. `claude-opus-5-5` refuses a forced tool call, always
+thinks, and defaults to `medium` effort; `high` is the author's choice for a
+task that turns on reading closely, and it is covered by the prompt hash. A
+refusal or a cut-off answer stops the run and is never written as a mark. No
+fallback model is configured, since an answer from another model would be
+another judge's.
+
 **The cost of the whole check** is about 160 calls of roughly 3,000 input
 tokens each: 43 for the adjusting run, each time the prompt is adjusted, and
 118 once for the check runs.
