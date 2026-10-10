@@ -16,6 +16,9 @@ export const JUDGE_RUBRIC = 'v1';
 
 const USAGE = 'Usage: task ev2:judge -- <run> [--fixtures <id,id>]';
 
+/** Written as the note when the judge gives a mark and no reason. */
+export const NO_REASON = '(no reason given)';
+
 const JUDGE_MARKS = ['pass', 'fail', 'na'] as const;
 export type JudgeMark = (typeof JUDGE_MARKS)[number];
 
@@ -256,7 +259,7 @@ export function parseJudgeAnswer(message: Anthropic.Message): JudgeAnswer {
   if (!(JUDGE_MARKS as readonly unknown[]).includes(mark)) {
     throw new Error(`the judge gave an unknown mark: ${JSON.stringify(mark)}`);
   }
-  if (typeof reason !== 'string' || reason.trim() === '') {
+  if (typeof reason !== 'string') {
     throw new Error('the judge gave no reason');
   }
   if (
@@ -267,7 +270,9 @@ export function parseJudgeAnswer(message: Anthropic.Message): JudgeAnswer {
   }
   return {
     mark: mark as JudgeMark,
-    reason: reason.trim(),
+    // The mark is the answer. A blank reason is kept as a mark with nothing
+    // to read beside it, not thrown away with the run.
+    reason: reason.trim() || NO_REASON,
     indicators: indicators as string[],
   };
 }

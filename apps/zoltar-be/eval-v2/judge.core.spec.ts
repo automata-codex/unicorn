@@ -8,6 +8,7 @@ import {
   buildJudgeRequest,
   JUDGE_MODEL,
   judgeFileName,
+  NO_REASON,
   parseArgs,
   parseCaseMd,
   parseJudgeAnswer,
@@ -196,10 +197,16 @@ describe('parseJudgeAnswer', () => {
   it.each([
     ['an unknown mark', { indicators: [], reason: 'r', mark: 'error' }],
     ['a missing mark', { indicators: [], reason: 'r' }],
-    ['no reason', { indicators: [], reason: '', mark: 'na' }],
+    ['a missing reason', { indicators: [], mark: 'na' }],
     ['no indicators', { reason: 'r', mark: 'na' }],
   ])('refuses %s', (_, input) => {
     expect(() => parseJudgeAnswer(answer(input))).toThrow(/the judge gave/);
+  });
+
+  it('keeps a mark that comes with a blank reason', () => {
+    expect(
+      parseJudgeAnswer(answer({ indicators: [], reason: ' ', mark: 'pass' })),
+    ).toMatchObject({ mark: 'pass', reason: NO_REASON });
   });
 
   it('refuses an answer that is not JSON', () => {

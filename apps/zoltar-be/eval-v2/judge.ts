@@ -7,7 +7,13 @@
  *
  * Never reads or writes `marks.csv`.
  */
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -23,8 +29,10 @@ import {
   parseRepMd,
   promptHash,
   renderJudgeCsv,
+  renderJudgeHeader,
   STARTS,
 } from './judge.core';
+import { parseJudgeFile } from './judge-check';
 import { resolveRunDir } from './report';
 
 import type { JudgeRow } from './judge.core';
@@ -119,11 +127,25 @@ async function main(): Promise<void> {
   if (threw > 0) console.log(`  ${threw} rep(s) threw and are skipped`);
   for (const id of noStart) console.log(`  skipped, no start recorded: ${id}`);
 
-  const client = new Anthropic({ apiKey });
+  // Each mark is saved as it is made, so a run that stops part-way keeps
+  // what it paid for and the next attempt carries on from there.
+  const partialPath = `${outPath}.partial`;
   const rows: JudgeRow[] = [];
+  if (existsSync(partialPath)) {
+    const partial = parseJudgeFile(readFileSync(partialPath, 'utf8'));
+    if (`# judge: ${partial.identity}` !== renderJudgeHeader(identity)) {
+      throw new Error(`${partialPath} was written by another judge.`);
+    }
+    rows.push(...(partial.rows as JudgeRow[]));
+    console.log(`  ${rows.length} already judged, carried over`);
+  }
+  const done = new Set(rows.map((row) => `${row.fixtureId},${row.rep}`));
+
+  const client = new Anthropic({ apiKey });
 
   for (const c of cases) {
     for (const { rep, narration } of c.reps) {
+      if (done.has(`${c.fixtureId},${rep}`)) continue;
       const message = await client.messages.create(
         buildJudgeRequest({
           rubric,
@@ -139,12 +161,15 @@ async function main(): Promise<void> {
         mark: answer.mark,
         note: answer.reason,
       });
+      writeFileSync(partialPath, renderJudgeCsv(identity, rows));
       console.log(`  ${c.fixtureId} rep ${rep} ${answer.mark}`);
     }
   }
 
-  // Written last, so an interrupted run leaves no judge file to check.
-  writeFileSync(outPath, renderJudgeCsv(identity, rows));
+  // The file takes its checked name only once every narration has a mark, so
+  // an interrupted run leaves nothing `ev2:judge-check` will read.
+  writeFileSync(partialPath, renderJudgeCsv(identity, rows));
+  renameSync(partialPath, outPath);
   console.log(`\nWrote ${outPath}`);
   console.log(`  Next: task ev2:judge-check -- ${args.run}`);
 }
