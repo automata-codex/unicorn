@@ -120,6 +120,12 @@ tasks:
     cmds:
       - npx tsx --env-file=.env eval-v2/judge.ts {{.CLI_ARGS}}
 
+  ev2:judge-check:
+    desc: 'Eval v2 — set a judge''s marks against the hand marks of the same runs: agreement against the 0.90 limit, how many narrations the judge passed that were failed by hand against the limit of 4, each case''s counts, and every disagreement with the judge''s reason (spec 028). Reads files only — no database, no Anthropic, no cost, so it needs no approval. Usage — task ev2:judge-check -- <run>[,<run>...] [--prompt <hash>]'
+    dir: apps/zoltar-be
+    cmds:
+      - npx tsx --env-file=.env eval-v2/judge-check.ts {{.CLI_ARGS}}
+
   eval:capture-fixture:
     desc: Capture a turn's seeded state into an EvalFixture JSON file (M7.4). Usage — task eval:capture-fixture -- <adventure-id> <target-sequence-number> --tag <tag> --id <fixture-id> --output <path> [--force]
     dir: apps/zoltar-be
