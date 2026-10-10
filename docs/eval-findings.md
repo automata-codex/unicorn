@@ -3329,3 +3329,13 @@ What each result would mean:
 - **How the judge does outside this session.**
 - **Much about any one turn.** Each has ten marks or fewer.
 - **Whether the rubric is right**, only whether two readers of it agree.
+
+#### Added 2026-10-10, before the check: the limits are agreed and the instructions hold
+
+The maintainer agreed both limits: at most 6 disagreements, and at most 2
+narrations the judge passes that the maintainer failed.
+
+The judge under v2 marked all ten narrations of run `2026-10-09T17-42-03Z` as
+fails, reps 05, 06 and 08 among them, which the v1 judge passed. Its reasons
+cite the new rule each time. The instructions were not adjusted and the prompt
+is frozen at `fd02544a`. Both `marks.csv` files now carry `# rubric: v2`.
