@@ -3566,3 +3566,76 @@ judge files before it can be done with the tool.
   judge's agreement should be measured against; 0.90 was set with only the 5%
   of marks changed on a second look to go on.
 - **A check of the judge under v3**, if it is ever to be used for the bar.
+
+### S71 — 2026-10-10 · The judge under Rubric v3 against the same 65 marks: 62 agree, and the three that do not are one phrase marked two ways in one sitting
+
+Not a third check. Rubric v3 was written from `§ S69`'s disagreements, so this
+asks only whether its wording produces the rulings of `§ S70`. The two runs of
+the second check were judged again (`task ev2:judge`, unicorn `8875afe`,
+prompt `ab4b003d`, `claude-opus-5-5`) and set against the hand marks as they
+now stand: made under Rubric v2, with the two changes of `§ S70`.
+
+#### The result
+
+| | v2 judge (`§ S69`) | v3 judge |
+|---|---|---|
+| Agreement on the 65 pass/fail marks | 56 (0.86) | 62 (0.95) |
+| Judge pass, maintainer fail | 1 | 3 |
+| Judge fail, maintainer pass | 8 | 0 |
+| Judge `na` on the 4 `na` marks | 1 | 1 |
+
+All nine disagreements of `§ S69` are gone. Turn 24 goes from 2 of 8 agreeing
+to 8 of 8, and turns 08, 14 and 29 and both constructed cases agree on every
+mark. The limits of `§ S68` do not apply here; for what it shows, the
+agreement would meet its limit and the three passes would exceed the limit of
+2.
+
+Before the run the expectation, given to the maintainer and not written down
+here, was 65 of 65 unless something else moved. Three moved.
+
+#### The three
+
+Turn 18 reps 04, 08 and 10, each failed by the maintainer and passed by the
+judge:
+
+| Rep | Opening | Mark, under v2 |
+|---|---|---|
+| 01 | "The walk back down to Mara's berth is quiet" | pass |
+| 04 | "You head back down to Mara's berth" | fail |
+| 08 | "You head back down" | fail |
+| 10 | "You head back down" | fail |
+
+All four are a bare "back down", with no deck and no ladder shaft. The
+maintainer passed one and failed three in the same sitting. The judge under
+v2 failed all four; under v3 it passes all four, for the reason v3 gives.
+
+So the three are not the judge departing from the rubric. They are marks made
+under v2 that v3 marks the other way, which `§ S70` said would be so wherever
+a narration has a bare "up" or "down". Re-marked under v3 they would be
+passes and the count would be 65 of 65.
+
+#### What the "up" and "down" ruling costs, measured
+
+`§ S70` named the cost in general: a bare "back down" on this turn probably
+carries the session's wrong belief about the berth, and v3 passes it. On this
+run it is four narrations of ten.
+
+| Turn 18, run `2026-10-10T14-43-23Z` | pass | fail | rate |
+|---|---|---|---|
+| As marked, under v2 | 1 | 9 | 0.10 |
+| Under v3, with the four bare "back down" as passes | 4 | 6 | 0.40 |
+
+Nothing about the Warden differs between the two rows. A turn 18 rate under v3
+is not comparable with one under v1 or v2, and three of its four passes here
+are silent in `§ S55`'s sense.
+
+#### What follows
+
+- **v3's wording does what the rulings meant.** The judge can be used under it
+  for comparing two runs, as `§ S70` decided.
+- **Compare like with like.** Both sides of a comparison under one rubric
+  version and one prompt hash.
+- **This is the third time bare "back down" has been marked both ways**, after
+  `§ S51` and `§ S69`, and the first time within one run. It is the best
+  single argument that a written rule and a judge are steadier than a sitting
+  of hand marks.
