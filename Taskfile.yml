@@ -114,6 +114,12 @@ tasks:
     cmds:
       - npx tsx --env-file=.env eval-v2/compare.ts {{.CLI_ARGS}}
 
+  ev2:judge:
+    desc: 'Eval v2 — mark every narration of one question 1 run under Rubric v1 with the judge, and write the marks to judge.<prompt hash>.csv in the run directory (spec 028). Makes real, token-costing Anthropic calls — one per narration, on claude-opus-5-5; reps that threw and cases with no recorded start (turn 01) are skipped. No database. Never reads or writes marks.csv. Refuses a run already judged with the same prompt. Usage — task ev2:judge -- <run-dir | run-id> [--fixtures <id,id>]'
+    dir: apps/zoltar-be
+    cmds:
+      - npx tsx --env-file=.env eval-v2/judge.ts {{.CLI_ARGS}}
+
   eval:capture-fixture:
     desc: Capture a turn's seeded state into an EvalFixture JSON file (M7.4). Usage — task eval:capture-fixture -- <adventure-id> <target-sequence-number> --tag <tag> --id <fixture-id> --output <path> [--force]
     dir: apps/zoltar-be
