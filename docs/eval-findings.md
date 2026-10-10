@@ -3469,3 +3469,100 @@ marks that vary.
 - **A third check would need a third set of fresh marks.** Whether that is
   proportionate, against using the judge with a known weakness on turn 24, is
   a decision and not a finding.
+
+### S70 — 2026-10-10 · The nine disagreements settled: two rules change, two marks change, and the judge is kept for comparisons only
+
+`§ S69` left nine disagreements between the judge and the hand marks under
+Rubric v2. The maintainer ruled on all of them on 2026-10-10. This entry is
+the record of those rulings. Nothing here is a new measurement.
+
+#### The rulings
+
+| Disagreements | Ruling | What changes |
+|---|---|---|
+| Turn 24 reps 02, 04, 07 and 09: a walk to the mess hall with no change of deck | The marks are right and the rule is wrong | The rubric. On turn 24 a narration passes if it is right from either start, the history's or the seeded layout's, and fails only if wrong from both |
+| Turn 18 rep 01, turn 24 reps 08 and 10: a bare "back down", "head down", "back up" | The marks are right and the rule is wrong | The rubric. "Up" or "down" counts as a deck change only when the narration names a deck or the ladder shaft with it |
+| Turn 08 rep 10: down the ladder shaft from the bridge to the records terminal | The mark was wrong | The mark, from pass to fail. The shaft is named and the terminal is on the upper deck |
+| Turn 29 rep 08: the ladder shaft down to the lower deck, "past the cargo bay" | The mark was wrong | The mark, from fail to pass. The cargo bay is on the lower deck |
+
+`§ S69`'s sort had the three bare "up" and "down" marks as going against the
+rubric as written. That was true and is not how they were settled: the
+maintainer reversed the ruling of that morning and not the marks.
+
+#### Why the "up" and "down" ruling was reversed
+
+The Warden prompt (`mothership-m7.txt`, `e83e8aaa`) says nothing about decks,
+movement, or when to say "up" and "down". The one rule that did was added on
+2026-10-09 and reverted after `§ S49`, and it did not cover a figure of speech
+either. People say "down to the kitchen" on one floor, and the Warden has been
+given no reason to write otherwise. Failing a bare "back down" holds it to a
+convention it was never told.
+
+Two things this costs, both known when the ruling was made:
+
+- **The maintainer has marked the phrase both ways**: a fail on 2026-10-04
+  (turn 18 reps 06 and 09) and 2026-10-09, a pass in `§ S51` and on
+  2026-10-10. The new rule settles which, and those earlier fails are not
+  re-marked.
+- **Sometimes the phrase is the error.** Nine of ten narrations of turn 18 as
+  captured say "back down to the lower deck" outright, so a bare "back down"
+  there probably carries the same belief. Under the new rule it is a silent
+  pass, the weak evidence `§ S55` describes.
+
+A prompt line keeping "up" and "down" for deck changes would be a fix attempt
+with its own run. It is not part of this.
+
+#### Rubric v3
+
+Both rule changes are in Rubric v3, in the archive README and copied to
+`apps/zoltar-be/eval-v2/judge-rubric-q1-v3.txt`. It is v2's checklist with
+those two rules changed, and it is the one to mark from. The judge is pointed
+at it: prompt `ab4b003d`. **The judge has not been run under v3.**
+
+#### The marks
+
+Run `2026-10-10T14-43-23Z` has two marks changed, each with a note, and the
+marks as first made kept in `marks.2026-10-10.csv`. Its rubric line stays
+`v2`.
+
+| Case | As first marked | After the two changes |
+|---|---|---|
+| turn 08 | 4 pass, 5 fail (0.44) | 3 pass, 6 fail (0.33) |
+| turn 29 | 8 pass, 2 fail (0.80, bar not met) | 9 pass, 1 fail (0.90, bar met) |
+
+**The turn 29 change moves a case across the bar**, and it was made after
+reading the judge's reason. `§ S69`'s agreement of 56 of 65 is against the
+marks as first made and does not change.
+
+Neither run has been re-marked under v3.
+
+#### Where the judge stands
+
+It missed its agreement limit in both checks and is not a replacement for
+hand marks. What the two checks did show:
+
+- **It gives the same mark to the same narration.** Two passes over 46
+  narrations differ on one (`§ S67`).
+- **Its disagreements have followed the rubric's wording.** Of 25 across the
+  two checks, none was sorted as the judge misreading the rubric it was given.
+- **The hand marks vary too.** The maintainer has marked one phrase both ways,
+  and changed two of 65 marks on a second look.
+
+So the maintainer's decision is to use it where sameness is what matters and
+not where truth is:
+
+- **For comparing two runs**, both judged under one prompt hash. A judge that
+  leans one way leans the same way on both sides.
+- **Not for the 0.90 bar.** Whether a case is good enough is still read from
+  hand marks.
+
+`ev2:compare` reads `marks.csv` only, so this needs a way to compare two
+judge files before it can be done with the tool.
+
+#### What is still owed
+
+- **The maintainer's own agreement rate.** About 20 of today's narrations
+  re-marked blind in a week or so, under Rubric v3. That number is what a
+  judge's agreement should be measured against; 0.90 was set with only the 5%
+  of marks changed on a second look to go on.
+- **A check of the judge under v3**, if it is ever to be used for the bar.

@@ -21,7 +21,7 @@ import { renderCaseMd, renderRepMd } from './run.core';
 
 import type Anthropic from '@anthropic-ai/sdk';
 
-const RUBRIC = readFileSync(join(__dirname, 'judge-rubric-q1-v2.txt'), 'utf8');
+const RUBRIC = readFileSync(join(__dirname, 'judge-rubric-q1-v3.txt'), 'utf8');
 const TURN_24 = '2c0ba938-turn24-seeded-canon-contradiction';
 
 // Turn 24's fixture carries world facts the Warden wrote during the session

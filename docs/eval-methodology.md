@@ -1780,3 +1780,24 @@ from noise.
 **A label on a case the fix was not aimed at is probably noise.** Every case
 gets its own test, so across six cases a stray `improved` or `worse` is more
 likely than 5%.
+
+**The judge is for comparing two runs, not for the bar (2026-10-10).**
+`task ev2:judge` marks a question 1 run under the current rubric and writes
+`judge.<prompt hash>.csv` beside `marks.csv`. It was checked against hand marks
+twice and missed the agreement limit both times (`docs/eval-findings.md § S67`,
+`§ S69`), so it does not replace them. It does give the same mark to the same
+narration, which is what a before-and-after comparison needs.
+
+- Judge both runs under the same prompt hash. Marks from two hashes are from
+  two judges and are not compared.
+- Whether a case meets the 0.90 bar is read from hand marks.
+- Every `ev2:judge` call costs money and is asked for each time, like
+  `ev2:run`. `task ev2:judge-check` is free.
+- The rubric is in `$ZOLTAR_EVAL_ROOT/eval-v2-runs/README.md`, and the judge is
+  sent the copy in `apps/zoltar-be/eval-v2/`. Changing the rubric means a new
+  version there, a new copy here, and a new prompt hash.
+- `ev2:compare` reads `marks.csv` only. Until it can read judge files, a
+  judged comparison is tallied by hand.
+
+The ten-rep count above was set by hand marking. It is worth reopening once
+`ev2:compare` reads judge files.

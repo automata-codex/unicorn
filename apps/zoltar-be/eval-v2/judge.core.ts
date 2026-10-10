@@ -3,7 +3,7 @@
  * narration, how its answer is read, and the file its marks are written to
  * (spec 028).
  *
- * The judge marks question 1 under Rubric v2. It is never shown the hand
+ * The judge marks question 1 under Rubric v3. It is never shown the hand
  * marks: nothing here or in `judge.ts` opens `marks.csv`.
  */
 import { createHash } from 'node:crypto';
@@ -12,7 +12,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 
 export const JUDGE_MODEL = 'claude-opus-5-5';
 export const JUDGE_QUESTION = 'q1';
-export const JUDGE_RUBRIC = 'v2';
+export const JUDGE_RUBRIC = 'v3';
 
 const USAGE = 'Usage: task ev2:judge -- <run> [--fixtures <id,id>]';
 
@@ -48,7 +48,7 @@ export const STARTS: Readonly<Record<string, string>> = {
     'the cryo bay bulkhead, mid-deck',
   '2c0ba938-turn18-corrected-sentence-added': 'the cryo bay bulkhead, mid-deck',
   '2c0ba938-turn24-seeded-canon-contradiction':
-    "Mara's berth, which turns 14 and 18 put on the lower deck",
+    "Mara's berth. The history (turns 14 and 18) puts it on the lower deck; the seeded layout puts it on mid-deck. Either start counts",
   '2c0ba938-turn29-seeded-canon-contradiction': 'the mess hall, mid-deck',
 };
 

@@ -1,0 +1,92 @@
+### Rubric v3
+
+Written 2026-10-10, after the second judge check (unicorn
+`docs/eval-findings.md § S69`). It is Rubric v2's checklist with two rules
+changed. **This is the one to mark from.**
+
+- **"Up" and "down" count only with a deck or the ladder shaft.** v2 read a
+  bare "back down" as a deck change. The Warden prompt never tells the Warden
+  to keep those words for deck changes, and people say "down to the kitchen"
+  on one floor.
+- **Turn 24 is marked from either start.** v1 and v2 failed a narration that
+  got the layout right without comment, for not repeating the session's error.
+
+Marks deck position only: where places and people are, and the routes between
+them. Ground truth is the seeded `ship_layout` and the opening narration, not
+the facts the Warden wrote during the session.
+
+1. **Take the start from the table.** Turn 24 has two.
+2. **Find every phrase that puts a place or person on a deck, or moves someone
+   between decks.** "Up" or "down" is one only when the narration names a deck
+   or the ladder shaft with it; otherwise ignore the word and mark the rest.
+   If there are none, mark _na_.
+3. **Mark _fail_ if any of these is true:**
+   - a place or person is on a different deck from the seeded layout. When no
+     deck is named, work it out from the start
+   - the route passes through, or returns to, the deck Danny starts on
+   - a change of deck does not go by the ladder shaft
+4. **Otherwise mark _pass_.**
+
+On turn 24, a narration passes if it is right from either start and fails only
+if it is wrong from both. A narration that names the right deck outright
+passes.
+
+_error_ is not a mark: the turn threw and there is no narration.
+
+#### Where Danny starts
+
+| Case | Start |
+|---|---|
+| turn 08 | the bridge, upper deck |
+| turn 14 | the corridor outside the cryo bay, mid-deck |
+| turn 18, and every case constructed from it | the cryo bay bulkhead, mid-deck |
+| turn 24 | Mara's berth. The history puts it on the lower deck; the seeded layout puts it on mid-deck. Either counts |
+| turn 29 | the mess hall, mid-deck |
+
+Turn 01 is the timeline case and cannot be marked under this rubric.
+
+#### Worked examples
+
+_na_
+
+- Turn 18, "You knock twice." No deck, no route, no change of position.
+
+_pass_
+
+- Turn 18, "The walk back to Mara's berth is short." A walk with no change of
+  deck keeps the berth on mid-deck.
+- Turn 18, "The walk back down to Mara's berth is quiet." No deck and no
+  ladder, so "down" is ignored and it is the walk above. *(a fail under v2)*
+- Turn 24, "a walk to the mess hall", with no change of deck. Right on the
+  seeded layout, where the berth and the mess hall are both on mid-deck.
+  *(a fail under v1 and v2)*
+- Turn 24, "Teo's bunk is just along this deck." Right on the seeded layout.
+  *(a fail under v1 and v2)*
+- Turn 24, the mess is "one deck up" from Mara's berth. Right from the
+  history's start on the lower deck.
+- Turn 24, "head down toward the mess hall." No deck and no ladder, so it is
+  the walk to the mess hall. *(a fail under v2)*
+- Turn 29, "take the ladder shaft down to the lower deck, past the cargo bay,
+  toward the engine room." The cargo bay is on the lower deck.
+
+_fail_: a place on the wrong deck
+
+- Turn 18, "You head back down to the lower deck" to reach Mara's berth.
+  Berths are on mid-deck.
+- Turn 08, "head back down the ladder shaft … toward the records terminal",
+  from the bridge. The shaft is named, and the terminal is on the upper deck.
+- Turn 24, the mess is "two decks up" from Mara's berth. Wrong from both
+  starts.
+
+_fail_: the route passes through or returns to the starting deck
+
+- Turn 14, "past mid-deck" on the way down, from a mid-deck start.
+- Turn 18, "You head back to mid-deck", from the cryo bay bulkhead. It has
+  put him somewhere else first.
+- Turn 18, "You head back up to mid-deck", from the same start. A deck is
+  named, so "up" counts.
+
+_fail_: a change of deck that does not go by the ladder shaft
+
+- Turn 29, "The walk down to the lower deck takes you past the ladder shaft",
+  from the mess hall. A deck is named, so "down" counts.
