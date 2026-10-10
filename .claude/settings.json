@@ -10,7 +10,8 @@
       "Bash(node *scripts/eval-run.ts*)"
     ],
     "ask": [
-      "Bash(task eval:*)"
+      "Bash(task eval:*)",
+      "Bash(node ~/.claude/skills/workflowy-tasks/scripts/wf.mjs delete:*)"
     ]
   }
 }
