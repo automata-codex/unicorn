@@ -3,7 +3,7 @@
  * narration, how its answer is read, and the file its marks are written to
  * (spec 028).
  *
- * The judge marks question 1 under Rubric v1. It is never shown the hand
+ * The judge marks question 1 under Rubric v2. It is never shown the hand
  * marks: nothing here or in `judge.ts` opens `marks.csv`.
  */
 import { createHash } from 'node:crypto';
@@ -12,7 +12,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 
 export const JUDGE_MODEL = 'claude-opus-5-5';
 export const JUDGE_QUESTION = 'q1';
-export const JUDGE_RUBRIC = 'v1';
+export const JUDGE_RUBRIC = 'v2';
 
 const USAGE = 'Usage: task ev2:judge -- <run> [--fixtures <id,id>]';
 
@@ -23,7 +23,7 @@ const JUDGE_MARKS = ['pass', 'fail', 'na'] as const;
 export type JudgeMark = (typeof JUDGE_MARKS)[number];
 
 /**
- * Where Danny starts in each case, per the session's history. Rubric v1 fixes
+ * Where Danny starts in each case, per the session's history. The rubric fixes
  * one start per case and the hand marks were made from it, so the judge is
  * told it and does not work it out.
  *
@@ -31,7 +31,7 @@ export type JudgeMark = (typeof JUDGE_MARKS)[number];
  * are all copies of turn 18 that leave the start where it was.
  *
  * A case with no entry is not judged. Turn 01 has none on purpose: it is the
- * timeline case, and Rubric v1 marks layout only.
+ * timeline case, and the rubric marks layout only.
  */
 export const STARTS: Readonly<Record<string, string>> = {
   '2c0ba938-turn08-seeded-canon-contradiction': 'the bridge, upper deck',
@@ -44,12 +44,15 @@ export const STARTS: Readonly<Record<string, string>> = {
   '2c0ba938-turn18-berth-retracted-tidy': 'the cryo bay bulkhead, mid-deck',
   '2c0ba938-turn18-position-seeded': 'the cryo bay bulkhead, mid-deck',
   '2c0ba938-turn18-return-stated': 'the cryo bay bulkhead, mid-deck',
+  '2c0ba938-turn18-retracted-sentence-removed':
+    'the cryo bay bulkhead, mid-deck',
+  '2c0ba938-turn18-corrected-sentence-added': 'the cryo bay bulkhead, mid-deck',
   '2c0ba938-turn24-seeded-canon-contradiction':
     "Mara's berth, which turns 14 and 18 put on the lower deck",
   '2c0ba938-turn29-seeded-canon-contradiction': 'the mess hall, mid-deck',
 };
 
-/** The facts the adventure was seeded with, which is Rubric v1's ground truth. */
+/** The facts the adventure was seeded with, which is the rubric's ground truth. */
 const SEEDED_FACTS = [
   'ship_layout',
   'colonist_count',
@@ -62,10 +65,7 @@ const INSTRUCTIONS = [
   'game master) wrote it in reply to a player. Danny is the player character.',
   '',
   'Mark the narration under the rubric below, exactly as the rubric is written.',
-  'The rubric was written by the person whose marks yours will be compared',
-  'with. "I" in it is that person. Where it mentions a playtest report, you',
-  'have no report: the starting position you need is given to you with the',
-  'case.',
+  'Your mark will be compared with one a person made from the same rubric.',
   '',
   'You are given the initial game state (the seeded world facts and the',
   'opening narration), where Danny starts this turn, what the player said, and',
@@ -139,7 +139,7 @@ export interface CaseText {
 /**
  * Reads a run's `case.md` (written by `renderCaseMd`). The world facts the
  * Warden wrote during the session are in that file too and are dropped here:
- * Rubric v1 marks against the seeded state only.
+ * The rubric marks against the seeded state only.
  */
 export function parseCaseMd(text: string): CaseText {
   const section = (title: string): string => {

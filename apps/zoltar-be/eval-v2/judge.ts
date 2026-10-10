@@ -1,5 +1,5 @@
 /**
- * `task ev2:judge` — marks every narration of one run under Rubric v1 and
+ * `task ev2:judge` — marks every narration of one run under Rubric v2 and
  * writes the marks to `judge.<prompt hash>.csv` in the run directory
  * (spec 028). `task ev2:judge-check` then sets them against the hand marks.
  *
@@ -37,7 +37,7 @@ import { resolveRunDir } from './report';
 
 import type { JudgeRow } from './judge.core';
 
-const RUBRIC_PATH = join(__dirname, 'judge-rubric-q1-v1.txt');
+const RUBRIC_PATH = join(__dirname, 'judge-rubric-q1-v2.txt');
 
 interface Rep {
   rep: string;

@@ -115,13 +115,13 @@ tasks:
       - npx tsx --env-file=.env eval-v2/compare.ts {{.CLI_ARGS}}
 
   ev2:judge:
-    desc: 'Eval v2 — mark every narration of one question 1 run under Rubric v1 with the judge, and write the marks to judge.<prompt hash>.csv in the run directory (spec 028). Makes real, token-costing Anthropic calls — one per narration, on claude-opus-5-5; reps that threw and cases with no recorded start (turn 01) are skipped. No database. Never reads or writes marks.csv. Refuses a run already judged with the same prompt. Usage — task ev2:judge -- <run-dir | run-id> [--fixtures <id,id>]'
+    desc: 'Eval v2 — mark every narration of one question 1 run under Rubric v2 with the judge, and write the marks to judge.<prompt hash>.csv in the run directory (spec 028). Makes real, token-costing Anthropic calls — one per narration, on claude-opus-5-5; reps that threw and cases with no recorded start (turn 01) are skipped. No database. Never reads or writes marks.csv. Refuses a run already judged with the same prompt. Usage — task ev2:judge -- <run-dir | run-id> [--fixtures <id,id>]'
     dir: apps/zoltar-be
     cmds:
       - npx tsx --env-file=.env eval-v2/judge.ts {{.CLI_ARGS}}
 
   ev2:judge-check:
-    desc: 'Eval v2 — set a judge''s marks against the hand marks of the same runs: agreement against the 0.90 limit, how many narrations the judge passed that were failed by hand against the limit of 4, each case''s counts, and every disagreement with the judge''s reason (spec 028). Reads files only — no database, no Anthropic, no cost, so it needs no approval. Usage — task ev2:judge-check -- <run>[,<run>...] [--prompt <hash>]'
+    desc: 'Eval v2 — set a judge''s marks against the hand marks of the same runs: agreement against the 0.90 limit, how many narrations the judge passed that were failed by hand against a limit (4 unless --pass-limit names another), each case''s counts, and every disagreement with the judge''s reason (spec 028). Reads files only — no database, no Anthropic, no cost, so it needs no approval. Usage — task ev2:judge-check -- <run>[,<run>...] [--prompt <hash>] [--pass-limit <n>]'
     dir: apps/zoltar-be
     cmds:
       - npx tsx --env-file=.env eval-v2/judge-check.ts {{.CLI_ARGS}}

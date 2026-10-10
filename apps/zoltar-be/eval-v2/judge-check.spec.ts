@@ -41,6 +41,12 @@ describe('parseArgs', () => {
     expect(parseArgs(['a,b', 'c']).runs).toEqual(['a', 'b', 'c']);
   });
 
+  it("takes a pass limit, and defaults to the first check's", () => {
+    expect(parseArgs(['a']).passLimit).toBe(JUDGE_PASS_LIMIT);
+    expect(parseArgs(['a', '--pass-limit', '2']).passLimit).toBe(2);
+    expect(() => parseArgs(['a', '--pass-limit', 'two'])).toThrow(/Usage/);
+  });
+
   it('takes a prompt hash', () => {
     expect(parseArgs(['a', '--prompt', '3fa1c2d0']).prompt).toBe('3fa1c2d0');
   });
@@ -236,6 +242,20 @@ describe('check', () => {
     expect(of114(5, 0)).toMatchObject({
       meetsJudgePass: false,
       meetsAgreement: true,
+    });
+  });
+
+  it('applies a pass limit named for another set of marks', () => {
+    const marks = [
+      run(rows(TURN_18, 'fail', 10), [
+        ...rows(TURN_18, 'pass', 3),
+        ...rows(TURN_18, 'fail', 7, 4),
+      ]),
+    ];
+    expect(check(marks, 3).meetsJudgePass).toBe(true);
+    expect(check(marks, 2)).toMatchObject({
+      meetsJudgePass: false,
+      passLimit: 2,
     });
   });
 

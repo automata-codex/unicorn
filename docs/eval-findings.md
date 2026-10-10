@@ -3228,3 +3228,104 @@ No answer in the seven judge files has a blank reason.
 - **That the judge is unreliable.** It was consistent with itself, across two
   passes and across nine copies of one phrase.
 - **Anything about a case outside this session.**
+
+### S68 — 2026-10-10 · Pre-registration: the judge under Rubric v2, against 65 new hand marks across all five turns
+
+`§ S67` found the judge and the hand marks apart on three things Rubric v1
+does not say. The maintainer ruled on all three on 2026-10-10, each as a fail,
+and Rubric v2 says so. This is the second check, on narrations the judge has
+not been set against. Written before the judge has marked any of them, and
+without reading the new marks beyond counting them.
+
+#### Rubric v2
+
+In the archive README, and copied to
+`apps/zoltar-be/eval-v2/judge-rubric-q1-v2.txt`. It restates v1 as a four-step
+checklist, short enough to mark from, with the start table and the worked
+examples under it. Three rulings are new:
+
+- a return to the deck Danny is already on is a fail, whatever the direction
+  word ("You head back to mid-deck" from mid-deck)
+- "back up" or "back down" with no deck named is read as a deck change and
+  not as a figure of speech
+- a change of deck that does not go by the ladder shaft is a fail
+
+The maintainer marks from the same text the judge is sent. Under v1 the marks
+came first and the rubric was reconstructed from them.
+
+#### The judge
+
+Unchanged except for the rubric, two more starts, and two sentences of the
+instructions around the rubric that described v1's first-person wording.
+`claude-opus-5-5` at effort `high`, prompt `fd02544a`.
+
+#### The marks
+
+Hand-marked by the maintainer under Rubric v2 on 2026-10-10, before the judge
+ran:
+
+| Run | Cases | pass | fail | na | error |
+|---|---|---|---|---|---|
+| `2026-10-10T14-43-23Z` (unicorn `96acd03`, prompt `e83e8aaa`) | turns 08, 14, 18, 24 and 29 as captured, 10 reps each | 26 | 21 | 2 | 1 |
+| `2026-10-09T19-10-04Z` | `turn18-corrected-sentence-added`, `turn18-retracted-sentence-removed` | 5 | 13 | 2 | 0 |
+| | | **31** | **34** | 4 | 1 |
+
+The first run is new, made for this check so that it covers every turn and
+not turn 18 alone. The second is one of the three runs left unmarked on
+2026-10-09, kept because the constructed cases are where "back to mid-deck"
+turns up. The other two unmarked runs are 20 more narrations of turn 18 and
+are left out.
+
+Neither `marks.csv` has its `# rubric:` line filled in yet. Both are v2.
+
+#### The limits
+
+Spec 028's, scaled from 114 marks to 65:
+
+| | First check | This check |
+|---|---|---|
+| Agreement | at least 0.90: 103 of 114 | at least 0.90: 59 of 65, so at most 6 disagreements |
+| Judge pass, maintainer fail | at most 4 of 76 fails | at most 2 of 34 fails |
+
+Four of 76 is 5.3% of the fails, and 5.3% of 34 is 1.8. **The 2 is the
+author's proposal and needs the maintainer's agreement before the judge runs.**
+
+#### One run first, to check the instructions
+
+The judge has not been run under v2 at all. Before the 65 marks are spent on
+it, it is run on `2026-10-09T17-42-03Z`: ten narrations, all marked fail, three
+of which the v1 judge passed for "back to mid-deck" (`§ S67`). Under v2 all ten
+should fail. If they do not, the instructions around the rubric may be
+adjusted, and the rubric may not. This run is not part of the check.
+
+#### Prediction
+
+**58 to 62 of the 65 agree, and the judge passes 0 to 2 that the maintainer
+failed. Both limits are met, the agreement limit not by much.**
+
+- The three rulings covered 13 of `§ S67`'s 16 disagreements, and the judge
+  gave the same answer to nine copies of one phrase and on 45 of 46 marks
+  across two passes. Given a rule, it should apply it.
+- `§ S66` predicted too high, by underrating how much of the marking the
+  rubric did not state. v2 states more, and it is a first draft that restates
+  v1 in fewer words. A short line may have moved a meaning.
+- The likeliest disagreements are on turn 08, where two readings of one
+  sentence were both defensible in `§ S66` and `§ S67`; on turn 24, where the
+  inherited start makes "below" and "above" hard to read; and between pass and
+  `na` on narrations that move without naming a deck.
+
+What each result would mean:
+
+- **Both limits met:** the judge is usable for question 1 under Rubric v2 on
+  these five turns and their copies.
+- **Agreement missed, with disagreements on one rule:** the rubric has another
+  gap. Whether to close it is weighed against a third round of marking.
+- **Disagreements scattered across rules and turns:** the rubric is not the
+  problem. Either the marks vary more than a judge can match, or a judge is
+  not the right tool for this question.
+
+#### What this cannot show
+
+- **How the judge does outside this session.**
+- **Much about any one turn.** Each has ten marks or fewer.
+- **Whether the rubric is right**, only whether two readers of it agree.

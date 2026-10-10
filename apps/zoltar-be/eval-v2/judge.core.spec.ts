@@ -21,7 +21,7 @@ import { renderCaseMd, renderRepMd } from './run.core';
 
 import type Anthropic from '@anthropic-ai/sdk';
 
-const RUBRIC = readFileSync(join(__dirname, 'judge-rubric-q1-v1.txt'), 'utf8');
+const RUBRIC = readFileSync(join(__dirname, 'judge-rubric-q1-v2.txt'), 'utf8');
 const TURN_24 = '2c0ba938-turn24-seeded-canon-contradiction';
 
 // Turn 24's fixture carries world facts the Warden wrote during the session
@@ -65,7 +65,7 @@ describe('STARTS', () => {
     expect(Object.keys(STARTS).filter((id) => !cases.includes(id))).toEqual([]);
   });
 
-  it('has no start for the timeline case, which Rubric v1 cannot mark', () => {
+  it('has no start for the timeline case, which the rubric cannot mark', () => {
     expect(
       STARTS['2c0ba938-turn01-seeded-canon-contradiction'],
     ).toBeUndefined();

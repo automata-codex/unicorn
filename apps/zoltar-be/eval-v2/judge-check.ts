@@ -15,13 +15,14 @@ import type { Mark, MarkedRow } from './report';
 /** The judge must give the hand mark on at least this share of pass/fail marks. */
 export const AGREEMENT_LIMIT = 0.9;
 /**
- * And may pass at most this many narrations the maintainer failed. Set for the
- * 114 marks of the 2026-10-09 runs, 76 of them fails.
+ * And may pass at most this many narrations the maintainer failed. The default
+ * was set for the first check: 114 marks, 76 of them fails (spec 028). A check
+ * over another set of marks names its own with `--pass-limit`.
  */
 export const JUDGE_PASS_LIMIT = 4;
 
 const USAGE =
-  'Usage: task ev2:judge-check -- <run>[,<run>...] [--prompt <hash>]';
+  'Usage: task ev2:judge-check -- <run>[,<run>...] [--prompt <hash>] [--pass-limit <n>]';
 
 const JUDGE_LINE = /^#\s*judge:(.*)$/i;
 const JUDGE_FILE = /^judge\.([0-9a-f]+)\.csv$/;
@@ -30,15 +31,22 @@ export interface CheckArgs {
   runs: string[];
   /** Which judge file to read when a run has more than one. */
   prompt: string | null;
+  /** How many narrations the judge may pass that were failed by hand. */
+  passLimit: number;
 }
 
 export function parseArgs(argv: string[]): CheckArgs {
   const runs: string[] = [];
   let prompt: string | null = null;
+  let passLimit = JUDGE_PASS_LIMIT;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--prompt') {
       prompt = argv[++i] ?? null;
       if (prompt === null) throw new Error(USAGE);
+    } else if (argv[i] === '--pass-limit') {
+      const text = argv[++i] ?? '';
+      if (!/^\d+$/.test(text)) throw new Error(USAGE);
+      passLimit = Number(text);
     } else if (argv[i].startsWith('--')) {
       throw new Error(`unknown argument "${argv[i]}". ${USAGE}`);
     } else {
@@ -51,7 +59,7 @@ export function parseArgs(argv: string[]): CheckArgs {
     }
   }
   if (runs.length === 0) throw new Error(USAGE);
-  return { runs, prompt };
+  return { runs, prompt, passLimit };
 }
 
 export interface JudgeFile {
@@ -123,6 +131,7 @@ export interface CheckResult {
   agreement: number | null;
   meetsAgreement: boolean;
   meetsJudgePass: boolean;
+  passLimit: number;
 }
 
 const emptyCounts = (): Counts => ({
@@ -133,7 +142,10 @@ const emptyCounts = (): Counts => ({
   judgeNa: 0,
 });
 
-export function check(runs: RunMarks[]): CheckResult {
+export function check(
+  runs: RunMarks[],
+  passLimit = JUDGE_PASS_LIMIT,
+): CheckResult {
   const total = emptyCounts();
   const byCase = new Map<string, Counts>();
   const handNa = { marks: 0, judgeNa: 0 };
@@ -202,7 +214,8 @@ export function check(runs: RunMarks[]): CheckResult {
     disagreements,
     agreement,
     meetsAgreement: agreement !== null && agreement >= AGREEMENT_LIMIT,
-    meetsJudgePass: total.judgePassHandFail <= JUDGE_PASS_LIMIT,
+    meetsJudgePass: total.judgePassHandFail <= passLimit,
+    passLimit,
   };
 }
 
@@ -252,7 +265,7 @@ export function renderCheck(
         'judge pass, you fail',
         String(total.judgePassHandFail),
         '',
-        `limit ${JUDGE_PASS_LIMIT}`,
+        `limit ${result.passLimit}`,
         met(result.meetsJudgePass),
       ],
       ['judge fail, you pass', String(total.judgeFailHandPass), '', '', ''],
@@ -337,7 +350,9 @@ function main(): void {
     );
   }
 
-  console.log(renderCheck(identities[0], runs.length, check(runs)));
+  console.log(
+    renderCheck(identities[0], runs.length, check(runs, args.passLimit)),
+  );
 }
 
 if (require.main === module) {
