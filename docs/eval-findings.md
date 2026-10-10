@@ -3083,3 +3083,20 @@ What each result would mean:
   one session and one ship.
 - **Much about turns 08 and 24**, with 8 marks each in the check.
 - **Whether the judge varies.** Each narration is judged once.
+
+#### Added 2026-10-10, before the check was read: one run was judged twice
+
+The first attempt at run `2026-10-09T11-03-37Z` stopped on its 47th of 48
+narrations and wrote no file. The judge gave turn 29 rep 09 a mark with a
+blank reason, and the script took that for an error. It was fixed in unicorn
+`8acf9f4`, which changes nothing the prompt hash covers.
+
+The 46 marks made before the stop were printed and not saved. The maintainer
+decided, before any of them was set against a hand mark, that the run is
+judged again in full and **the second pass is the one that counts**. The 46
+printed marks are compared with the second pass afterwards, as a measure of
+how much the judge varies between two passes over the same narrations. They
+are not used for agreement.
+
+So six of the seven check runs are judged once and one is judged twice, with
+the choice of pass made in advance.
