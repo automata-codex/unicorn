@@ -3100,3 +3100,131 @@ are not used for agreement.
 
 So six of the seven check runs are judged once and one is judged twice, with
 the choice of pass made in advance.
+
+### S67 — 2026-10-10 · The judge misses both limits: 98 of 114, and it passes 12 narrations the maintainer failed, nine of them one phrase
+
+The check `§ S66` pre-registered. The seven marked runs of 2026-10-09 were
+judged by `task ev2:judge` (unicorn `8acf9f4`, prompt `2fd4637a`,
+`claude-opus-5-5`) and set against the hand marks with `task ev2:judge-check`.
+The hand marks are as they stood before the judge ran; none has been changed.
+
+#### The result
+
+| | Result | Limit | |
+|---|---|---|---|
+| Agreement on the 114 pass/fail marks | 98 (0.86) | 0.90, so 103 | not met |
+| Judge pass, maintainer fail | 12 | 4 | not met |
+| Judge fail, maintainer pass | 4 | | |
+| Judge `na` on a pass or fail | 0 | | |
+| Judge `na` on the 4 `na` marks | 1 | | |
+
+By spec 028 the judge is not usable as it is, and marking stays by hand.
+
+`§ S66` predicted 104 to 109 agreeing and 1 to 3 passed that the maintainer
+failed, with both limits met. Both parts were wrong.
+
+| Case | Marks | Agree | Judge pass, maintainer fail | Judge fail, maintainer pass |
+|---|---|---|---|---|
+| turn 08 | 8 | 7 | 0 | 1 |
+| turn 14 | 20 | 20 | 0 | 0 |
+| turn 18 | 20 | 19 | 0 | 1 |
+| turn 24 | 8 | 8 | 0 | 0 |
+| turn 29 | 10 | 7 | 3 | 0 |
+| turn 18, berth corrected | 9 | 6 | 1 | 2 |
+| turn 18, berth retracted | 10 | 7 | 3 | 0 |
+| turn 18, retracted, repeats removed | 10 | 9 | 1 | 0 |
+| turn 18, position seeded | 10 | 8 | 2 | 0 |
+| turn 18, return stated | 9 | 7 | 2 | 0 |
+
+#### The 12 the judge passed
+
+**Nine are one phrase.** Each opens with Danny going "back to mid-deck" or
+"back toward mid-deck" from the cryo bay bulkhead, which is on mid-deck, with
+no "up" or "down": berth corrected rep 10; berth retracted reps 05, 06 and 08;
+repeats removed rep 06; position seeded reps 01 and 02; return stated reps 09
+and 10.
+
+The maintainer failed all nine on the route: a return to a deck is a claim
+that he had left it. The judge passed all nine, and said why each time in
+nearly the same words: the phrase is odd from a mid-deck start, and it names
+no route the layout rules out. Where the narrations go
+"back up" or "back down" to mid-deck, the judge failed them, 28 times in the
+four retraction runs.
+
+Rubric v1 does not say which reading is right. Its one route example is turn
+14 rep 01, "past mid-deck", which is a deck passed through and not a deck
+returned to. The adjusting run could not have shown this: it has no
+constructed case and no narration with the phrase.
+
+**Three are one sentence in turn 29**, reps 01, 07 and 10 of run
+`2026-10-09T11-03-37Z`: "The walk down to the lower deck takes you past the
+ladder shaft". The maintainer's notes call it "close but not correct" and
+"isn't quite right". The judge read it as loose wording, on the ground that
+the layout calls the shaft the only fast route and not the only one.
+
+#### The 4 the judge failed
+
+| Rep | Narration | Reading |
+|---|---|---|
+| turn 18 rep 09, run `2026-10-09T10-38-58Z` | "The walk back up from the cryo bay" | Predicted in `§ S66`. A climb from mid-deck to a berth on mid-deck |
+| berth corrected rep 08 | "You head back down" | Predicted in `§ S66`. The known inconsistency of `§ S51` |
+| berth corrected rep 05 | Mara puts the colonists "two decks below" her berth | The route is fine, which is what the mark's note covers. The cryo bay and the berths are both on mid-deck, so the judge found something the mark did not look at |
+| turn 08 rep 01 | Mara is "two decks down" from the bridge | The mark's note says the narration does not put the terminal there. The judge read two decks down as the lower deck, against an opening that has her on mid-deck |
+
+#### Sorting them
+
+The author's sort, for the maintainer to confirm or change:
+
+| | Count | Which |
+|---|---|---|
+| Criterion did not cover it | 13 | the nine "back to mid-deck", the three turn 29, berth corrected rep 08 |
+| Mark may be wrong | 2 | turn 18 rep 09 "back up", berth corrected rep 05 |
+| Not clear either way | 1 | turn 08 rep 01 |
+| Judge wrong | 0 | |
+
+No disagreement is the judge misreading the rubric it was given. Thirteen of
+the sixteen come from three things the rubric does not state: whether a return
+to the deck he is on is a route error, whether "back down" is a figure of
+speech, and how strictly a route has to use the ladder shaft.
+
+#### The `na` marks
+
+The judge gave `na` on one of the four `na` marks and passed the other three:
+turn 24 reps 01 and 05, and berth corrected rep 09. Its reason on rep 09 is
+that a walk along a corridor with no ladder keeps the berth on mid-deck. That
+is the reading under which it passed "the walk to Mara's berth" in the
+adjusting run, where the maintainer passed it too.
+
+`§ S66`'s open risk was the other way round: passes that name no deck coming
+back `na`. That did not happen once.
+
+#### How much the judge varies
+
+Run `2026-10-09T11-03-37Z` was judged twice (`§ S66`). The 46 marks printed
+by the first pass and the second pass's marks for the same reps differ on
+one: turn 24 rep 01, fail and then pass, which is one of the hand `na` marks.
+On the 43 of them that are hand pass or fail, the two passes agree throughout.
+The disagreements above are not noise.
+
+No answer in the seven judge files has a blank reason.
+
+#### What follows
+
+- **The judge is not adopted.** Runs of question 1 are still marked by hand.
+- **The fault is in the rubric and not the judge.** Had the nine been written
+  into the rubric as fails, the count would have been 107 of 114 with 3 passed
+  that the maintainer failed, inside both limits. That is arithmetic on a
+  result already seen and not a second check.
+- **A second check needs marks the judge has not been set against.** All 155
+  are now spent. The three unmarked runs of 2026-10-09 hold 40 narrations and
+  could be marked by hand first.
+- **Whether "back to mid-deck" is a route error is the maintainer's to
+  settle**, and `§ S59` to `§ S61` already asked whether it is a turn of
+  phrase. A Rubric v2 that answers it would be the next step, by the archive
+  README's rule for changing the rubric.
+
+#### What this does not show
+
+- **That the judge is unreliable.** It was consistent with itself, across two
+  passes and across nine copies of one phrase.
+- **Anything about a case outside this session.**
