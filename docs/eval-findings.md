@@ -2978,3 +2978,108 @@ branch so that these entries can merge; `71027c4` and `94c9c99` stay in
 history because runs were made from them.
 
 As `§ S64` said, this is the last variant of turn 18 run today.
+
+### S66 — 2026-10-10 · Pre-registration: the question 1 judge against the 114 hand marks of 2026-10-09
+
+Spec 028 builds a judge for question 1 and says what makes it usable. This
+entry records how it did on the run its prompt could be adjusted against, and
+what is expected of it on the runs it has not seen. Written before those runs
+are judged.
+
+#### The judge
+
+`task ev2:judge`, unicorn `4b6164f`: `claude-opus-5-5` at effort `high`, one
+call per narration, prompt `2fd4637a`. It is sent Rubric v1 word for word, the
+four seeded world facts, the opening narration, where Danny starts, the
+player's input and the narration. It is not sent the hand marks.
+
+#### The adjusting run
+
+Run `2026-10-04T03-14-41Z`, the one Rubric v1 was written from. 43 narrations
+judged; its 7 `error` reps have none.
+
+| | |
+|---|---|
+| Agreement on the 41 pass/fail marks | 38 (0.93) |
+| Judge pass, maintainer fail | 1 |
+| Judge fail, maintainer pass | 2 |
+| Judge `na` on a pass or fail | 0 |
+| Judge `na` on the 2 `na` marks | 2 |
+
+Turns 14 and 18 agree on every mark, 9 of 9 and 8 of 8. The three
+disagreements:
+
+| Rep | Mark | Judge | Sorted as |
+|---|---|---|---|
+| turn 08 rep 03 | fail | pass | criterion did not cover it |
+| turn 29 rep 08 | pass | fail | criterion did not cover it |
+| turn 24 rep 05 | pass | fail | not sorted by the maintainer |
+
+- **Turn 08 rep 03** has Danny go "back down the ladder shaft toward the
+  bridge access corridor" and meet Mara "one deck down". The maintainer read
+  the corridor as the one outside the bridge hatch, which is not down a
+  ladder. The judge read it as leaving by that corridor. The maintainer's
+  word for it on 2026-10-10 is "genuinely fuzzy".
+- **Turn 29 rep 08** says "descending past mid-deck" from a mid-deck start and
+  then walks the mid-deck corridor. The archive README keeps it a pass for
+  that walk. That note is outside the Rubric v1 section, so the judge did not
+  have it, and it followed the rubric's turn 14 rep 01 example.
+- **Turn 24 rep 05** puts the chief engineer "somewhere below you". From the
+  start the history gives, the lower deck, nothing is below. The judge applied
+  the rubric's inherited-start rule as written. The rubric's "Teo's bunk is
+  just along this deck" example points the same way, so the mark may be the
+  one that is off. That is the author's reading and not the maintainer's.
+
+None of the three is the judge misreading its instructions, so the prompt was
+not adjusted. It is frozen at `2fd4637a`.
+
+#### The check
+
+The seven marked runs of 2026-10-09, judged once: `2026-10-09T10-38-58Z`,
+`T11-03-37Z`, `T13-09-50Z`, `T17-42-03Z`, `T18-19-03Z`, `T18-39-07Z` and
+`T18-49-52Z`. That is 118 narrations: 114 marked pass or fail (38 pass, 76
+fail) and 4 marked `na`. Turn 01 and the 2 `error` reps are not judged.
+
+The limits are spec 028's, agreed 2026-10-10: at least 90% agreement, so at
+most 11 disagreements, and at most 4 narrations the judge passes that the
+maintainer failed.
+
+#### Prediction
+
+**104 to 109 of the 114 agree, and the judge passes 1 to 3 that the maintainer
+failed. Both limits are met.**
+
+- **Turn 18 and its copies, 68 marks, should agree almost throughout.** Most
+  of the 55 fails are a descent to the lower deck or a climb to mid-deck from
+  mid-deck. The adjusting run had both kinds of mark right.
+- **Two turn 18 disagreements are expected by name.** Run
+  `2026-10-09T13-09-50Z` rep 08, "You head back down", is a pass as a figure
+  of speech (`§ S51`); the judge failed that phrase twice in the adjusting
+  run. Run `2026-10-09T10-38-58Z` rep 09, "The walk back up from the cryo
+  bay", is a pass, and the judge is likely to read a climb in it.
+- **The passes that name no deck are the open risk.** Eight or so turn 18
+  passes open "You head back to Mara's berth" and say nothing else about
+  where it is. The judge passed "the walk to Mara's berth" twice in the
+  adjusting run, reading no deck change as staying on mid-deck. If it marks
+  these `na` and not pass, they are disagreements and the agreement limit is
+  missed on them alone.
+- **Turns 08, 24 and 29, 26 marks, should give 2 to 4 disagreements**, at the
+  adjusting run's rate of one a case.
+
+What each result would mean:
+
+- **Both limits met:** the judge is usable for question 1 under Rubric v1, on
+  these cases. The three unmarked runs of 2026-10-09 are the first it is
+  pointed at.
+- **Agreement missed on `na` against pass:** the rubric does not say what a
+  narration that moves and names no deck is. That is a Rubric v2 question and
+  not a fault in the judge.
+- **More than 4 passed that the maintainer failed:** the judge is not usable
+  as it is. The disagreements are read before anything else is tried.
+
+#### What this cannot show
+
+- **How the judge does on a case that is not in these runs.** Every mark is
+  one session and one ship.
+- **Much about turns 08 and 24**, with 8 marks each in the check.
+- **Whether the judge varies.** Each narration is judged once.
