@@ -30,7 +30,7 @@ import {
   promptHash,
   renderJudgeCsv,
   renderJudgeHeader,
-  STARTS,
+  startFor,
 } from './judge.core';
 import { parseJudgeFile } from './judge-check';
 import { resolveRunDir } from './report';
@@ -105,9 +105,9 @@ async function main(): Promise<void> {
   }
 
   const wanted = args.fixtureIds ?? info.fixtures;
-  const noStart = wanted.filter((id) => STARTS[id] === undefined);
+  const noStart = wanted.filter((id) => startFor(id) === undefined);
   const cases = wanted
-    .filter((id) => STARTS[id] !== undefined)
+    .filter((id) => startFor(id) !== undefined)
     .map((fixtureId) => {
       const caseDir = join(runDir, fixtureId);
       return {

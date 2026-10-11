@@ -16,6 +16,8 @@ import {
   promptHash,
   renderJudgeCsv,
   STARTS,
+  STARTS_AS,
+  startFor,
 } from './judge.core';
 import { renderCaseMd, renderRepMd } from './run.core';
 
@@ -69,6 +71,22 @@ describe('STARTS', () => {
     expect(
       STARTS['2c0ba938-turn01-seeded-canon-contradiction'],
     ).toBeUndefined();
+  });
+});
+
+describe('STARTS_AS', () => {
+  it('gives a constructed case the start of the case it was made from', () => {
+    const cases: readonly string[] = CASES.q1;
+    for (const [id, parent] of Object.entries(STARTS_AS)) {
+      expect(cases).toContain(id);
+      expect(STARTS[id]).toBeUndefined();
+      expect(STARTS[parent]).toBeDefined();
+      expect(startFor(id)).toBe(STARTS[parent]);
+    }
+  });
+
+  it('leaves the judge that marked the 2026-10-10 run as it was', () => {
+    expect(promptHash(RUBRIC)).toBe('ab4b003d');
   });
 });
 
