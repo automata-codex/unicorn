@@ -46,6 +46,14 @@ export interface ExecutedRollRecord {
  * Zero-result lookups (`resultCount: 0`) are preserved faithfully — they are
  * the primary signal M7.2 uses to prioritize ingestion coverage.
  */
+/** PROTOTYPE (`§ S76`) — one `plan_move` call and what the backend answered. */
+export interface PlanMoveRecord {
+  entityId: string;
+  to: string;
+  ok: boolean;
+  text: string;
+}
+
 export interface RulesLookupRecord {
   query: string;
   /**
@@ -234,6 +242,8 @@ export interface AdventureTelemetryPayload {
    * "not recorded" on a row older than the field.
    */
   toolSyntaxLeaks?: ToolSyntaxLeakRecord[];
+  /** PROTOTYPE (`§ S76`). Present only on a turn that called `plan_move`. */
+  planMoves?: PlanMoveRecord[];
   wardenPrompt: WardenPromptRef;
 }
 
@@ -261,6 +271,7 @@ export function buildAdventureTelemetryPayload(input: {
   toolLoopIterations?: number;
   /** Leaked payloads seen this turn. Written only when there is at least one. */
   toolSyntaxLeaks?: ToolSyntaxLeakRecord[];
+  planMoves?: PlanMoveRecord[];
   /**
    * Identifies the Warden prompt file + hash in effect this turn. Required —
    * the review CLI needs this to embed the prompt text and a missing field
@@ -328,6 +339,10 @@ export function buildAdventureTelemetryPayload(input: {
 
   if (input.toolSyntaxLeaks && input.toolSyntaxLeaks.length > 0) {
     payload.toolSyntaxLeaks = input.toolSyntaxLeaks;
+  }
+
+  if (input.planMoves && input.planMoves.length > 0) {
+    payload.planMoves = input.planMoves;
   }
 
   if (input.correction) {

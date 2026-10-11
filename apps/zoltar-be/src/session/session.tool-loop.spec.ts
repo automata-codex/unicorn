@@ -344,6 +344,62 @@ describe('SessionService.runInnerToolLoop', () => {
     ]);
   });
 
+  // PROTOTYPE — docs/eval-findings.md § S76.
+  it('answers plan_move from the recorded position and hands the route back', async () => {
+    callSession
+      .mockResolvedValueOnce(
+        message([
+          toolUse('toolu_move', 'plan_move', {
+            entityId: 'danny',
+            to: 'crew_berths',
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(message([submitGmBlock()]));
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop({
+      ...loopArgs,
+      worldFacts: { danny_location: 'cryo_bay' },
+    });
+
+    const text =
+      'danny is in cryo_bay (deck 2, mid). crew_berths is on deck 2, mid. Same deck: a walk, with no ladder and no change of deck.';
+    expect(result.planMoves).toEqual([
+      { entityId: 'danny', to: 'crew_berths', ok: true, text },
+    ]);
+    const second = callSession.mock.calls[1][0] as CallSessionParams;
+    expect(second.messages.at(-1)?.content).toEqual([
+      { type: 'tool_result', tool_use_id: 'toolu_move', content: text },
+    ]);
+  });
+
+  it('refuses a plan_move to a place that is not on the list, as an error result', async () => {
+    callSession
+      .mockResolvedValueOnce(
+        message([
+          toolUse('toolu_move', 'plan_move', {
+            entityId: 'danny',
+            to: 'lower_deck_stores',
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(message([submitGmBlock()]));
+    const { service } = makeService(callSession);
+
+    const result = await service.runInnerToolLoop({
+      ...loopArgs,
+      worldFacts: { danny_location: 'cryo_bay' },
+    });
+
+    expect(result.planMoves).toHaveLength(1);
+    expect(result.planMoves[0]).toMatchObject({ ok: false });
+    const second = callSession.mock.calls[1][0] as CallSessionParams;
+    expect(second.messages.at(-1)?.content).toMatchObject([
+      { type: 'tool_result', tool_use_id: 'toolu_move', is_error: true },
+    ]);
+  });
+
   it('allocates rollIds in issue order and hands each back in its tool_result', async () => {
     // `gatedByRollId` is useless unless Claude can see the id to reference,
     // and it cannot be the game_events row id — that UUID is minted when the

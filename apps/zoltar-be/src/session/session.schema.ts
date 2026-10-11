@@ -5,6 +5,8 @@ import {
 } from '@uv/game-systems';
 import { z } from 'zod';
 
+import { PLACE_IDS } from './session.places';
+
 /**
  * The Wounds Table's five columns (PSG §29.1). Required whenever a change
  * applies a Wound, because the column — not just the `1d10` — decides the
@@ -625,6 +627,32 @@ export const rulesLookupOutputSchema = z.object({
 });
 
 export type RulesLookupInput = z.infer<typeof rulesLookupInputSchema>;
+
+/**
+ * PROTOTYPE (`docs/eval-findings.md § S76`) — `plan_move`, the route between
+ * where a character is and a place on the ship.
+ */
+export const planMoveInputSchema = z.object({
+  entityId: z
+    .string()
+    .describe(
+      'The character who is moving, as an entity id spelled exactly as the snapshot spells it.',
+    ),
+  to: z
+    .enum(PLACE_IDS)
+    .describe(
+      'The place they are going. A room or spot that is not listed is named by the listed place it is in: a crew member\'s berth is crew_berths.',
+    ),
+});
+
+/**
+ * What the handler parses. `to` is left loose so a place that is not on the
+ * list gets `planMove`'s refusal, which names the places, and not a schema
+ * error.
+ */
+export const planMoveCallSchema = planMoveInputSchema.extend({
+  to: z.string(),
+});
 export type RulesLookupOutput = z.infer<typeof rulesLookupOutputSchema>;
 
 /**

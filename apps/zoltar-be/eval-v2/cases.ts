@@ -65,6 +65,13 @@ export const CASES = {
     '2c0ba938-turn14-position-seeded',
     '2c0ba938-turn24-position-seeded',
     '2c0ba938-turn29-position-seeded',
+    // PROTOTYPE (eval-findings S76). Turns 08, 14 and 18 as captured, each
+    // with `danny_location` added and nothing else changed. The value is a
+    // place id from `src/session/session.places.ts`, which is where the
+    // `plan_move` tool reads a character's position.
+    '2c0ba938-turn08-place-seeded',
+    '2c0ba938-turn14-place-seeded',
+    '2c0ba938-turn18-place-seeded',
   ],
 } as const satisfies Record<string, readonly string[]>;
 

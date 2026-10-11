@@ -10,7 +10,13 @@ import {
 describe('SESSION_TOOLS', () => {
   it('registers all three M7 tools', () => {
     const names = SESSION_TOOLS.map((t) => t.name);
-    expect(names).toEqual(['submit_gm_response', 'roll_dice', 'rules_lookup']);
+    expect(names).toEqual([
+      'submit_gm_response',
+      'roll_dice',
+      'rules_lookup',
+      // PROTOTYPE — docs/eval-findings.md § S76.
+      'plan_move',
+    ]);
   });
 
   it('carries the three tool objects in the registration array', () => {

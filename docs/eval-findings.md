@@ -4267,8 +4267,34 @@ A place not on the list is refused, with the list in the refusal.
 
 **A section in the Warden prompt** telling it to call `plan_move` before
 narrating any character going from one place to another, and to narrate the
-route it returns. The wording is fixed when it is written and recorded here
-with its hash before the run.
+route it returns. Added after the tool was built and before the run, it takes
+`mothership-m7.txt` from `e83e8aaa` to `cf1fb2eb`:
+
+> MOVING FROM ONE PLACE TO ANOTHER
+> The backend holds which deck every place is on and where each character is.
+> You do not work a route out yourself, from the world facts or from earlier
+> narration. You ask for it.
+>
+> - CALL plan_move BEFORE YOU NARRATE A MOVE. Whenever a character goes from one
+>   place to another this turn, call plan_move first with their entity id and
+>   the place they are going. That includes a short walk, and a place you are
+>   sure about.
+> - NARRATE THE ROUTE IT RETURNS. If it says the trip is a walk on one deck,
+>   nobody climbs and no other deck is named. If it says one deck down by the
+>   ladder shaft, that is the trip: it starts on the deck the answer names and
+>   passes only the decks the answer names.
+> - WHERE THE ANSWER AND EARLIER NARRATION DISAGREE, THE ANSWER IS RIGHT. Earlier
+>   narration may have put a place on the wrong deck. Do not carry that forward
+>   to stay consistent with it.
+> - A PLACE THAT IS NOT LISTED IS INSIDE ONE THAT IS. A crew member's berth is in
+>   crew_berths; a terminal alcove behind the bridge is records_terminal. Name
+>   the listed place.
+
+The tool's own description, in `session.tools.ts`, says the same in two
+sentences. The place ids are an `enum` in its schema, so the Warden is shown
+the whole list.
+
+The cases are `2c0ba938-turn08-place-seeded`, `-turn14-` and `-turn18-`.
 
 Not built: recording the new place after the move. One replayed turn cannot
 show whether that works.

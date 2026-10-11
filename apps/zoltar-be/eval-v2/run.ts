@@ -16,6 +16,7 @@ import { loadFixture } from './fixture';
 import {
   bootApp,
   findPrereqs,
+  readPlanMoves,
   readToolSyntaxLeaks,
   runTurn,
   seedScratch,
@@ -105,7 +106,13 @@ async function main(): Promise<void> {
             app.db,
             scratch.adventureId,
           );
-          writeJson(`${base}.json`, { ok: true, result, toolSyntaxLeaks });
+          const planMoves = await readPlanMoves(app.db, scratch.adventureId);
+          writeJson(`${base}.json`, {
+            ok: true,
+            result,
+            toolSyntaxLeaks,
+            planMoves,
+          });
           writeFileSync(
             `${base}.md`,
             renderRepMd(fixture.id, rep, result.message.content),
