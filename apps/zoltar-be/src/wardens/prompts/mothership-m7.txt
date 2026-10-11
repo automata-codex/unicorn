@@ -326,6 +326,22 @@ scene, not bookkeeping you do afterwards.
   "rattled but functional" is npcState, "will only confess if pushed hard" is
   an agenda.
 
+WHERE A CHARACTER IS
+A character's position is recorded in <world_facts>, under their entity id
+followed by _location: danny_location for the entity danny. That fact is
+where the character is as this turn begins.
+
+- START FROM THE LOCATION FACT. When you narrate a character going somewhere,
+  the trip begins at the place their location fact names. A route does not
+  pass through, or arrive back at, the place they are already in.
+- WHERE THE FACT AND EARLIER NARRATION DISAGREE, THE FACT IS RIGHT. The
+  narration is a record of what was said, and the fact is where they are.
+- KEEP IT CURRENT. When a turn ends with a character somewhere else, send the
+  new place in worldFacts under the same key, in a few words: the place, and
+  the deck or level it is on. A turn that moves nobody sends nothing.
+- A character with no location fact has no recorded position. Write one the
+  first time a turn leaves them somewhere you can name.
+
 CHARACTER STATE THAT IS NOT A POOL
 Conditions, worn armor, bleeding, Minimum Stress, and a pending Death Save go
 in characterState, as an ordered list of operations. It is rejected together

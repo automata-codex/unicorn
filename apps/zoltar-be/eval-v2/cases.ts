@@ -55,6 +55,16 @@ export const CASES = {
     '2c0ba938-turn24-seeded-canon-contradiction',
     // Known good: Mara's "two decks from me" was correct.
     '2c0ba938-turn29-seeded-canon-contradiction',
+    // Turns 14, 24 and 29 as captured, each with one world fact added and
+    // nothing else changed: `danny_location`, holding the start Rubric v3
+    // gives for that turn. They stand in for a position the Warden would have
+    // recorded, to ask whether it starts a move from one when the prompt
+    // names the fact (eval-findings S74). Turn 24's value follows the seeded
+    // layout ("In Mara's berth, on mid-deck."), not the session's history,
+    // which has the berth on the lower deck.
+    '2c0ba938-turn14-position-seeded',
+    '2c0ba938-turn24-position-seeded',
+    '2c0ba938-turn29-position-seeded',
   ],
 } as const satisfies Record<string, readonly string[]>;
 
