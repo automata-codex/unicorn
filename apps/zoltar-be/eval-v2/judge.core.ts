@@ -52,6 +52,28 @@ export const STARTS: Readonly<Record<string, string>> = {
   '2c0ba938-turn29-seeded-canon-contradiction': 'the mess hall, mid-deck',
 };
 
+/**
+ * Constructed cases that take the start of the case they were made from.
+ * They are listed here and not in `STARTS` because `STARTS` is part of the
+ * prompt hash: a new entry there would make a new judge, and the run a case
+ * is compared against was marked by the old one. The judge is sent the same
+ * start text for a case here as for its parent, so the hash still describes
+ * what it was sent (eval-findings S75).
+ */
+export const STARTS_AS: Readonly<Record<string, string>> = {
+  '2c0ba938-turn14-position-seeded':
+    '2c0ba938-turn14-seeded-canon-contradiction',
+  '2c0ba938-turn24-position-seeded':
+    '2c0ba938-turn24-seeded-canon-contradiction',
+  '2c0ba938-turn29-position-seeded':
+    '2c0ba938-turn29-seeded-canon-contradiction',
+};
+
+/** A case's start, or undefined for a case that is not judged. */
+export function startFor(fixtureId: string): string | undefined {
+  return STARTS[STARTS_AS[fixtureId] ?? fixtureId];
+}
+
 /** The facts the adventure was seeded with, which is the rubric's ground truth. */
 const SEEDED_FACTS = [
   'ship_layout',
@@ -199,7 +221,7 @@ export function buildJudgeRequest(input: {
   caseText: CaseText;
   narration: string;
 }): Anthropic.MessageCreateParamsNonStreaming {
-  const start = STARTS[input.fixtureId];
+  const start = startFor(input.fixtureId);
   if (start === undefined) {
     throw new Error(`no start recorded for ${input.fixtureId}`);
   }

@@ -7,7 +7,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
-import { STARTS } from './judge.core';
+import { startFor } from './judge.core';
 import { parseMarks, resolveRunDir } from './report';
 
 import type { Mark, MarkedRow } from './report';
@@ -165,7 +165,7 @@ export function check(
       }
       // The judge is given no start for the case, so it cannot mark it:
       // turn 01, which Rubric v1 cannot mark either.
-      if (STARTS[hand.fixtureId] === undefined) {
+      if (startFor(hand.fixtureId) === undefined) {
         skipped.noStart++;
         continue;
       }

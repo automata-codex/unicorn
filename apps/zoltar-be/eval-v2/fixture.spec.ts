@@ -201,6 +201,35 @@ describe('2c0ba938-turn18-position-seeded', () => {
   });
 });
 
+describe.each([
+  ['14', 'In the corridor outside the cryo bay, on mid-deck.'],
+  ['24', "In Mara's berth, on mid-deck."],
+  ['29', 'In the mess hall, on mid-deck.'],
+])('2c0ba938-turn%s-position-seeded', (turn, expected) => {
+  it('is the captured turn with one world fact added', () => {
+    const captured = loadFixture(
+      `2c0ba938-turn${turn}-seeded-canon-contradiction`,
+    );
+    const seeded = loadFixture(`2c0ba938-turn${turn}-position-seeded`);
+
+    const { danny_location: location, ...otherFacts } = seeded.seededState
+      .campaignState.worldFacts as Record<string, string>;
+    expect(location).toBe(expected);
+
+    expect({
+      ...seeded,
+      id: captured.id,
+      seededState: {
+        ...seeded.seededState,
+        campaignState: {
+          ...seeded.seededState.campaignState,
+          worldFacts: otherFacts,
+        },
+      },
+    }).toEqual(captured);
+  });
+});
+
 describe('2c0ba938-turn18-return-stated', () => {
   it('differs from the tidy retracted case in message 33 only', () => {
     const tidy = loadFixture('2c0ba938-turn18-berth-retracted-tidy');
