@@ -201,3 +201,9 @@ added. Read this entry's warning before implementing it: the obvious
 implementation is the one it rejects, what the field buys is auditability rather
 than accuracy, and its "second in the ordering" position rests on a premise that
 did not survive `§ S44` — re-derive the ordering rather than inheriting it.
+
+**Addendum, 2026-10-11 — part two was tried in its cheapest form and stopped, and the warning above was observed.**
+
+`current_location` was run as a hand-seeded `{entity_id}_location` world fact with a prompt section naming it (`eval-findings.md § S74`, `§ S75`). No case was shown to move, and "past mid-deck" was in more narrations than before. The section also asked the Warden to keep the fact current. On the one turn where the session's history is wrong, two of four writes replaced the correct seeded value with the history's.
+
+What followed is a position the backend holds and a route it works out, which is `ADR-0121`. How NPC positions fit this entry's rule that position is withheld structurally is left to that work's spec.

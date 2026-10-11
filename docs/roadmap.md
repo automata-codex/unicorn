@@ -81,6 +81,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - GM context synthesis — Claude constructs GM context blob from resolved oracle results and calls `submit_gm_context`
 - `submit_gm_context` write path — validates structured section, writes GM context blob and initial entities to DB
 - Entity ID alignment — entity identifiers in the structured section match what session tools reference from turn one
+- Place list in the synthesis output — the adventure's places as data, for the route tool
 - Pending canon queue — auto-promote in Solo Blind; queue infrastructure in place for other modes (Phase 2)
 - Frontend: full Solo Blind adventure creation flow wired end-to-end
 
@@ -102,6 +103,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - Correction mechanic (`superseded_by` write path)
 - `adventure_telemetry` write path — per-turn record of player input, full `submit_gm_response` payload, all `roll_dice` calls with purpose annotations and results, prompt and completion token counts
 - Entity write path — `visible` (line of sight), `revealed` (discovery), `npcState` (disposition)
+- Character position — held by the backend as one of the adventure's places
 - Adventure completion detected and recorded — the `adventure_complete` flag acted on, and `adventures.status` transitioned
 - Frontend: play view (message log, input field, character status strip, threshold banner)
 
@@ -111,6 +113,7 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 
 - `roll_dice` tool — dice notation parser, server-side execution, audit log write; audit log records player-entered vs system-generated rolls
 - Rules lookup tool — vector embedding pipeline for Mothership rules text; pgvector extension on Postgres; query endpoint
+- Route tool — the route from a character's place to another, worked out server-side with no model involved
 - Tool call routing in `SessionService`
 - Frontend: dice entry UI — "roll for me" button and manual raw roll entry (with explicit modifier language: "enter the number showing on the die")
 
@@ -483,6 +486,22 @@ A rebuild of the Warden eval harness, started from the smallest version that ans
 - Lint and format coverage for `scripts/`, `docs/tooling/` and `eval-v2/`
 
 Spec: [025](specs/zoltar/025-eval-v2-smallest-harness.md) · Plan: [025](plans/025-eval-v2-smallest-harness-implementation-plan.md) · Decisions: ADR-0120 · Human doc: `human/smallest-eval-harness.md`
+
+#### M7.10 — Places and Routes
+
+**Status:** Not started
+
+A structured answer to where things are, replacing the prose-only layout `ADR-0047` deferred to. The backend holds a list of the adventure's places and where each character is, and works out the route when the Warden asks. It is a list of rooms, not the grid: cells and line of sight stay with the Phase 3 renderer. Sequenced before M8 so that M8's playtest exercises it across a whole session and with several characters.
+
+- Place list in the synthesis output
+- Character position as a place, held by the backend
+- Route tool, called by the Warden before it narrates a move
+- Positions for NPCs who move with the party
+- Warden prompt section for the tool
+- `docs/zoltar-design-doc.md § Spatial Model` amended to match
+- Question 1 re-run against the built version
+
+Decisions: ADR-0047, ADR-0101, ADR-0121
 
 #### M8 — Multiplayer Foundation
 
