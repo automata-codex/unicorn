@@ -4219,3 +4219,148 @@ which constructed case borrows which start.
 The prompt section is taken back off the branch, as `§ S74` set: the prompt
 is `e83e8aaa` again. The three cases, their test and `STARTS_AS` stay. Commit
 `b39fa8e` stays in history because the run was made from it.
+
+### S76 — 2026-10-11 · Pre-registration: a route tool on the Halbrecht, on turns 08, 14 and 18
+
+Every fix tried on question 1 has given the Warden something to read and left
+it to work out the route: a restructured `ship_layout` (`§ S44`), a movement
+rule (`§ S49`), a seeded position (`§ S57`), three pushes on the snapshot
+(`§ S73`), a position with the prompt naming it (`§ S75`). None is shown to
+help. This tries the other kind of fix: the backend works the route out and
+hands the Warden the answer. It is a prototype on branch `route-tool`, and
+nothing on that branch merges but this entry and the write-up. Written before
+anything is built.
+
+#### What is built
+
+**A place list, hard-coded for the Halbrecht.** It is `ship_layout` as data:
+
+| Deck | Places |
+|---|---|
+| 1, upper | `bridge`, `comms_array`, `captains_quarters`, `records_terminal` |
+| 2, mid | `crew_berths`, `mess_hall`, `medbay`, `cryo_bay`, `mid_deck_corridor` |
+| 3, lower | `cargo_bay`, `engine_room`, `life_support`, `aft_airlock` |
+
+Decks are joined by the ladder shaft and nothing else. `mid_deck_corridor` is
+the one place `ship_layout` does not name. Turn 14 starts in it.
+
+**Where a character is, as one of those places.** Seeded by hand as a world
+fact, `danny_location`, holding a place id. A real build would not keep it in
+`worldFacts`. The prototype does because it needs no schema change.
+
+**A tool, `plan_move`**, which the Warden calls with an entity id and a place.
+It is ordinary code with no model in it: two lookups and a comparison. It
+answers in one of two forms:
+
+```
+danny is in cryo_bay (deck 2, mid). crew_berths is on deck 2, mid.
+Same deck: a walk, with no ladder and no change of deck.
+```
+
+```
+danny is in mid_deck_corridor (deck 2, mid). cargo_bay is on deck 3, lower.
+One deck down, by the ladder shaft. The trip starts on deck 2 and ends on
+deck 3 and passes no other deck.
+```
+
+A place not on the list is refused, with the list in the refusal.
+
+**A section in the Warden prompt** telling it to call `plan_move` before
+narrating any character going from one place to another, and to narrate the
+route it returns. The wording is fixed when it is written and recorded here
+with its hash before the run.
+
+Not built: recording the new place after the move. One replayed turn cannot
+show whether that works.
+
+#### The cases
+
+Three constructed cases, each a captured turn with `danny_location` added and
+nothing else changed:
+
+| Case | `danny_location` | Where the turn goes |
+|---|---|---|
+| turn 08 | `bridge` | the records terminal, same deck |
+| turn 14 | `mid_deck_corridor` | the cargo bay or Mara's berth |
+| turn 18 | `cryo_bay` | Mara's berth, same deck |
+
+Turn 18 is the hard one. Its history puts the berth on the lower deck, and
+nothing in the snapshot has overruled that (`§ S73`). Turns 24 and 29 are left
+out: at 8 and 9 of 10 they have no room to rise.
+
+Each needs an entry in `STARTS_AS` to be judged (`§ S75`).
+
+#### The before-run, and what decides
+
+`2026-10-10T14-43-23Z`, the three turns as captured, prompt `e83e8aaa`, judge
+`ab4b003d`:
+
+| Turn | Pass | To be shown improved alone |
+|---|---|---|
+| 08 | 3 of 9, one threw | 9 of 10 |
+| 14 | 6 of 10 | 10 of 10 |
+| 18 | 4 of 10 | 9 of 10 |
+| Together | 13 of 29 | 21 of 30 |
+
+**The three cases together decide: 21 or more of 30 is a shown improvement**
+(0.045, `fisherOneSided`). Each case alone needs a near-perfect run, which is
+why `§ S74` needed a top-up rule. Pooling was chosen before the run and there
+is no top-up. Each case's own count is reported beside it.
+
+One run, 10 reps a case, then the judge under `ab4b003d`: 30 Warden turns and
+30 judge calls. A turn that calls the tool is one API call longer.
+
+#### Also counted
+
+From a record of each rep's tool calls, which `ev2:run` is changed on the
+branch to keep:
+
+- **Called:** reps where the Warden calls `plan_move` before narrating.
+- **Followed:** of those, reps whose narration agrees with the answer, by
+  reading.
+- **What it asked for:** the place named, and any refusal.
+
+These say why, whichever way the marks fall. A tool that is not called and a
+tool that is called and ignored are different failures.
+
+#### Prediction
+
+| | Predicted |
+|---|---|
+| Called | 8 or more of 10 on each case |
+| Followed, of those called | all but one a case, at most |
+| Turn 08 | 7 or more of the judged reps |
+| Turn 14 | 9 or more of 10 |
+| Turn 18 | 7 or more of 10 |
+| Together | 23 or more of 30 |
+
+Not held firmly, and turn 18 least. For it: the Warden follows `roll_dice`
+results, and an answer it has just asked for is the last thing it reads
+before it writes. Against it: on turn 18 the history says the lower deck in
+the Warden's own words, and four things in the snapshot have already lost to
+that.
+
+- **21 or more together, turn 18 at 7 or more:** the answer beats the
+  history. This goes to an ADR superseding `ADR-0047` and a spec.
+- **21 or more together, turn 18 at 6 or fewer:** it removes slips and does
+  not overrule an inherited error. Still worth a spec, as the thing that
+  stops the first error from being made.
+- **20 or fewer, called and followed:** the route was right and the judge
+  failed the narration for something else. Read the fails before deciding.
+- **20 or fewer, not called or not followed:** the Warden does not use it.
+  The candidate stops here, and structured position stays with the Phase 3
+  renderer.
+
+#### What this cannot show
+
+- **Whether a place list from synthesis would be right.** This one is written
+  by hand from `ship_layout`.
+- **Whether the position stays right over a session.** It is seeded, and the
+  write is not built.
+- **Whether a lookup with no stored position would do as well**: the Warden
+  naming both ends of the trip. It is a smaller build. A second run can ask,
+  if this one works.
+- **Which of the tool and the section did it.** The section alone is close to
+  `§ S49`, which did nothing.
+- **Any ship but this one, or any session but this one.**
+- **That a case meets the 0.90 bar.** The judge is for comparing.
