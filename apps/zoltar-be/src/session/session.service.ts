@@ -18,9 +18,7 @@ import { applyValidatedTurn } from './session.applier';
 import { buildCorrectionRequest } from './session.correction';
 import { buildSessionRequest } from './session.prompt';
 import { SessionRepository } from './session.repository';
-import { planMove } from './session.places';
 import {
-  planMoveCallSchema,
   rollDiceInputSchema,
   rulesLookupInputSchema,
   submitGmResponseSchema,
@@ -42,7 +40,7 @@ import type { PendingSystemRoll } from './session.events';
 import type { DiceRequestInput, DiceRequestRow } from './session.repository';
 import type { DiceResultAction, SubmitGmResponse } from './session.schema';
 import type { CampaignStateData, GmContextBlob } from './session.snapshot';
-import type { PlanMoveRecord, RulesLookupRecord } from './session.telemetry';
+import type { RulesLookupRecord } from './session.telemetry';
 import type { ToolSyntaxLeakRecord } from './session.tool-syntax';
 import type {
   ThresholdCrossing,
@@ -253,8 +251,6 @@ interface InnerToolLoopResult {
   finalParsed: SubmitGmResponse;
   executedRolls: PendingSystemRoll[];
   rulesLookups: RulesLookupRecord[];
-  /** PROTOTYPE (`§ S76`) — every `plan_move` call this turn, in order. */
-  planMoves: PlanMoveRecord[];
   iterations: number;
   /** Every leaked `submit_gm_response` seen on the way, in order. */
   toolSyntaxLeaks: ToolSyntaxLeakRecord[];
@@ -390,7 +386,6 @@ export class SessionService {
         ...playerEntityIds,
       ],
       playerEntityIds,
-      worldFacts: campaignStateData.worldFacts ?? {},
     });
     const originalResponse = innerLoop.finalResponse;
     const originalParsed = innerLoop.finalParsed;
@@ -550,7 +545,6 @@ export class SessionService {
           : undefined,
         preTurnPlayerRolls,
         rulesLookups: innerLoop.rulesLookups,
-        planMoves: innerLoop.planMoves,
         toolLoopIterations: innerLoop.iterations,
         toolSyntaxLeaks,
         wardenPrompt: {
@@ -879,14 +873,11 @@ export class SessionService {
      * is complete enough to reject against. See `handleRollDice`.
      */
     playerEntityIds?: readonly string[];
-    /** PROTOTYPE (`§ S76`) — where `plan_move` reads a character's position. */
-    worldFacts?: Record<string, string>;
   }): Promise<InnerToolLoopResult> {
     let request = args.initialRequest;
     let iteration = 0;
     const executedRolls: PendingSystemRoll[] = [];
     const rulesLookups: RulesLookupRecord[] = [];
-    const planMoves: PlanMoveRecord[] = [];
     // One entry per iteration, e.g. "roll_dice" or "submit_gm_response(invalid: gmUpdates)".
     // Surfaced on cap exhaustion so the resulting SessionToolLoopError alone
     // distinguishes a dice-heavy turn from a genuinely stuck retry loop,
@@ -938,7 +929,6 @@ export class SessionService {
               finalParsed: parsed.data,
               executedRolls,
               rulesLookups,
-              planMoves,
               iterations: iteration + 1,
               toolSyntaxLeaks,
             };
@@ -963,7 +953,6 @@ export class SessionService {
               finalParsed: recovery.payload,
               executedRolls,
               rulesLookups,
-              planMoves,
               iterations: iteration + 1,
               toolSyntaxLeaks,
             };
@@ -1039,12 +1028,6 @@ export class SessionService {
               args.systemId,
               args.adventureId,
             ),
-          );
-          continue;
-        }
-        if (use.name === 'plan_move') {
-          toolResultBlocks.push(
-            this.handlePlanMove(use, planMoves, args.worldFacts ?? {}),
           );
           continue;
         }
@@ -1232,36 +1215,6 @@ export class SessionService {
         content: message,
       };
     }
-  }
-
-  /** PROTOTYPE (`§ S76`). Reads state and writes none. */
-  private handlePlanMove(
-    use: Anthropic.ToolUseBlock,
-    planMoves: PlanMoveRecord[],
-    worldFacts: Record<string, string>,
-  ): Anthropic.ContentBlockParam {
-    const parsed = planMoveCallSchema.safeParse(use.input);
-    if (!parsed.success) {
-      return {
-        type: 'tool_result',
-        tool_use_id: use.id,
-        is_error: true,
-        content: `Invalid plan_move input: ${parsed.error.message}`,
-      };
-    }
-    const result = planMove({ ...parsed.data, worldFacts });
-    planMoves.push({
-      entityId: parsed.data.entityId,
-      to: parsed.data.to,
-      ok: result.ok,
-      text: result.text,
-    });
-    return {
-      type: 'tool_result',
-      tool_use_id: use.id,
-      ...(result.ok ? {} : { is_error: true }),
-      content: result.text,
-    };
   }
 
   private async handleRulesLookup(

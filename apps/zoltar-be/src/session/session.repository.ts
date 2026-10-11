@@ -29,7 +29,6 @@ import type { Db, DbOrTx } from '../db/db.provider';
 import type { SubmitGmResponse } from './session.schema';
 import type {
   ExecutedRollRecord,
-  PlanMoveRecord,
   RulesLookupRecord,
   WardenPromptRef,
 } from './session.telemetry';
@@ -85,7 +84,6 @@ export interface TelemetryInputs {
   toolLoopIterations: number;
   /** Leaked `submit_gm_response` payloads seen this turn; omitted means none. */
   toolSyntaxLeaks?: ToolSyntaxLeakRecord[];
-  planMoves?: PlanMoveRecord[];
   /** Warden prompt in effect this turn — filename + 8-char hash prefix. */
   wardenPrompt: WardenPromptRef;
 }
@@ -715,7 +713,6 @@ export class SessionRepository {
         rulesLookups: args.telemetry.rulesLookups,
         toolLoopIterations: args.telemetry.toolLoopIterations,
         toolSyntaxLeaks: args.telemetry.toolSyntaxLeaks,
-        planMoves: args.telemetry.planMoves,
         wardenPrompt: args.telemetry.wardenPrompt,
         previousGmContextHash,
       });

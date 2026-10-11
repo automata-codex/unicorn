@@ -9,10 +9,7 @@ import { WardenPromptsService } from '../src/wardens/warden-prompts.service';
 
 import type { Db } from '../src/db/db.provider';
 import type { SendMessageResult } from '../src/session/session.service';
-import type {
-  AdventureTelemetryPayload,
-  PlanMoveRecord,
-} from '../src/session/session.telemetry';
+import type { AdventureTelemetryPayload } from '../src/session/session.telemetry';
 import type { ToolSyntaxLeakRecord } from '../src/session/session.tool-syntax';
 import type { Fixture } from './fixture';
 
@@ -202,24 +199,6 @@ export async function readToolSyntaxLeaks(
     .limit(1);
   const payload = row?.payload as AdventureTelemetryPayload | undefined;
   return payload?.toolSyntaxLeaks ?? [];
-}
-
-/**
- * PROTOTYPE (`docs/eval-findings.md § S76`) — the `plan_move` calls the turn
- * just played made, from the same telemetry row and for the same reason.
- */
-export async function readPlanMoves(
-  db: Db,
-  adventureId: string,
-): Promise<PlanMoveRecord[]> {
-  const [row] = await db
-    .select({ payload: schema.adventureTelemetry.payload })
-    .from(schema.adventureTelemetry)
-    .where(eq(schema.adventureTelemetry.adventureId, adventureId))
-    .orderBy(desc(schema.adventureTelemetry.sequenceNumber))
-    .limit(1);
-  const payload = row?.payload as AdventureTelemetryPayload | undefined;
-  return payload?.planMoves ?? [];
 }
 
 /** Deletes the scratch campaign; cascades remove everything under it. */

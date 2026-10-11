@@ -67,9 +67,6 @@ export const STARTS_AS: Readonly<Record<string, string>> = {
     '2c0ba938-turn24-seeded-canon-contradiction',
   '2c0ba938-turn29-position-seeded':
     '2c0ba938-turn29-seeded-canon-contradiction',
-  '2c0ba938-turn08-place-seeded': '2c0ba938-turn08-seeded-canon-contradiction',
-  '2c0ba938-turn14-place-seeded': '2c0ba938-turn14-seeded-canon-contradiction',
-  '2c0ba938-turn18-place-seeded': '2c0ba938-turn18-seeded-canon-contradiction',
 };
 
 /** A case's start, or undefined for a case that is not judged. */

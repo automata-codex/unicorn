@@ -601,43 +601,5 @@
       "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
-  },
-  {
-    "name": "plan_move",
-    "description": "Work out the route for a character going from where they are to another place on the ship. The backend holds which deck every place is on and where the character is now, and returns the route: whether it is a walk on one deck or a trip by the ladder shaft, and which decks it starts on, ends on and passes. Call this before you narrate any character going from one place to another, and narrate the route it returns.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "entityId": {
-          "type": "string",
-          "description": "The character who is moving, as an entity id spelled exactly as the snapshot spells it."
-        },
-        "to": {
-          "type": "string",
-          "enum": [
-            "bridge",
-            "comms_array",
-            "captains_quarters",
-            "records_terminal",
-            "crew_berths",
-            "mess_hall",
-            "medbay",
-            "cryo_bay",
-            "mid_deck_corridor",
-            "cargo_bay",
-            "engine_room",
-            "life_support",
-            "aft_airlock"
-          ],
-          "description": "The place they are going. A room or spot that is not listed is named by the listed place it is in: a crew member's berth is crew_berths."
-        }
-      },
-      "required": [
-        "entityId",
-        "to"
-      ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
-    }
   }
 ]

@@ -1,7 +1,6 @@
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import {
-  planMoveInputSchema,
   rollDiceInputSchema,
   rulesLookupInputSchema,
   submitGmResponseSchema,
@@ -51,24 +50,8 @@ export const RULES_LOOKUP_TOOL: Anthropic.Tool = {
   input_schema: rulesLookupJsonSchema as Anthropic.Tool['input_schema'],
 };
 
-const planMoveJsonSchema = zodToJsonSchema(planMoveInputSchema, {
-  $refStrategy: 'none',
-});
-
-/** PROTOTYPE — `docs/eval-findings.md § S76`. */
-export const PLAN_MOVE_TOOL: Anthropic.Tool = {
-  name: 'plan_move',
-  description:
-    'Work out the route for a character going from where they are to another place on the ship. The backend ' +
-    'holds which deck every place is on and where the character is now, and returns the route: whether it is ' +
-    'a walk on one deck or a trip by the ladder shaft, and which decks it starts on, ends on and passes. Call ' +
-    'this before you narrate any character going from one place to another, and narrate the route it returns.',
-  input_schema: planMoveJsonSchema as Anthropic.Tool['input_schema'],
-};
-
 export const SESSION_TOOLS: Anthropic.Tool[] = [
   SUBMIT_GM_RESPONSE_TOOL,
   ROLL_DICE_TOOL,
   RULES_LOOKUP_TOOL,
-  PLAN_MOVE_TOOL,
 ];

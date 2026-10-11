@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { CASES } from './cases';
-import { isPlaceId } from '../src/session/session.places';
 import { loadFixture, parseFixture } from './fixture';
 
 function valid() {
@@ -216,37 +215,6 @@ describe.each([
     const { danny_location: location, ...otherFacts } = seeded.seededState
       .campaignState.worldFacts as Record<string, string>;
     expect(location).toBe(expected);
-
-    expect({
-      ...seeded,
-      id: captured.id,
-      seededState: {
-        ...seeded.seededState,
-        campaignState: {
-          ...seeded.seededState.campaignState,
-          worldFacts: otherFacts,
-        },
-      },
-    }).toEqual(captured);
-  });
-});
-
-// PROTOTYPE — docs/eval-findings.md § S76.
-describe.each([
-  ['08', 'bridge'],
-  ['14', 'mid_deck_corridor'],
-  ['18', 'cryo_bay'],
-])('2c0ba938-turn%s-place-seeded', (turn, expected) => {
-  it('is the captured turn with a place id added as a world fact', () => {
-    const captured = loadFixture(
-      `2c0ba938-turn${turn}-seeded-canon-contradiction`,
-    );
-    const seeded = loadFixture(`2c0ba938-turn${turn}-place-seeded`);
-
-    const { danny_location: location, ...otherFacts } = seeded.seededState
-      .campaignState.worldFacts as Record<string, string>;
-    expect(location).toBe(expected);
-    expect(isPlaceId(expected)).toBe(true);
 
     expect({
       ...seeded,
