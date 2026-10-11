@@ -3884,6 +3884,11 @@ Either could be the whole of the effect, with the third change adding nothing.
 At 7 in 20, a run of 10 reaches `§ S72`'s 3 or more about three times in four,
 so one run of each would probably say, and would not certainly.
 
+**Not run, and not planned.** The maintainer decided on 2026-10-11 to stop
+here. The most this lever has bought is about a third of narrations, every one
+of which fails on the route, and knowing which pair holds it would not change
+that. The two pairs stay untested.
+
 #### Seen and not pre-registered
 
 The down count splits by where the snapshot is. With the snapshot first it is
