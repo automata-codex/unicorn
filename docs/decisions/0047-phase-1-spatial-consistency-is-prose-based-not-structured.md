@@ -2,8 +2,8 @@
 id: ADR-0047
 title: Phase 1 spatial consistency is prose-based, not structured
 area: claude-continuity-spatial
-status: accepted
-superseded_by: null
+status: superseded
+superseded_by: ADR-0121
 milestone: unknown
 summary: >-
   Phase 1 spatial consistency runs on Claude-authored `worldFacts` rather than the
@@ -19,3 +19,5 @@ This matches how Mothership is designed to play: theater-of-the-mind, where the 
 A structured map model — generated room graphs, cell grids, LOS computation — is a significant engineering investment with no playtest evidence that it's needed. Deferring it keeps M5 unblocked and avoids building against imagined rather than observed failure modes. The grid tables remain migrated but unused; they cost nothing to leave in place, and the `map_geometry` stub reservation still stands.
 
 This decision is a deferral under uncertainty, not a final answer. The next Phase 1 playtests should watch for spatial-consistency failures — contradictory room connections, forgotten deck assignments, layout drift across long sessions. If prose-based layout holds up, the deferral is validated. If it breaks down in characteristic ways, those failure modes become the design input for a real spatial system, to be built with evidence rather than speculation. The M5 roadmap entry is updated accordingly: LOS computation service is removed, and the state snapshot builder's "no entity positions" note no longer points to a pending spec.
+
+**Superseded 2026-10-11 by `ADR-0121`.** The failure modes this entry said to watch for were observed, and prose layout did not hold up. What replaces it is a place list and a route tool, not the grid: the grid tables stay migrated and unused, as this entry left them.

@@ -19,7 +19,7 @@ Each entry records what was decided, what the alternatives were, and why.
   `task docs:decisions:check` fails if either is stale.
 -->
 
-**This is the summary log.** 85 of 120 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
+**This is the summary log.** 86 of 121 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
 
 ---
 
@@ -311,6 +311,10 @@ Splits the overloaded `visible` into line of sight plus a monotonic `revealed`, 
 ### [ADR-0117](decisions/0117-the-ship-layout-restructure-ships-unmeasured-and-decks-are-n.md) — The `ship_layout` restructure ships unmeasured, and decks are numbered top-down
 
 `ADR-0101`'s addendum recommended restructuring `worldFacts.ship_layout` from prose into a deck-indexed list, and `ADR-0104` required the measurement come first. Both happened. The measurement could not detect an effect either way, and the restructure is kept anyway — on the argument that a form-only change costing nothing needs a reason to revert rather than a result to justify it. Also fixes deck numbering top-down as a standing convention, inverting the one example already in the corpus.
+
+### [ADR-0121](decisions/0121-the-backend-works-out-routes-from-a-place-list.md) — The backend works out routes from a place list, and the Warden asks for them
+
+Decided 2026-10-11. `ADR-0047` deferred a structured spatial model until playtests showed prose layout breaking down, and named the failures to watch for. They happened, and six attempts to fix them by giving the Warden more to read did nothing measurable. A prototype that has the backend work the route out and hand it over took three failing cases from 13 of 29 to 27 of 29 (`eval-findings.md § S77`). Phase 1 therefore gets a place list written at synthesis, each character's position held as one of those places, and a deterministic route tool. It is a list of rooms, not the grid, which stays with the Phase 3 renderer.
 
 ---
 
