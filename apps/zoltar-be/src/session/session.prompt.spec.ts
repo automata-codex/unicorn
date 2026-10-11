@@ -114,7 +114,9 @@ describe('buildSessionRequest', () => {
       tools: SESSION_TOOLS,
     });
     expect(req.messages[0].role).toBe('user');
-    expect(req.messages[0].content).toMatch(/^<state_snapshot>/);
+    expect(req.messages[0].content).toMatch(
+      /^\[Current state, as of this turn\..*\]\n\n<state_snapshot>/s,
+    );
   });
 
   it('preserves the window between the snapshot and the new player message, mapping roles', () => {

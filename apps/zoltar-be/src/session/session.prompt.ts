@@ -104,13 +104,24 @@ function formatDiceResultLine(roll: ResolvedPlayerRoll): string {
 }
 
 /**
+ * Leads the snapshot message. The snapshot's own text says what the state is;
+ * this says when it is, and what to do when the history disagrees with it.
+ * Worded for a snapshot that comes first (`docs/eval-findings.md § S72`).
+ */
+export const STATE_SNAPSHOT_HEADER =
+  '[Current state, as of this turn. It is the world as it stands now. The ' +
+  'conversation that follows is what has been said so far, and some of it ' +
+  'may be wrong. Where that narration contradicts the state in this ' +
+  'message, the state is right.]';
+
+/**
  * Assembles the full per-turn Claude request. Structure per spec §"Part 4":
  *
  *   system:
  *     [0] GM context blob (cache_control: ephemeral)
  *     [1] Warden role prompt (no cache marker)
  *   messages:
- *     [0] user: <state_snapshot>...</state_snapshot>   (fresh every turn)
+ *     [0] user: header + <state_snapshot>...</state_snapshot>   (fresh every turn)
  *     [1..n-1] prior window messages in chronological order
  *     [n] user: the new player input
  *
@@ -163,10 +174,10 @@ export function buildSessionRequest(input: {
   // Opening user message carries the per-turn state snapshot.
   messages.push({
     role: 'user',
-    content: buildStateSnapshot({
+    content: `${STATE_SNAPSHOT_HEADER}\n\n${buildStateSnapshot({
       gmContextBlob: input.gmContextBlob,
       campaignStateData: input.campaignStateData,
-    }),
+    })}`,
   });
 
   for (const m of input.windowMessages) {
