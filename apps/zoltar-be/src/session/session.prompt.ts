@@ -104,29 +104,15 @@ function formatDiceResultLine(roll: ResolvedPlayerRoll): string {
 }
 
 /**
- * Leads the snapshot message. The snapshot's own text says what the state is;
- * this says when it is, and what to do when the history disagrees with it.
- */
-export const STATE_SNAPSHOT_HEADER =
-  '[Current state, as of this turn. Everything above is what has been said ' +
-  'so far, and some of it may be wrong. Where earlier narration contradicts ' +
-  'the state below, the state is right.]';
-
-/**
  * Assembles the full per-turn Claude request. Structure per spec §"Part 4":
  *
  *   system:
  *     [0] GM context blob (cache_control: ephemeral)
  *     [1] Warden role prompt (no cache marker)
  *   messages:
- *     [0..n-2] prior window messages in chronological order
- *     [n-1] user: header + <state_snapshot>...</state_snapshot>   (fresh every turn)
+ *     [0] user: <state_snapshot>...</state_snapshot>   (fresh every turn)
+ *     [1..n-1] prior window messages in chronological order
  *     [n] user: the new player input
- *
- * The snapshot comes after the history, not before it. Read top to bottom, a
- * snapshot at the head of the conversation looks like where things stood
- * before everything in the window happened, and the Warden followed its own
- * earlier narration over it (`docs/eval-findings.md § S51`, `§ S62`).
  *
  * `tool_choice: { type: 'any' }` forces a tool call but lets Claude choose
  * which one — the inner tool loop (session.service.ts) handles `roll_dice`
@@ -174,19 +160,18 @@ export function buildSessionRequest(input: {
 
   const messages: Anthropic.MessageParam[] = [];
 
+  // Opening user message carries the per-turn state snapshot.
+  messages.push({
+    role: 'user',
+    content: buildStateSnapshot({
+      gmContextBlob: input.gmContextBlob,
+      campaignStateData: input.campaignStateData,
+    }),
+  });
+
   for (const m of input.windowMessages) {
     messages.push({ role: mapRole(m.role), content: m.content });
   }
-
-  // The per-turn state snapshot, after the history so it reads as the
-  // present and not as the state the history started from.
-  messages.push({
-    role: 'user',
-    content: `${STATE_SNAPSHOT_HEADER}\n\n${buildStateSnapshot({
-      gmContextBlob: input.gmContextBlob,
-      campaignStateData: input.campaignStateData,
-    })}`,
-  });
 
   // Synthetic [Dice results] block — placed as its own user message right
   // before the narrative input so Claude treats it as incoming information

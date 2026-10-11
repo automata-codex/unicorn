@@ -3785,3 +3785,139 @@ Then A, B and C:
   A lever found here goes to a spec.
 - **The route.** How many narrations bring Danny up to mid-deck is reported
   for each run, and is not what the runs are for.
+
+### S73 — 2026-10-11 · Taken apart, none of the three changes moves the berth, and all three together do it again in 2 of 10
+
+Four runs made by the maintainer on 2026-10-11, of turn 18 as captured, 10 reps
+each, from the four commits `§ S72` names. Each `run.json` records the commit
+and prompt `§ S72` gives for it, on a clean tree. Not hand-marked.
+
+| Run | | Unicorn | Prompt |
+|---|---|---|---|
+| A: the section alone | `2026-10-11T11-21-20Z` | `34dc4bb` | `289297a7` |
+| B: the header alone | `2026-10-11T11-17-41Z` | `52893ab` | `e83e8aaa` |
+| C: the reorder and the header | `2026-10-11T11-13-56Z` | `78145a7` | `e83e8aaa` |
+| D: all three, again | `2026-10-11T11-05-21Z` | `4034a07` | `3e56fd6b` |
+
+No turn threw. One tool leak was recorded, in run A rep 04, and the tool loop
+recovered from it.
+
+#### The result
+
+| Count | A: section | B: header | C: reorder and header | D: all three | `§ S65`: all three |
+|---|---|---|---|---|---|
+| Down: "down" or "lower deck" in the first sentence | 9 of 10 | 9 of 10 | 6 of 10 | 7 of 10 | 5 of 10 |
+| To mid-deck (`§ S60`'s rule) | 0 of 10 | 0 of 10 | 0 of 10 | 2 of 10 | 5 of 10 |
+| Narrations that put Mara's berth on mid-deck | 0 of 10 | 0 of 10 | 0 of 10 | 2 of 10 | 5 of 10 |
+
+Against `§ S72`'s predictions:
+
+| Run | Predicted | Berth on mid-deck | |
+|---|---|---|---|
+| A: the section alone | 3 or more | 0 | missed |
+| B: the header alone | 2 or fewer | 0 | held |
+| C: the reorder and the header | 2 or fewer | 0 | held |
+| D: all three, again | 3 or more | 2 | missed |
+
+The two narrations in D that put the berth on mid-deck are reps 05 and 10.
+Both open "head back up to mid-deck". No narration in A, B or C names mid-deck
+at all.
+
+#### What the narrations say
+
+| Opening | A | B | C | D |
+|---|---|---|---|---|
+| Down to the lower deck, or down to Mara's berth | 01, 02, 03, 05, 06, 07, 08, 09, 10 | 01, 02, 03, 04, 05, 07, 08, 09, 10 | 04, 10 | 01, 04, 06, 07, 08, 09 |
+| Up to the lower deck | | | 02, 03, 05, 09 | 02 |
+| Up, with no deck named | | | 06, 08 | |
+| Up to mid-deck | | | | 05, 10 |
+| No deck and no route | 04 | 06 | 01, 07 | 03 |
+
+- **A and B read like the session as captured.** Nine of ten go down, as in
+  both reference runs of `§ S62`.
+- **A names the deck and names the wrong one.** Five of its narrations say
+  "lower deck" and rep 01 spells the route out: "down the ladder shaft, past
+  the engine thrum, to Mara's cramped berth on the lower deck". The section
+  asks for the deck to be named from `<world_facts>`. It was named from
+  message 28.
+- **C reads like `§ S63`.** The same down count of 6, the same "back up to the
+  lower deck" that `§ S63` first saw, and two narrations that say nothing.
+  Adding the header to the reorder changed nothing that can be seen.
+
+#### Reading it, by `§ S72`'s table
+
+**D at 1 or 2: the effect is there and smaller than 5 of 10 made it look.**
+2 of 10 against `§ S65`'s 5 of 10 is 0.35, so the two runs do not disagree.
+Pooled, all three changes put the berth on mid-deck in 7 of 20, against 0 of
+30 without the header or the section: 0.0008.
+
+**None of A, B and C at 3 or more: the improvement needs the changes in
+combination.** Each is 0 of 10, and together they are 0 of 30.
+
+How much weight that carries, now that the reference is 7 of 20 and not 5 of
+10:
+
+- `§ S72` set 0 of 10 against 5 of 10 as the shown difference, at 0.03.
+  Against the pooled 7 of 20, one run's 0 of 10 is 0.06. No single run is
+  shown to differ from all three together.
+- A change that did the whole of the work, at 7 in 20, would give 0 of 10
+  about one time in 80. So none of the section, the header, or the reorder
+  with the header carries the effect.
+- A change that did part of it is not ruled out. One worth 3 in 20 would give
+  0 of 10 one time in five.
+
+So: **no one change is the lever, and the reorder with the header is not
+either.** The berth has now moved only when the section is there together with
+at least one of the other two, in 7 of 20, and never otherwise, in 0 of 60.
+
+#### What is still open
+
+The two pairs `§ S72` did not run, and said were owed if A, B and C came back
+empty:
+
+| Pair | Reorder | Header | Section |
+|---|---|---|---|
+| the reorder and the section | yes | no | yes |
+| the header and the section | no | yes | yes |
+
+Either could be the whole of the effect, with the third change adding nothing.
+At 7 in 20, a run of 10 reaches `§ S72`'s 3 or more about three times in four,
+so one run of each would probably say, and would not certainly.
+
+#### Seen and not pre-registered
+
+The down count splits by where the snapshot is. With the snapshot first it is
+9 of 10 in all four runs that have it there (the two of `§ S62`, A and B).
+With the snapshot after the history it is 6, 6, 5 and 7 (`§ S63`, C, `§ S65`,
+D). That is 36 of 40 against 24 of 40, 0.004.
+
+This was not a count any of these runs set out to test, and it is read off
+after the fact. As in `§ S63`, most of the fall is narrations that say
+nothing or that go "up to the lower deck", not narrations that have the berth
+right. It says the reorder changes what the Warden writes. It does not say
+the reorder helps.
+
+#### The route
+
+Both narrations in D that put the berth on mid-deck bring Danny up to it.
+With `§ S65` that is 7 of 7. Nothing here was aimed at it and nothing here
+touched it.
+
+#### What stands
+
+| | |
+|---|---|
+| The state, pushed three ways at once, fixes the place | 7 of 20, down from `§ S65`'s 5 of 10 |
+| The section, the header, or the reorder with the header, without the rest | 0 of 30 |
+| Which combination is needed | not known: two pairs not run |
+| Every narration that gets the place right gets the route wrong | 7 of 7 |
+
+About a third is what the three changes buy on this turn, and every narration
+in that third fails on the route. That is the size of the lever before asking
+which pair holds it.
+
+#### The branch
+
+Not merged, for `§ S65`'s reasons. The source changes are taken back off the
+branch so that `§ S72` and this entry can merge; the four run commits stay in
+history because runs were made from them.
