@@ -4086,3 +4086,136 @@ the one seeded position was not followed (`§ S57`).
 - One top-up of turn 14 at most, on the condition above.
 - The prompt section does not merge on this result alone. If it is shown,
   the write side goes to a spec, and the section merges with that.
+
+### S75 — 2026-10-11 · The location fact with the prompt naming it does not help: turn 14 goes from 6 of 10 to 4, and "past mid-deck" is in more narrations than before
+
+Run `2026-10-11T12-17-55Z`, made by the maintainer: the three position-seeded
+cases, 10 reps each, unicorn `b39fa8e`, prompt `41c0b06a`, clean tree. No turn
+threw. Two tool leaks were recorded and recovered, both on turn 24 (reps 02
+and 06). Marked by the judge under Rubric v3, prompt `ab4b003d`, the same
+judge as the before-run. Not hand-marked. The prediction is `§ S74`.
+
+#### The result
+
+| Turn | Before, as captured | After, fact and section | Chance |
+|---|---|---|---|
+| 14 | 6 of 10 | 4 of 10 | a fall, not shown (0.33) |
+| 24 | 8 of 10 | 10 of 10 | a rise, not shown (0.24) |
+| 29 | 9 of 10 | 7 of 10 | a fall, not shown (0.29) |
+
+Tallied by hand from the two `judge.ab4b003d.csv` files with `ev2:compare`'s
+`fisherOneSided`.
+
+Against `§ S74`:
+
+| Turn | Predicted | Got | |
+|---|---|---|---|
+| 14 | 8 or 9 of 10, at most one "past mid-deck" | 4 of 10, four "past mid-deck" | missed |
+| 24 | 7 or more | 10 | held |
+| 29 | 8 or more | 7 | missed |
+
+**Turn 14 at 7 or fewer: no effect, no top-up, and the candidate stops here.**
+That is `§ S74`'s reading, set before the run.
+
+#### What the fails are
+
+| Turn | Rep | The judge's reason |
+|---|---|---|
+| 14 | 01, 04, 05, 10 | "down past mid-deck" from a mid-deck start |
+| 14 | 03 | the cryo bay "two decks up" from the lower deck |
+| 14 | 06 | the cargo bay "three decks down from the bridge, two from the cryo bay" |
+| 29 | 02, 05, 09 | "past mid-deck" from the mess hall |
+
+"Past mid-deck" is the failure a start position was for. On turns 14 and 29
+together it was in 4 of 20 narrations before and is in 7 of 20 now. In every
+one of the seven, `danny_location` in the snapshot said mid-deck, and the
+section said a route does not pass through the place a character is already
+in.
+
+Reps 03 and 06 on turn 14 are distance errors, and neither kind was in the
+before-run. Both narrate the trip down correctly and then count decks wrong.
+
+#### Turn 24
+
+10 of 10 by the judge, which `§ S74` says is hand-marked before anything is
+said about the bar. That has not been done.
+
+By reading, which start each narration takes:
+
+| | Reps |
+|---|---|
+| The berth on the same deck as the mess, in words | 01, 07 |
+| Mara leaves the berth "toward the ladder shaft and mid-deck" | 05 |
+| No deck and no route | 02, 03, 04, 06, 08, 09, 10 |
+
+Seven of ten pass by naming nothing, as rep 10 of `§ S57` did. The before-run
+failed two narrations that committed to a count of decks and got it wrong.
+Nothing here says the fact was followed, and saying less is not what the
+section asks for.
+
+#### Whether the Warden writes the fact
+
+From `applied.worldFacts` in each `rep-NN.json`:
+
+| Turn | Sent `danny_location` | What it says |
+|---|---|---|
+| 14 | 7 of 10 | the cargo bay, lower deck, in all seven. Right by `ship_layout` |
+| 24 | 4 of 10 | "Mess hall, mid-deck" (04); "Mess hall berths, mid-deck" (01); Mara's berth on the lower deck (05, 07) |
+| 29 | 3 of 10 | the engine room, lower deck, in all three. Right |
+
+- **It is written about half the time**, 14 of 30, on turns where Danny
+  ends somewhere else in nearly every narration.
+- **Two of the four turn-24 writes replace a right value with a wrong one.**
+  The seeded fact said the berth is on mid-deck. Reps 05 and 07 wrote it back
+  as the lower deck, which is what the history says. Rep 07's own narration
+  has the mess on "the same deck you're already on". This is `ADR-0101`'s
+  warning in one turn: the next turn would have read the lower deck as
+  settled.
+- **All seven turn-14 writes also sent `mara_odinsen_location`**, which
+  nothing seeded. The section's last bullet asks for that.
+- Two reps on turn 29 wrote a `teo_awareness_status` fact, which the section
+  does not ask for and the captured session did not have at this turn.
+
+#### Reading it
+
+- **A recorded position is not followed, with or without the prompt naming
+  it.** `§ S57` was the fact alone on turn 18, 2 of 10. This is the fact and a
+  section on three other turns, and no case is shown to move.
+- **The read side fails where it had the best case.** Turn 14's history
+  agrees with the fact, so there was nothing to overrule. "Past mid-deck"
+  survived a fact, an instruction and a history that all say mid-deck. It is
+  not a belief about where Danny is. `§ S47` called it a ladder trip that
+  should not be there, and that still fits.
+- **The write side fails the way `ADR-0101` said it would**, on the one turn
+  where the history is wrong.
+- That makes four things in the snapshot the Warden has not followed over its
+  narration (`§ S57` listed three), and one more instruction that did nothing
+  (`§ S49`, run A of `§ S73`).
+
+#### What this does not show
+
+- That the change made things worse. Neither fall is a shown difference.
+- Which of the fact and the section did what. They went in together.
+- Anything about a position held somewhere other than `worldFacts`: on the
+  character sheet, or in its own block of the snapshot.
+
+#### The judge, and one change to it
+
+The first `task ev2:judge` on this run made no calls. The judge takes each
+case's start from `STARTS` in `eval-v2/judge.core.ts`, the three new cases
+were not in it, and it wrote a file with a header and no marks. That file was
+deleted with the maintainer's approval.
+
+`STARTS` is part of the judge's prompt hash, so adding the three cases to it
+would have made a new judge and left the before-run's marks under the old
+one. They are listed in `STARTS_AS` instead, each pointing at the captured
+case it was made from. The judge is sent the same start text as for the
+parent and never sees `danny_location`, so `ab4b003d` still describes what it
+was sent, and a test holds the hash there. What the hash no longer covers is
+which constructed case borrows which start.
+
+#### The branch
+
+The prompt section is taken back off the branch, as `§ S74` set: the prompt
+is `e83e8aaa` again. The three cases, their test and `STARTS_AS` stay. Commit
+`b39fa8e` stays in history because the run was made from it.
