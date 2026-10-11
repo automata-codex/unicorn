@@ -3639,3 +3639,149 @@ are silent in `§ S55`'s sense.
   `§ S51` and `§ S69`, and the first time within one run. It is the best
   single argument that a written rule and a judge are steadier than a sitting
   of hand marks.
+
+### S72 — 2026-10-11 · Pre-registration: the three state-side changes taken apart, in four runs
+
+`§ S65` put Mara's berth on mid-deck in 5 of 10 narrations of turn 18 with
+three changes made at once, and could not say which of them did it. These four
+runs take the three apart. Written before any of them is made.
+
+This looks for a lever and not a fix. All five narrations that got the place
+right in `§ S65` brought Danny up to a deck he was already on, and nothing
+here is aimed at that.
+
+#### The three changes, and what is known
+
+| | Change | Where |
+|---|---|---|
+| Reorder | the state snapshot sent after the message window | `buildSessionRequest` |
+| Header | a line leading the snapshot message that says the state is current and wins over earlier narration | `STATE_SNAPSHOT_HEADER` |
+| Section | "THE STATE SNAPSHOT IS THE PRESENT" in the Warden prompt | `mothership-m7.txt` |
+
+| Reorder | Header | Section | Berth on mid-deck | |
+|---|---|---|---|---|
+| no | no | no | 0 of 10 | `2026-10-09T10-38-58Z` |
+| yes | no | no | 0 of 10 | `§ S63` |
+| yes | yes | yes | 5 of 10 | `§ S65` |
+
+With the movement-rule run (`§ S49`), that is 0 of 30 without the header or
+the section.
+
+#### The four runs
+
+Turn 18 as captured (`2c0ba938-turn18-seeded-canon-contradiction`), 10 reps
+each, all on branch `berth-lever`, one commit per run.
+
+| Run | Reorder | Header | Section | Prompt |
+|---|---|---|---|---|
+| A: the section alone | no | no | yes, reworded | `289297a7` |
+| B: the header alone | no | yes, reworded | no | `e83e8aaa` |
+| C: the reorder and the header | yes | yes | no | `e83e8aaa` |
+| D: all three, again | yes | yes | yes | `3e56fd6b` |
+
+D is `§ S65`'s run made a second time. Its turn path is the same as
+`94c9c99`'s, file for file, and its prompt has the same hash. It is there
+because the 5 of 10 that everything else is read against is one run.
+
+Not run: the reorder with the section, and the header with the section. They
+are owed only if A, B and C all come back empty.
+
+#### Two rewordings
+
+The header and the section were both written for a snapshot that comes after
+the history, and each says so. In A and B the snapshot comes first, so each is
+reworded to describe the request it is actually in. That makes A and B tests
+of a header and a section saying the same thing from the other end, not of the
+exact text `§ S65` ran.
+
+The section in A. The two bullets are unchanged:
+
+> THE STATE SNAPSHOT IS THE PRESENT
+> The state snapshot is the first message, ahead of the conversation history.
+> It is the world as it stands now, not as it stood when the history began.
+> The history after it is a record of what has been said, and some of what was
+> said is wrong.
+
+The header in B:
+
+> [Current state, as of this turn. It is the world as it stands now. The
+> conversation that follows is what has been said so far, and some of it may
+> be wrong. Where that narration contradicts the state in this message, the
+> state is right.]
+
+C and D use the header and the section as `§ S64` gives them.
+
+#### What is counted
+
+`§ S64`'s three counts, with no hand marks:
+
+- **Down**: `§ S62`'s rule on the first sentence.
+- **To mid-deck**: `§ S60`'s rule on the first sentence.
+- **Berth on mid-deck**: narrations that put Mara's berth on mid-deck
+  anywhere, by reading.
+
+The third decides. The first two are reported so the runs can be set beside
+`§ S63` and `§ S65`.
+
+By Fisher's exact test, two-sided, on the third count:
+
+| A run's count | Against 0 of 30 | Against `§ S65`'s 5 of 10 |
+|---|---|---|
+| 0 of 10 | — | 0.03 |
+| 1 of 10 | 0.25 | 0.14 |
+| 2 of 10 | 0.06 | 0.35 |
+| 3 of 10 | 0.01 | 0.65 |
+
+So 3 or more of 10 is a shown difference from having neither the header nor
+the section, and 0 of 10 is a shown difference from having all three. A count
+of 1 or 2 is neither.
+
+#### Prediction
+
+| Run | Berth on mid-deck |
+|---|---|
+| A: the section alone | 3 or more |
+| B: the header alone | 2 or fewer |
+| C: the reorder and the header | 2 or fewer |
+| D: all three, again | 3 or more |
+
+The section is the only one of the three that tells the Warden to do
+something: find the place in `<world_facts>` and name the deck. The header and
+the reorder say which source is right and ask for nothing on the page, and a
+Warden that says nothing about the deck, as three did in `§ S63`, satisfies
+both. Against that, `§ S49` is an instruction that did nothing by itself, so A
+is the least sure of the four.
+
+#### Reading the results
+
+D first, because the others are read against it:
+
+- **D at 3 or more:** the reference holds, and the two runs pool.
+- **D at 1 or 2:** the effect is there and smaller than 5 of 10 made it look.
+  Pooled, 6 or 7 of 20 is still a shown difference from 0 of 30.
+- **D at 0:** `§ S65` did not repeat, on the same code and prompt. A, B and C
+  then have nothing to be read against, and the next thing is finding what
+  changed between 2026-10-09 and today.
+
+Then A, B and C:
+
+- **A at 3 or more:** the section moves the berth with the snapshot where it
+  is today. That is a prompt change alone, and neither open question about the
+  request (`§ S62`) stands in its way.
+- **B at 3 or more:** the header moves it, and the reorder is not needed.
+- **C at 3 or more, B below 3:** the header needs the snapshot after the
+  history.
+- **None of A, B and C at 3 or more:** the improvement needs the changes in
+  combination. A count of 1 or 2 is reported as that and not as a lever. Which
+  combination is not settled: C rules out the reorder with the header, and the
+  two pairs that were not run stay open.
+
+#### Limits set in advance
+
+- **No top-ups.** Four runs of 10, read by the table above.
+- **One case, one session**, as in `§ S62` to `§ S65`.
+- **Nothing merges from this branch.** The header overclaims (`§ S64`), and
+  whether a request may open on an assistant message is unsettled (`§ S62`).
+  A lever found here goes to a spec.
+- **The route.** How many narrations bring Danny up to mid-deck is reported
+  for each run, and is not what the runs are for.
