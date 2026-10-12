@@ -4506,3 +4506,40 @@ The prototype is taken back off the branch, as `§ S76` set: the tool, the
 place list, the three cases and the prompt section. The prompt is `e83e8aaa`
 again. Commit `c30b2b0` holds all of it and stays in history, because the run
 was made from it and a spec will want to read it.
+
+#### Addendum, 2026-10-12: the hand marks
+
+The maintainer hand-marked all 29 narrations of `2026-10-11T17-35-32Z` under
+Rubric v3. `task ev2:report`:
+
+| Turn | Pass | Fail | Rate | 0.90 bar |
+|---|---|---|---|---|
+| 08 | 10 | 0 | 1.00 | met |
+| 14 | 8 | 1 | 0.89 | not met |
+| 18 | 9 | 1 | 0.90 | met |
+
+Rep 09 of turn 14 threw and is in neither count.
+
+**Two of three cases meet the bar, and turn 14 misses it by one narration of
+nine.** The fail is rep 06, the colonists "through three decks of tired steel"
+above the cargo bay. Its move is right. The other fail is turn 18 rep 05,
+Mara's "two decks from here" for the cryo bay. Both are the distance stated in
+dialogue that the tool does not cover.
+
+**The hand marks agree with the judge on all 29.** That is not a blind check
+of the judge, for two reasons:
+
+- The marks were made after the judge's, with this entry already written.
+- The first pass had all 29 as passes. It read the movement at the start of
+  each narration and not the whole passage, and the two fails were changed
+  after the judge's reasons were set beside them. So the judge found both
+  and the hand marks followed.
+
+The comparison in this entry was made on the judge's marks and does not
+change. What changes is what can be said about the bar: turns 08 and 18 meet
+it by hand, and turn 14 does not.
+
+**What the miss says about the build.** A route tool that is called and
+followed still leaves a narration failing when someone states a distance with
+nobody moving. `ADR-0121` leaves that to the spec. At two of 29 here it is
+enough to hold one case under the bar.
