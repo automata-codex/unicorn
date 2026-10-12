@@ -10,7 +10,10 @@ import { execSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { SessionToolSyntaxError } from '../src/session/session.service';
+import {
+  SessionCorrectionError,
+  SessionToolSyntaxError,
+} from '../src/session/session.service';
 
 import { loadFixture } from './fixture';
 import {
@@ -120,7 +123,21 @@ async function main(): Promise<void> {
               : { message: String(err) };
           const toolSyntaxLeaks =
             err instanceof SessionToolSyntaxError ? err.leaks : [];
-          writeJson(`${base}.json`, { ok: false, error, toolSyntaxLeaks });
+          // What the validator rejected in each round, when the correction
+          // round was the one that failed.
+          const correctionRejections =
+            err instanceof SessionCorrectionError
+              ? {
+                  firstRound: err.firstRoundRejections,
+                  secondRound: err.secondRoundRejections,
+                }
+              : undefined;
+          writeJson(`${base}.json`, {
+            ok: false,
+            error,
+            toolSyntaxLeaks,
+            correctionRejections,
+          });
           writeFileSync(
             `${base}.md`,
             renderRepMd(fixture.id, rep, `**Turn threw:** ${error.message}`),
