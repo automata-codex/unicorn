@@ -4543,3 +4543,54 @@ it by hand, and turn 14 does not.
 followed still leaves a narration failing when someone states a distance with
 nobody moving. `ADR-0121` leaves that to the spec. At two of 29 here it is
 enough to hold one case under the bar.
+
+### S78 — 2026-10-12 · Turn 08's correction throws did not come back in 20 reps, so what the validator rejected was never seen
+
+Run `2026-10-12T16-18-50Z`, made by the maintainer: turn 08 alone, 20 reps,
+unicorn `07e22a5` with one uncommitted change, prompt `e83e8aaa`. Not marked.
+The run was made to catch a `SessionCorrectionError` and read what the
+correction round rejected, which `§ S47` and `§ S49` could not say.
+
+The uncommitted change is the one this entry lands with. `ev2:run` now writes
+`correctionRejections` to the rep file when a turn throws
+`SessionCorrectionError`: the validator's rejections from the first round and
+from the correction round. The error has always carried both. The run script
+kept only its name and stack trace.
+
+#### The result
+
+No rep threw. Every `SessionCorrectionError` in the eval-v2 archive, all on
+`2c0ba938-turn08-seeded-canon-contradiction`:
+
+| Run | Commit | Prompt | Threw |
+|---|---|---|---|
+| `2026-10-04T03-14-41Z` | `a1f7218` | `e83e8aaa` | 3 of 10 (reps 02, 05, 08) |
+| `2026-10-09T11-03-37Z` | `0c088ac` | `5edf9418` | 2 of 10 (reps 02, 10) |
+| `2026-10-10T14-43-23Z` | `96acd03` | `e83e8aaa` | 1 of 10 (rep 08) |
+| `2026-10-12T16-18-50Z` | `07e22a5` | `e83e8aaa` | 0 of 20 |
+
+The 2026-10-10 throw is a sixth. `§ S49` counted five. The place-seeded turn
+08 case did not throw in its ten reps either (`§ S77`), on a different prompt
+and with the route tool.
+
+#### What this does and does not show
+
+- **The cause is not known.** No rep file from before this run records a
+  rejection, and this run produced none to record.
+- **Nothing in the repository accounts for the drop.** No commit touches
+  `apps/zoltar-be/src` or `packages` between `96acd03`, which threw, and
+  `07e22a5`, which did not. The prompt is the same file at the same hash as
+  the 2026-10-04 and 2026-10-10 runs.
+- **Chance is unlikely and not ruled out.** At 6 in 30, the rate of the three
+  earlier runs, 20 clean reps come up about 1 time in 90. The count also fell
+  run by run, 3 then 2 then 1, before this one.
+- **What is left is outside the repository:** the model's behaviour on
+  Anthropic's side, or something in the dev database the replay reads. The
+  archive cannot tell these apart.
+
+#### What this leaves
+
+- The question is closed as not reproduced, not as answered.
+- No further run is owed for it. If turn 08 or any other case throws
+  `SessionCorrectionError` on a later run, that rep's `correctionRejections`
+  says what was rejected.
