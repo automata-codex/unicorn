@@ -20,6 +20,7 @@ import {
   bootApp,
   findPrereqs,
   readToolSyntaxLeaks,
+  readTurnEvents,
   runTurn,
   seedScratch,
   teardownScratch,
@@ -108,7 +109,14 @@ async function main(): Promise<void> {
             app.db,
             scratch.adventureId,
           );
-          writeJson(`${base}.json`, { ok: true, result, toolSyntaxLeaks });
+          // The Warden's own deltas, which `result.applied` does not keep.
+          const events = await readTurnEvents(app.db, scratch.adventureId);
+          writeJson(`${base}.json`, {
+            ok: true,
+            result,
+            toolSyntaxLeaks,
+            events,
+          });
           writeFileSync(
             `${base}.md`,
             renderRepMd(fixture.id, rep, result.message.content),
