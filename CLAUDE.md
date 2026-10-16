@@ -48,6 +48,14 @@ Packages are internal workspace packages — they are not published to npm.
 | Package manager    | npm workspaces                           |
 | Node version       | >=22.0.0                                 |
 
+## Formatting and Linting
+
+**This project uses Biome, not Prettier.** Biome formats TypeScript and sorts imports (`biome.json` at the root). ESLint does the linting. Prettier is not installed: `npx prettier` downloads it and checks against its own defaults, so whatever it reports is noise. Don't run it, and don't cite it as a check.
+
+- Check a file with `npx biome check <path>` and fix it with `npx biome check --write <path>`. `npm run lint` / `npm run lint:fix` in an app run Biome and ESLint together.
+- The app scripts cover only `src/` and `test/`. Run Biome on other TypeScript you touch (`eval-v2/`, `scripts/`) by path.
+- Biome does not format Markdown. Match the surrounding style in `docs/`.
+
 ## Key Architectural Decisions
 
 **Claude as consequence engine, not state holder.** The backend constructs a visibility-filtered state snapshot, sends it to Claude with each request, and Claude issues structured change requests via the `submit_gm_response` tool. The backend validates and applies all state changes. Claude never holds authoritative state between requests.
