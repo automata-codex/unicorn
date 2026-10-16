@@ -230,7 +230,11 @@ describe('readTurnEvents', () => {
         eventType: 'player_action',
         payload: { content: 'I charge.' },
       },
-      { sequenceNumber: 2, eventType: 'gm_response', payload: { stateChanges } },
+      {
+        sequenceNumber: 2,
+        eventType: 'gm_response',
+        payload: { stateChanges },
+      },
     ]);
   });
 });
