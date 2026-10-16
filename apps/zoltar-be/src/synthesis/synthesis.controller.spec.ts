@@ -46,7 +46,7 @@ function mockReply() {
 
 function mockSynthesisService() {
   return {
-    checkCoherence: vi.fn().mockResolvedValue({
+    prepareSynthesis: vi.fn().mockResolvedValue({
       selections: validSelections,
       report: { conflicts: [], resolution: 'proceed' },
       rerolled: false,
@@ -125,7 +125,7 @@ describe('SynthesisController', () => {
       expect(advSvc.findById).toHaveBeenCalledWith('c1', 'a1', 'u1');
       expect(charSvc.findByCampaignId).toHaveBeenCalledWith('c1', 'u1');
       expect(campRepo.getSystemSlug).toHaveBeenCalledWith('c1');
-      expect(synthSvc.checkCoherence).toHaveBeenCalledOnce();
+      expect(synthSvc.prepareSynthesis).toHaveBeenCalledOnce();
       expect(reply.status).toHaveBeenCalledWith(202);
       expect(reply.send).toHaveBeenCalledWith({ status: 'synthesizing' });
     });
@@ -173,12 +173,29 @@ describe('SynthesisController', () => {
       ).rejects.toThrow(UnprocessableEntityException);
     });
 
+    it('passes the adventure, filter and addendum on for recording', async () => {
+      const reply = mockReply();
+
+      await controller.synthesize(
+        'c1',
+        'a1',
+        { ...dto, addendum: 'No androids.' },
+        fakeUser,
+        reply as any,
+      );
+
+      const passed = synthSvc.prepareSynthesis.mock.calls[0][0];
+      expect(passed.adventureId).toBe('a1');
+      expect(passed.activeEntryIds).toEqual(validActiveEntryIds);
+      expect(passed.addendum).toBe('No androids.');
+    });
+
     it('passes only the active entries as the reroll pool', async () => {
       const reply = mockReply();
 
       await controller.synthesize('c1', 'a1', dto, fakeUser, reply as any);
 
-      const passed = synthSvc.checkCoherence.mock.calls[0][0];
+      const passed = synthSvc.prepareSynthesis.mock.calls[0][0];
       expect(Object.keys(passed.activePools).sort()).toEqual([
         'secret',
         'survivor',
@@ -212,7 +229,7 @@ describe('SynthesisController', () => {
         reply as any,
       );
 
-      const passed = synthSvc.checkCoherence.mock.calls[0][0];
+      const passed = synthSvc.prepareSynthesis.mock.calls[0][0];
       expect(passed.activePools.tone.map((e: { id: string }) => e.id)).toEqual([
         'creeping_dread',
       ]);
@@ -285,7 +302,7 @@ describe('SynthesisController', () => {
           rerollable: false,
         },
       ];
-      synthSvc.checkCoherence.mockRejectedValue(
+      synthSvc.prepareSynthesis.mockRejectedValue(
         new CoherenceConflictError(conflicts),
       );
       const reply = mockReply();

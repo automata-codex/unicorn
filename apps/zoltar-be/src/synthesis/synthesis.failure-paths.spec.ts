@@ -84,6 +84,7 @@ function makeController(args: {
 }) {
   const repo = {
     writeGmContextAtomic: vi.fn().mockResolvedValue(undefined),
+    writeSynthesisInputs: vi.fn().mockResolvedValue(undefined),
     setAdventureFailed: vi.fn().mockResolvedValue(undefined),
   };
   const campaignRepo = {

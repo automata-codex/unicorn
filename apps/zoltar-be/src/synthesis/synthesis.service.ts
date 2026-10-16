@@ -71,6 +71,12 @@ export interface CheckCoherenceResult {
   rerolled: boolean;
 }
 
+export interface PrepareSynthesisArgs extends CheckCoherenceArgs {
+  adventureId: string;
+  activeEntryIds: Record<string, string[]>;
+  addendum?: string;
+}
+
 @Injectable()
 export class SynthesisService {
   private readonly logger = new Logger(SynthesisService.name);
@@ -80,6 +86,31 @@ export class SynthesisService {
     private readonly repo: SynthesisRepository,
     private readonly campaignRepo: CampaignRepository,
   ) {}
+
+  /**
+   * Everything that happens before the 202: the coherence check, then a record
+   * of what the adventure is about to be synthesized from (`ADR-0124`).
+   * Recorded here rather than with the synthesis result so that an adventure
+   * whose synthesis fails keeps its inputs too. A coherence conflict throws
+   * before anything is written, since no adventure is built from those inputs.
+   */
+  async prepareSynthesis(
+    args: PrepareSynthesisArgs,
+  ): Promise<CheckCoherenceResult> {
+    const result = await this.checkCoherence({
+      selections: args.selections,
+      activePools: args.activePools,
+    });
+
+    await this.repo.writeSynthesisInputs(args.adventureId, {
+      drawnSelections: args.selections,
+      finalSelections: result.selections,
+      activeEntryIds: args.activeEntryIds,
+      addendum: args.addendum ?? null,
+    });
+
+    return result;
+  }
 
   /**
    * Runs the coherence check and resolves Tier 1 (silent reroll) internally.
