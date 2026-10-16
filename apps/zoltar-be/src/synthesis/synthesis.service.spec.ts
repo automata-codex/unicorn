@@ -369,7 +369,7 @@ describe('SynthesisService.runSynthesis', () => {
     expect(userContent).toContain('ADDITIONAL DIRECTION:\nlean into dread');
   });
 
-  it('throws SynthesisOutputError when the tool input fails schema validation', async () => {
+  it('throws SynthesisOutputError when the tool input fails validation twice', async () => {
     const callMessages = vi.fn().mockResolvedValue(
       toolUseMessage('submit_gm_context', {
         ...validGmContext,
@@ -387,6 +387,64 @@ describe('SynthesisService.runSynthesis', () => {
         selections: baseSelections,
       }),
     ).rejects.toBeInstanceOf(SynthesisOutputError);
+    expect(callMessages).toHaveBeenCalledTimes(2);
+  });
+
+  /** The 2026-10-16 failure: `narrative` as a string, `structured` missing. */
+  it('retries once with the validation error and returns the corrected input', async () => {
+    const callMessages = vi
+      .fn()
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_context', {
+          openingNarration: validGmContext.openingNarration,
+          narrative: JSON.stringify(validGmContext.narrative),
+        }),
+      )
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_context', validGmContext),
+      );
+    const service = makeService(callMessages);
+
+    const result = await service.runSynthesis({
+      characterSheet: vasquezSheet,
+      selections: baseSelections,
+    });
+
+    expect(result.narrative.scenarioPremise).toBe('Derelict hauler');
+    expect(callMessages).toHaveBeenCalledTimes(2);
+
+    // The retry carries the rejected call and an error result for it.
+    const retryMessages = callMessages.mock.calls[1][0].messages;
+    expect(retryMessages).toHaveLength(3);
+    expect(retryMessages[1].role).toBe('assistant');
+    const [toolResult] = retryMessages[2].content;
+    expect(toolResult).toMatchObject({
+      type: 'tool_result',
+      tool_use_id: 'toolu_fake',
+      is_error: true,
+    });
+    expect(toolResult.content).toContain('narrative');
+  });
+
+  it('retries when the opening narration is missing', async () => {
+    const { openingNarration: _omit, ...withoutOpening } = validGmContext;
+    const callMessages = vi
+      .fn()
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_context', withoutOpening),
+      )
+      .mockResolvedValueOnce(
+        toolUseMessage('submit_gm_context', validGmContext),
+      );
+    const service = makeService(callMessages);
+
+    const result = await service.runSynthesis({
+      characterSheet: vasquezSheet,
+      selections: baseSelections,
+    });
+
+    expect(result.openingNarration).toBe('Amber lights pulse overhead.');
+    expect(callMessages).toHaveBeenCalledTimes(2);
   });
 
   it('throws SynthesisOutputError when Claude skips the tool call', async () => {
