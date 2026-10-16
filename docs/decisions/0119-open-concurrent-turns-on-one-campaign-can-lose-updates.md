@@ -4,7 +4,7 @@ title: OPEN — concurrent turns on one campaign can lose updates, and the turn 
 area: architecture-backend
 status: open
 superseded_by: null
-milestone: M8
+milestone: Phase 2
 summary: >-
   OPEN. A turn reads its state outside the transaction, then writes back whole
   `campaign_state.data` and `gm_context.blob` values computed from that read. So two
@@ -65,3 +65,15 @@ Nothing enforces the order the two locks are taken in. A future writer that touc
 3. **Should the lock-order convention be enforced, or does the answer to question 2 make it unnecessary?**
 
 Nothing here is decided. This entry records the analysis so the audit starts from it, not from scratch.
+
+## Addendum — the audit moves to Phase 2, and the single-player case stays in Phase 1
+
+Recorded 2026-10-16. `ADR-0122` moved multiplayer, with this entry's audit, to
+Phase 2. The `milestone` field said M8, which now means Damage Resolution, so it
+says Phase 2 instead. "M8" in the text above still means the multiplayer
+milestone.
+
+The case under "One case doesn't need M8" does not wait for Phase 2. A
+server-side guard against a second turn arriving while the first is still
+running is part of M12, the release milestone. The questions above stay open
+until the multiplayer audit takes them up.

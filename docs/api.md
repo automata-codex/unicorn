@@ -541,8 +541,8 @@ When `POST /adventures/:id/actions` is received:
 - LOS computation — per-turn visibility filter over `grid_entities` when the spatial system ships.
 - Rolling summary — fetch into prompt construction and update after the turn; deferred per `docs/decisions.md`.
 - Tool-use inner loop — Claude may call `roll_dice` / `rules_lookup` zero or more times before `submit_gm_response` (M7).
-- Initiative mode flips and `advance_initiative` handling (M8).
-- Caller transfer handling on `submit_gm_response` (M8).
+- Initiative mode flips and `advance_initiative` handling (Phase 2 multiplayer).
+- Caller transfer handling on `submit_gm_response` (Phase 2 multiplayer).
 
 ---
 

@@ -103,30 +103,23 @@ The Solo Blind campaign creation pipeline: oracle table filtering, coherence che
 - Correction mechanic (`superseded_by` write path)
 - `adventure_telemetry` write path — per-turn record of player input, full `submit_gm_response` payload, all `roll_dice` calls with purpose annotations and results, prompt and completion token counts
 - Entity write path — `visible` (line of sight), `revealed` (discovery), `npcState` (disposition)
+- Entity promotion — an NPC named only in world facts becomes an entity with its sheet fields; the entity merge preserves every schema field (`ADR-0103`)
+- Retcon reversal — a re-adjudicated outcome's committed state undone, not only its narration
 - Character position — held by the backend as one of the adventure's places
 - Adventure completion detected and recorded — the `adventure_complete` flag acted on, and `adventures.status` transitioned
 - Frontend: play view (message log, input field, character status strip, threshold banner)
 
 #### Tools
 
-> **Adjudication scope note:** Phase 1 has no formal rule evaluator. Mechanical adjudication for Mothership is Claude's responsibility, informed by the rules lookup tool rather than confabulation. The backend enforces structural constraints only (resource availability, HP thresholds, death triggers). The full constraint module system and rule evaluation engine are Phase 3 work. This is an acceptable tradeoff for Mothership — it's a slim ruleset and the horror is in the fiction more than the mechanics.
+> **Adjudication scope note:** Phase 1 has no formal rule evaluator. Mechanical adjudication for Mothership is Claude's responsibility, informed by the rules lookup tool rather than confabulation. The backend enforces structural constraints only (resource availability, HP thresholds, death triggers). The full constraint module system and rule evaluation engine are Phase 3 work. This is an acceptable tradeoff for Mothership — it's a slim ruleset and the horror is in the fiction more than the mechanics. The exception is arithmetic the rules fix exactly: damage and roll results are worked out in code, and the Warden decides only what happens (`ADR-0123`).
 
 - `roll_dice` tool — dice notation parser, server-side execution, audit log write; audit log records player-entered vs system-generated rolls
 - Rules lookup tool — vector embedding pipeline for Mothership rules text; pgvector extension on Postgres; query endpoint
 - Route tool — the route from a character's place to another, worked out server-side with no model involved
+- Damage tool — a hit applied server-side: armor, Health, the Wound, the reset with carryover, and death
+- Roll adjudication — a player's dice result judged against its request's target server-side; `roll_dice` refused for a player character
 - Tool call routing in `SessionService`
 - Frontend: dice entry UI — "roll for me" button and manual raw roll entry (with explicit modifier language: "enter the number showing on the die")
-
-#### Multiplayer Foundation
-
-- Caller role enforcement — only the caller can submit input
-- Voluntary caller transfer
-- Caller request with configurable auto-approve timeout
-- Offline claim (caller disconnected)
-- Narrative transfer via `caller_transfer` in `submit_gm_response`
-- Initiative mode — adventure mode flip, initiative order stored in adventure record
-- `advance_initiative` handling in `SessionService`
-- Frontend: caller indicator and transfer UI, initiative order display and active player highlighting
 
 #### Self-Hosted Deployment
 
@@ -491,7 +484,7 @@ Spec: [025](specs/zoltar/025-eval-v2-smallest-harness.md) · Plan: [025](plans/0
 
 **Status:** Not started
 
-A structured answer to where things are, replacing the prose-only layout `ADR-0047` deferred to. The backend holds a list of the adventure's places and where each character is, and works out the route when the Warden asks. It is a list of rooms, not the grid: cells and line of sight stay with the Phase 3 renderer. Sequenced before M8 so that M8's playtest exercises it across a whole session and with several characters.
+A structured answer to where things are, replacing the prose-only layout `ADR-0047` deferred to. The backend holds a list of the adventure's places and where each character is, and works out the route when the Warden asks. It is a list of rooms, not the grid: cells and line of sight stay with the Phase 3 renderer. M12's closing playtest is what exercises it across a whole session.
 
 - Place list in the synthesis output
 - Character position as a place, held by the backend
@@ -503,30 +496,58 @@ A structured answer to where things are, replacing the prose-only layout `ADR-00
 
 Decisions: ADR-0047, ADR-0101, ADR-0121
 
-#### M8 — Multiplayer Foundation
+#### M8 — Damage Resolution
 
 **Status:** Not started
 
-Caller model and initiative mode.
+The wounds chain worked out in code. The Warden says a hit landed and for how much; the backend applies armor, Health, the Wound, the reset with the damage carried over, and death at maximum Wounds, and hands back what happened. Question 2 measures it.
 
-- Turn-path lock audit — a prerequisite; `applyTurnAtomic` serializes concurrent turns incidentally rather than deliberately
-- Caller role enforcement, voluntary transfer, request + auto-approve timeout, offline claim
-- Narrative transfer via `caller_transfer` in `submit_gm_response`
-- Initiative mode — adventure mode flip, order stored in the adventure record, `advance_initiative` handling
-- Frontend: caller indicator and transfer UI, initiative order display, active player highlighting
-- Multi-PC / caller model dedicated playtest, then fixtures for the caller and initiative failure modes it surfaces
+- Damage tool, called by the Warden before it narrates a hit
+- `damageType` required as a tool input
+- Death applied by the backend when Wounds reach maximum
+- Warden prompt's wounds-chain section replaced by the tool's
+- Question 2 re-run against the built version
 
-Decisions: ADR-0053, ADR-0054, ADR-0119
+Decisions: ADR-0122, ADR-0123 · Findings: `eval-findings.md § S79`, `§ S80`
 
-#### M8.1 — Warden Prompt Iteration
+#### M9 — Untracked NPCs
 
 **Status:** Not started
 
-Prompt-only changes to the Warden system prompt, sequenced after M8 so iteration runs against the complete Phase 1 fixture corpus — including whatever caller and initiative failure modes M8's own playtest surfaces. This milestone owns no schema changes; work needing one belongs to the milestone that owns the schema.
+An NPC the synthesis named only in prose can become an entity with a sheet, so its rolls have an owner and a target. Covers `NO-ENTITY-PROMOTION-PATH`, `ROLL-ATTRIBUTED-TO-WRONG-ENTITY` and `ENTITY-FIELD-LOSS`.
 
-- Pilot a hidden per-`dice_request` contingency field as a prompt-only instruction — Claude states "if this fails, X" without narrating it, relieving the pressure behind `OVER-RESOLUTION` and `OUT-OF-ORDER-RESOLUTION`
+- Entity merge preserves every schema field, as `ADR-0103` decided
+- Entity promotion through `newEntities`, carrying `crewRole` and `instinctRoll`
+- Warden prompt section for promotion
+- A question for it, with cases from the 2026-08-24 playtest
 
-#### M9 — Self-Hosted Deployment
+Decisions: ADR-0103, ADR-0122 · Findings: `eval-findings.md § S80`
+
+#### M10 — Emit What You Narrate
+
+**Status:** Not started
+
+A change the narration treats as true is written to state. Covers `MISSING-DELTA`, `MISSING-CANON-CAPTURE` and `UNREVERSED-RETCON`. Takes over the prompt-iteration role the dropped M8.1 had.
+
+- `proposedCanon` named in the Warden prompt and described in the tool schema
+- Retcon reversal — a re-adjudicated outcome's committed state undone
+- A question for it, with cases for each of the three
+
+Decisions: ADR-0112, ADR-0122 · Findings: `eval-findings.md § S39`, `§ S80`
+
+#### M11 — Roll Adjudication
+
+**Status:** Not started
+
+Whether a player's roll succeeded, decided in code. Covers `ROLL-RESULT-INVERSION` and what remains of `SYSTEM-ROLLED-PLAYER-ACTION`.
+
+- A dice result judged against its request's target, roll-under and Panic Check alike
+- `roll_dice` refused for a player character
+- A question for it, with the 2026-08-24 skill-bonus case among its cases
+
+Decisions: ADR-0122, ADR-0123 · Findings: `eval-findings.md § S80`
+
+#### M12 — Self-Hosted Deployment
 
 **Status:** Not started
 
@@ -537,6 +558,7 @@ Shippable open-core product.
 - Docker Compose production configuration
 - Environment variable documentation
 - Signup mode implementation (`SIGNUP_MODE` / `INVITE_TOKEN` enforcement in `AuthService`)
+- One turn in flight per adventure, enforced server-side (`ADR-0119`)
 - Identifier format rule enforced — ADR-0032 states it and nothing applies it
 - One adventure per campaign enforced at the backend, with the corresponding UI gate
 - Documentation reorganization ahead of the setup guide — sizing it is the first task, since the guide's location and the audience split depend on what it settles
@@ -545,17 +567,18 @@ Shippable open-core product.
 - Signup mode documented in the setup guide
 - Responsive polish pass (thumb reach, viewport refinement)
 - Single Flyway migration consolidation pass — squash Phase 1 migrations into a clean baseline, immediately before the tag and after the last schema change lands
+- Closing steered playtest across a whole session, after the last Warden fix lands
 - Full-corpus eval run before tagging, compared against the M7.5 re-baseline — release discipline rather than milestone scope; moves to the release checklist once that exists
 - Comprehensive release checklist authored for future releases
 - First tagged release (`v0.1.0`)
 
-Decisions: ADR-0032, ADR-0053, ADR-0054
+Decisions: ADR-0032, ADR-0053, ADR-0054, ADR-0119, ADR-0122
 
 ---
 
 ## Phase 2 — Expanded Systems, Campaign Modes, and Real-Time
 
-Target: UVG and OSE support, remaining campaign creation modes, synchronous multiplayer, and the first wave of quality-of-life tooling.
+Target: UVG and OSE support, remaining campaign creation modes, multiplayer, and the first wave of quality-of-life tooling.
 
 ### Requirements (to be broken into milestones when Phase 1 ships)
 
@@ -569,6 +592,13 @@ Target: UVG and OSE support, remaining campaign creation modes, synchronous mult
 - Faction/NPC agenda advancement tool
 - Session summarization tool
 - Structured override layer (rest rules, crit rules, death saves, spell systems)
+- Multiplayer foundation (moved from Phase 1 by `ADR-0122`):
+  - Turn-path lock audit (`ADR-0119`)
+  - Caller role enforcement, voluntary transfer, request + auto-approve timeout, offline claim
+  - Narrative transfer via `caller_transfer` in `submit_gm_response`
+  - Initiative mode — adventure mode flip, order stored in the adventure record, `advance_initiative` handling
+  - Frontend: caller indicator and transfer UI, initiative order display, active player highlighting
+  - Multi-PC / caller model dedicated playtest, then eval cases for the failure modes it surfaces
 - Initiative mode polish
 - Ably real-time integration (`RealtimeService` implementation)
 - Live typing preview for caller input (requires Ably)

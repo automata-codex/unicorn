@@ -172,6 +172,105 @@ Nothing enforces the order the two locks are taken in. A future writer that touc
 
 Nothing here is decided. This entry records the analysis so the audit starts from it, not from scratch.
 
+## Addendum — the audit moves to Phase 2, and the single-player case stays in Phase 1
+
+Recorded 2026-10-16. `ADR-0122` moved multiplayer, with this entry's audit, to
+Phase 2. The `milestone` field said M8, which now means Damage Resolution, so it
+says Phase 2 instead. "M8" in the text above still means the multiplayer
+milestone.
+
+The case under "One case doesn't need M8" does not wait for Phase 2. A
+server-side guard against a second turn arriving while the first is still
+running is part of M12, the release milestone. The questions above stay open
+until the multiplayer audit takes them up.
+
+### [ADR-0122](decisions/0122-phase-1-finishes-by-fixing-the-warden-and-multiplayer-moves.md) — Phase 1 finishes by fixing the Warden's known errors, and multiplayer moves to Phase 2
+
+## The problem
+
+**Phase 1's target is "a playable solo Mothership adventure on a personal
+Droplet."** Multiplayer was scheduled in Phase 1 as M8, but it does nothing for
+one player.
+
+**The Warden's errors stand in the way of that target.** `eval-findings.md §
+S80` catalogs every error the three playtests annotated. Thirteen are open:
+wrong places and distances, lost wound carryover, NPCs the backend cannot track,
+changes narrated and never written, and roll outcomes the Warden decides that
+code could. Each one affects a solo adventure.
+
+**Multiplayer would make them harder to see.** M8's playtest was meant to test
+the caller model and initiative. Run against a Warden with thirteen open errors,
+it would have shown both kinds of failure at once.
+
+The maintainer, 2026-10-16, after "thinking about this project, its direction,
+and the bigger picture": the course correction is to move multiplayer out and
+give each Warden error a home.
+
+## What was decided
+
+**Multiplayer moves to Phase 2.** That covers the caller model, voluntary and
+requested transfer, offline claim, `caller_transfer`, initiative mode,
+`advance_initiative`, the frontend for each, the turn-path lock audit, and the
+multi-PC playtest. Phase 2 already has synchronous multiplayer through Ably, so
+it is the natural place for asynchronous multiplayer too.
+
+**Phase 1 runs in this order:**
+
+| Milestone | Delivers | Measured by |
+|---|---|---|
+| M7.9 | The v2 harness, finished as scoped | — |
+| M7.10 | Places and routes (`ADR-0121`) | Question 1 |
+| M8 | Damage Resolution: code applies a hit (`ADR-0123`) | Question 2 |
+| M9 | Untracked NPCs: an NPC can become an entity, and the merge keeps its fields | A new question |
+| M10 | Emit What You Narrate: changes, canon and retcons are written, not just narrated | A new question |
+| M11 | Roll Adjudication: code judges player rolls against their target (`ADR-0123`) | A new question |
+| M12 | Self-hosted deployment and `v0.1.0`, formerly M9 | A closing steered playtest |
+
+Each of M8–M11 is a milestone, not a card, because each needs its own eval
+question to show the fix worked. M7.10 set that pattern with question 1.
+
+**Old M8.1 is dropped.** Its one item, a contingency field for
+`OVER-RESOLUTION` and `OUT-OF-ORDER-RESOLUTION`, targets two tags that now pass
+(`§ S80`). It was also the prompt-iteration milestone, and M10 takes over that
+role.
+
+**The milestones are renumbered.** As of this entry, M8 means Damage
+Resolution. In entries written before 2026-10-16, "M8" means the multiplayer
+milestone, "M8.1" means Warden Prompt Iteration, and "M9" means self-hosted
+deployment, now M12. Those entries are not rewritten.
+
+**One part of the lock audit stays in Phase 1.** `ADR-0119` notes that a single
+player can send a second turn while the first is still running. That case does
+not depend on multiplayer, so a server-side guard against it is part of M12.
+
+**M12 gains a closing steered playtest.** `ADR-0121` relied on M8's playtest to
+show that positions stay right over a whole session. That job now falls to a
+playtest run before the release, across everything M7.10–M11 changed.
+
+## Alternatives
+
+**Keep M8 in Phase 1, after the fixes.** This would still ship multiplayer
+before `v0.1.0`. It was declined because the release does not need multiplayer
+and the work is large: a lock audit, a caller model, initiative, and a playtest
+that needs several players.
+
+**One milestone for all the fixes, with a card per cause.** This means less
+roadmap. It was declined because each cause has its own fix, its own question,
+and a different review tier. One milestone would be closed by the slowest of
+them.
+
+**Keep the M7.x numbering.** This would avoid an ambiguous "M8" in older
+entries. It was declined at the maintainer's request: the M7.x series had grown
+to ten milestones of tooling, and the renumbering marks the change from
+building the harness to fixing the Warden.
+
+## What would reverse it
+
+- A real need to play Phase 1 with more than one player before `v0.1.0`.
+- The fix milestones turning out not to move their questions. That would
+  bring back the case for broader prompt iteration that M8.1 was meant to
+  provide.
+
 ---
 
 ## Rules Ingestion
@@ -2061,6 +2160,93 @@ corpus means teaching that insert the fixture's version.
 to 2, the corpus staying at `d651cec51ad7`, and the `assemblyHash` move to
 `94bc6c74` all stand exactly as recorded above.
 
+### [ADR-0123](decisions/0123-phase-1-moves-fixed-rule-arithmetic-into-code.md) — Phase 1 moves arithmetic the rules fix exactly into code, starting with damage and roll results
+
+## The problem
+
+**The roadmap's Tools section gives adjudication to the Warden.** "Mechanical
+adjudication for Mothership is Claude's responsibility... The backend enforces
+structural constraints only." The rule evaluator is Phase 3.
+
+**For arithmetic, that split has failed twice.**
+
+- **The wounds chain.** Health to zero, a Wound, Health reset, the excess
+  carried over. In `§ S79` the Warden wrote the Wound right in all six chains
+  and lost the carryover in all six. The cause is not the Warden's arithmetic.
+  The validator rejects a Health delta below zero, so the damage gets clamped,
+  and the reset then lands on full Health. The prompt's own worked example
+  cannot be written as two deltas the validator accepts. `damageType`, which
+  the prompt requires, was sent in none of the six. `CHARACTER-DEATH-OVERRIDE`
+  (`§ S80`) is the same chain's last step, with the Warden unwilling to apply
+  it.
+- **Roll results.** `ROLL-RESULT-INVERSION` judged a Mothership roll-under
+  backwards twice, once by ignoring a skill bonus the Warden itself had named.
+  `SYSTEM-ROLLED-PLAYER-ACTION` keeps recurring: in `§ S79`'s rep 10 the
+  system rolled the player's Fear Save, Panic Check and Combat check.
+
+Each fix tried so far has been prompt text. `§ S79` shows the limit of that
+approach: the prompt and the validator disagree, and no prompt can satisfy
+both.
+
+## What was decided
+
+**Where the rules fix the arithmetic exactly, code does it.** The Warden
+chooses what happens: that a hit lands, how much damage, which Wounds Table
+row. Code applies it. This is `ADR-0121`'s split, applied to mechanics: the
+Warden asks, the backend works the answer out, and the Warden narrates from
+what it was given.
+
+**Damage, in M8.** The Warden reports a hit on an entity, with its damage and
+`damageType`. Code applies armor, Health, the Wound, the reset with carryover,
+and death at maximum Wounds, and returns what happened. Both of `§ S79`'s open
+decisions go away: the carryover is computed rather than written as deltas, and
+`damageType` becomes an input the tool requires instead of a prompt rule.
+
+**Roll results, in M11.** A `diceRequest` already carries its `target`. When
+the player's result comes back, code decides whether it succeeds under the
+system's rule (roll-under, with Panic Checks the other way round). A
+`roll_dice` call whose acting entity is a player character is refused. A
+player's roll goes through a `diceRequest`, and "Roll for me" already resolves
+on that path, not through `roll_dice`.
+
+**What this is not.** It is not the constraint module system or the rule
+evaluator. Those are still Phase 3. Code here does the exact sums for one
+system and decides nothing that needs judgment. The Warden still picks the
+Wounds Table row, sets the damage, and decides what a roll was for.
+
+## Alternatives
+
+**Fix the wounds chain in the prompt and validator.** For example, let a
+wounds-chain damage delta go below zero, or tell the Warden to clamp it and
+work out the reset itself. Each is a smaller change. Both leave arithmetic with
+a model that has lost it in every chain measured, and the second makes the
+delta say less than happened.
+
+**Wait for the Phase 3 rule evaluator.** This would leave Phase 1's release
+losing carryover and judging rolls backwards.
+
+**One tool for every mechanic.** Declined as larger than anything observed.
+Each piece of code here answers a measured error.
+
+## What would reverse it
+
+- The Warden does not call the damage tool, or narrates something other than
+  what it returns. `ADR-0121` has the same test.
+- Code's answer and the fiction come apart often enough that the Warden has to
+  override it. That would mean the rule was not as exact as it looked.
+
+## Left to the specs
+
+- Whether damage is a tool the Warden calls before narrating, like M7.10's
+  route tool, or a kind of state change the validator expands. The first lets
+  the Warden narrate from the result.
+- How the Wounds Table roll is recorded, given that `§ S79` saw row names that
+  did not match the die.
+- Whether roll adjudication rejects a contradicting narration or only corrects
+  the stored outcome.
+- What happens to the existing prompt sections on the wounds chain and on
+  roll-under once code does the work.
+
 ---
 
 ## Claude Integration — Turn Loop & Correction
@@ -2787,6 +2973,14 @@ as the description the Warden narrates from.
 **The prototype's code is not on `main`.** It is commit `c30b2b0` on the
 `route-tool` branch, taken back off before merging because its place list is
 one ship's, written by hand.
+
+## Addendum — no M8 playtest; a closing playtest does its job
+
+Recorded 2026-10-16. "It is built before M8" counted on M8's multi-PC playtest
+to show that positions stay right over a whole session. `ADR-0122` moved that
+milestone to Phase 2. The session-length check now falls to the closing
+steered playtest in M12. That playtest has one character instead of several, so a
+party split across places is not tested before Phase 2.
 
 ---
 

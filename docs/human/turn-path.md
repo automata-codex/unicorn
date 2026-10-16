@@ -141,4 +141,4 @@ sequenceDiagram
 
 - The turn's reads happen outside any transaction; all of its writes happen in the one
   `applyTurnAtomic` transaction. How two concurrent turns on the same campaign interact is an
-  open question, a prerequisite for M8 — see [ADR-0119](../decisions/0119-open-concurrent-turns-on-one-campaign-can-lose-updates.md).
+  open question, a prerequisite for Phase 2 multiplayer — see [ADR-0119](../decisions/0119-open-concurrent-turns-on-one-campaign-can-lose-updates.md).

@@ -19,7 +19,7 @@ Each entry records what was decided, what the alternatives were, and why.
   `task docs:decisions:check` fails if either is stale.
 -->
 
-**This is the summary log.** 86 of 121 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
+**This is the summary log.** 88 of 123 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
 
 ---
 
@@ -93,6 +93,10 @@ Dice are stored as they fell and the 0-indexed table offset is applied at lookup
 ### [ADR-0119](decisions/0119-open-concurrent-turns-on-one-campaign-can-lose-updates.md) — OPEN — concurrent turns on one campaign can lose updates, and the turn path's locking is incidental rather than designed
 
 OPEN. A turn reads its state outside the transaction, then writes back whole `campaign_state.data` and `gm_context.blob` values computed from that read. So two concurrent turns on one campaign wait on a row lock, commit one after the other, and the second silently overwrites the first. The locks that exist were never designed to serialize turns. It is harmless with one player per adventure; the M8 turn-path lock audit has to settle it.
+
+### [ADR-0122](decisions/0122-phase-1-finishes-by-fixing-the-warden-and-multiplayer-moves.md) — Phase 1 finishes by fixing the Warden's known errors, and multiplayer moves to Phase 2
+
+Decided 2026-10-16. The three playtests surfaced 25 Warden error tags. Ten are fixed, and thirteen are open and fall into five causes (`eval-findings.md § S80`). Phase 1's target is a playable solo adventure, and those errors stand between the product and that target. Multiplayer does not. So the caller model and initiative (old M8) move to Phase 2, and old M8.1 is dropped. Phase 1 instead runs M7.9, then M7.10 for positions, then one milestone per remaining cause: M8 Damage Resolution, M9 Untracked NPCs, M10 Emit What You Narrate, and M11 Roll Adjudication. Release becomes M12.
 
 ---
 
@@ -251,6 +255,10 @@ The hand-enumerated entity merge that silently destroyed authored fields — `cr
 ### [ADR-0118](decisions/0118-the-schema-is-the-home-for-per-field-synthesis-guidance.md) — The schema is the home for per-field synthesis guidance, and `narrative.location` becomes `scenarioPremise`
 
 Per-field guidance for synthesis moves onto the field as a Zod `.describe`, and the prompt keeps only rules Zod cannot express — closing a gap where three fields the Warden reads every turn were described in neither place. `narrative.location` is renamed `scenarioPremise` and relabelled `scenario_premise:`, discharging part three of `ADR-0101`'s fix ordering. `gm_context.schema_version` goes to 2 with a read migration that, unlike `ADR-0101`'s, also covers the eval corpus — so no corpus bump and no backfill migration are owed. Ships on reasoning: nothing measures synthesis.
+
+### [ADR-0123](decisions/0123-phase-1-moves-fixed-rule-arithmetic-into-code.md) — Phase 1 moves arithmetic the rules fix exactly into code, starting with damage and roll results
+
+Decided 2026-10-16. The Phase 1 roadmap leaves mechanical adjudication to the Warden and saves a rule evaluator for Phase 3. Two kinds of error say that is the wrong split for arithmetic the rules fix exactly. Wound carryover is lost in 6 of 6 chains, because the prompt asks for numbers the validator then refuses (`eval-findings.md § S79`). Roll results are judged backwards, or the player's own rolls are made for them (`§ S80`). So Phase 1 gets two deterministic pieces of code, as it got a route tool (`ADR-0121`): damage applied by code (M8), and player rolls judged against their stated target (M11). The Warden still decides what happens. The code does the sums. This is not the Phase 3 rules engine.
 
 ---
 

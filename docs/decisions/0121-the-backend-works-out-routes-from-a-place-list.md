@@ -137,3 +137,11 @@ as the description the Warden narrates from.
 **The prototype's code is not on `main`.** It is commit `c30b2b0` on the
 `route-tool` branch, taken back off before merging because its place list is
 one ship's, written by hand.
+
+## Addendum — no M8 playtest; a closing playtest does its job
+
+Recorded 2026-10-16. "It is built before M8" counted on M8's multi-PC playtest
+to show that positions stay right over a whole session. `ADR-0122` moved that
+milestone to Phase 2. The session-length check now falls to the closing
+steered playtest in M12. That playtest has one character instead of several, so a
+party split across places is not tested before Phase 2.
