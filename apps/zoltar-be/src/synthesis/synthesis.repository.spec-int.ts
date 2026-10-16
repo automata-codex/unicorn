@@ -11,6 +11,7 @@ import { CanonRepository } from '../canon/canon.repository';
 import * as schema from '../db/schema';
 import { GM_CONTEXT_SCHEMA_VERSION } from '../session/gm-context.migration';
 
+import { baseSelections } from './synthesis.fixtures';
 import { SynthesisRepository } from './synthesis.repository';
 
 let repo: SynthesisRepository;
@@ -334,6 +335,45 @@ describe('SynthesisRepository (integration)', () => {
         .from(schema.adventureSynthesisSnapshots)
         .where(eq(schema.adventureSynthesisSnapshots.adventureId, adventureId));
       expect(snapshotRows).toHaveLength(0);
+    });
+  });
+
+  describe('writeSynthesisInputs', () => {
+    const inputs = {
+      drawnSelections: baseSelections,
+      finalSelections: baseSelections,
+      activeEntryIds: { survivor: ['survivor_1', 'survivor_2'] },
+      addendum: null,
+    };
+
+    it('stores the inputs on the adventure', async () => {
+      const db = getTestDb();
+      const { adventureId } = await seedFixture();
+
+      await repo.writeSynthesisInputs(adventureId, inputs);
+
+      const [row] = await db
+        .select({ synthesisInputs: schema.adventures.synthesisInputs })
+        .from(schema.adventures)
+        .where(eq(schema.adventures.id, adventureId));
+      expect(row.synthesisInputs).toEqual(inputs);
+    });
+
+    it('overwrites an earlier attempt', async () => {
+      const db = getTestDb();
+      const { adventureId } = await seedFixture();
+
+      await repo.writeSynthesisInputs(adventureId, inputs);
+      await repo.writeSynthesisInputs(adventureId, {
+        ...inputs,
+        addendum: 'Second try.',
+      });
+
+      const [row] = await db
+        .select({ synthesisInputs: schema.adventures.synthesisInputs })
+        .from(schema.adventures)
+        .where(eq(schema.adventures.id, adventureId));
+      expect(row.synthesisInputs).toMatchObject({ addendum: 'Second try.' });
     });
   });
 

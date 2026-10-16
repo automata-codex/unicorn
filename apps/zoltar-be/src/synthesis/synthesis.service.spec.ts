@@ -38,11 +38,14 @@ function textMessage(text: string): Anthropic.Message {
 
 interface MockRepoOverrides {
   writeGmContextAtomic?: ReturnType<typeof vi.fn>;
+  writeSynthesisInputs?: ReturnType<typeof vi.fn>;
   setAdventureFailed?: ReturnType<typeof vi.fn>;
 }
 
 function makeRepo(overrides: MockRepoOverrides = {}): SynthesisRepository {
   return {
+    writeSynthesisInputs:
+      overrides.writeSynthesisInputs ?? vi.fn().mockResolvedValue(undefined),
     writeGmContextAtomic:
       overrides.writeGmContextAtomic ?? vi.fn().mockResolvedValue(undefined),
     setAdventureFailed:
@@ -221,6 +224,86 @@ describe('SynthesisService.checkCoherence', () => {
         activePools: baseActivePools,
       }),
     ).rejects.toBeInstanceOf(SynthesisOutputError);
+  });
+});
+
+describe('SynthesisService.prepareSynthesis', () => {
+  const activeEntryIds = { survivor: ['survivor_1', 'survivor_2'] };
+
+  beforeEach(() => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('records the inputs, with drawn and final the same when nothing was rerolled', async () => {
+    const writeSynthesisInputs = vi.fn().mockResolvedValue(undefined);
+    const service = makeService(
+      vi
+        .fn()
+        .mockResolvedValue(toolUseMessage('report_coherence', proceedReport)),
+      makeRepo({ writeSynthesisInputs }),
+    );
+
+    await service.prepareSynthesis({
+      adventureId: 'a1',
+      selections: baseSelections,
+      activePools: baseActivePools,
+      activeEntryIds,
+      addendum: 'No androids.',
+    });
+
+    expect(writeSynthesisInputs).toHaveBeenCalledWith('a1', {
+      drawnSelections: baseSelections,
+      finalSelections: baseSelections,
+      activeEntryIds,
+      addendum: 'No androids.',
+    });
+  });
+
+  it('records the rerolled selections as final and keeps the draw', async () => {
+    const writeSynthesisInputs = vi.fn().mockResolvedValue(undefined);
+    const service = makeService(
+      vi
+        .fn()
+        .mockResolvedValue(toolUseMessage('report_coherence', rerollReport)),
+      makeRepo({ writeSynthesisInputs }),
+    );
+
+    const result = await service.prepareSynthesis({
+      adventureId: 'a1',
+      selections: baseSelections,
+      activePools: baseActivePools,
+      activeEntryIds,
+    });
+
+    const [, inputs] = writeSynthesisInputs.mock.calls[0];
+    expect(inputs.drawnSelections).toBe(baseSelections);
+    expect(inputs.finalSelections).toBe(result.selections);
+    expect(inputs.finalSelections.survivor.id).toBe('survivor_2');
+    expect(inputs.addendum).toBeNull();
+  });
+
+  it('records nothing when the coherence check surfaces a conflict', async () => {
+    const writeSynthesisInputs = vi.fn().mockResolvedValue(undefined);
+    const service = makeService(
+      vi
+        .fn()
+        .mockResolvedValue(toolUseMessage('report_coherence', surfaceReport)),
+      makeRepo({ writeSynthesisInputs }),
+    );
+
+    await expect(
+      service.prepareSynthesis({
+        adventureId: 'a1',
+        selections: baseSelections,
+        activePools: baseActivePools,
+        activeEntryIds,
+      }),
+    ).rejects.toBeInstanceOf(CoherenceConflictError);
+    expect(writeSynthesisInputs).not.toHaveBeenCalled();
   });
 });
 

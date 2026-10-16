@@ -6,6 +6,7 @@ import { DB_TOKEN } from '../db/db.provider';
 import * as schema from '../db/schema';
 import { GM_CONTEXT_SCHEMA_VERSION } from '../session/gm-context.migration';
 
+import type { MothershipOracleSelections } from '@uv/game-systems';
 import type { Db } from '../db/db.provider';
 
 export interface GridEntityRow {
@@ -28,6 +29,19 @@ export interface WriteGmContextArgs {
    */
   campaignStateData: Record<string, unknown>;
   gridEntities: GridEntityRow[];
+}
+
+/**
+ * What an adventure was synthesized from, as stored in
+ * `adventure.synthesis_inputs` (`ADR-0124`). `drawnSelections` is what the
+ * player sent; `finalSelections` is what reached Claude, and differs from it
+ * only when the coherence check rerolled a category.
+ */
+export interface SynthesisInputs {
+  drawnSelections: MothershipOracleSelections;
+  finalSelections: MothershipOracleSelections;
+  activeEntryIds: Record<string, string[]>;
+  addendum: string | null;
 }
 
 @Injectable()
@@ -118,6 +132,21 @@ export class SynthesisRepository {
 
       await this.canonRepo.autoPromoteCanon(args.adventureId, tx);
     });
+  }
+
+  /**
+   * Overwrites rather than refusing a second write: the player may retry after
+   * a coherence conflict, and the inputs that matter are the ones synthesis
+   * ran on.
+   */
+  async writeSynthesisInputs(
+    adventureId: string,
+    inputs: SynthesisInputs,
+  ): Promise<void> {
+    await this.db
+      .update(schema.adventures)
+      .set({ synthesisInputs: inputs })
+      .where(eq(schema.adventures.id, adventureId));
   }
 
   async setAdventureFailed(

@@ -161,9 +161,12 @@ export class SynthesisController {
     const activePools = resolveActivePools(selections, dto.activeEntryIds);
 
     try {
-      const coherenceResult = await this.synthesisService.checkCoherence({
+      const coherenceResult = await this.synthesisService.prepareSynthesis({
+        adventureId,
         selections,
         activePools,
+        activeEntryIds: dto.activeEntryIds,
+        addendum: dto.addendum,
       });
       const finalSelections = coherenceResult.selections;
 
