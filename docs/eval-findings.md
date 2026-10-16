@@ -4695,3 +4695,83 @@ reduced. Rep 04 rolled damage three ways, and its narration gives no number.
     forbids elsewhere.
 - **No re-run is owed until one of those changes.** The case runs as it is:
   with 3 of 10 reps `na`, 10 reps leaves about 6 to mark.
+
+### S80 — 2026-10-16 · Every Warden error the three playtests surfaced: ten are fixed, thirteen are open, and the open ones share five causes
+
+No run. This is a catalog drawn from the three playtests' annotation extracts
+(`unicorn-artifacts/zoltar/playtests/*-warden-failures.md`), checked against
+this file, `hidden-information-findings.md`, the ADRs and the code. Rates
+marked BL are from the last v1 baseline,
+`claude-sonnet-5__e83e8aaa__2026-08-28T13-00-14Z` (`§ S39`). Most of them rest
+on one or two fixtures. It was written to decide what Phase 1 does next: one
+milestone per open cause, in `roadmap.md` as M8–M11 (`ADR-0122`).
+
+Playtests: **A** is `18be155e` (2026-07-15), **B** is `5c34991b` (2026-08-17),
+**C** is `2c0ba938` (2026-08-24).
+
+#### Fixed
+
+| Tag | Seen in | Fix | Last reading |
+|---|---|---|---|
+| `UNAUDITABLE-MAPPING` | A ×5, B ×5 | `roll_dice.purpose` fixes bands or a threshold first (plan 021) | BL 1.00 (10/10), one fixture applicable |
+| `OUT-OF-ORDER-RESOLUTION` | A ×4 | Prompt; `gatedByRollId` (plan 014) | BL 1.00 (33/33) |
+| `HIDDEN-INFO-LEAK` | A ×3 | Visibility redesign (`ADR-0101`, spec 019) | 0.95 (19/20), `hidden-information-findings.md` |
+| `NARRATING-PAST-A-BLOCK` | A ×2, B ×1 | Prompt | BL 1.00 (20/20) |
+| `UNSURFACED-CHECK` | A ×1 | Prompt; Sonnet 5 (`ADR-0023`) | BL 1.00 (10/10), one fixture |
+| `OVER-RESOLUTION` | A ×1 | Sonnet 5 (`ADR-0023`) | BL 1.00 (9/9), one fixture |
+| `SCENE-JUMP` | A, fixture only | None needed. Earlier fails were the rubric | BL 1.00 (8/8) |
+| `STATUS-FIELD-OVERLOAD` | A ×5 | `status` is an enum at the tool boundary (spec 019) | Not measured |
+| `SNAPSHOT-GAP` | A ×2 | Stats in the snapshot (M7.6). A snapshot gap, not Warden behavior | Not measured |
+| Tool-syntax leak | B, ≥35 instances | Recovery in the turn path (spec 026) | 3 leaks in 80 live turns, all recovered (`§ S49`). Still emitted at about 4% |
+
+The thin denominators are the caveat. M7.9's steered playtest is where a
+regression in any of these would show.
+
+#### Open, by cause
+
+**1. No position held by the backend.** `SEEDED-CANON-CONTRADICTION` (C ×5),
+`SPATIAL-RELATION-ERROR` (C ×2), and `UNACKNOWLEDGED-RETCON` (C turn 9), which
+is the Warden silently correcting its own wrong deck. Question 1 reads 13/29
+on `e83e8aaa` and 27/29 with the route prototype (`§ S77`). Designed in
+`ADR-0121`, built in M7.10. The two fails the prototype left are distances
+stated with nobody moving.
+
+**2. The Warden does the wound arithmetic.** `CARRYOVER-ARITHMETIC` (B turn 51)
+is question 2. The Wound is right in 6 of 6 and the carryover is lost in 6 of
+6, because the validator rejects Health below zero (`§ S79`). Joined here by
+`CHARACTER-DEATH-OVERRIDE` (B turns 55, 56): the Warden rolled a death and
+would not apply it until the player gave permission. Nothing tracked it until
+now. Code that takes the hit and applies armor, carryover, the Wound, the reset
+and death settles both of `§ S79`'s open decisions. M8.
+
+**3. NPCs the backend does not track.** `NO-ENTITY-PROMOTION-PATH` (C ×5): an
+NPC that exists only in world facts cannot become an entity, so its rolls are
+refused or made against an invented Instinct. `ROLL-ATTRIBUTED-TO-WRONG-ENTITY`
+(C turn 50) is the same gap: a roll about Voss was attributed to Mara to pass
+`actingEntityId` validation. `ENTITY-FIELD-LOSS` (C turn 31) is a backend
+defect: `ADR-0103` decided the entity merge preserves schema fields, and
+`session.validator.ts`'s merge still builds a closed literal that drops
+`crewRole` and `instinctRoll`. Not measured. M9.
+
+**4. Changes narrated but not emitted.** `MISSING-DELTA` (B ×2, C ×2) BL 0.70
+(14/20). `MISSING-CANON-CAPTURE` (A, B, C, one each) BL 0.20 (3/15): the Warden
+prompt does not mention `proposedCanon` at all, and the schema field carries no
+description. `UNREVERSED-RETCON` (C turn 21) BL **0.00 (0/8)**, systematic.
+Each asserts a world change that `stateChanges` or `proposedCanon` does not
+carry. A retcon may need an operation the backend does not have. M10.
+
+**5. Roll outcomes the Warden decides.** `ROLL-RESULT-INVERSION` (B turn 10,
+C turn 20). BL 1.00 (10/10), on B's instance only. C's instance, a skill bonus
+ignored, was never captured. `SYSTEM-ROLLED-PLAYER-ACTION` (A ×2, B ×2): BL
+0.97 (76/78), both fails the panic-check residual. `§ S79`'s rep 10 rolled the
+player's Fear Save, Panic Check and Combat check itself. A `diceRequest`
+already carries its `target`, so the backend can adjudicate, and it can refuse
+a `roll_dice` made for the player character. M11.
+
+#### Not Warden errors
+
+`UNGROUNDED-CONTRACTOR-TARGET` was captured from C as a tripwire and passes
+(BL 1.00). `UNEXPLAINED-DELTA` has never been seen in play. The empty
+`FINDING:` headings in C's extract are `extract-annotations.sh` splitting
+`[FINDING: X]` on the space. They hold the `NO-ENTITY-PROMOTION-PATH` and
+`ENTITY-FIELD-LOSS` annotations above.

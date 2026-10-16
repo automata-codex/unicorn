@@ -69,7 +69,7 @@ The fourth is a settled question kept for readers of the older material.
   `campaignState` exists at authoring time, and adventure-scoped state is not yet
   separated from campaign state, so a capture taken after a second adventure begins
   bakes cross-adventure pollution into the corpus permanently. The enforcing guard
-  lands in M9; until then it is a convention.
+  lands in M12; until then it is a convention.
 - **Verify the capture at capture time, not after.** `gmContextBlob.playerEntityIds`
   populated, one entity id per character, one resource-pool prefix per entity. Checking
   this late is what voided the 2026-08-20 re-baseline — seven fixtures ran with
