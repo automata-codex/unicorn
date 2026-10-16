@@ -19,7 +19,7 @@ Each entry records what was decided, what the alternatives were, and why.
   `task docs:decisions:check` fails if either is stale.
 -->
 
-**This is the summary log.** 88 of 123 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
+**This is the summary log.** 89 of 124 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
 
 ---
 
@@ -347,6 +347,10 @@ Adventure-scoped state gets its own row rather than an adventure tag on campaign
 ### [ADR-0055](decisions/0055-adventure-telemetry-vs-session-export-are-distinct-artifacts.md) — `adventure_telemetry` vs session export are distinct artifacts
 
 Two artifacts that were originally both called `adventure_log`, kept apart deliberately: `adventure_telemetry` is per-turn diagnostic infrastructure and not player-facing, while the session export is the on-demand portable file supporting restore and post-session analysis.
+
+### [ADR-0124](decisions/0124-an-adventure-keeps-the-oracle-inputs-it-was-synthesized-from.md) — An adventure keeps the oracle inputs it was synthesized from, written before synthesis runs
+
+Decided 2026-10-16. A synthesis request's oracle draws, the filter they were drawn from, and the addendum were validated, used, and then stored nowhere. They now go in a nullable JSONB column, `adventure.synthesis_inputs`, with both the draws the player sent and the selections that reached Claude, which differ when the coherence check rerolls. They are written by `SynthesisService.prepareSynthesis` after the coherence check passes and before Claude is called, so an adventure whose synthesis fails keeps them too. A coherence conflict writes nothing.
 
 ---
 
