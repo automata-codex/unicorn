@@ -50,9 +50,15 @@ describe('submitGmContextSchema', () => {
     expect(result.structured.flags.adventure_complete.value).toBe(false);
   });
 
-  it('treats openingNarration as optional', () => {
+  it('requires openingNarration', () => {
     const { openingNarration: _omit, ...rest } = validInput;
-    expect(() => submitGmContextSchema.parse(rest)).not.toThrow();
+    expect(() => submitGmContextSchema.parse(rest)).toThrow();
+  });
+
+  it('rejects an empty openingNarration', () => {
+    expect(() =>
+      submitGmContextSchema.parse({ ...validInput, openingNarration: '' }),
+    ).toThrow();
   });
 
   it('defaults entity startingPosition.z to 0', () => {
