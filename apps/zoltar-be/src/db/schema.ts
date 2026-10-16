@@ -193,6 +193,8 @@ export const adventures = pgTable('adventure', {
   }),
   initiativeOrder: text('initiative_order').array(),
   rollingSummary: text('rolling_summary'),
+  /** What the adventure was synthesized from (`ADR-0124`). Null before V21. */
+  synthesisInputs: jsonb('synthesis_inputs'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
