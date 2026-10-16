@@ -4594,3 +4594,104 @@ and with the route tool.
 - No further run is owed for it. If turn 08 or any other case throws
   `SessionCorrectionError` on a later run, that rep's `correctionRejections`
   says what was rejected.
+
+### S79 — 2026-10-16 · The first wounds chains: the Wound is written right in all six, `damageType` in none, and the carryover is lost in every one
+
+Run `2026-10-12T16-52-42Z`, made by the maintainer: question 2, one case, 10
+reps, unicorn `787e875` with a clean tree, prompt `e83e8aaa`. Hand-marked under
+question 2's Rubric v1 (runs README), from the deltas in each rep's `events`.
+The marks were made by Claude and reviewed by the maintainer.
+
+The case is `18be155e-turn29-wounds-chain`, constructed from
+`turn28-hidden-info-leak`. `eval-v2/cases.ts` says what was changed and why:
+the session's next two messages added, Alvarez's Health set from 20 to 4. It
+asks whether spec 018 Part 4 works, which no captured case could, because
+nothing captured drives Health to zero. This entry lands with the case and
+with one change to `ev2:run`: each rep file now keeps the turn's `game_event`
+rows as `events`. The turn's result carries only the pool values a response
+produced, and the deltas themselves are what the rubric reads.
+
+#### The result
+
+0 pass, 6 fail, 3 na, 1 error.
+
+| Rep | Mark | Damage rolled | Damage sent | Reset sent | Health after | Right reset |
+|---|---|---|---|---|---|---|
+| 01 | na | — (miss) | | | 4 | |
+| 02 | fail | 8 | −4 | +20 | 20 | 16 |
+| 03 | na | — (miss) | | | 4 | |
+| 04 | fail | 10, then 9 + 9 | −4 | +4 | 4 | 14 or less |
+| 05 | na | — (miss) | | | 4 | |
+| 06 | fail | 8 | −4 | +20 | 20 | 16 |
+| 07 | fail | 9 | −4 | +20 | 20 | 15 |
+| 08 | error | | | | | |
+| 09 | fail | 10, then 3 | −4, after a correction | +20, then −3 | 17 | 11 |
+| 10 | fail | 7 | −4 | +20 | 20 | 17 |
+
+"Right reset" is 20 minus the damage beyond the 4 Health Alvarez had. Her
+armor is 3 AP with no Damage Reduction, so every hit here met it and none is
+reduced. Rep 04 rolled damage three ways, and its narration gives no number.
+
+#### What it shows
+
+- **The Wound itself is right in all six.** Every rep that reached zero sent
+  `{ pool: "wounds", delta: 1 }` with no `maxDelta`, and a Health reset in the
+  same response. That is the defect spec 018 Part 4 fixed, and it did not
+  appear.
+- **`damageType` is in none of them.** The string does not occur anywhere in
+  the run's files. `resourcePoolChangeSchema` makes it optional, and nothing
+  in `session.validator.ts` reads it. Only the prompt asks for it ("damageType
+  is REQUIRED whenever a change applies a Wound"), and in all six the prompt
+  lost.
+- **The carryover is lost in all six, and the validator is why.** It rejects
+  an `hp` delta that would go below zero ("Cannot spend more than
+  available"). Rep 09 shows this directly: its first response sent −10 from
+  4, was rejected, and the correction sent −4. The other five sent −4 from
+  the start. Once the damage is clamped to the Health that was left, the
+  delta records nothing past zero. The reset, a delta of +20 from zero, then
+  lands on full Health. The prompt's own example, "4 Health remaining, a hit
+  for 7, carryover 3", cannot be written as two deltas the validator accepts,
+  except by computing the reset as +17 against a damage delta that does not
+  say 7.
+- **Rep 08 threw on the same rule, twice.** It is the first rep in the archive
+  to record `correctionRejections` (`§ S78`). Its first round was rejected for
+  a second hit in the same exchange taking Health from 2 to −2. The
+  correction round was rejected for a reset of +20 from 2, which would be 22
+  of 20. Only the rejected entries are recorded, so how Health came to be 2
+  is not known.
+- **Rep 04 reset to 4,** its reason giving "Maximum (4)". It read the Health
+  Alvarez had as her maximum.
+
+#### Seen, not marked
+
+- **No `armor_damage` in reps 02, 06 and 10,** where hits of 7 and 8 met her 3
+  AP. Reps 04, 07 and 09 did send it.
+- **Rep 10 rolled the player's rolls:** Alvarez's Fear Save, Panic Check and
+  Combat check, each a `roll_dice` call with `actingEntityId: alvarez`. Rep 03
+  asked the player for the Combat check instead, and rep 09 asked for a Panic
+  Check.
+- **The Wounds Table rows cannot be checked from the archive.** Whether the
+  Warden looked the table up is in the telemetry row's `rulesLookups`, which
+  rep files do not keep. The row names it gave do not track the die: rep 02
+  rolled 5 and named row 07, and reps 04, 06 and 07 rolled 9, 8 and 9 and all
+  named a sucking chest wound.
+- **A Death Save on a timer at 1 of 3 Wounds** in reps 02, 04, 06, 07 and 10.
+  The prompt allows this when the Wounds Table row grants one. Whether those
+  rows do is the previous point.
+
+#### What this leaves
+
+- **The dice-result replay path was not needed.** A plain message reached the
+  chain in 6 of the 9 reps that finished. The card stays in To Do until a case
+  needs it.
+- **Two decisions are owed, and both are the maintainer's:**
+  - Whether `damageType` is enforced by the validator on the delta that takes
+    Health to zero in a wounds chain, or stays a prompt-only rule.
+  - How carryover is written: either the validator lets a wounds-chain damage
+    delta go below zero, or the prompt tells the Warden to clamp the damage
+    and work out the reset itself. The second keeps the validator as it is
+    but leaves the damage delta saying less than happened, which is what the
+    prompt's "the delta you send is the change that ACTUALLY OCCURRED" rule
+    forbids elsewhere.
+- **No re-run is owed until one of those changes.** The case runs as it is:
+  with 3 of 10 reps `na`, 10 reps leaves about 6 to mark.

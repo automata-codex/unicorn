@@ -201,6 +201,34 @@ export async function readToolSyntaxLeaks(
   return payload?.toolSyntaxLeaks ?? [];
 }
 
+export interface TurnEvent {
+  sequenceNumber: number;
+  eventType: string;
+  payload: unknown;
+}
+
+/**
+ * Every event the turn just played wrote, in order. The `gm_response` row
+ * holds the Warden's whole `submit_gm_response` — the deltas it asked for,
+ * with their reasons and damage types — where the turn's result carries only
+ * the pool values those deltas produced. Read before teardown, for the same
+ * reason as the leaks.
+ */
+export async function readTurnEvents(
+  db: Db,
+  adventureId: string,
+): Promise<TurnEvent[]> {
+  return db
+    .select({
+      sequenceNumber: schema.gameEvents.sequenceNumber,
+      eventType: schema.gameEvents.eventType,
+      payload: schema.gameEvents.payload,
+    })
+    .from(schema.gameEvents)
+    .where(eq(schema.gameEvents.adventureId, adventureId))
+    .orderBy(asc(schema.gameEvents.sequenceNumber));
+}
+
 /** Deletes the scratch campaign; cascades remove everything under it. */
 export async function teardownScratch(
   db: Db,

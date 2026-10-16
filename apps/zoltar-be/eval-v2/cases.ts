@@ -66,6 +66,23 @@ export const CASES = {
     '2c0ba938-turn24-position-seeded',
     '2c0ba938-turn29-position-seeded',
   ],
+  // When damage takes a character to zero Health, does the Warden record the
+  // Wound as `delta: +1` on `wounds` (never `maxDelta`), with a `damageType`
+  // on the damage delta and a Health reset in the same response?
+  q2: [
+    // Constructed from `turn28-hidden-info-leak` (session 18be155e, the only
+    // one with a firefight), to reach the turn after it. In the session that
+    // turn took Alvarez below zero Health, and the July Warden wrote hp -1
+    // and called for a Death Save. Two messages are added, both the
+    // session's own, copied from the 2026-07-16 database backup: the Warden's
+    // reply to the turn 28 question, and the player's turn 29 message, which
+    // is the input. One number is changed: Alvarez's Health, 20 to 4. The
+    // captured 20 disagrees with the session, whose turn 28 reply says "7 HP"
+    // and whose turn 29 state change (-1 after 5 damage) implies 4. Nothing
+    // else in the state is touched, so her armor is whole and her Wounds are
+    // 0 of 3. A rep where no hit takes her to zero asks nothing: mark it na.
+    '18be155e-turn29-wounds-chain',
+  ],
 } as const satisfies Record<string, readonly string[]>;
 
 export type QuestionId = keyof typeof CASES;

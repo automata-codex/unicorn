@@ -13,6 +13,7 @@ import { parseFixture } from './fixture';
 import {
   findPrereqs,
   readToolSyntaxLeaks,
+  readTurnEvents,
   seedScratch,
   teardownScratch,
 } from './replay';
@@ -189,5 +190,51 @@ describe('readToolSyntaxLeaks', () => {
     ]);
 
     expect(await readToolSyntaxLeaks(db, scratch.adventureId)).toEqual([leak]);
+  });
+});
+
+describe('readTurnEvents', () => {
+  it("returns the adventure's events in sequence order, and none when there are none", async () => {
+    const db = getTestDb();
+    await seedPrereqRows();
+    const prereqs = await findPrereqs(db);
+    const scratch = await seedScratch(db, fixture, prereqs, '__ev2__test');
+
+    expect(await readTurnEvents(db, scratch.adventureId)).toEqual([]);
+
+    const stateChanges = {
+      resourcePools: [{ pool: 'wounds', delta: 1, reason: 'gunshot' }],
+    };
+    await db.insert(schema.gameEvents).values([
+      {
+        campaignId: scratch.campaignId,
+        adventureId: scratch.adventureId,
+        sequenceNumber: 2,
+        eventType: 'gm_response',
+        actorType: 'gm',
+        payload: { stateChanges },
+      },
+      {
+        campaignId: scratch.campaignId,
+        adventureId: scratch.adventureId,
+        sequenceNumber: 1,
+        eventType: 'player_action',
+        actorType: 'player',
+        payload: { content: 'I charge.' },
+      },
+    ]);
+
+    expect(await readTurnEvents(db, scratch.adventureId)).toEqual([
+      {
+        sequenceNumber: 1,
+        eventType: 'player_action',
+        payload: { content: 'I charge.' },
+      },
+      {
+        sequenceNumber: 2,
+        eventType: 'gm_response',
+        payload: { stateChanges },
+      },
+    ]);
   });
 });
