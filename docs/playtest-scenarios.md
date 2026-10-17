@@ -47,10 +47,18 @@ milestone depends on it.
 
 ---
 
-# M7.9 steered-playtest capture targets
+# Steered-playtest capture targets
 
 Written 2026-08-21 for the second M7.7 playtest, which moved to M7.9 with the
 harness rebuild (`docs/roadmap.md § M7.7`). Re-read against ev2 on 2026-10-16.
+
+**Reference, not a checklist, until M8–M11 land.** M7.9's playtest was played
+unsteered from 2026-10-16. Each open target either already had its answer (the
+Wound chain, `eval-findings.md § S79`) or could not be reached: a Contractor
+loses its `crewRole` on the first update to it (M9), and the Warden prompt
+does not ask for canon (M10). Take a target if a session reaches it. Steering
+toward them is the job of M12's closing playtest, after the fixes that would
+let them come out differently.
 
 These began as **gaps in the old harness's corpus**: situations no fixture
 exercised, each closing a roadmap bullet or a tag. The old harness is being
