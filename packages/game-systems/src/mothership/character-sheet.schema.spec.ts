@@ -33,12 +33,14 @@ const validSheet = {
 };
 
 describe('MothershipClassEnum', () => {
-  it.each(['teamster', 'scientist', 'android', 'marine'])(
-    'accepts %s',
-    (klass) => {
-      expect(() => MothershipClassEnum.parse(klass)).not.toThrow();
-    },
-  );
+  it.each([
+    'teamster',
+    'scientist',
+    'android',
+    'marine',
+  ])('accepts %s', (klass) => {
+    expect(() => MothershipClassEnum.parse(klass)).not.toThrow();
+  });
 
   it('rejects an unknown class', () => {
     expect(() => MothershipClassEnum.parse('warden')).toThrow();
@@ -72,9 +74,7 @@ describe('MothershipCreationRollsSchema', () => {
 
   it('requires every roll made at creation', () => {
     const { credits: _c, ...missingCredits } = validRolls;
-    expect(() =>
-      MothershipCreationRollsSchema.parse(missingCredits),
-    ).toThrow();
+    expect(() => MothershipCreationRollsSchema.parse(missingCredits)).toThrow();
   });
 });
 
@@ -125,16 +125,76 @@ describe('MothershipCharacterSheetSchema', () => {
     // are not merely unused — a sheet still carrying them is a sheet written by
     // something that has not been updated, and the values would be a second,
     // divergent authority.
-    it.each(['level', 'stats', 'saves', 'maxHp', 'maxStress', 'skills'])(
-      'no longer produces %s',
-      (field) => {
-        const parsed = MothershipCharacterSheetSchema.parse({
-          ...validSheet,
-          [field]: 'anything',
-        });
-        expect(parsed).not.toHaveProperty(field);
+    it.each([
+      'level',
+      'stats',
+      'saves',
+      'maxHp',
+      'maxStress',
+      'skills',
+    ])('no longer produces %s', (field) => {
+      const parsed = MothershipCharacterSheetSchema.parse({
+        ...validSheet,
+        [field]: 'anything',
+      });
+      expect(parsed).not.toHaveProperty(field);
+    });
+  });
+
+  describe('startingLoadout', () => {
+    const loadout = {
+      skills: [{ skill: 'Military Training', tier: 'trained' }],
+      equipment: [{ item: 'Revolver', charges: 12 }],
+      wornArmor: {
+        item: 'Standard Battle Dress',
+        apBase: 7,
+        apCurrent: 7,
+        destroyed: false,
+        dr: 0,
+        o2Remaining: null,
+        features: [],
       },
-    );
+    };
+
+    it('is optional, for sheets created before it', () => {
+      const parsed = MothershipCharacterSheetSchema.parse(validSheet);
+      expect(parsed).not.toHaveProperty('startingLoadout');
+    });
+
+    it('accepts a full loadout', () => {
+      const parsed = MothershipCharacterSheetSchema.parse({
+        ...validSheet,
+        startingLoadout: loadout,
+      });
+      expect(parsed.startingLoadout).toEqual(loadout);
+    });
+
+    it('accepts an empty loadout with no armor', () => {
+      const parsed = MothershipCharacterSheetSchema.parse({
+        ...validSheet,
+        startingLoadout: { skills: [], equipment: [], wornArmor: null },
+      });
+      expect(parsed.startingLoadout?.wornArmor).toBeNull();
+    });
+
+    it('rejects a loadout missing a list', () => {
+      const result = MothershipCharacterSheetSchema.safeParse({
+        ...validSheet,
+        startingLoadout: { skills: [], wornArmor: null },
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects a skill with an unknown tier', () => {
+      const result = MothershipCharacterSheetSchema.safeParse({
+        ...validSheet,
+        startingLoadout: {
+          ...loadout,
+          skills: [{ skill: 'Zero-G', tier: 'legendary' }],
+        },
+      });
+      expect(result.success).toBe(false);
+    });
   });
 
   describe('creationChoices', () => {

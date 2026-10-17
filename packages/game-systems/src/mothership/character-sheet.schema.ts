@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+import {
+  MothershipEquipmentEntrySchema,
+  MothershipSkillEntrySchema,
+  MothershipWornArmorSchema,
+} from './character-state.schema';
+
 export const MothershipClassEnum = z.enum([
   'teamster',
   'scientist',
@@ -148,6 +154,29 @@ export type MothershipCreationChoices = z.infer<
 >;
 
 /**
+ * The skills, equipment and worn armor the character was created with, as the
+ * player chose them.
+ *
+ * **A record of creation, not the live copy.** M7.6 removed `skills` and
+ * `equipment` from the sheet because that copy went stale the moment play
+ * began. The live values are in `characterState` and play changes them; this
+ * is the starting point they changed from, in the way `creationRolls` is the
+ * starting point of the Stat pools. `CharacterService.create` writes it once,
+ * and nothing reads it during play (`ADR-0027`, 2026-10-17 addendum).
+ *
+ * Optional because sheets created before it have none.
+ */
+export const MothershipStartingLoadoutSchema = z.object({
+  skills: z.array(MothershipSkillEntrySchema),
+  equipment: z.array(MothershipEquipmentEntrySchema),
+  wornArmor: MothershipWornArmorSchema.nullable(),
+});
+
+export type MothershipStartingLoadout = z.infer<
+  typeof MothershipStartingLoadoutSchema
+>;
+
+/**
  * The character sheet holds **immutable creation data only** — everything whose
  * value cannot change during play. Anything that moves lives in
  * `campaign_state.data`: pools, conditions, skills, equipment, worn armor
@@ -157,6 +186,9 @@ export type MothershipCreationChoices = z.infer<
  * Removed in M7.6: `level`, `stats`, `saves`, `maxHp`, `maxStress`, `skills`,
  * `equipment`. Stats and Saves are pools now; `maxHp` and `maxStress` were
  * duplicates of pool ceilings; `level` has no referent in Mothership at all.
+ *
+ * `startingLoadout` is not `skills` and `equipment` coming back: it records
+ * what creation chose and is never updated. See its schema.
  */
 const MothershipCharacterSheetBaseSchema = z.object({
   entityId: z.string().min(1).max(100),
@@ -179,6 +211,7 @@ const MothershipCharacterSheetBaseSchema = z.object({
 
   creationRolls: MothershipCreationRollsSchema,
   creationChoices: MothershipCreationChoicesSchema.optional(),
+  startingLoadout: MothershipStartingLoadoutSchema.optional(),
 
   notes: z.string().max(2000).optional(),
 });

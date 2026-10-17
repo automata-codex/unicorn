@@ -86,6 +86,12 @@ tasks:
     cmds:
       - npx tsx --env-file=.env scripts/load-synthesis.ts {{.CLI_ARGS}}
 
+  playtest:clone-character:
+    desc: Clone a campaign's character into a new campaign with no adventure, ready for NEW ADVENTURE. The character arrives fresh (pools re-derived from the sheet). Database only — no Anthropic or Voyage calls, no cost. Usage — task playtest:clone-character -- <source-campaign-id> [--name "Addendum test 1"]
+    dir: apps/zoltar-be
+    cmds:
+      - npx tsx --env-file=.env scripts/clone-character.ts {{.CLI_ARGS}}
+
   leaks:corpus:
     desc: 'Run the tool-leak recovery function over every leaked submit_gm_response in the archive and print how many it recovers, then each refusal with its reason and file (spec 026). Reads .json files under $ZOLTAR_EVAL_ROOT only — no database, no Anthropic or Voyage calls, no cost, so it needs no approval. Run it after an ev2 run or a playtest review; a refused shape with no test case gets one. Usage — task leaks:corpus'
     dir: apps/zoltar-be

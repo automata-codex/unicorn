@@ -184,7 +184,7 @@ The placement rule across the three state destinations: does the value change in
 
 ### [ADR-0027](decisions/0027-character-sheet-stores-identity-and-build-not-live-mutable-s.md) — Character sheet stores identity and build, not live mutable state
 
-The sheet/pool split: identity, build and ceilings on the character sheet, anything that mutates in play in `resourcePools`. Read the addenda before relying on the body — they generalize the rule and find the entry wrong against the rules in several places, including the stress seed, floor and cap. Addendum 3 rejects end-of-adventure write-back.
+The sheet/pool split: identity, build and ceilings on the character sheet, anything that mutates in play in `resourcePools`. Read the addenda before relying on the body — they generalize the rule and find the entry wrong against the rules in several places, including the stress seed, floor and cap. Addendum 3 rejects end-of-adventure write-back. Addendum 4 admits `startingLoadout`, a record of the loadout as chosen at creation, and says why it isn't the live copy M7.6 removed.
 
 ### [ADR-0028](decisions/0028-pool-validator-applies-full-delta-before-threshold-detection.md) — Pool validator applies full delta before threshold detection
 

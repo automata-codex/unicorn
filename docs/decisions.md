@@ -1157,6 +1157,35 @@ of character state at each adventure's end has real value — character history,
 adds a row rather than overwriting an authority, so it composes with delta provenance
 instead of competing with it. Not Phase 1, and not this mechanism.
 
+**Addendum 4, 2026-10-17 — the sheet records the starting loadout, which is not the live
+copy coming back**
+
+M7.6 removed `skills` and `equipment` from the sheet, and the first addendum gives the
+reason: a copy of something play changes "drifted from the authoritative pool values the
+moment play began." The sheet now has a `startingLoadout` field holding skills, equipment
+and worn armor. That looks like the same mistake, and it isn't one.
+
+**What it is.** The loadout as the player chose it at creation. `CharacterService.create`
+writes it to the sheet and seeds `characterState` from the same values. After that the two
+are allowed to differ. `characterState` is the authority on what the character has now, and
+play changes it. `startingLoadout` is never updated, and nothing reads it during play.
+
+**Why it belongs on the sheet.** It meets the rule this entry's addenda settled on: the
+sheet keeps what creation determines and play never touches. It's the same kind of record
+as `creationRolls`, which holds the Stats as rolled while the pools hold their current
+values. The live copy M7.6 removed was a second authority on a value that changes. This one
+is the only record of a value that doesn't.
+
+**Why now.** `task playtest:clone-character` copies a character into a fresh campaign.
+Without this field, the only source for the loadout was the live `characterState`, so a
+revolver emptied in play arrived empty in the clone. More generally, anything that needs the
+character *as created*, such as a template or a reset, had no way to get it.
+
+**What this does not do.** Nothing writes play back into it. Addendum 3's rejection of
+end-of-adventure write-back still stands, and this field is not a step toward it. Sheets
+created before 2026-10-17 have no `startingLoadout`. The field is optional, and the clone
+tool falls back to the live `characterState` for them, with a warning.
+
 ### [ADR-0028](decisions/0028-pool-validator-applies-full-delta-before-threshold-detection.md) — Pool validator applies full delta before threshold detection
 
 When a resource pool delta would cross a threshold (death, panic, etc.), the full delta is applied first and threshold crossings are detected on the resulting value. The delta is never pre-capped. If a goblin with 7 HP takes 9 damage, the result is -2 HP — the death threshold is crossed and Claude is notified of both the final value and which thresholds fired. Pre-capping would silently discard mechanically meaningful information.

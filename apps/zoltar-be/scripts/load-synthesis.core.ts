@@ -9,7 +9,7 @@ import {
 import type { Db } from '../src/db/db.provider';
 
 /** `yyyymmdd-hhmmss`, used to disambiguate cloned campaign names. */
-function timestampLabel(now: Date = new Date()): string {
+export function timestampLabel(now: Date = new Date()): string {
   const pad = (n: number): string => String(n).padStart(2, '0');
   return (
     `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
