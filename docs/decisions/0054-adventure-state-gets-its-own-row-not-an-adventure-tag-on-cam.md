@@ -10,6 +10,8 @@ summary: >-
   state, with the two-schemas-two-write-paths cost stated. Not implemented in Phase 1.
   The addendum is the load-bearing part: ownership and scope are orthogonal, so the
   Phase 2 move spans all of `scenarioState` and part of `resourcePools`, by owner key.
+  The 2026-10-17 addendum puts the split in the repositories (merge on read, split on
+  write) and finds campaign scope today is only player-owned pools and `characterState`.
 ---
 
 Given the placement rule above, adventure-scoped state has to be separable from
@@ -87,3 +89,40 @@ fine in `resourcePools`, and `scenarioState` has no producer at synthesis
 (`submitGmContextSchema.structured` has four members and none is `scenarioState`), so it is
 `{}` in every fixture and every dump. It may be a bucket whose purpose was superseded
 before it was ever filled.
+
+**Addendum, 2026-10-17 — where the split can live, and what is campaign-scoped today**
+
+Recorded while sizing multiple adventures per campaign (`ADR-0053`, 2026-10-17 addendum).
+Nothing is built. This is the implementation shape that sizing found, written down so
+Phase 2 does not have to rediscover it.
+
+**The split can live in the repositories.** The turn path works on one merged state
+object in memory. `SessionService` loads it, `applyValidatedTurn` (`session.applier.ts`)
+produces the next one, and `SessionRepository.writeCampaignState` saves it. If the
+repositories merge the two rows on read and split them by owner on write, then the
+prompt, the snapshot builder's input, the validator, the applier and every eval case keep
+the shape they have today. The "snapshot builder that merges two sources" in the entry
+above becomes a repository read, not a change to the builder.
+
+Two consequences follow:
+
+- **Replay and fixture capture barely change,** as long as the synthesis snapshot stores
+  the merged view. `reconstruct-state.ts` starts from the snapshot and replays events on
+  top. A merged snapshot taken at the start of adventure 2 already contains whatever
+  campaign-scoped state adventure 1 left behind.
+- **The eval corpus is a check on the split.** Every case carries one `campaignState` in
+  `seededState`. If the split is right, ev2 results do not move at all.
+
+**Campaign scope today is two things.** Those are the player-owned pools and
+`characterState`. Everything else in `campaign_state.data` was written by synthesis:
+every entity (the player character is not in the entity map), every flag, including
+`adventure_complete`, every world fact and every `_scenario` pool. Campaign B of the
+2026-10-16 playtest is an example. Its six entities and seven flags all came from
+synthesis. So the split rule is currently trivial: player owner keys and `characterState`
+go to the campaign row, and everything else goes to the adventure row.
+
+**That stops being true when recurring NPCs exist.** An NPC that survives into a second
+adventure is campaign-scoped by `ADR-0026`. At that point the "`entities` needs
+per-entry classification" question above becomes real again. It arrives with campaign
+canon (`ADR-0052`), not before, because nothing carries an NPC across an adventure
+boundary until then.
