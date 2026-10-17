@@ -207,27 +207,73 @@ export class SynthesisService {
         )
       : {};
 
-    const message = await this.anthropic.callMessages({
+    const messages: Anthropic.MessageParam[] = [
+      {
+        role: 'user',
+        content: buildMothershipSynthesisPrompt(
+          args.characterSheet,
+          args.selections,
+          args.addendum,
+          playerPools,
+        ),
+      },
+    ];
+
+    const first = await this.callSynthesis(messages);
+    const toolUse = this.findToolUse(first, 'submit_gm_context');
+    const parsed = submitGmContextSchema.safeParse(toolUse.input);
+    if (parsed.success) return parsed.data;
+
+    // One retry, with the validation error handed back as the tool result —
+    // the same recovery the turn path gives a malformed submit_gm_response.
+    // The raw input is logged because nothing else keeps it: the 2026-10-16
+    // failures sent `narrative` as a string and no `structured`, and the
+    // error alone could not say what the string held.
+    this.logSynthesisRejection(first, toolUse, parsed.error.message);
+    const second = await this.callSynthesis([
+      ...messages,
+      { role: 'assistant', content: first.content },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: toolUse.id,
+            is_error: true,
+            content: `Invalid submit_gm_context input: ${parsed.error.message}. Call submit_gm_context again with a valid payload matching the tool schema. Every object field must be a JSON object, not a string.`,
+          },
+        ],
+      },
+    ]);
+    const retryToolUse = this.findToolUse(second, 'submit_gm_context');
+    const retried = submitGmContextSchema.safeParse(retryToolUse.input);
+    if (retried.success) return retried.data;
+
+    this.logSynthesisRejection(second, retryToolUse, retried.error.message);
+    throw new SynthesisOutputError(
+      `submit_gm_context input failed validation after one retry: ${retried.error.message}`,
+    );
+  }
+
+  private callSynthesis(
+    messages: Anthropic.MessageParam[],
+  ): Promise<Anthropic.Message> {
+    return this.anthropic.callMessages({
       system: MOTHERSHIP_SYNTHESIS_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: buildMothershipSynthesisPrompt(
-            args.characterSheet,
-            args.selections,
-            args.addendum,
-            playerPools,
-          ),
-        },
-      ],
+      messages,
       tools: SYNTHESIS_TOOLS,
       toolChoice: { type: 'any' },
     });
+  }
 
-    return this.parseToolResult(
-      message,
-      'submit_gm_context',
-      submitGmContextSchema,
+  private logSynthesisRejection(
+    message: Anthropic.Message,
+    toolUse: Anthropic.ToolUseBlock,
+    error: string,
+  ): void {
+    this.logger.warn(
+      `submit_gm_context failed validation (stop_reason=${message.stop_reason}): ${error}\n` +
+        `raw input: ${JSON.stringify(toolUse.input)}`,
     );
   }
 
@@ -323,11 +369,10 @@ export class SynthesisService {
     }
   }
 
-  private parseToolResult<T>(
+  private findToolUse(
     message: Anthropic.Message,
     expectedToolName: string,
-    schema: { parse: (input: unknown) => T },
-  ): T {
+  ): Anthropic.ToolUseBlock {
     const toolUse = message.content.find(
       (block): block is Anthropic.ToolUseBlock =>
         block.type === 'tool_use' && block.name === expectedToolName,
@@ -335,6 +380,15 @@ export class SynthesisService {
     if (!toolUse) {
       throw new SynthesisOutputError(`Claude did not call ${expectedToolName}`);
     }
+    return toolUse;
+  }
+
+  private parseToolResult<T>(
+    message: Anthropic.Message,
+    expectedToolName: string,
+    schema: { parse: (input: unknown) => T },
+  ): T {
+    const toolUse = this.findToolUse(message, expectedToolName);
     try {
       return schema.parse(toolUse.input);
     } catch (err) {

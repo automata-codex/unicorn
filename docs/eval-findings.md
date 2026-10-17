@@ -4775,3 +4775,44 @@ a `roll_dice` made for the player character. M11.
 `FINDING:` headings in C's extract are `extract-annotations.sh` splitting
 `[FINDING: X]` on the space. They hold the `NO-ENTITY-PROMOTION-PATH` and
 `ENTITY-FIELD-LOSS` annotations above.
+
+### S81 — 2026-10-16 · Synthesis erased the player's character state, so no captured case has ever held the player's skills, equipment or armor
+
+No run. Found while copying a character between two campaigns on 2026-10-16.
+
+**The defect.** Character creation writes the player's skills, equipment and
+worn armor to `campaign_state.data.characterState` (skills since `4aa100d`,
+2026-08-20). Synthesis runs after it, and `buildCampaignStateData`
+(`synthesis.write.ts`) wrote the new row as a literal that left
+`characterState` out. Nothing else writes it before play, so every synthesis
+erased it. It is the same shape as `ENTITY-FIELD-LOSS` (`§ S80`, cause 3): a
+closed literal drops a field nobody listed. Fixed on branch
+`synthesis-output-retry`, with a test that every top-level field of an existing
+row survives.
+
+**The evidence.**
+
+- Adventure `98653af0` (2026-10-16): the character was created with skills,
+  and after synthesis the campaign state has no `characterState` key.
+- Session C, `2c0ba938`: the character sheet is dated 2026-08-24, after
+  skills were collected, and the synthesis snapshot has no `characterState`.
+- Every captured fixture in `eval/fixtures/` (34) and every constructed case
+  in `eval-v2/constructed/` (11) has no `characterState` in its
+  `campaignState`.
+
+**What it changes.**
+
+- **No case has tested anything that reads the player's stored skills,
+  equipment or armor.** The Warden was never shown them, so any turn that
+  involved them is a test of what the Warden did without them.
+- **`ROLL-RESULT-INVERSION`'s C instance (`§ S80`, cause 5), "a skill bonus
+  ignored", needs re-reading.** The snapshot held no skills, so whether the
+  Warden ignored a bonus it was given, or one it had only narrated, is
+  open.
+- **`loss_of_confidence`** suppresses a stored skill. It has had nothing to
+  suppress in play.
+- **Worn armor lives in `characterState.wornArmor`, and M8's damage code
+  applies armor (`ADR-0123`).** A case for M8 has to carry `characterState`,
+  which no capture made before this fix does.
+- M7.9's steered playtest, if run after the fix, will be the first session
+  whose player character reaches play with this state.

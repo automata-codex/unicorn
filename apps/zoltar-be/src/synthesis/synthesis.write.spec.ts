@@ -1,3 +1,7 @@
+import {
+  emptyMothershipCharacterState,
+  emptyMothershipState,
+} from '@uv/game-systems';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -294,6 +298,39 @@ describe('buildCampaignStateData', () => {
     expect(result.scenarioState).toHaveProperty('oxygen');
     // Existing worldFacts are preserved; new ones from input are merged.
     expect(result.worldFacts).toHaveProperty('bridge_display');
+  });
+
+  /**
+   * Character creation writes the player's skills, equipment and worn armor
+   * here, and synthesis runs after it. Until 2026-10-16 the new row left
+   * `characterState` out, so every synthesis erased them.
+   */
+  it('carries the player character state through unchanged', () => {
+    const characterState = {
+      vasquez: {
+        ...emptyMothershipCharacterState(),
+        skills: [{ skill: 'Athletics', tier: 'trained' as const }],
+      },
+    };
+    const existing = { ...emptyMothershipState(), characterState };
+
+    const result = buildCampaignStateData(existing, makeInput(), 'vasquez')
+      .data as { characterState: unknown };
+
+    expect(result.characterState).toEqual(characterState);
+  });
+
+  /** The general form: a field the literal forgets is erased. */
+  it('keeps every top-level field of an existing row', () => {
+    const result = buildCampaignStateData(
+      emptyMothershipState(),
+      makeInput(),
+      'vasquez',
+    ).data;
+
+    expect(Object.keys(result).sort()).toEqual(
+      Object.keys(emptyMothershipState()).sort(),
+    );
   });
 
   it('merges worldFacts from tool input onto existing worldFacts', () => {

@@ -149,9 +149,12 @@ const flagSchema = z.object({
 });
 
 export const submitGmContextSchema = z.object({
+  // Required: until 2026-08-31 the prompt asked for it, and when that moved
+  // onto this description an optional field let Claude leave it out — the
+  // first synthesis after did, and the player got no opening.
   openingNarration: z
     .string()
-    .optional()
+    .min(1)
     .describe(
       'The ambient scene at the moment the player character enters the ' +
         'adventure, before any player agency. Establish the immediate ' +

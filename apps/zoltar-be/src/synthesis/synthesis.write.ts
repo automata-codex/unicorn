@@ -228,6 +228,12 @@ export function buildCampaignStateData(
     (base as { scenarioState?: Record<string, unknown> }).scenarioState ?? {};
   const existingWorldFacts =
     (base as { worldFacts?: Record<string, string> }).worldFacts ?? {};
+  // Written at character creation — skills, equipment, worn armor — and
+  // nowhere else before play. Synthesis has nothing to add to it, but this
+  // literal is the whole new row, so a field left out of it is erased: until
+  // 2026-10-16 this one was, and no player character's skills reached play.
+  const existingCharacterState =
+    (base as { characterState?: Record<string, unknown> }).characterState ?? {};
 
   const pools = buildResourcePools(
     existingPools,
@@ -241,6 +247,7 @@ export function buildCampaignStateData(
   const nextData = {
     schemaVersion: 1 as const,
     resourcePools: pools.pools,
+    characterState: existingCharacterState,
     entities: {
       ...existingEntities,
       ...buildEntityMap(input.structured.entities),

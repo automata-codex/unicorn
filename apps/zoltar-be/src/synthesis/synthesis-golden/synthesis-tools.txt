@@ -7,6 +7,7 @@
       "properties": {
         "openingNarration": {
           "type": "string",
+          "minLength": 1,
           "description": "The ambient scene at the moment the player character enters the adventure, before any player agency. Establish the immediate physical situation, convey the atmosphere, and include one concrete detail the player did not put there — something that signals the world has already been in motion without them. This is the first thing the player reads and the only field here they ever see verbatim; everything else is written for the Warden."
         },
         "narrative": {
@@ -186,6 +187,7 @@
         }
       },
       "required": [
+        "openingNarration",
         "narrative",
         "structured"
       ],
