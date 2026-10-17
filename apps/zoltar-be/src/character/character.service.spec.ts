@@ -158,6 +158,34 @@ describe('CharacterService', () => {
       );
     });
 
+    it('records the starting loadout on the sheet, matching the seeded state', async () => {
+      repo.existsForCampaign.mockResolvedValue(false);
+      repo.insert.mockResolvedValue(fakeCharacter);
+      const startingSkills = [{ skill: 'Zero-G', tier: 'trained' as const }];
+      const startingEquipment = [{ item: 'Revolver', charges: 12 }];
+
+      await service.create('c1', 'u1', fakeData, {
+        startingSkills,
+        startingEquipment,
+      });
+
+      const loadout = {
+        skills: startingSkills,
+        equipment: startingEquipment,
+        wornArmor: null,
+      };
+      expect(repo.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { ...fakeData, startingLoadout: loadout },
+        }),
+      );
+      expect(campaignRepo.seedCharacterState).toHaveBeenCalledWith(
+        'c1',
+        fakeData.entityId,
+        expect.objectContaining(loadout),
+      );
+    });
+
     it('checks membership, creates a character, and seeds player resource pools', async () => {
       repo.existsForCampaign.mockResolvedValue(false);
       repo.insert.mockResolvedValue(fakeCharacter);
@@ -169,7 +197,10 @@ describe('CharacterService', () => {
       expect(repo.insert).toHaveBeenCalledWith({
         campaignId: 'c1',
         userId: 'u1',
-        data: fakeData,
+        data: {
+          ...fakeData,
+          startingLoadout: { skills: [], equipment: [], wornArmor: null },
+        },
       });
       // Every roll in `fakeData` is [3, 4]; maxHp is [6]. Stats are +25, Saves
       // +10, and the Marine adds +10 Combat, +10 Body, +20 Fear.

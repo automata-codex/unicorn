@@ -68,11 +68,12 @@ function creationInputs(state: MothershipCharacterState): CreationInputs {
  * as a real character's. The character arrives **fresh**: pools are derived
  * from the sheet, so damage, Stress and Wounds from play do not carry over.
  *
- * Skills, equipment and worn armor are not on the sheet. Creation took them as
- * input and the only copy left is the source's live `characterState`, which
- * play can change. When they differ from the earliest synthesis snapshot (the
- * copy closest to creation), the clone still uses the live ones and a warning
- * says so.
+ * Skills, equipment and worn armor come from the sheet's `startingLoadout`,
+ * the record of what creation chose. Sheets created before 2026-10-17 have
+ * none, and for those the only copy is the source's live `characterState`,
+ * which play can change. When that differs from the earliest synthesis
+ * snapshot (the copy closest to creation), the clone still uses the live one
+ * and a warning says so.
  *
  * The two service calls are not one transaction. If the character write
  * fails, the campaign already exists, and the error names it for deletion.
@@ -122,41 +123,15 @@ export async function cloneCharacter(
   }
   const sheet = parsedSheet.data;
 
-  const sourceState = await campaignRepo.getStateData(sourceCampaignId);
-  const rawCharacterState = (
-    sourceState?.characterState as Record<string, unknown> | undefined
-  )?.[sheet.entityId];
-  let inputs: CreationInputs = { skills: [], equipment: [], wornArmor: null };
-  if (rawCharacterState === undefined) {
-    // Campaigns synthesized before 2026-10-16 lost this key (`§ S81`).
-    warnings.push(
-      `the source has no characterState for ${sheet.entityId}, so the clone starts with no skills, equipment or armor.`,
-    );
-  } else {
-    const parsedState =
-      MothershipCharacterStateSchema.safeParse(rawCharacterState);
-    if (!parsedState.success) {
-      throw new CloneCharacterError(
-        `campaign ${sourceCampaignId}'s characterState for ${sheet.entityId} failed validation: ${parsedState.error.issues[0]?.message ?? parsedState.error.message}`,
-        1,
-      );
-    }
-    inputs = creationInputs(parsedState.data);
-  }
-
-  const earliest = await earliestSnapshotInputs(
-    db,
-    sourceCampaignId,
-    sheet.entityId,
-  );
-  if (
-    earliest !== null &&
-    JSON.stringify(earliest) !== JSON.stringify(inputs)
-  ) {
-    warnings.push(
-      'skills, equipment or worn armor have changed in play since the first synthesis. The clone uses the current ones.',
-    );
-  }
+  const inputs: CreationInputs =
+    sheet.startingLoadout ??
+    (await liveInputs(
+      db,
+      campaignRepo,
+      sourceCampaignId,
+      sheet.entityId,
+      warnings,
+    ));
 
   // --- Create the clone through the app's own creation path ----------------
 
@@ -196,6 +171,53 @@ export async function cloneCharacter(
     campaignUrl: `/campaigns/${campaign.id}`,
     warnings,
   };
+}
+
+/**
+ * The creation inputs for a sheet with no `startingLoadout`, read from the
+ * live `characterState`. Pushes a warning when play has changed them since
+ * the earliest synthesis snapshot, or when there is no `characterState` at all.
+ */
+async function liveInputs(
+  db: Db,
+  campaignRepo: CampaignRepository,
+  campaignId: string,
+  entityId: string,
+  warnings: string[],
+): Promise<CreationInputs> {
+  const sourceState = await campaignRepo.getStateData(campaignId);
+  const rawCharacterState = (
+    sourceState?.characterState as Record<string, unknown> | undefined
+  )?.[entityId];
+  let inputs: CreationInputs = { skills: [], equipment: [], wornArmor: null };
+  if (rawCharacterState === undefined) {
+    // Campaigns synthesized before 2026-10-16 lost this key (`§ S81`).
+    warnings.push(
+      `the source has no characterState for ${entityId}, so the clone starts with no skills, equipment or armor.`,
+    );
+  } else {
+    const parsedState =
+      MothershipCharacterStateSchema.safeParse(rawCharacterState);
+    if (!parsedState.success) {
+      throw new CloneCharacterError(
+        `campaign ${campaignId}'s characterState for ${entityId} failed validation: ${parsedState.error.issues[0]?.message ?? parsedState.error.message}`,
+        1,
+      );
+    }
+    inputs = creationInputs(parsedState.data);
+  }
+
+  const earliest = await earliestSnapshotInputs(db, campaignId, entityId);
+  if (
+    earliest !== null &&
+    JSON.stringify(earliest) !== JSON.stringify(inputs)
+  ) {
+    warnings.push(
+      'skills, equipment or worn armor have changed in play since the first synthesis. The clone uses the current ones.',
+    );
+  }
+
+  return inputs;
 }
 
 /**

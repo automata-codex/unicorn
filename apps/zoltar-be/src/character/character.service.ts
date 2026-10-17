@@ -49,15 +49,24 @@ export class CharacterService {
       );
     }
 
-    const character = await this.repo.insert({ campaignId, userId, data });
+    // Written to both: the sheet keeps it as chosen, and `characterState` is
+    // the copy play changes (`ADR-0027`, 2026-10-17 addendum).
+    const startingLoadout = {
+      skills: options.startingSkills ?? [],
+      equipment: options.startingEquipment ?? [],
+      wornArmor: options.wornArmor ?? null,
+    };
+    const character = await this.repo.insert({
+      campaignId,
+      userId,
+      data: { ...data, startingLoadout },
+    });
 
     const playerPools = deriveMothershipCharacterResourcePools(data);
     await this.campaignRepo.mergePlayerResourcePools(campaignId, playerPools);
     await this.campaignRepo.seedCharacterState(campaignId, data.entityId, {
       ...emptyMothershipCharacterState(),
-      skills: options.startingSkills ?? [],
-      equipment: options.startingEquipment ?? [],
-      wornArmor: options.wornArmor ?? null,
+      ...startingLoadout,
     });
 
     return character;

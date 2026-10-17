@@ -2,6 +2,7 @@ import {
   deriveMothershipCharacterResourcePools,
   emptyMothershipCharacterState,
   type MothershipCampaignState,
+  type MothershipCharacterSheet,
 } from '@uv/game-systems';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -101,6 +102,21 @@ async function snapshotCreationState(campaignId: string): Promise<void> {
   });
 }
 
+/** Makes the source's sheet look like one created before `startingLoadout`. */
+async function dropStartingLoadout(campaignId: string): Promise<void> {
+  const db = getTestDb();
+  const [row] = await db
+    .select()
+    .from(schema.characterSheets)
+    .where(eq(schema.characterSheets.campaignId, campaignId));
+  const { startingLoadout: _dropped, ...legacy } =
+    row.data as MothershipCharacterSheet;
+  await db
+    .update(schema.characterSheets)
+    .set({ data: legacy })
+    .where(eq(schema.characterSheets.campaignId, campaignId));
+}
+
 describe('cloneCharacter', () => {
   beforeAll(() => setupTestDb());
   afterAll(() => teardownTestDb());
@@ -133,7 +149,14 @@ describe('cloneCharacter', () => {
       .select()
       .from(schema.characterSheets)
       .where(eq(schema.characterSheets.campaignId, result.campaignId));
-    expect(sheet.data).toEqual(vasquezSheet);
+    expect(sheet.data).toEqual({
+      ...vasquezSheet,
+      startingLoadout: {
+        skills: STARTING.startingSkills,
+        equipment: STARTING.startingEquipment,
+        wornArmor: STARTING.wornArmor,
+      },
+    });
 
     const state = await new CampaignRepository(db).getStateData(
       result.campaignId,
@@ -174,9 +197,27 @@ describe('cloneCharacter', () => {
     expect(result.campaignName).toMatch(/^Source \(clone \d{8}-\d{6}\)$/);
   });
 
-  it('copies equipment as play left it, and warns when it differs from the first synthesis', async () => {
+  it('takes the loadout from the sheet, not from what play left', async () => {
     const db = getTestDb();
     const sourceId = await createSource();
+    await snapshotCreationState(sourceId);
+    await play(sourceId);
+
+    const result = await cloneCharacter(db, { sourceCampaignId: sourceId });
+
+    expect(result.warnings).toEqual([]);
+    const state = (await new CampaignRepository(db).getStateData(
+      result.campaignId,
+    )) as MothershipCampaignState;
+    expect(state.characterState.vasquez.equipment).toEqual(
+      STARTING.startingEquipment,
+    );
+  });
+
+  it('without a sheet loadout, copies equipment as play left it and warns', async () => {
+    const db = getTestDb();
+    const sourceId = await createSource();
+    await dropStartingLoadout(sourceId);
     await snapshotCreationState(sourceId);
     await play(sourceId);
 
@@ -192,9 +233,10 @@ describe('cloneCharacter', () => {
     ]);
   });
 
-  it('does not warn when the first synthesis matches', async () => {
+  it('without a sheet loadout, does not warn when the first synthesis matches', async () => {
     const db = getTestDb();
     const sourceId = await createSource();
+    await dropStartingLoadout(sourceId);
     await snapshotCreationState(sourceId);
 
     const result = await cloneCharacter(db, { sourceCampaignId: sourceId });
@@ -202,9 +244,10 @@ describe('cloneCharacter', () => {
     expect(result.warnings).toEqual([]);
   });
 
-  it('warns and starts empty when the source lost its characterState', async () => {
+  it('without a sheet loadout, warns and starts empty when the source lost its characterState', async () => {
     const db = getTestDb();
     const sourceId = await createSource();
+    await dropStartingLoadout(sourceId);
     const repo = new CampaignRepository(db);
     const data = (await repo.getStateData(sourceId)) as MothershipCampaignState;
     const { characterState: _dropped, ...withoutCharacterState } = data;

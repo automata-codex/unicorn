@@ -10,7 +10,8 @@ summary: >-
   that mutates in play in `resourcePools`. Read the addenda before relying on the body
   — they generalize the rule and find the entry wrong against the rules in several
   places, including the stress seed, floor and cap. Addendum 3 rejects
-  end-of-adventure write-back.
+  end-of-adventure write-back. Addendum 4 admits `startingLoadout`, a record of the
+  loadout as chosen at creation, and says why it isn't the live copy M7.6 removed.
 ---
 
 `character_sheet.data` carries the character's identity (name, class, entityId), build (stats, saves, skills, equipment), and ceilings (`maxHp`, `maxStress`). It does not carry current HP or current stress — those are mutable values that change during play and live exclusively in `campaign_state.data.resourcePools` as `{entityId}_hp` and `{entityId}_stress`. At character creation time, `deriveMothershipCharacterResourcePools` seeds the pools at full HP and zero stress from the ceilings. An earlier design kept `currentHp` and `stress: { current, max }` on the sheet, but these drifted from the authoritative pool values the moment play began and served no purpose after creation.
@@ -122,3 +123,32 @@ of character state at each adventure's end has real value — character history,
 "how did I lose 15 Strength" question that motivated the `reason` field on pool deltas. That
 adds a row rather than overwriting an authority, so it composes with delta provenance
 instead of competing with it. Not Phase 1, and not this mechanism.
+
+**Addendum 4, 2026-10-17 — the sheet records the starting loadout, which is not the live
+copy coming back**
+
+M7.6 removed `skills` and `equipment` from the sheet, and the first addendum gives the
+reason: a copy of something play changes "drifted from the authoritative pool values the
+moment play began." The sheet now has a `startingLoadout` field holding skills, equipment
+and worn armor. That looks like the same mistake, and it isn't one.
+
+**What it is.** The loadout as the player chose it at creation. `CharacterService.create`
+writes it to the sheet and seeds `characterState` from the same values. After that the two
+are allowed to differ. `characterState` is the authority on what the character has now, and
+play changes it. `startingLoadout` is never updated, and nothing reads it during play.
+
+**Why it belongs on the sheet.** It meets the rule this entry's addenda settled on: the
+sheet keeps what creation determines and play never touches. It's the same kind of record
+as `creationRolls`, which holds the Stats as rolled while the pools hold their current
+values. The live copy M7.6 removed was a second authority on a value that changes. This one
+is the only record of a value that doesn't.
+
+**Why now.** `task playtest:clone-character` copies a character into a fresh campaign.
+Without this field, the only source for the loadout was the live `characterState`, so a
+revolver emptied in play arrived empty in the clone. More generally, anything that needs the
+character *as created*, such as a template or a reset, had no way to get it.
+
+**What this does not do.** Nothing writes play back into it. Addendum 3's rejection of
+end-of-adventure write-back still stands, and this field is not a step toward it. Sheets
+created before 2026-10-17 have no `startingLoadout`. The field is optional, and the clone
+tool falls back to the live `characterState` for them, with a warning.
