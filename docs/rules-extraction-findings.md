@@ -5089,3 +5089,64 @@ fixture-authoring bullet records — but it is not what holds this tag at 0.00.
   regardless, but widening it before the instruction exists buys more fixtures
   measuring a Warden that was never told.
 
+
+### S82 — 2026-10-16 · The Wounds Table and the Panic Table extract unreadably, and the Warden exhausts the tool loop rephrasing queries for them
+
+No run. Found in M7.9's playtest (adventure `bed67156`), when two turns in a row
+hit the 20-iteration tool-loop cap. The `§` numbering is shared with
+`eval-findings.md`, and `§ S81` is there.
+
+#### What was seen
+
+Both exhausted turns were a Wound chain with fire. The first made 17
+`rules_lookup` calls, 14 of them in a row at the end. The second made 12, five
+of them for one Panic Table row. The queries are in the backend log only, since
+an exhausted turn writes no telemetry row. A sample, in order:
+
+- "row 01 minor injury fire explosives singed disadvantage next action"
+- "row 02 Fire Explosives Singed on next action"
+- "wounds table rows 01 02 03 minor injury column header alignment"
+- "Wound table row 01 Flesh Wound Fire Explosives Awesome scar Minimum Stress"
+- "LOSS OF CONFIDENCE condition choose a skill no longer gain bonus", and
+  four rephrasings of it
+
+**Retrieval found the right pages.** Each of the last finished turn's five
+lookups had the page it asked about in its top three: p.29 for the Wound
+chain, p.21 for the Panic Check. What the Warden got back could not answer
+the question.
+
+#### The two chunks
+
+**Wounds Table, printed p.29** (`WOUNDS & DEATH`). Rows 01, 05 and 09 have no
+label. Cells spill into the neighbouring row and column: "Singed. [-] on next
+action" is split across two lines, "Limb on fire. 2d10 Damage per round"
+straddles rows 06 and 07, and the last column's header has run into its first
+cell ("GORE & MASSIVE Vomit."). No reading of the chunk says which cell a roll
+of 2 lands on, which is the question the "column header alignment" query asks.
+This is likely why `§ S79` found that "the row names it gave do not track the
+die".
+
+**Panic Table, printed p.21** (`PANIC CHECKS`). Each effect keeps its first
+line and loses the rest. Row 08 reads "LOSS OF CONFIDENCE. | Gain a new
+Condition: Choose" and stops. Row 01's "[+] on all rolls for the next 2d10"
+has no unit. This was the first session in which the player character had
+skills in state (`§ S81`), and so the first in which Loss of Confidence had a
+skill to suppress.
+
+#### Why it was not caught
+
+`§ S27`'s fixups repaired four tables, all on physical pages 1, 9 and 10. The
+defect class is the same, but nothing looked at p.21 or p.29: the retrieval
+fixtures check which page comes back, not whether the table on it reads.
+
+#### What it changes
+
+- **A table that does not read costs the tool loop, not just one answer.** The
+  Warden does not give up on a table it cannot parse; it rephrases until the
+  cap.
+- **M8 takes the Wound arithmetic into code (`ADR-0123`), not the table.** The
+  Warden still picks the Wounds Table row, so this needs fixing before or
+  with M8, not by it.
+- **The fix is two fixups and two hand-authored templates**, as in `§ S27.5`.
+  Re-ingesting changes the index every run since 2026-08-26 has used (60
+  chunks, `ADR-0111`), and it costs Voyage calls.
