@@ -3066,6 +3066,52 @@ work rather than one that does.
 which must not be combined with a mechanical-coverage playtest, per the standing rule in
 `docs/roadmap.md`.
 
+**Addendum, 2026-10-17 — lifting the constraint for `v0.1.0` was reconsidered and
+declined, for reasons the entry above does not give**
+
+The question came from tooling, not product. Character creation is tedious, and testing
+a synthesis addendum or capturing a short steered playtest costs a new campaign and a new
+character every time. Shipping multiple adventures per campaign would remove that cost, so
+it was sized properly before being turned down.
+
+**Why it stays in Phase 2.** Two problems are new since the addendum above, and either
+one alone would be enough:
+
+- **Nothing happens between adventures.** Mothership expects downtime between jobs: shore
+  leave, paid medical treatment, stress relief. Without it, damage, Stress and Wounds
+  carry into the next adventure with no way back down, so a second adventure starts from
+  a state the rules would normally have repaired.
+- **Character death has no answer.** Death is common in Mothership, and a campaign may
+  hold only one character sheet (`character.service.ts`, the "already has a character
+  sheet" conflict). Multiple adventures would force a choice: death ends the campaign, a
+  replacement character joins the same campaign (the sheet becomes per-character and the
+  player entity id changes), or a "new campaign with this character" path. That choice is
+  product design, not plumbing.
+
+**What lifting it would have cost**, so the next person to reconsider starts from a
+number rather than from zero. The smallest version that works is independent adventures,
+where the character carries over and the story does not:
+
+- the adventure state row from `ADR-0054`, built as that entry's 2026-10-17 addendum
+  describes
+- adventure completion: something reads `adventure_complete` and moves the adventure to
+  `completed`, plus an end-of-adventure screen
+- one *active* adventure per campaign enforced in the backend, replacing the
+  any-status rule above
+- a dedicated boundary playtest: finish one adventure, start the next with the same
+  character
+
+That came to about one small milestone, with one *detailed*-tier PR at its centre: the
+repository split. Campaign canon (`ADR-0052`), recurring NPCs and the rolling summary
+(`ADR-0048`) would come on top of it, at one to two milestones more.
+
+**A possible narrowing of the reversal condition, recorded and not decided.** The
+condition above requires `campaign_canon` to feed synthesis. That requirement is about
+continuity. Adventures that are independent by design, where adventure 2 is not meant to
+know adventure 1's story, need only the state row. If the constraint is ever lifted ahead
+of campaign canon, this is the argument for it. It does not touch the downtime and death
+problems, which stand either way.
+
 ### [ADR-0054](decisions/0054-adventure-state-gets-its-own-row-not-an-adventure-tag-on-cam.md) — Adventure state gets its own row, not an adventure tag on campaign state
 
 Given the placement rule above, adventure-scoped state has to be separable from
@@ -3143,6 +3189,43 @@ fine in `resourcePools`, and `scenarioState` has no producer at synthesis
 (`submitGmContextSchema.structured` has four members and none is `scenarioState`), so it is
 `{}` in every fixture and every dump. It may be a bucket whose purpose was superseded
 before it was ever filled.
+
+**Addendum, 2026-10-17 — where the split can live, and what is campaign-scoped today**
+
+Recorded while sizing multiple adventures per campaign (`ADR-0053`, 2026-10-17 addendum).
+Nothing is built. This is the implementation shape that sizing found, written down so
+Phase 2 does not have to rediscover it.
+
+**The split can live in the repositories.** The turn path works on one merged state
+object in memory. `SessionService` loads it, `applyValidatedTurn` (`session.applier.ts`)
+produces the next one, and `SessionRepository.writeCampaignState` saves it. If the
+repositories merge the two rows on read and split them by owner on write, then the
+prompt, the snapshot builder's input, the validator, the applier and every eval case keep
+the shape they have today. The "snapshot builder that merges two sources" in the entry
+above becomes a repository read, not a change to the builder.
+
+Two consequences follow:
+
+- **Replay and fixture capture barely change,** as long as the synthesis snapshot stores
+  the merged view. `reconstruct-state.ts` starts from the snapshot and replays events on
+  top. A merged snapshot taken at the start of adventure 2 already contains whatever
+  campaign-scoped state adventure 1 left behind.
+- **The eval corpus is a check on the split.** Every case carries one `campaignState` in
+  `seededState`. If the split is right, ev2 results do not move at all.
+
+**Campaign scope today is two things.** Those are the player-owned pools and
+`characterState`. Everything else in `campaign_state.data` was written by synthesis:
+every entity (the player character is not in the entity map), every flag, including
+`adventure_complete`, every world fact and every `_scenario` pool. Campaign B of the
+2026-10-16 playtest is an example. Its six entities and seven flags all came from
+synthesis. So the split rule is currently trivial: player owner keys and `characterState`
+go to the campaign row, and everything else goes to the adventure row.
+
+**That stops being true when recurring NPCs exist.** An NPC that survives into a second
+adventure is campaign-scoped by `ADR-0026`. At that point the "`entities` needs
+per-entry classification" question above becomes real again. It arrives with campaign
+canon (`ADR-0052`), not before, because nothing carries an NPC across an adventure
+boundary until then.
 
 ### [ADR-0055](decisions/0055-adventure-telemetry-vs-session-export-are-distinct-artifacts.md) — `adventure_telemetry` vs session export are distinct artifacts
 

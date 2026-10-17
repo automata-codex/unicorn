@@ -605,6 +605,7 @@ Target: UVG and OSE support, remaining campaign creation modes, multiplayer, and
 - Presence indicators (requires Ably)
 - Private action affordance
 - Caller transfer UI polish
+- Multiple adventures per campaign — the adventure state row (`ADR-0054`), one active adventure enforced in place of one in any status, and downtime and character death between adventures (`ADR-0053`, 2026-10-17 addendum)
 - Campaign canon — second promotion step at adventure completion; `campaign_canon` table; synthesis reads campaign canon alongside oracle results for subsequent adventures
 - Campaign canon review UI — surfaces `campaign_canon` entries with `pending` status to the appropriate reviewer at adventure completion
 - E2E tests or something for the frontend

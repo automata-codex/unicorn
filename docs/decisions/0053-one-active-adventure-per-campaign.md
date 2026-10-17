@@ -10,7 +10,9 @@ summary: >-
   completed-adventure allowance for `v0.1.0`, because nothing behind that door works:
   no campaign canon, no rolling summary, no adventure-scoped state. The constraint is
   a data guarantee that keeps the Phase 2 migration mechanical, and carries an
-  explicit reversal condition.
+  explicit reversal condition. The 2026-10-17 addendum reconsiders lifting it for
+  `v0.1.0` and declines, on downtime and character death, and records what lifting it
+  would cost.
 ---
 
 Campaigns are limited to one adventure in a non-completed, non-failed state at a time. A new adventure cannot be created while another is `synthesizing`, `ready`, or `in progress`. This matches solo play conventions and simplifies the state model. Completed and failed adventures remain visible (toggled by default) but do not block new adventure creation.
@@ -72,3 +74,49 @@ work rather than one that does.
 `campaign_canon` feeds synthesis, and a dedicated boundary playtest has run — the last of
 which must not be combined with a mechanical-coverage playtest, per the standing rule in
 `docs/roadmap.md`.
+
+**Addendum, 2026-10-17 — lifting the constraint for `v0.1.0` was reconsidered and
+declined, for reasons the entry above does not give**
+
+The question came from tooling, not product. Character creation is tedious, and testing
+a synthesis addendum or capturing a short steered playtest costs a new campaign and a new
+character every time. Shipping multiple adventures per campaign would remove that cost, so
+it was sized properly before being turned down.
+
+**Why it stays in Phase 2.** Two problems are new since the addendum above, and either
+one alone would be enough:
+
+- **Nothing happens between adventures.** Mothership expects downtime between jobs: shore
+  leave, paid medical treatment, stress relief. Without it, damage, Stress and Wounds
+  carry into the next adventure with no way back down, so a second adventure starts from
+  a state the rules would normally have repaired.
+- **Character death has no answer.** Death is common in Mothership, and a campaign may
+  hold only one character sheet (`character.service.ts`, the "already has a character
+  sheet" conflict). Multiple adventures would force a choice: death ends the campaign, a
+  replacement character joins the same campaign (the sheet becomes per-character and the
+  player entity id changes), or a "new campaign with this character" path. That choice is
+  product design, not plumbing.
+
+**What lifting it would have cost**, so the next person to reconsider starts from a
+number rather than from zero. The smallest version that works is independent adventures,
+where the character carries over and the story does not:
+
+- the adventure state row from `ADR-0054`, built as that entry's 2026-10-17 addendum
+  describes
+- adventure completion: something reads `adventure_complete` and moves the adventure to
+  `completed`, plus an end-of-adventure screen
+- one *active* adventure per campaign enforced in the backend, replacing the
+  any-status rule above
+- a dedicated boundary playtest: finish one adventure, start the next with the same
+  character
+
+That came to about one small milestone, with one *detailed*-tier PR at its centre: the
+repository split. Campaign canon (`ADR-0052`), recurring NPCs and the rolling summary
+(`ADR-0048`) would come on top of it, at one to two milestones more.
+
+**A possible narrowing of the reversal condition, recorded and not decided.** The
+condition above requires `campaign_canon` to feed synthesis. That requirement is about
+continuity. Adventures that are independent by design, where adventure 2 is not meant to
+know adventure 1's story, need only the state row. If the constraint is ever lifted ahead
+of campaign canon, this is the argument for it. It does not touch the downtime and death
+problems, which stand either way.

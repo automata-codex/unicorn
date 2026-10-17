@@ -338,11 +338,11 @@ Why campaign-level facts get their own `campaign_canon` home rather than being f
 
 ### [ADR-0053](decisions/0053-one-active-adventure-per-campaign.md) — One active adventure per campaign
 
-One active adventure per campaign — and the addendum withdraws even the completed-adventure allowance for `v0.1.0`, because nothing behind that door works: no campaign canon, no rolling summary, no adventure-scoped state. The constraint is a data guarantee that keeps the Phase 2 migration mechanical, and carries an explicit reversal condition.
+One active adventure per campaign — and the addendum withdraws even the completed-adventure allowance for `v0.1.0`, because nothing behind that door works: no campaign canon, no rolling summary, no adventure-scoped state. The constraint is a data guarantee that keeps the Phase 2 migration mechanical, and carries an explicit reversal condition. The 2026-10-17 addendum reconsiders lifting it for `v0.1.0` and declines, on downtime and character death, and records what lifting it would cost.
 
 ### [ADR-0054](decisions/0054-adventure-state-gets-its-own-row-not-an-adventure-tag-on-cam.md) — Adventure state gets its own row, not an adventure tag on campaign state
 
-Adventure-scoped state gets its own row rather than an adventure tag on campaign state, with the two-schemas-two-write-paths cost stated. Not implemented in Phase 1. The addendum is the load-bearing part: ownership and scope are orthogonal, so the Phase 2 move spans all of `scenarioState` and part of `resourcePools`, by owner key.
+Adventure-scoped state gets its own row rather than an adventure tag on campaign state, with the two-schemas-two-write-paths cost stated. Not implemented in Phase 1. The addendum is the load-bearing part: ownership and scope are orthogonal, so the Phase 2 move spans all of `scenarioState` and part of `resourcePools`, by owner key. The 2026-10-17 addendum puts the split in the repositories (merge on read, split on write) and finds campaign scope today is only player-owned pools and `characterState`.
 
 ### [ADR-0055](decisions/0055-adventure-telemetry-vs-session-export-are-distinct-artifacts.md) — `adventure_telemetry` vs session export are distinct artifacts
 
