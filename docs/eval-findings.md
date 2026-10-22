@@ -4816,3 +4816,70 @@ row survives.
   which no capture made before this fix does.
 - M7.9's steered playtest, if run after the fix, will be the first session
   whose player character reaches play with this state.
+
+### S82 — 2026-10-22 · The maintainer re-marked 20 narrations blind under Rubric v3 and agrees with their own earlier marks on 16 of 19, and the three that differ are slips on the second reading
+
+The agreement rate `§ S70` said was still owed. No run and no judge call.
+
+#### What was done
+
+Twenty narrations of run `2026-10-10T14-43-23Z` were re-marked by the
+maintainer under Rubric v3 on 2026-10-22, twelve days after the first marking
+and without looking at it. They are four reps from each of turns 08, 14, 18,
+24 and 29, drawn at random (Python `random.Random(20261022)`) from the 49 that
+are not `error`, and shuffled so the turns are not grouped together. The sheet
+is `marks.remark-2026-10-22.csv` in the run directory. The run's `marks.csv` is
+unchanged.
+
+The re-marks are set against the marks as they now stand, with `§ S70`'s two
+changes applied. Neither of those two narrations was drawn, so the marks as
+first made give the same comparison.
+
+#### The result
+
+| | Count |
+|---|---|
+| Same mark both times | 16 of 20, the one `na` among them |
+| Different because the rubric changed | 1 |
+| Different with no rubric change to explain it | 3 |
+| **Agreement, leaving out the rubric change** | **16 of 19 (0.84)** |
+
+The four:
+
+| Narration | 2026-10-10 (v2) | 2026-10-22 (v3) | Judge (v3, `ab4b003d`) | Sorted as |
+|---|---|---|---|---|
+| Turn 18 rep 10: "You head back down" | fail | pass | pass | Rubric change: a bare "down" is not a deck change under v3 |
+| Turn 18 rep 09: "back down to the lower deck" to Mara's berth | fail | pass | fail | Slip. Close to v3's fail example "You head back down to the lower deck" |
+| Turn 14 rep 02: "down the ladder shaft, past the mid-deck berths and mess hall" | fail | pass | fail | Slip. Matches v3's fail example "past mid-deck" from a mid-deck start |
+| Turn 24 rep 10: "mid-deck hum", then "a walk back up and across — past the ladder shaft" | pass | fail | pass | Slip. The bare "up" is ignored under v3 and the named mid-deck is right from the seeded start. v3 only made turn 24 easier to pass, so it cannot explain a new fail |
+
+**The maintainer ruled on 2026-10-22 that the three re-marks are wrong and the
+earlier marks stand.** Each earlier mark is what the rubric text gives, and
+the judge gives it too. Nothing in `marks.csv` changes.
+
+#### What it means for the judge's agreement limit
+
+`§ S68`'s limit of 0.90 was set with only the 2 of 65 marks changed on a second
+look (`§ S70`) to go on. That second look was not blind. It came after reading
+the judge's reasons. Marking blind twelve days later, the maintainer agrees
+with themselves 0.84 of the time. The judge's 0.95 under v3 (`§ S71`) was
+measured against marks it had helped settle, so it is not a like-for-like
+number either.
+
+- **0.90 is more than one sitting of hand marks agrees with another.** Before
+  a judge is next checked against that limit, set it again from this number.
+- **The slips go in both directions**, two passes and one fail, so this sample
+  does not show the hand marks leaning one way.
+- **All three slips are on a rule with a worked example in the rubric.** A
+  second sitting knew the rule and did not apply it. Unlike `§ S71`'s bare
+  "back down", this is not a gap in the wording.
+
+#### What this cannot show
+
+- **Anything precise.** At 19 marks one more agreement is 0.89, and one fewer is
+  0.79.
+- **A fully blind second sitting.** The maintainer had read `§ S71`, whose table
+  quotes the first marks of turn 18 reps 01 and 10, and both were drawn. Both
+  re-marks agree with v3, so neither looks like a remembered mark.
+- **How v2 and v3 marks compare on the whole run.** The run has still not been
+  re-marked under v3 as a whole.
