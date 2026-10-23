@@ -19,7 +19,7 @@ Each entry records what was decided, what the alternatives were, and why.
   `task docs:decisions:check` fails if either is stale.
 -->
 
-**This is the summary log.** 89 of 124 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
+**This is the summary log.** 90 of 125 entries have a summary; the rest fall back to their full text. For the reasoning behind any entry, follow its link or see [`decisions.md`](decisions.md).
 
 ---
 
@@ -291,6 +291,10 @@ The `actingEntityId` namespace mismatch that inverted `system-rolled-player-acti
 ### [ADR-0097](decisions/0097-a-schema-valid-submit-gm-response-is-not-necessarily-well-fo.md) — A schema-valid `submit_gm_response` is not necessarily well-formed
 
 The tool-syntax leak — schema-valid responses whose payload was serialized into `playerText` — its measurement, and the deterministic guard that catches it. Read the addenda before citing the body: they supersede the retry reasoning (the budget is 1, not the loop cap), replace the prompt-block mitigation with tool-schema descriptions, and (Addendum 4) put recovery of the leaked payload ahead of the retry and correct the body's reading of the parameter boundary.
+
+### [ADR-0125](decisions/0125-an-abandoned-turn-is-recorded-in-its-own-table.md) — A turn abandoned by the tool loop or an unrecoverable leak is recorded in its own table, not in adventure_telemetry
+
+Decided 2026-10-23. A turn that exhausts the tool loop or ends in SessionToolSyntaxError used to leave only a log line. It now writes a row to a new table, `abandoned_turn` (`V22`), with a `reason`, the adventure's highest event sequence number at the time as `after_sequence_number`, and a payload holding the lookups with their scores, the discarded rolls, and any leaks. `adventure_telemetry` is unchanged, so no reader of it can mistake a failed turn for a finished one. Spec 029.
 
 ---
 
