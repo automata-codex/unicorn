@@ -1796,8 +1796,15 @@ narration, which is what a before-and-after comparison needs.
 - The rubric is in `$ZOLTAR_EVAL_ROOT/eval-v2-runs/README.md`, and the judge is
   sent the copy in `apps/zoltar-be/eval-v2/`. Changing the rubric means a new
   version there, a new copy here, and a new prompt hash.
-- `ev2:compare` reads `marks.csv` only. Until it can read judge files, a
-  judged comparison is tallied by hand.
+- `task ev2:compare -- <before> <after> --judge` compares judge files in place
+  of `marks.csv` (2026-10-23). A run judged more than once needs
+  `--prompt <hash>`. It refuses two sides judged by different judges, where the
+  whole `# judge:` line counts (question, rubric, prompt hash and model), and a
+  hand-marked side against a judged one. Top-up runs pool only under one judge.
+- A judged comparison does not say a case meets the bar. Where the judge would
+  put the after side at 0.90 or above, the bar column reads
+  `judge: met — confirm by hand`: hand-mark that case's narrations to confirm.
+  Those marks also add to the evidence for checking the judge.
 
-The ten-rep count above was set by hand marking. It is worth reopening once
-`ev2:compare` reads judge files.
+The ten-rep count above was set by hand marking. Now that `ev2:compare` reads
+judge files, it is worth reopening.

@@ -40,6 +40,7 @@ function run(overrides: {
   dirty?: boolean;
   hash?: string;
   rubric?: string | null;
+  judge?: string | null;
   rows?: MarkedRow[];
 }): LoadedRun {
   return {
@@ -54,8 +55,16 @@ function run(overrides: {
       },
     },
     rubric: overrides.rubric === undefined ? 'v1' : overrides.rubric,
+    judge: overrides.judge ?? null,
     rows: overrides.rows ?? rows('a', 4, 5),
   };
+}
+
+const JUDGE = 'q1 rubric v3 · prompt 3fa1c2d0 · claude-opus-5-5';
+
+/** A judged run: the judge file carries no `# rubric:` line. */
+function judged(overrides: Parameters<typeof run>[0] = {}): LoadedRun {
+  return run({ rubric: null, judge: JUDGE, ...overrides });
 }
 
 function side(name: Side['name'], ...runs: LoadedRun[]): Side {
@@ -64,14 +73,38 @@ function side(name: Side['name'], ...runs: LoadedRun[]): Side {
 
 describe('parseArgs', () => {
   it('takes one run a side', () => {
-    expect(parseArgs(['x', 'y'])).toEqual({ before: ['x'], after: ['y'] });
+    expect(parseArgs(['x', 'y'])).toEqual({
+      before: ['x'],
+      after: ['y'],
+      judge: false,
+      prompt: null,
+    });
   });
 
   it('takes a comma-separated pool on either side', () => {
-    expect(parseArgs(['x,x2', 'y, y2'])).toEqual({
+    expect(parseArgs(['x,x2', 'y, y2'])).toMatchObject({
       before: ['x', 'x2'],
       after: ['y', 'y2'],
     });
+  });
+
+  it('takes --judge, and --prompt with it, anywhere', () => {
+    expect(parseArgs(['--judge', 'x', 'y', '--prompt', '3fa1c2d0'])).toEqual({
+      before: ['x'],
+      after: ['y'],
+      judge: true,
+      prompt: '3fa1c2d0',
+    });
+  });
+
+  it('refuses --prompt without --judge, and unknown flags', () => {
+    expect(() => parseArgs(['x', 'y', '--prompt', 'abc'])).toThrow(
+      /needs --judge/,
+    );
+    expect(() => parseArgs(['x', 'y', '--prompt'])).toThrow(/Usage/);
+    expect(() => parseArgs(['x', 'y', '--judged'])).toThrow(
+      /unknown argument "--judged"/,
+    );
   });
 
   it('refuses anything but two arguments', () => {
@@ -168,6 +201,14 @@ describe('poolSide', () => {
       new RegExp(`after: pooled runs must share a ${what}`),
     );
   });
+
+  it('pools judged runs without a rubric line, if one judge marked them', () => {
+    const pooled = side('after', judged(), judged({ runId: 'top-up' }));
+    expect(pooled).toMatchObject({ rubric: null, judge: JUDGE });
+    expect(() =>
+      side('after', judged(), judged({ judge: 'another judge' })),
+    ).toThrow(/after: pooled runs must share a judge/);
+  });
 });
 
 describe('compare', () => {
@@ -181,6 +222,24 @@ describe('compare', () => {
     expect(() =>
       compare(side('before', run({})), side('after', run({ rubric: 'v2' }))),
     ).toThrow(/different rubrics: v1 and v2/);
+  });
+
+  it('refuses a hand-marked side against a judged one', () => {
+    expect(() =>
+      compare(side('before', run({})), side('after', judged())),
+    ).toThrow(/one side is hand-marked and the other judged/);
+  });
+
+  it('refuses runs judged by different judges', () => {
+    const other = 'q1 rubric v3 · prompt 9b0e4471 · claude-opus-5-5';
+    expect(() =>
+      compare(
+        side('before', judged()),
+        side('after', judged({ judge: other })),
+      ),
+    ).toThrow(
+      /judged by different judges:\n {2}q1 rubric v3 · prompt 3fa1c2d0/,
+    );
   });
 
   it('refuses runs with no case in common', () => {
@@ -290,5 +349,14 @@ describe('renderComparison', () => {
     expect(out).toMatch(
       /turn14 {2}4\/9 {2}0\.44 {2}0\/0 {2}— +NOT +not shown$/,
     );
+  });
+
+  it('names the judge, and leaves the bar to hand marks', () => {
+    const b = side('before', judged({ rows: rows('turn14', 4, 5) }));
+    const a = side('after', judged({ rows: rows('turn14', 9, 1) }));
+    const out = renderComparison(b, a, [], compare(b, a));
+    expect(out).toContain(`judge ${JUDGE}`);
+    expect(out).not.toContain('rubric v1');
+    expect(out).toMatch(/judge: met — confirm by hand +improved/);
   });
 });

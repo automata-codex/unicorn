@@ -115,7 +115,7 @@ tasks:
       - npx tsx --env-file=.env eval-v2/report.ts {{.CLI_ARGS}}
 
   ev2:compare:
-    desc: 'Eval v2 — put two marked runs side by side: what differs between them apart from the marks (prompt, dirty tree, files changed between their commits), each shared case''s pass rate in both, and whether the change is larger than the reps can produce by chance (spec 027). Refuses runs of different questions or rubric versions, and a run whose marks.csv has no "# rubric:" line. Reads files and runs git diff only — no database, no Anthropic, no cost, so it needs no approval. Either side may be a comma-separated list of runs to pool a top-up. Usage — task ev2:compare -- <before>[,<run>] <after>[,<run>]'
+    desc: 'Eval v2 — put two marked runs side by side: what differs between them apart from the marks (prompt, dirty tree, files changed between their commits), each shared case''s pass rate in both, and whether the change is larger than the reps can produce by chance (spec 027). Refuses runs of different questions or rubric versions, and a run whose marks.csv has no "# rubric:" line. With --judge it reads each run''s judge.<prompt hash>.csv in place of marks.csv (--prompt <hash> picks one when a run was judged more than once), and refuses two sides judged by different judges; the bar column then only flags cases to confirm by hand. Reads files and runs git diff only — no database, no Anthropic, no cost, so it needs no approval. Either side may be a comma-separated list of runs to pool a top-up. Usage — task ev2:compare -- <before>[,<run>] <after>[,<run>] [--judge [--prompt <hash>]]'
     dir: apps/zoltar-be
     cmds:
       - npx tsx --env-file=.env eval-v2/compare.ts {{.CLI_ARGS}}

@@ -1,14 +1,16 @@
 /**
  * `task ev2:compare` — puts two marked runs side by side: what differs between
  * them apart from the marks, each shared case's pass rate in both, and whether
- * the change is larger than the reps can produce by chance (spec 027). Reads
+ * the change is larger than the reps can produce by chance (spec 027). With
+ * `--judge` it reads each run's judge file in place of its hand marks. Reads
  * files and runs `git diff`: no database, no Anthropic.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import { z } from 'zod';
 
+import { parseJudgeFile, pickJudgeFile } from './judge-check';
 import { parseMarks, resolveRunDir, tally } from './report';
 
 import type { CaseTally, MarkedRow } from './report';
@@ -17,7 +19,7 @@ import type { CaseTally, MarkedRow } from './report';
 export const ALPHA = 0.05;
 
 const USAGE =
-  'Usage: task ev2:compare -- <before>[,<run>...] <after>[,<run>...]';
+  'Usage: task ev2:compare -- <before>[,<run>...] <after>[,<run>...] [--judge [--prompt <hash>]]';
 
 /** What `ev2:run` writes to `run.json`, less what a comparison does not use. */
 const runInfoSchema = z.object({
@@ -33,6 +35,8 @@ export type RunInfo = z.infer<typeof runInfoSchema>;
 export interface LoadedRun {
   info: RunInfo;
   rubric: string | null;
+  /** The judge file's `# judge:` line text; null for hand marks. */
+  judge: string | null;
   rows: MarkedRow[];
 }
 
@@ -47,20 +51,50 @@ export interface Side {
   commit: string;
   dirty: boolean;
   prompt: RunInfo['prompt'];
-  rubric: string;
+  /** Null when the side is judged: the judge line names its rubric. */
+  rubric: string | null;
+  /** Null when the side is hand-marked. */
+  judge: string | null;
   rows: MarkedRow[];
 }
 
-export function parseArgs(argv: string[]): Record<SideName, string[]> {
-  if (argv.length !== 2) throw new Error(USAGE);
-  const [before, after] = argv.map((arg) =>
+export interface CompareArgs extends Record<SideName, string[]> {
+  /** Read judge files in place of `marks.csv`. */
+  judge: boolean;
+  /** Which judge file to read when a run has more than one. */
+  prompt: string | null;
+}
+
+export function parseArgs(argv: string[]): CompareArgs {
+  const sides: string[] = [];
+  let judge = false;
+  let prompt: string | null = null;
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--judge') {
+      judge = true;
+    } else if (argv[i] === '--prompt') {
+      prompt = argv[++i] ?? null;
+      if (prompt === null) throw new Error(USAGE);
+    } else if (argv[i].startsWith('--')) {
+      throw new Error(`unknown argument "${argv[i]}". ${USAGE}`);
+    } else {
+      sides.push(argv[i]);
+    }
+  }
+  if (sides.length !== 2) throw new Error(USAGE);
+  if (prompt !== null && !judge) {
+    throw new Error(
+      `--prompt picks a judge file, so it needs --judge. ${USAGE}`,
+    );
+  }
+  const [before, after] = sides.map((arg) =>
     arg
       .split(',')
       .map((run) => run.trim())
       .filter((run) => run !== ''),
   );
   if (before.length === 0 || after.length === 0) throw new Error(USAGE);
-  return { before, after };
+  return { before, after, judge, prompt };
 }
 
 /**
@@ -68,8 +102,9 @@ export function parseArgs(argv: string[]): Record<SideName, string[]> {
  * up, so the runs must agree on everything a result depends on.
  */
 export function poolSide(name: SideName, runs: LoadedRun[]): Side {
+  const judged = runs[0].judge !== null;
   for (const run of runs) {
-    if (run.rubric === null) {
+    if (!judged && run.rubric === null) {
       throw new Error(
         `${name}: run ${run.info.runId} records no rubric version — add "# rubric: vN" as the first line of its marks.csv`,
       );
@@ -98,10 +133,18 @@ export function poolSide(name: SideName, runs: LoadedRun[]): Side {
     'prompt hash',
     runs.map((r) => r.info.prompt.hash),
   );
-  const rubric = shared(
-    'rubric version',
-    runs.map((r) => r.rubric ?? ''),
-  );
+  const rubric = judged
+    ? null
+    : shared(
+        'rubric version',
+        runs.map((r) => r.rubric ?? ''),
+      );
+  const judge = judged
+    ? shared(
+        'judge',
+        runs.map((r) => r.judge ?? 'hand marks'),
+      )
+    : null;
 
   return {
     name,
@@ -111,6 +154,7 @@ export function poolSide(name: SideName, runs: LoadedRun[]): Side {
     dirty: runs.some((r) => r.info.dirty),
     prompt: { filename: runs[0].info.prompt.filename, hash },
     rubric,
+    judge,
     rows: runs.flatMap((r) => r.rows),
   };
 }
@@ -194,6 +238,16 @@ export function compare(before: Side, after: Side): Comparison {
   if (before.question !== after.question) {
     throw new Error(
       `the runs answer different questions: ${before.question} and ${after.question}`,
+    );
+  }
+  if ((before.judge === null) !== (after.judge === null)) {
+    throw new Error(
+      'one side is hand-marked and the other judged: compare like with like',
+    );
+  }
+  if (before.judge !== after.judge) {
+    throw new Error(
+      `the runs were judged by different judges:\n  ${before.judge}\n  ${after.judge}\nJudge both under one prompt first.`,
     );
   }
   if (before.rubric !== after.rubric) {
@@ -290,6 +344,12 @@ function renderDifferences(
   return lines;
 }
 
+/** Whether a case meets the bar is read from hand marks, so a judge's `met` is only a lead. */
+function barCell(t: CaseTally, judged: boolean): string {
+  if (!t.meetsBar) return 'NOT';
+  return judged ? 'judge: met — confirm by hand' : 'met';
+}
+
 export function renderComparison(
   before: Side,
   after: Side,
@@ -302,7 +362,7 @@ export function renderComparison(
       side.runIds.join(','),
       `${short(side.commit)}${side.dirty ? ' dirty' : ''}`,
       `${side.prompt.filename} ${side.prompt.hash}`,
-      `rubric ${side.rubric}`,
+      side.judge === null ? `rubric ${side.rubric}` : `judge ${side.judge}`,
     ]),
   );
 
@@ -315,7 +375,7 @@ export function renderComparison(
       c.fixtureId,
       counts(c.before),
       counts(c.after),
-      c.after.meetsBar ? 'met' : 'NOT',
+      barCell(c.after, after.judge !== null),
       c.chance === null ? c.label : `${c.label} (${c.chance.toFixed(2)})`,
     ]),
   ]);
@@ -329,18 +389,40 @@ export function renderComparison(
   ].join('\n');
 }
 
-function loadRun(arg: string): LoadedRun {
+function loadRun(
+  arg: string,
+  judge: boolean,
+  prompt: string | null,
+): LoadedRun {
   const dir = resolveRunDir(arg);
+  const info = runInfoSchema.parse(
+    JSON.parse(readFileSync(join(dir, 'run.json'), 'utf8')),
+  );
+
+  if (judge) {
+    let judgeName: string;
+    try {
+      judgeName = pickJudgeFile(readdirSync(dir), prompt);
+    } catch (err) {
+      throw new Error(
+        `${basename(dir)}: ${err instanceof Error ? err.message : err}`,
+      );
+    }
+    const file = parseJudgeFile(readFileSync(join(dir, judgeName), 'utf8'));
+    return { info, rubric: null, judge: file.identity, rows: file.rows };
+  }
+
   const marksPath = join(dir, 'marks.csv');
   if (!existsSync(marksPath)) {
     throw new Error(
       `${marksPath} does not exist — the run did not finish, so there is nothing to compare.`,
     );
   }
-  const info = runInfoSchema.parse(
-    JSON.parse(readFileSync(join(dir, 'run.json'), 'utf8')),
-  );
-  return { info, ...parseMarks(readFileSync(marksPath, 'utf8')) };
+  return {
+    info,
+    judge: null,
+    ...parseMarks(readFileSync(marksPath, 'utf8')),
+  };
 }
 
 function git(...args: string[]): string {
@@ -383,8 +465,10 @@ function changedFiles(before: string, after: string): ChangedFiles {
 
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
-  const before = poolSide('before', args.before.map(loadRun));
-  const after = poolSide('after', args.after.map(loadRun));
+  const load = (run: string): LoadedRun =>
+    loadRun(run, args.judge, args.prompt);
+  const before = poolSide('before', args.before.map(load));
+  const after = poolSide('after', args.after.map(load));
   const comparison = compare(before, after);
   const files = changedFiles(before.commit, after.commit);
   console.log(renderComparison(before, after, files, comparison));
