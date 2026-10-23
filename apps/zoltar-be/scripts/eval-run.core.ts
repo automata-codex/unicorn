@@ -62,6 +62,7 @@ import type {
   teardownScratchAdventure,
 } from '../eval/harness-runner';
 import type { Verdict } from '../eval/runs/scores';
+import type { TurnExecutionResult } from '../eval/turn-result';
 
 export interface TurnExecutor {
   seed: typeof seedScratchAdventure;
@@ -497,7 +498,7 @@ async function runFixtureAndScore(
     judgeContractHashesThisRep,
   } = input;
 
-  let turnResult;
+  let turnResult: TurnExecutionResult;
   try {
     turnResult = await deps.turnExecutor.runTurn(
       session.db,

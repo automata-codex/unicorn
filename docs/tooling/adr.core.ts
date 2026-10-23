@@ -139,7 +139,7 @@ export function parseAdrFile(text: string): AdrFile {
   if (close === -1) {
     throw new Error('front matter is not terminated');
   }
-  const raw = parseYaml(lines.slice(1, close).join('\n'));
+  const raw: unknown = parseYaml(lines.slice(1, close).join('\n'));
   const frontMatter = frontMatterSchema.parse(raw);
   // +1 to drop the blank line that always follows the closing delimiter. The
   // trailing newline the file ends with is not part of the body, so the

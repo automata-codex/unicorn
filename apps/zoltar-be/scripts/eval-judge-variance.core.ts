@@ -12,6 +12,7 @@ import { readVouchedRows, verdictSchema } from '../eval/runs/scores';
 import { AnthropicService } from '../src/anthropic/anthropic.service';
 
 import type { Verdict } from '../eval/runs/scores';
+import type { TurnExecutionResult } from '../eval/turn-result';
 import type { AnthropicService as AnthropicServiceType } from '../src/anthropic/anthropic.service';
 
 export const judgeVarianceRowSchema = z.object({
@@ -309,7 +310,7 @@ export async function runJudgeVariance(
       continue;
     }
 
-    let turnResult;
+    let turnResult: TurnExecutionResult;
     try {
       turnResult = readTurnResultArtifact(
         args.runDir,

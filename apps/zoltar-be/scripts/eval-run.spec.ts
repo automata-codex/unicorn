@@ -55,15 +55,18 @@ function writeFixtureFile(
 function stubDeps(
   overrides: Partial<{ runTurn: TurnExecutor['runTurn'] }> = {},
 ): RunEvalDeps {
-  const seed = vi.fn(async (_db: unknown, fixture: { id: string }) => ({
-    campaignId: `campaign-${fixture.id}`,
-    adventureId: `adventure-${fixture.id}`,
-    playerUserId: 'user-1',
-    warnings: [] as string[],
-  }));
+  const seed = vi.fn((_db: unknown, fixture: { id: string }) =>
+    Promise.resolve({
+      campaignId: `campaign-${fixture.id}`,
+      adventureId: `adventure-${fixture.id}`,
+      playerUserId: 'user-1',
+      warnings: [] as string[],
+    }),
+  );
   const runTurn =
-    overrides.runTurn ?? vi.fn(async () => fakeTurnExecutionResult());
-  const teardown = vi.fn(async () => {});
+    overrides.runTurn ??
+    vi.fn(() => Promise.resolve(fakeTurnExecutionResult()));
+  const teardown = vi.fn(() => Promise.resolve());
 
   return {
     turnExecutor: {
@@ -71,14 +74,14 @@ function stubDeps(
       runTurn: runTurn as unknown as TurnExecutor['runTurn'],
       teardown: teardown as unknown as TurnExecutor['teardown'],
     },
-    harnessSessionFactory: async () =>
-      ({
+    harnessSessionFactory: () =>
+      Promise.resolve({
         db: {} as HarnessSession['db'],
         sessionService: {} as HarnessSession['sessionService'],
         anthropicService: {} as HarnessSession['anthropicService'],
         recorder: undefined,
         close: vi.fn(async () => {}),
-      }) satisfies HarnessSession,
+      } satisfies HarnessSession),
     // These stubs supply no real database, so the rules-index preflight has
     // nothing to query. Its own behaviour is covered in
     // `eval/preflight.spec-int.ts`, against a real one.
@@ -207,9 +210,7 @@ describe('runEval', () => {
       tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
     });
     const deps = stubDeps({
-      runTurn: vi.fn(async () => {
-        throw new Error('boom');
-      }),
+      runTurn: vi.fn(() => Promise.reject(new Error('boom'))),
     });
 
     const summary = await runEval(baseArgs({ reps: 1 }), deps);
@@ -238,10 +239,12 @@ describe('runEval', () => {
 
     let call = 0;
     const deps = stubDeps({
-      runTurn: vi.fn(async () => {
+      runTurn: vi.fn(() => {
         call += 1;
-        if (call === 2) throw new Error('boom on second fixture');
-        return fakeTurnExecutionResult();
+        if (call === 2) {
+          return Promise.reject(new Error('boom on second fixture'));
+        }
+        return Promise.resolve(fakeTurnExecutionResult());
       }),
     });
 
@@ -418,9 +421,7 @@ describe('runEval', () => {
       tag: 'SYSTEM-ROLLED-PLAYER-ACTION',
     });
     const deps = stubDeps({
-      runTurn: vi.fn(async () => {
-        throw new Error('boom');
-      }),
+      runTurn: vi.fn(() => Promise.reject(new Error('boom'))),
     });
 
     const doneEvents: Array<{ verdicts: string[] }> = [];

@@ -24,7 +24,7 @@
  * chronological order and no date parsing is needed.
  */
 export const RUN_ID_PATTERN =
-  /[A-Za-z0-9.\-]+__[0-9a-f]{8}__\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z/g;
+  /[A-Za-z0-9.-]+__[0-9a-f]{8}__\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z/g;
 
 /** The line `§ Current baseline N` carries the standing point on. */
 const STANDING_POINT_MARKER = '**Last recorded:**';

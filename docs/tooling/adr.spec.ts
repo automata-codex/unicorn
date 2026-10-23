@@ -86,7 +86,7 @@ describe('frontMatterSchema', () => {
   });
 
   it('rejects a missing required key', () => {
-    const { milestone, ...withoutMilestone } = validFrontMatter;
+    const { milestone: _milestone, ...withoutMilestone } = validFrontMatter;
     expect(() => frontMatterSchema.parse(withoutMilestone)).toThrow();
   });
 
