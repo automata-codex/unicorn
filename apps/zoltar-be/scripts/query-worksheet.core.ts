@@ -160,7 +160,7 @@ const STOPWORDS = new Set([
  * `rolls`, `saves`, `checks`, `modifiers`, `weapons`.
  */
 export function normalizeTokens(query: string): Set<string> {
-  const words = query.toLowerCase().match(/[a-z][a-z0-9]*/g) ?? [];
+  const words: string[] = query.toLowerCase().match(/[a-z][a-z0-9]*/g) ?? [];
   return new Set(
     words
       .map((word) => word.replace(/(?<![sui])s$/, ''))

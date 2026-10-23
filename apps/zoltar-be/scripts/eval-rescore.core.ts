@@ -32,6 +32,7 @@ import type { EvalFixture } from '../eval/fixture.schema';
 import type { Manifest } from '../eval/runs/manifest';
 import type { ExclusionsSummary, RateEntry } from '../eval/runs/rates';
 import type { RescoreRow, ScoreRow, Verdict } from '../eval/runs/scores';
+import type { TurnExecutionResult } from '../eval/turn-result';
 import type { AnthropicService as AnthropicServiceType } from '../src/anthropic/anthropic.service';
 
 export interface RescoreArgs {
@@ -240,7 +241,7 @@ export async function runRescore(
         continue;
       }
 
-      let turnResult;
+      let turnResult: TurnExecutionResult;
       try {
         turnResult = readTurnResultArtifact(args.runDir, repIndex, fixtureId);
       } catch (err) {

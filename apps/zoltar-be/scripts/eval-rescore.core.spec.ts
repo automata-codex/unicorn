@@ -325,12 +325,13 @@ describe('runRescore', () => {
   it('reaches a structural verdict with no Anthropic call at all', async () => {
     buildRunDir();
     const anthropic = refusingAnthropic();
+    const callMessages = vi.spyOn(anthropic, 'callMessages');
 
     const summary = await runRescore({ runDir, fixturesDir }, deps(anthropic));
 
     expect(summary.rows).toHaveLength(1 + universalCheckIds.length);
     expect(summary.rows[0].verdict).toBe('fail');
-    expect(anthropic.callMessages).not.toHaveBeenCalled();
+    expect(callMessages).not.toHaveBeenCalled();
   });
 });
 
