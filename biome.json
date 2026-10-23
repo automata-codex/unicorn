@@ -51,7 +51,8 @@
     "includes": [
       "**",
       "!apps/zoltar-be/eval/fixtures/**",
-      "!apps/zoltar-be/eval/retrieval-fixtures/**"
+      "!apps/zoltar-be/eval/retrieval-fixtures/**",
+      "!apps/zoltar-be/eval-v2/constructed/**"
     ]
   }
 }
