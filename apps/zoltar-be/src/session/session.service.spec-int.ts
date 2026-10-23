@@ -21,7 +21,13 @@ import * as schema from '../db/schema';
 
 import { GM_CONTEXT_SCHEMA_VERSION } from './gm-context.migration';
 import { SessionRepository } from './session.repository';
-import { SessionCorrectionError, SessionService } from './session.service';
+import {
+  INNER_TOOL_LOOP_CAP,
+  SessionCorrectionError,
+  SessionService,
+  SessionToolLoopError,
+  SessionToolSyntaxError,
+} from './session.service';
 
 import type Anthropic from '@anthropic-ai/sdk';
 import type { AnthropicService } from '../anthropic/anthropic.service';
@@ -29,6 +35,7 @@ import type { DiceService, GmRollRequest } from '../dice/dice.service';
 import type { RulesLookupService } from '../rules/rules-lookup.service';
 import type { WardenPromptsService } from '../wardens/warden-prompts.service';
 import type { RollDiceInput, RulesLookupInput } from './session.schema';
+import type { AbandonedTurnPayload } from './session.telemetry';
 
 // Stubs are typed as `Pick<Service, …>` before the cast, so the methods they
 // fake are checked against the real signatures. Only the final widening `as`
@@ -1121,5 +1128,247 @@ describe('SessionService (integration) — the wounds chain', () => {
     };
     expect(data.resourcePools.dr_chen.hp.current).toBe(10);
     expect(data.resourcePools.dr_chen.wounds.current).toBe(0);
+  });
+});
+
+describe('SessionService (integration) — abandoned turns', () => {
+  // A leak the recovery function refuses: it calls another tool in the text.
+  const UNRECOVERABLE_LEAK = {
+    playerText:
+      'The lever refuses to move.</playerText>\n' +
+      '<invoke name="rules_lookup">\n<parameter name="query">levers',
+  };
+
+  function toolCall(name: string, input: unknown): Anthropic.Message {
+    return {
+      content: [
+        {
+          type: 'tool_use',
+          id: `toolu_${name}`,
+          name,
+          input,
+        } as unknown as Anthropic.ToolUseBlock,
+      ],
+      model: 'claude-sonnet-4-6',
+      usage: { input_tokens: 50, output_tokens: 20 },
+    } as unknown as Anthropic.Message;
+  }
+
+  function rulesWithHit(): RulesLookupService {
+    const stub: Pick<RulesLookupService, 'lookup'> = {
+      lookup: vi.fn().mockResolvedValue({
+        output: {
+          results: [{ text: '…', source: 'PSG p.29', similarity: 0.51 }],
+        },
+      }),
+    };
+    return stub as RulesLookupService;
+  }
+
+  function rollingDice(): DiceService {
+    const stub: Pick<DiceService, 'rollForGm'> = {
+      rollForGm: vi.fn((input: GmRollRequest) => ({
+        notation: input.notation,
+        results: [7],
+        modifier: 0,
+        total: 7,
+      })),
+    };
+    return stub as DiceService;
+  }
+
+  function serviceWith(
+    callSession: ReturnType<typeof vi.fn>,
+    sessionRepo: SessionRepository = repo,
+  ): SessionService {
+    return new SessionService(
+      sessionRepo,
+      mockAnthropic(callSession),
+      campaignRepo,
+      rollingDice(),
+      rulesWithHit(),
+      stubWardens(),
+    );
+  }
+
+  // Alternates a lookup and a roll, never submitting.
+  function exhaustingCallSession(): ReturnType<typeof vi.fn> {
+    let call = 0;
+    return vi.fn(() => {
+      call++;
+      return Promise.resolve(
+        call % 2 === 1
+          ? toolCall('rules_lookup', { query: 'wounds table row 02' })
+          : toolCall('roll_dice', {
+              notation: '1d10',
+              purpose: 'Wound',
+              actingEntityId: 'dr_chen',
+              rollType: 'check',
+            }),
+      );
+    });
+  }
+
+  async function abandonedRows(adventureId: string) {
+    return getTestDb()
+      .select()
+      .from(schema.abandonedTurns)
+      .where(eq(schema.abandonedTurns.adventureId, adventureId));
+  }
+
+  it('records a turn that exhausts the tool loop, with lookup results and discarded rolls', async () => {
+    const db = getTestDb();
+    const { campaignId, adventureId } = await seedReadyAdventure();
+
+    await expect(
+      serviceWith(exhaustingCallSession()).sendMessage(
+        baseArgs(campaignId, adventureId),
+      ),
+    ).rejects.toBeInstanceOf(SessionToolLoopError);
+
+    const rows = await abandonedRows(adventureId);
+    expect(rows).toHaveLength(1);
+    const [row] = rows;
+    expect(row.reason).toBe('tool_loop_exhausted');
+    expect(row.afterSequenceNumber).toBe(0);
+
+    const payload = row.payload as AbandonedTurnPayload;
+    expect(payload.playerMessage).toBe('I open the airlock.');
+    expect(payload.wardenPrompt).toEqual({
+      filename: 'mothership-m7.txt',
+      hash: 'testhash',
+    });
+    expect(payload.gmContext?.text).toEqual(expect.any(String));
+    expect(payload.snapshotSent).toEqual(expect.any(String));
+    expect(payload.toolLoopIterations).toBe(INNER_TOOL_LOOP_CAP);
+    expect(payload.iterationLog).toHaveLength(INNER_TOOL_LOOP_CAP);
+    expect(payload.rulesLookups).toHaveLength(INNER_TOOL_LOOP_CAP / 2);
+    expect(payload.rulesLookups[0]).toMatchObject({
+      query: 'wounds table row 02',
+      resultCount: 1,
+      topSimilarity: 0.51,
+      sources: ['PSG p.29'],
+    });
+    expect(payload.discardedRolls).toHaveLength(INNER_TOOL_LOOP_CAP / 2);
+    expect(payload.discardedRolls[0]).toMatchObject({
+      notation: '1d10',
+      purpose: 'Wound',
+      total: 7,
+    });
+    expect(payload.toolSyntaxLeaks).toBeUndefined();
+
+    // The turn still did not happen.
+    const events = await db
+      .select()
+      .from(schema.gameEvents)
+      .where(eq(schema.gameEvents.adventureId, adventureId));
+    expect(events).toHaveLength(0);
+    const telemetry = await db
+      .select()
+      .from(schema.adventureTelemetry)
+      .where(eq(schema.adventureTelemetry.adventureId, adventureId));
+    expect(telemetry).toHaveLength(0);
+  });
+
+  it('places the row after the last finished turn', async () => {
+    const { campaignId, adventureId } = await seedReadyAdventure();
+    await serviceWith(
+      vi.fn().mockResolvedValueOnce(toolUseMessage({ playerText: 'Done.' })),
+    ).sendMessage(baseArgs(campaignId, adventureId));
+
+    await expect(
+      serviceWith(exhaustingCallSession()).sendMessage(
+        baseArgs(campaignId, adventureId),
+      ),
+    ).rejects.toBeInstanceOf(SessionToolLoopError);
+
+    const events = await getTestDb()
+      .select({ seq: schema.gameEvents.sequenceNumber })
+      .from(schema.gameEvents)
+      .where(eq(schema.gameEvents.adventureId, adventureId));
+    const lastSeq = Math.max(...events.map((e) => e.seq));
+    expect(lastSeq).toBeGreaterThan(0);
+
+    const [row] = await abandonedRows(adventureId);
+    expect(row.afterSequenceNumber).toBe(lastSeq);
+  });
+
+  it('records a turn a leak abandons in the tool loop, with its leaks', async () => {
+    const { campaignId, adventureId } = await seedReadyAdventure();
+    const callSession = vi
+      .fn()
+      .mockResolvedValueOnce(
+        toolCall('rules_lookup', { query: 'panic table row 08' }),
+      )
+      .mockResolvedValue(toolUseMessage(UNRECOVERABLE_LEAK));
+
+    await expect(
+      serviceWith(callSession).sendMessage(baseArgs(campaignId, adventureId)),
+    ).rejects.toBeInstanceOf(SessionToolSyntaxError);
+
+    const [row] = await abandonedRows(adventureId);
+    expect(row.reason).toBe('tool_syntax_unrecoverable');
+    const payload = row.payload as AbandonedTurnPayload;
+    expect(payload.toolSyntaxLeaks).toHaveLength(2);
+    expect(payload.toolSyntaxLeaks?.[0]).toMatchObject({
+      pass: 'tool_loop',
+      outcome: 'rejected',
+    });
+    expect(payload.rulesLookups.map((l) => l.query)).toEqual([
+      'panic table row 08',
+    ]);
+  });
+
+  it('records a turn a leak abandons on the correction pass, with the loop lookups', async () => {
+    const { campaignId, adventureId } = await seedReadyAdventure();
+    const callSession = vi
+      .fn()
+      .mockResolvedValueOnce(
+        toolCall('rules_lookup', { query: 'panic table row 08' }),
+      )
+      // Rejected by the validator — no such entity — so a correction runs.
+      .mockResolvedValueOnce(
+        toolUseMessage({
+          playerText: 'You fire.',
+          stateChanges: {
+            resourcePools: [
+              { owner: 'xenomorph', pool: 'hp', delta: -4, reason: 'shot' },
+            ],
+          },
+        }),
+      )
+      .mockResolvedValueOnce(toolUseMessage(UNRECOVERABLE_LEAK));
+
+    await expect(
+      serviceWith(callSession).sendMessage(baseArgs(campaignId, adventureId)),
+    ).rejects.toBeInstanceOf(SessionToolSyntaxError);
+    expect(callSession).toHaveBeenCalledTimes(3);
+
+    const [row] = await abandonedRows(adventureId);
+    expect(row.reason).toBe('tool_syntax_unrecoverable');
+    const payload = row.payload as AbandonedTurnPayload;
+    expect(payload.toolSyntaxLeaks).toEqual([
+      expect.objectContaining({ pass: 'correction', outcome: 'rejected' }),
+    ]);
+    expect(payload.toolLoopIterations).toBe(2);
+    expect(payload.rulesLookups.map((l) => l.query)).toEqual([
+      'panic table row 08',
+    ]);
+  });
+
+  it('rethrows the original error when the row cannot be written', async () => {
+    const { campaignId, adventureId } = await seedReadyAdventure();
+    const insertAbandonedTurn = vi
+      .fn()
+      .mockRejectedValue(new Error('connection lost'));
+    const failingRepo = Object.create(repo) as SessionRepository;
+    failingRepo.insertAbandonedTurn = insertAbandonedTurn;
+
+    await expect(
+      serviceWith(exhaustingCallSession(), failingRepo).sendMessage(
+        baseArgs(campaignId, adventureId),
+      ),
+    ).rejects.toBeInstanceOf(SessionToolLoopError);
+    expect(insertAbandonedTurn).toHaveBeenCalledTimes(1);
   });
 });

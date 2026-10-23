@@ -24,6 +24,7 @@ import {
   submitGmResponseSchema,
 } from './session.schema';
 import { buildStateSnapshot } from './session.snapshot';
+import { buildAbandonedTurnPayload } from './session.telemetry';
 import {
   describeToolCallSyntax,
   detectToolCallSyntax,
@@ -40,7 +41,12 @@ import type { PendingSystemRoll } from './session.events';
 import type { DiceRequestInput, DiceRequestRow } from './session.repository';
 import type { DiceResultAction, SubmitGmResponse } from './session.schema';
 import type { CampaignStateData, GmContextBlob } from './session.snapshot';
-import type { RulesLookupRecord } from './session.telemetry';
+import type {
+  AbandonedTurnLoopState,
+  AbandonedTurnReason,
+  RulesLookupRecord,
+  WardenPromptRef,
+} from './session.telemetry';
 import type { ToolSyntaxLeakRecord } from './session.tool-syntax';
 import type {
   ThresholdCrossing,
@@ -98,8 +104,10 @@ export class SessionCorrectionError extends Error {
  * (`session.tool-syntax.ts`). Translated to 502 with body error code
  * `gm_tool_syntax_unrecoverable`.
  *
- * `leaks` holds every leaked payload the turn saw. An abandoned turn writes
- * no telemetry row, so this is the only place they survive.
+ * `leaks` holds every leaked payload the turn saw. `loop` is what the tool
+ * loop had collected, set when the loop itself throws; on the correction pass
+ * the service has the loop's result instead. Both feed the `abandoned_turn`
+ * row (`ADR-0125`), and eval-v2 reads `leaks` directly.
  *
  * Distinct from `SessionToolLoopError` on purpose. Both end the turn at 502,
  * but they mean opposite things: the loop error means Claude was working and
@@ -112,6 +120,7 @@ export class SessionToolSyntaxError extends Error {
   constructor(
     message: string,
     readonly leaks: ToolSyntaxLeakRecord[] = [],
+    readonly loop?: AbandonedTurnLoopState,
   ) {
     super(message);
     this.name = 'SessionToolSyntaxError';
@@ -123,9 +132,16 @@ export class SessionToolSyntaxError extends Error {
  * receiving a `submit_gm_response` tool call. Indicates Claude is stuck —
  * either looping on rules_lookup or issuing rolls indefinitely. Translated
  * to 502 with body error code `gm_tool_loop_exhausted`.
+ *
+ * `loop` carries what the loop collected, for the `abandoned_turn` row
+ * (`ADR-0125`); the message summarizes the same for the log line.
  */
 export class SessionToolLoopError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly loop: AbandonedTurnLoopState,
+    readonly leaks: ToolSyntaxLeakRecord[] = [],
+  ) {
     super(message);
     this.name = 'SessionToolLoopError';
   }
@@ -245,6 +261,37 @@ function withSubmitInput(
   };
 }
 
+/** One `iterationLog` entry, e.g. "roll_dice+submit_gm_response(invalid: gmUpdates)". */
+function describeIteration(
+  toolUses: Anthropic.ToolUseBlock[],
+  submitGmErrorPaths: string | undefined,
+): string {
+  return toolUses
+    .map((u) =>
+      u.name === 'submit_gm_response'
+        ? `submit_gm_response(invalid: ${submitGmErrorPaths})`
+        : u.name,
+    )
+    .join('+');
+}
+
+/** What `recordAbandonedTurn` needs from `sendMessage`, gathered before the loop. */
+interface AbandonedTurnContext {
+  adventureId: string;
+  playerMessage: string;
+  request: CallSessionParams;
+  wardenPrompt: WardenPromptRef;
+  gmContextBlob: GmContextBlob;
+  campaignStateData: CampaignStateData;
+}
+
+const EMPTY_LOOP_STATE: AbandonedTurnLoopState = {
+  toolLoopIterations: 0,
+  iterationLog: [],
+  rulesLookups: [],
+  discardedRolls: [],
+};
+
 interface InnerToolLoopResult {
   finalRequest: CallSessionParams;
   finalResponse: Anthropic.Message;
@@ -252,6 +299,8 @@ interface InnerToolLoopResult {
   executedRolls: PendingSystemRoll[];
   rulesLookups: RulesLookupRecord[];
   iterations: number;
+  /** One entry per iteration that called a tool other than an accepted submit. */
+  iterationLog: string[];
   /** Every leaked `submit_gm_response` seen on the way, in order. */
   toolSyntaxLeaks: ToolSyntaxLeakRecord[];
 }
@@ -371,22 +420,37 @@ export class SessionService {
       resolvedPlayerRolls,
       tools: SESSION_TOOLS,
     });
-    const innerLoop = await this.runInnerToolLoop({
-      initialRequest: request,
-      systemId,
+    const abandonedTurnContext: AbandonedTurnContext = {
       adventureId: args.adventureId,
-      // Exactly what the snapshot can show: `campaign_state.entities` holds
-      // NPCs/threats/features, and player entities live only in
-      // `playerEntityIds` because they are never written to that map. The
-      // union is therefore the set of ids the Warden could legitimately have
-      // read, and validating against anything narrower would reject ids it
-      // was shown.
-      knownEntityIds: [
-        ...Object.keys(campaignStateData.entities ?? {}),
-        ...playerEntityIds,
-      ],
-      playerEntityIds,
-    });
+      playerMessage: args.playerMessage,
+      request,
+      wardenPrompt: {
+        filename: wardenPrompt.filename,
+        hash: wardenPrompt.hash,
+      },
+      gmContextBlob,
+      campaignStateData,
+    };
+    const innerLoop = await this.recordingAbandonedTurn(
+      abandonedTurnContext,
+      () =>
+        this.runInnerToolLoop({
+          initialRequest: request,
+          systemId,
+          adventureId: args.adventureId,
+          // Exactly what the snapshot can show: `campaign_state.entities` holds
+          // NPCs/threats/features, and player entities live only in
+          // `playerEntityIds` because they are never written to that map. The
+          // union is therefore the set of ids the Warden could legitimately have
+          // read, and validating against anything narrower would reject ids it
+          // was shown.
+          knownEntityIds: [
+            ...Object.keys(campaignStateData.entities ?? {}),
+            ...playerEntityIds,
+          ],
+          playerEntityIds,
+        }),
+    );
     const originalResponse = innerLoop.finalResponse;
     const originalParsed = innerLoop.finalParsed;
     // The correction pass adds to this list if it leaks too.
@@ -428,10 +492,15 @@ export class SessionService {
         originalAssistant: originalResponse,
         rejections: firstRoundRejections,
       });
-      const { response, parsed } = await this.callClaudeOnce(
-        correctionRequest,
-        args.adventureId,
-        toolSyntaxLeaks,
+      const { response, parsed } = await this.recordingAbandonedTurn(
+        abandonedTurnContext,
+        () =>
+          this.callClaudeOnce(
+            correctionRequest,
+            args.adventureId,
+            toolSyntaxLeaks,
+          ),
+        innerLoop,
       );
       correctionResponse = response;
       correctionParsed = parsed;
@@ -782,6 +851,88 @@ export class SessionService {
     }));
   }
 
+  /**
+   * Runs one step of the turn. If the step abandons it — the tool loop
+   * exhausted, or a leak that could not be recovered — the turn is recorded
+   * in `abandoned_turn` before the error is rethrown (`ADR-0125`).
+   *
+   * The write never replaces the original error. If it fails, that is logged
+   * and the original error is rethrown, so the player sees the same 502.
+   *
+   * `loopResult` is passed for the correction pass: it runs after the loop
+   * returned, so its `SessionToolSyntaxError` carries no loop state of its own.
+   */
+  private async recordingAbandonedTurn<T>(
+    context: AbandonedTurnContext,
+    step: () => Promise<T>,
+    loopResult?: InnerToolLoopResult,
+  ): Promise<T> {
+    try {
+      return await step();
+    } catch (err) {
+      if (err instanceof SessionToolLoopError) {
+        await this.recordAbandonedTurn(context, {
+          reason: 'tool_loop_exhausted',
+          errorMessage: err.message,
+          loop: err.loop,
+          leaks: err.leaks,
+        });
+      } else if (err instanceof SessionToolSyntaxError) {
+        await this.recordAbandonedTurn(context, {
+          reason: 'tool_syntax_unrecoverable',
+          errorMessage: err.message,
+          loop:
+            err.loop ??
+            (loopResult
+              ? {
+                  toolLoopIterations: loopResult.iterations,
+                  iterationLog: loopResult.iterationLog,
+                  rulesLookups: loopResult.rulesLookups,
+                  discardedRolls: loopResult.executedRolls,
+                }
+              : EMPTY_LOOP_STATE),
+          leaks: err.leaks,
+        });
+      }
+      throw err;
+    }
+  }
+
+  private async recordAbandonedTurn(
+    context: AbandonedTurnContext,
+    abandoned: {
+      reason: AbandonedTurnReason;
+      errorMessage: string;
+      loop: AbandonedTurnLoopState;
+      leaks: ToolSyntaxLeakRecord[];
+    },
+  ): Promise<void> {
+    try {
+      await this.repo.insertAbandonedTurn({
+        adventureId: context.adventureId,
+        reason: abandoned.reason,
+        payload: buildAbandonedTurnPayload({
+          playerMessage: context.playerMessage,
+          snapshotSent: buildStateSnapshot({
+            gmContextBlob: context.gmContextBlob,
+            campaignStateData: context.campaignStateData,
+          }),
+          originalRequest: context.request,
+          wardenPrompt: context.wardenPrompt,
+          errorMessage: abandoned.errorMessage,
+          loop: abandoned.loop,
+          toolSyntaxLeaks: abandoned.leaks,
+        }),
+      });
+    } catch (writeErr) {
+      this.logger.error(
+        `Could not record the abandoned turn for adventure=${context.adventureId}: ${
+          writeErr instanceof Error ? writeErr.message : String(writeErr)
+        }`,
+      );
+    }
+  }
+
   private async callClaudeOnce(
     request: CallSessionParams,
     adventureId: string,
@@ -930,6 +1081,7 @@ export class SessionService {
               executedRolls,
               rulesLookups,
               iterations: iteration + 1,
+              iterationLog,
               toolSyntaxLeaks,
             };
           }
@@ -954,6 +1106,7 @@ export class SessionService {
               executedRolls,
               rulesLookups,
               iterations: iteration + 1,
+              iterationLog,
               toolSyntaxLeaks,
             };
           }
@@ -975,6 +1128,17 @@ export class SessionService {
                 `adventure=${args.adventureId}; abandoning the turn rather ` +
                 `than spending the rest of the loop on it. ${submitGmError}`,
               toolSyntaxLeaks,
+              {
+                toolLoopIterations: iteration + 1,
+                // This iteration's entry is pushed only after its tool calls
+                // run, which they never do here.
+                iterationLog: [
+                  ...iterationLog,
+                  describeIteration(toolUses, submitGmErrorPaths),
+                ],
+                rulesLookups,
+                discardedRolls: executedRolls,
+              },
             );
           }
 
@@ -1056,15 +1220,7 @@ export class SessionService {
         });
       }
 
-      iterationLog.push(
-        toolUses
-          .map((u) =>
-            u.name === 'submit_gm_response'
-              ? `submit_gm_response(invalid: ${submitGmErrorPaths})`
-              : u.name,
-          )
-          .join('+'),
-      );
+      iterationLog.push(describeIteration(toolUses, submitGmErrorPaths));
 
       // Append the assistant turn + tool_result user turn, loop.
       request = {
@@ -1090,6 +1246,13 @@ export class SessionService {
       `Inner tool loop did not terminate within ${INNER_TOOL_LOOP_CAP} iterations for adventure=${args.adventureId}. ` +
         `Tool calls per iteration: [${iterationLog.join(', ')}]. ` +
         `Rolls: [${rollSummary}]. Lookups: [${lookupSummary}]`,
+      {
+        toolLoopIterations: iteration,
+        iterationLog,
+        rulesLookups,
+        discardedRolls: executedRolls,
+      },
+      toolSyntaxLeaks,
     );
   }
 

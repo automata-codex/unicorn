@@ -28,6 +28,8 @@ import type { CallSessionParams } from '../anthropic/anthropic.service';
 import type { Db, DbOrTx } from '../db/db.provider';
 import type { SubmitGmResponse } from './session.schema';
 import type {
+  AbandonedTurnPayload,
+  AbandonedTurnReason,
   ExecutedRollRecord,
   RulesLookupRecord,
   WardenPromptRef,
@@ -543,6 +545,29 @@ export class SessionRepository {
       )
       .orderBy(asc(schema.diceRequests.issuedAtSequence));
     return rows as DiceRequestRow[];
+  }
+
+  /**
+   * Record a turn the tool loop or an unrecoverable leak abandoned
+   * (`ADR-0125`). `after_sequence_number` is read in the same statement: the
+   * adventure's highest event sequence number now, or 0. No transaction and
+   * no adventure lock — the turn has already failed and writes nothing else.
+   */
+  async insertAbandonedTurn(args: {
+    adventureId: string;
+    reason: AbandonedTurnReason;
+    payload: AbandonedTurnPayload;
+  }): Promise<void> {
+    await this.db.insert(schema.abandonedTurns).values({
+      adventureId: args.adventureId,
+      reason: args.reason,
+      afterSequenceNumber: sql`(
+        SELECT COALESCE(MAX(${schema.gameEvents.sequenceNumber}), 0)
+        FROM ${schema.gameEvents}
+        WHERE ${schema.gameEvents.adventureId} = ${args.adventureId}
+      )`,
+      payload: args.payload,
+    });
   }
 
   /**

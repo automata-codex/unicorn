@@ -80,6 +80,7 @@ export async function teardownTestDb(): Promise<void> {
 
 // Tables in dependency order (children first) for safe truncation.
 const TRUNCATE_TABLES = [
+  'abandoned_turn',
   'adventure_telemetry',
   'pending_canon',
   'adventure_synthesis_snapshots',

@@ -98,7 +98,8 @@ correction round, needs no migration.
 interface AbandonedTurnPayload {
   playerMessage: string;
   snapshotSent: string;
-  gmContext: { hash: string; text: string };
+  /** Null only if the request had no GM context block, which it always does. */
+  gmContext: { hash: string; text: string } | null;
   wardenPrompt: WardenPromptRef;
   errorMessage: string;
   toolLoopIterations: number;

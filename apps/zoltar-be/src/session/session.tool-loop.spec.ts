@@ -622,6 +622,56 @@ describe('SessionService.runInnerToolLoop', () => {
     expect(callSession).toHaveBeenCalledTimes(INNER_TOOL_LOOP_CAP);
   });
 
+  it('carries the lookups with their results, the rolls, and the iteration log on the exhaustion error', async () => {
+    // The message alone drops similarity and sources, which are what tell
+    // retrieval failing from the Warden over-asking (ADR-0125).
+    let call = 0;
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    callSession.mockImplementation(() => {
+      call++;
+      return Promise.resolve(
+        message([
+          call % 2 === 1
+            ? toolUse('toolu_lookup', 'rules_lookup', { query: 'wounds table' })
+            : toolUse('toolu_roll', 'roll_dice', {
+                notation: '1d10',
+                purpose: 'Wound',
+                actingEntityId: 'alvarez',
+                rollType: 'check',
+              }),
+        ]),
+      );
+    });
+    const lookup = vi.fn().mockResolvedValue({
+      output: {
+        results: [{ text: '…', source: 'PSG p.29', similarity: 0.51 }],
+      },
+    });
+    const { service } = makeService(callSession, { lookup });
+
+    const err = await service.runInnerToolLoop(loopArgs).catch((e) => e);
+
+    expect(err).toBeInstanceOf(SessionToolLoopError);
+    const { loop } = err as SessionToolLoopError;
+    expect(loop.toolLoopIterations).toBe(INNER_TOOL_LOOP_CAP);
+    expect(loop.iterationLog).toHaveLength(INNER_TOOL_LOOP_CAP);
+    expect(loop.iterationLog.slice(0, 2)).toEqual([
+      'rules_lookup',
+      'roll_dice',
+    ]);
+    expect(loop.rulesLookups).toHaveLength(INNER_TOOL_LOOP_CAP / 2);
+    expect(loop.rulesLookups[0]).toMatchObject({
+      query: 'wounds table',
+      topSimilarity: 0.51,
+      sources: ['PSG p.29'],
+    });
+    expect(loop.discardedRolls).toHaveLength(INNER_TOOL_LOOP_CAP / 2);
+    expect(loop.discardedRolls[0]).toMatchObject({
+      notation: '1d10',
+      purpose: 'Wound',
+    });
+  });
+
   it('rejects an actingEntityId that names no known entity and lets Claude recover', async () => {
     // Sonnet 4.6 filled this field with resource pool names 13 times across
     // the frozen 2026-08-09 run — `lt_alvarez_hp`, `alvarez_armor` — because
@@ -932,8 +982,8 @@ describe('SessionService.runInnerToolLoop', () => {
   });
 
   it('carries every leaked payload on the error when the turn is abandoned', async () => {
-    // An abandoned turn writes no telemetry row, so the error is the only
-    // place the payloads survive.
+    // The `abandoned_turn` row is written from the error, and eval-v2 reads
+    // the leaks from it directly.
     callSession.mockResolvedValue(message([submitGmBlock(UNRECOVERABLE_LEAK)]));
     const { service } = makeService(callSession);
 
@@ -944,6 +994,29 @@ describe('SessionService.runInnerToolLoop', () => {
       REJECTED_RECORD,
       REJECTED_RECORD,
     ]);
+  });
+
+  it('carries the loop state on the error when a leak abandons the turn', async () => {
+    callSession
+      .mockResolvedValueOnce(
+        message([toolUse('toolu_lookup', 'rules_lookup', { query: 'panic' })]),
+      )
+      .mockResolvedValue(message([submitGmBlock(UNRECOVERABLE_LEAK)]));
+    const { service } = makeService(callSession);
+
+    const err = await service.runInnerToolLoop(loopArgs).catch((e) => e);
+
+    expect(err).toBeInstanceOf(SessionToolSyntaxError);
+    const { loop } = err as SessionToolSyntaxError;
+    expect(loop?.toolLoopIterations).toBe(3);
+    // The abandoning iteration is in the log, though its entry is normally
+    // pushed only after its tool calls run.
+    expect(loop?.iterationLog).toEqual([
+      'rules_lookup',
+      'submit_gm_response(invalid: playerText:tool-syntax)',
+      'submit_gm_response(invalid: playerText:tool-syntax)',
+    ]);
+    expect(loop?.rulesLookups.map((l) => l.query)).toEqual(['panic']);
   });
 
   it('tells Claude to resend the parameters as parameters', async () => {

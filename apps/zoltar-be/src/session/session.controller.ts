@@ -186,8 +186,8 @@ export class SessionController {
       this.logger.error(
         `GM leaked tool-call syntax unrecoverably for adventure=${adventureId}: ${err.message}`,
       );
-      // An abandoned turn writes no telemetry row, so this log line is the
-      // only record of what the leaked payloads looked like.
+      // The service has already written them to `abandoned_turn`
+      // (`ADR-0125`); this line is for whoever is watching the log.
       this.logger.error(
         `Leaked payloads for adventure=${adventureId}: ${JSON.stringify(err.leaks)}`,
       );

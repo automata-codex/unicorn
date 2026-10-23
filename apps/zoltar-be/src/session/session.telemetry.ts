@@ -6,6 +6,7 @@ import { hashPromptText } from '../wardens/prompt-paths';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { CallSessionParams } from '../anthropic/anthropic.service';
 import type { DbOrTx } from '../db/db.provider';
+import type { PendingSystemRoll } from './session.events';
 import type { SubmitGmResponse } from './session.schema';
 import type { ToolSyntaxLeakRecord } from './session.tool-syntax';
 import type {
@@ -388,4 +389,80 @@ export async function latestGmContextHash(args: {
   if (!row) return null;
   const payload = row.payload as AdventureTelemetryPayload;
   return payload.originalRequest?.gmContext?.hash ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Abandoned turns
+// ---------------------------------------------------------------------------
+
+/**
+ * Why a turn was abandoned. The controller's 502 error codes without the
+ * `gm_` prefix. Stored as text (`ADR-0125`), so a new reason needs no
+ * migration.
+ */
+export type AbandonedTurnReason =
+  | 'tool_loop_exhausted'
+  | 'tool_syntax_unrecoverable';
+
+/**
+ * What the inner tool loop had collected when the turn was abandoned. Carried
+ * on `SessionToolLoopError` and `SessionToolSyntaxError` so the abandoned-turn
+ * row can be written from the error alone.
+ */
+export interface AbandonedTurnLoopState {
+  toolLoopIterations: number;
+  /** One entry per iteration, e.g. "roll_dice" or "rules_lookup+rules_lookup". */
+  iterationLog: string[];
+  rulesLookups: RulesLookupRecord[];
+  /**
+   * Rolls the loop executed. Never written to `game_event`, so they carry no
+   * sequence number and must not be read as game events.
+   */
+  discardedRolls: PendingSystemRoll[];
+}
+
+/**
+ * One row in `abandoned_turn` (`ADR-0125`, spec 029). Field names match
+ * `AdventureTelemetryPayload` where the meaning is the same.
+ *
+ * `gmContext` always carries its text. Abandoned turns are rare and sit
+ * outside the store-on-change chain `adventure_telemetry` uses, so each row
+ * reads on its own.
+ */
+export interface AbandonedTurnPayload extends AbandonedTurnLoopState {
+  playerMessage: string;
+  snapshotSent: string;
+  gmContext: { hash: string; text: string } | null;
+  wardenPrompt: WardenPromptRef;
+  errorMessage: string;
+  /** Present only when the turn had at least one. */
+  toolSyntaxLeaks?: ToolSyntaxLeakRecord[];
+}
+
+export function buildAbandonedTurnPayload(input: {
+  playerMessage: string;
+  snapshotSent: string;
+  originalRequest: CallSessionParams;
+  wardenPrompt: WardenPromptRef;
+  errorMessage: string;
+  loop: AbandonedTurnLoopState;
+  toolSyntaxLeaks: ToolSyntaxLeakRecord[];
+}): AbandonedTurnPayload {
+  // Same position `buildAdventureTelemetryPayload` reads it from.
+  const gmContextText = input.originalRequest.systemBlocks[0]?.text;
+  const payload: AbandonedTurnPayload = {
+    playerMessage: input.playerMessage,
+    snapshotSent: input.snapshotSent,
+    gmContext:
+      gmContextText === undefined
+        ? null
+        : { hash: hashPromptText(gmContextText), text: gmContextText },
+    wardenPrompt: input.wardenPrompt,
+    errorMessage: input.errorMessage,
+    ...input.loop,
+  };
+  if (input.toolSyntaxLeaks.length > 0) {
+    payload.toolSyntaxLeaks = input.toolSyntaxLeaks;
+  }
+  return payload;
 }
