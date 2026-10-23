@@ -53,7 +53,11 @@ export default tseslint.config(
     // Test files use `as any` casts to create partial mocks of interfaces.
     // Enforcing full type coverage on mocks adds boilerplate without
     // catching real bugs — the type safety that matters lives in production code.
-    files: ['src/**/*.spec.ts', 'src/**/*.spec-int.ts', 'test/**/*.ts'],
+    files: [
+      '{src,scripts,eval-v2}/**/*.spec.ts',
+      '{src,scripts,eval-v2}/**/*.spec-int.ts',
+      'test/**/*.ts',
+    ],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-argument': 'off',
