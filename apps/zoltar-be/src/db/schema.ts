@@ -496,3 +496,28 @@ export const adventureTelemetry = pgTable(
     index('adventure_telemetry_adventure_idx').on(table.adventureId),
   ],
 );
+
+// ---------------------------------------------------------------------------
+// Abandoned Turns
+// ---------------------------------------------------------------------------
+
+// A turn the tool loop or an unrecoverable leak abandoned (`ADR-0125`). It
+// wrote no game events, so `afterSequenceNumber` places it instead: the
+// adventure's highest event sequence number when the row was written. Not
+// unique — two abandoned turns in a row share it.
+export const abandonedTurns = pgTable(
+  'abandoned_turn',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    adventureId: uuid('adventure_id')
+      .notNull()
+      .references(() => adventures.id, { onDelete: 'cascade' }),
+    reason: text('reason').notNull(),
+    afterSequenceNumber: integer('after_sequence_number').notNull(),
+    payload: jsonb('payload').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index('abandoned_turn_adventure_idx').on(table.adventureId)],
+);

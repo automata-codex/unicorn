@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildAdventureTelemetryPayload } from './session.telemetry';
+import {
+  buildAbandonedTurnPayload,
+  buildAdventureTelemetryPayload,
+} from './session.telemetry';
 
 import type Anthropic from '@anthropic-ai/sdk';
 import type { CallSessionParams } from '../anthropic/anthropic.service';
@@ -591,5 +594,65 @@ describe('buildAdventureTelemetryPayload — GM context store-on-change', () => 
 
   it('keeps systemBlocks as a count alongside the render', () => {
     expect(build().originalRequest.systemBlocks).toBe(2);
+  });
+});
+
+describe('buildAbandonedTurnPayload', () => {
+  const request = {
+    systemBlocks: [
+      { type: 'text', text: 'GM context block' },
+      { type: 'text', text: 'Warden prompt' },
+    ],
+    messages: [],
+    tools: [],
+    toolChoice: { type: 'any' },
+  } as unknown as CallSessionParams;
+
+  const base = {
+    playerMessage: 'I open the airlock.',
+    snapshotSent: '<state_snapshot/>',
+    originalRequest: request,
+    wardenPrompt: { filename: 'mothership-m7.txt', hash: 'abc' },
+    errorMessage: 'Inner tool loop did not terminate',
+    loop: {
+      toolLoopIterations: 20,
+      iterationLog: ['rules_lookup'],
+      rulesLookups: [],
+      discardedRolls: [],
+    },
+    toolSyntaxLeaks: [],
+  };
+
+  it('always stores the GM context text with its hash', () => {
+    const payload = buildAbandonedTurnPayload(base);
+
+    expect(payload.gmContext).toEqual({
+      hash: expect.any(String),
+      text: 'GM context block',
+    });
+  });
+
+  it('carries the loop state at the top level', () => {
+    const payload = buildAbandonedTurnPayload(base);
+
+    expect(payload.toolLoopIterations).toBe(20);
+    expect(payload.iterationLog).toEqual(['rules_lookup']);
+  });
+
+  it('omits toolSyntaxLeaks when there were none, and writes them when there were', () => {
+    expect(buildAbandonedTurnPayload(base)).not.toHaveProperty(
+      'toolSyntaxLeaks',
+    );
+
+    const leak = {
+      pass: 'tool_loop' as const,
+      rawInput: {},
+      outcome: 'rejected' as const,
+      refusal: 'other_tool_call' as const,
+    };
+    expect(
+      buildAbandonedTurnPayload({ ...base, toolSyntaxLeaks: [leak] })
+        .toolSyntaxLeaks,
+    ).toEqual([leak]);
   });
 });
